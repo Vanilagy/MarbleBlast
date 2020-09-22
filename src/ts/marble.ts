@@ -36,6 +36,7 @@ export class Marble {
 		config.angularDamping = 3;
 		let body = new OIMO.RigidBody(config);
 		body.addShape(shape);
+		body.setAutoSleep(false);
 
 		this.body = body;
 		this.shape = shape;
@@ -66,24 +67,27 @@ export class Marble {
 			let contactNormal = contact.getManifold().getNormal();
 
 			if (contact.getShape2() === this.shape) contactNormal = contactNormal.scale(-1);
-
-			let unitVelocity = this.body.getLinearVelocity().clone().normalize();
-			let dot = unitVelocity.dot(contactNormal);
-			let directionalSpeed = dot * this.body.getLinearVelocity().length();
-
-			if (directionalSpeed > 0 && directionalSpeed < JUMP_IMPULSE) {
-				let velocity = this.body.getLinearVelocity();
-				velocity = velocity.sub(contactNormal.scale(directionalSpeed));
-				velocity = velocity.add(contactNormal.scale(JUMP_IMPULSE));
-
-				this.body.setLinearVelocity(velocity);
-			}
+			this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE, true);
 		}
 
 		if (!current) {
 			let airVelocity = new OIMO.Vec3(movementVec.y, -movementVec.x, movementVec.z);
 			airVelocity = airVelocity.scale(2 / PHYSICS_TICK_RATE);
 			this.body.addLinearVelocity(airVelocity);
+		}
+	}
+
+	setLinearVelocityInDirection(direction: OIMO.Vec3, magnitude: number, onlyIncrease: boolean) {
+		let unitVelocity = this.body.getLinearVelocity().clone().normalize();
+		let dot = unitVelocity.dot(direction);
+		let directionalSpeed = dot * this.body.getLinearVelocity().length();
+
+		if (directionalSpeed > 0 && (directionalSpeed < magnitude || !onlyIncrease)) {
+			let velocity = this.body.getLinearVelocity();
+			velocity = velocity.sub(direction.scale(directionalSpeed));
+			velocity = velocity.add(direction.scale(magnitude));
+
+			this.body.setLinearVelocity(velocity);
 		}
 	}
 

@@ -37,6 +37,7 @@ export class Level {
 	shapes: Shape[] = [];
 
 	lastPhysicsTick: number = null;
+	shapeImmunity = new Set<Shape>();
 	pitch = 0;
 	yaw = 0;
 
@@ -48,7 +49,7 @@ export class Level {
 		this.scene = new THREE.Scene();
 		this.physicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, -20));
 
-		let sunElement = missionGroup.elements.filter((element) => element._type === MissionElementType.Sun)[0] as MissionElementSun;
+		let sunElement = missionGroup.elements.find((element) => element._type === MissionElementType.Sun) as MissionElementSun;
 		let sunDirection = MisParser.parsePosition(sunElement.direction);
 
 		let ambientLight = new THREE.AmbientLight(new THREE.Color(0.3, 0.3, 0.475), 1);
@@ -213,7 +214,28 @@ export class Level {
 			}
 
 			while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
-				this.marble.handleControl();
+				let newImmunity: Shape[] = [];
+
+				let calledShapes = new Set<Shape>();
+				let linkedList = this.marble.body.getContactLinkList();
+				while (linkedList) {
+					let contact = linkedList.getContact();
+					let contactShape = contact.getShape1();
+					if (contactShape === this.marble.shape) contactShape = contact.getShape2();
+
+					if (contactShape.userData && contact.isTouching()) {
+						let shape = this.shapes.find((shape) => shape.id === contactShape.userData);
+						if (shape && !this.shapeImmunity.has(shape) && !calledShapes.has(shape)) {
+							calledShapes.add(shape);
+							newImmunity.push(shape);
+							shape.onMarbleContact(contact, time);
+						}
+					}
+
+					linkedList = linkedList.getNext();
+				}
+
+				this.marble.handleControl();				
 
 				this.physicsWorld.step(1 / PHYSICS_TICK_RATE);
 
@@ -221,6 +243,9 @@ export class Level {
 
 				this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
 				elapsed -= 1000 / PHYSICS_TICK_RATE;
+
+				this.shapeImmunity.clear();
+				for (let s of newImmunity) this.shapeImmunity.add(s);
 			}
 		}
 	}

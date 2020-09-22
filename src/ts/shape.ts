@@ -3,6 +3,7 @@ import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
+import { getUniqueId } from "./state";
 
 interface MaterialInfo {
 	keyframes: string[]
@@ -33,6 +34,7 @@ enum MaterialFlags {
 }
 
 export class Shape {
+	id: number;
 	dtsPath: string;
 	dts: DtsFile;
 	directoryPath: string;
@@ -48,6 +50,7 @@ export class Shape {
 	worldOrientation = new THREE.Quaternion();
 
 	async init() {
+		this.id = getUniqueId();
 		this.dts = await DtsParser.loadFile('./assets/data/' + this.dtsPath);
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
 
@@ -112,19 +115,11 @@ export class Shape {
 							shapeConfig.restitution = 0.4;
 							shapeConfig.friction = 1;
 							let shape = new OIMO.Shape(shapeConfig);
+							shape.userData = this.id;
+
 							body.addShape(shape);
 						}
 					}
-					
-					/*
-					let translation = dtsFile.defaultTranslations[i];
-					let rotation = dtsFile.defaultRotations[i];
-	
-					body.setPosition(new OIMO.Vec3(translation.x, translation.y, translation.z));
-					let quaternion = body.getOrientation();
-					quaternion.x = -rotation.x; quaternion.y = -rotation.y; quaternion.z = -rotation.z; quaternion.w = rotation.w;
-					quaternion.normalize();
-					body.setOrientation(quaternion);*/
 	
 					this.bodies.push(body);
 				} else {
@@ -387,4 +382,6 @@ export class Shape {
 			body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
 		}
 	}
+
+	onMarbleContact(contact: OIMO.Contact, time: number) {}
 }

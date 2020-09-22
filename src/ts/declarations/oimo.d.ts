@@ -39,6 +39,9 @@ declare namespace OIMO {
 
 	const Setting: typeof oimo.common.Setting;
 	type Setting = oimo.common.Setting;
+
+	const Contact: typeof oimo.dynamics.Contact;
+	type Contact = oimo.dynamics.Contact;
 }
 
 export default OIMO;

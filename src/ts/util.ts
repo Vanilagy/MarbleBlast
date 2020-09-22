@@ -22,4 +22,14 @@ export abstract class Util {
 
 		return canvas;
 	}
+
+	static clamp(value: number, min: number, max: number) {
+		if (value < min) return min;
+		if (value > max) return max;
+		return value;
+	}
+
+	static lerp(a: number, b: number, t: number) {
+		return (1 - t) * a + t * b;
+	}
 }

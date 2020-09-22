@@ -1,5 +1,5 @@
-import { Shape } from "../shape";
+import { AbstractBumper } from "./abstract_bumper";
 
-export class TriangleBumper extends Shape {
+export class TriangleBumper extends AbstractBumper {
 	dtsPath = "shapes/bumpers/pball_tri.dts";
 }
