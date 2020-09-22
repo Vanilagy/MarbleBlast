@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "outDir": "./js",
+        "module": "es6",
+        "moduleResolution": "Node",
+        "target": "es2019",
+        "strict": true,
+		"strictNullChecks": false,
+		"lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"]
+    },
+    "include": [
+		"src/ts/**/*",
+		"src/node_modules/**/*"
+    ]
+}
