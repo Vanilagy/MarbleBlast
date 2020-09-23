@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
 import { getUniqueId } from "./state";
+import { Util } from "./util";
 
 interface MaterialInfo {
 	keyframes: string[]
@@ -40,6 +41,7 @@ export class Shape {
 	directoryPath: string;
 	group: THREE.Group;
 	bodies: OIMO.RigidBody[];
+	bodiesLocalTranslation: WeakMap<OIMO.RigidBody, OIMO.Vec3>;
 	matNamesOverride: Record<string, string> = {};
 	materials: (THREE.MeshLambertMaterial | THREE.MeshBasicMaterial)[];
 	materialInfo: WeakMap<THREE.Material, MaterialInfo>;
@@ -48,6 +50,8 @@ export class Shape {
 	isItem = false;
 	worldPosition = new THREE.Vector3();
 	worldOrientation = new THREE.Quaternion();
+	currentOpacity = 1;
+	showSequences = true;
 
 	async init() {
 		this.id = getUniqueId();
@@ -58,6 +62,7 @@ export class Shape {
 		this.bodies = [];
 		this.materials = [];
 		this.materialInfo = new WeakMap();
+		this.bodiesLocalTranslation = new WeakMap();
 		
 		this.updateNodeTransforms();
 
@@ -75,7 +80,7 @@ export class Shape {
 				let keyframes = await IflParser.loadFile('./assets/data/' + this.directoryPath + '/' + fullName);
 				this.materialInfo.set(material, { keyframes });
 			} else {
-				let texture = ResourceManager.getTexture(this.directoryPath + '/' + fullName);
+				let texture = ResourceManager.getTexture(this.directoryPath + '/' + fullName, (flags & MaterialFlags.Translucent) === 0);
 				if (flags & MaterialFlags.S_Wrap) texture.wrapS = THREE.RepeatWrapping;
 				if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
 				material.map = texture;
@@ -175,9 +180,15 @@ export class Shape {
 			shapeConfig.restitution = 0.4;
 			shapeConfig.friction = 1;
 			let shape = new OIMO.Shape(shapeConfig);
+			shape.userData = this.id;
 			body.addShape(shape);
 
 			this.bodies.push(body);
+			this.bodiesLocalTranslation.set(body, new OIMO.Vec3(
+				Util.avg(this.dts.bounds.max.x, this.dts.bounds.min.x),
+				Util.avg(this.dts.bounds.max.y, this.dts.bounds.min.y),
+				Util.avg(this.dts.bounds.max.z, this.dts.bounds.min.z)
+			));
 		}
 	}
 
@@ -253,7 +264,11 @@ export class Shape {
 	}
 
 	render(time: number) {
+		if (this.currentOpacity === 0) return;
+
 		for (let sequence of this.dts.sequences) {
+			if (!this.showSequences) break;
+
 			let rot = sequence.rotationMatters[0];
 			let affectedCount = 0;
 			let completion = time / (sequence.duration * 1000);
@@ -344,7 +359,7 @@ export class Shape {
 			if (!info) continue;
 
 			let iflSequence = this.dts.sequences.find((seq) => seq.iflMatters[0] > 0);
-			if (!iflSequence) continue;
+			if (!iflSequence || !this.showSequences) continue;
 
 			let completion = time / (iflSequence.duration * 1000);
 			let keyframe = Math.floor(completion * info.keyframes.length) % info.keyframes.length;
@@ -378,10 +393,47 @@ export class Shape {
 		this.group.quaternion.copy(orientation);
 
 		for (let body of this.bodies) {
-			body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
+			let localTranslation = this.bodiesLocalTranslation.get(body);
+			if (!localTranslation) localTranslation = new OIMO.Vec3();
+
+			body.setPosition(new OIMO.Vec3(position.x + localTranslation.x, position.y + localTranslation.y, position.z + localTranslation.z));
 			body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
 		}
 	}
 
+	setOpacity(opacity: number) {
+		if (opacity === this.currentOpacity) return;
+
+		const setOpacityOfChildren = (group: THREE.Group) => {
+			for (let child of group.children) {
+				if (child.type === 'Group') {
+					setOpacityOfChildren(child as THREE.Group);
+					return;
+				}
+
+				let mesh = child as THREE.Mesh;
+				if (!mesh.material) continue;
+	
+				if (mesh.material instanceof THREE.Material) {
+					mesh.material.transparent = true;
+					mesh.material.depthWrite = false;
+					mesh.material.opacity = opacity;
+				} else {
+					for (let material of (mesh.material as THREE.Material[])) {
+						material.transparent = true;
+						material.depthWrite = false;
+						material.opacity = opacity;
+					}
+				}
+			}
+		};
+
+		setOpacityOfChildren(this.group);
+		this.currentOpacity = opacity;
+	}
+
 	onMarbleContact(contact: OIMO.Contact, time: number) {}
+	onMarbleInside(time: number) {}
+	onMarbleEnter(time: number) {}
+	onMarbleLeave(time: number) {}
 }

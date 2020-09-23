@@ -25,7 +25,7 @@ window.addEventListener('mouseup', (e) => {
 			let key = button as keyof typeof gameButtonMapping;
 			if (buttonName !== gameButtonMapping[key]) continue;
 	
-			gameButtons[key] = true;
+			gameButtons[key] = false;
 		}
 	}
 });

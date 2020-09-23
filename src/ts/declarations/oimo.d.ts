@@ -37,6 +37,9 @@ declare namespace OIMO {
 	const BoxGeometry: typeof oimo.collision.geometry.BoxGeometry;
 	type BoxGeometry = oimo.collision.geometry.BoxGeometry;
 
+	const CapsuleGeometry: typeof oimo.collision.geometry.CapsuleGeometry;
+	type CapsuleGeometry = oimo.collision.geometry.CapsuleGeometry;
+
 	const Setting: typeof oimo.common.Setting;
 	type Setting = oimo.common.Setting;
 

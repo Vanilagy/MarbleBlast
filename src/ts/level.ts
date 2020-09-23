@@ -27,6 +27,8 @@ import { TrapDoor } from "./shapes/trap_door";
 import { TriangleBumper } from "./shapes/triangle_bumper";
 import { Oilslick } from "./shapes/oilslick";
 import { Util } from "./util";
+import { PowerUp } from "./shapes/power_up";
+import { gameButtons } from "./input";
 
 export const PHYSICS_TICK_RATE = 120;
 
@@ -35,11 +37,23 @@ export class Level {
 	physicsWorld: OIMO.World;
 	marble: Marble;
 	shapes: Shape[] = [];
+	shapeLookup = new Map<any, Shape>();
 
 	lastPhysicsTick: number = null;
 	shapeImmunity = new Set<Shape>();
+	shapeInside = new Map<Shape, boolean>();
 	pitch = 0;
 	yaw = 0;
+
+	auxPhysicsWorld: OIMO.World;
+	auxMarbleShape: OIMO.Shape;
+	auxMarbleBody: OIMO.RigidBody;
+
+	currentUp = new OIMO.Vec3(0, 0, 1);
+	orientationChangeTime = -Infinity;
+	oldOrientationQuat = new THREE.Quaternion();
+	newOrientationQuat = new THREE.Quaternion();
+	heldPowerUp: PowerUp = null;
 
 	constructor(missionGroup: MissionElementSimGroup) {
 		this.init(missionGroup);
@@ -48,6 +62,7 @@ export class Level {
 	async init(missionGroup: MissionElementSimGroup) {
 		this.scene = new THREE.Scene();
 		this.physicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, -20));
+		this.auxPhysicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, 0));
 
 		let sunElement = missionGroup.elements.find((element) => element._type === MissionElementType.Sun) as MissionElementSun;
 		let sunDirection = MisParser.parsePosition(sunElement.direction);
@@ -84,9 +99,17 @@ export class Level {
 		});
 
 		this.marble = new Marble();
+		await this.marble.init();
 		this.scene.add(this.marble.group);
 		this.marble.group.renderOrder = 10;
 		this.physicsWorld.addRigidBody(this.marble.body);
+
+		let auxMarbleGeometry = new OIMO.CapsuleGeometry(0.2 * Math.sqrt(3), 0); // The normal game's hitbox can expand to up to sqrt(3)x the normal size
+		this.auxMarbleShape = new OIMO.Shape(new OIMO.ShapeConfig());
+		this.auxMarbleShape._geom = auxMarbleGeometry;
+		this.auxMarbleBody = new OIMO.RigidBody(new OIMO.RigidBodyConfig());
+		this.auxMarbleBody.addShape(this.auxMarbleShape);
+		this.auxPhysicsWorld.addRigidBody(this.auxMarbleBody);
 
 		this.addSimGroup(missionGroup);
 
@@ -170,8 +193,12 @@ export class Level {
 		if (shape instanceof StartPad) this.marble.body.setPosition(new OIMO.Vec3(shape.worldPosition.x, shape.worldPosition.y, shape.worldPosition.z + 2));
 
 		this.scene.add(shape.group);
-		if (!shape.isItem) for (let body of shape.bodies) this.physicsWorld.addRigidBody(body);
+		for (let body of shape.bodies) {
+			if (shape.isItem) this.auxPhysicsWorld.addRigidBody(body);
+			else this.physicsWorld.addRigidBody(body);
+		}
 		this.shapes.push(shape);
+		this.shapeLookup.set(shape.id, shape);
 	}
 
 	render() {
@@ -180,19 +207,25 @@ export class Level {
 		this.tick(time);
 
 		let marblePosition = this.marble.body.getPosition();
-		
-		camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z);
+		let orientationQuat = this.getOrientationQuat(time);
+		let up = new THREE.Vector3(0, 0, 1).applyQuaternion(orientationQuat);
 		let directionVector = new THREE.Vector3(1, 0, 0);
 		let cameraVerticalTranslation = new THREE.Vector3(0, 0, 0.3);
+		
+		camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z);
 		directionVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
 		directionVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
 		cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
 		cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
+		cameraVerticalTranslation.applyQuaternion(orientationQuat);
 		directionVector.multiplyScalar(2.5);
+		directionVector.applyQuaternion(orientationQuat);
 		camera.position.sub(directionVector);
+		camera.up = up;
 		camera.lookAt(new THREE.Vector3(marblePosition.x, marblePosition.y, marblePosition.z));
 		camera.position.add(cameraVerticalTranslation);
 
+		this.marble.render(time);
 		for (let shape of this.shapes) shape.render(time);
 
 		renderer.render(this.scene, camera);		
@@ -202,6 +235,11 @@ export class Level {
 
 	tick(time?: number) {
 		if (time === undefined) time = performance.now();
+
+		if (gameButtons.use) {
+			this.heldPowerUp?.use(time);
+			this.heldPowerUp = null;
+		}
 
 		if (this.lastPhysicsTick === null) {
 			this.lastPhysicsTick = time;
@@ -224,7 +262,8 @@ export class Level {
 					if (contactShape === this.marble.shape) contactShape = contact.getShape2();
 
 					if (contactShape.userData && contact.isTouching()) {
-						let shape = this.shapes.find((shape) => shape.id === contactShape.userData);
+						let shape = this.shapeLookup.get(contactShape.userData);
+
 						if (shape && !this.shapeImmunity.has(shape) && !calledShapes.has(shape)) {
 							calledShapes.add(shape);
 							newImmunity.push(shape);
@@ -235,8 +274,9 @@ export class Level {
 					linkedList = linkedList.getNext();
 				}
 
-				this.marble.handleControl();				
+				this.marble.handleControl(time);				
 
+				let prevMarblePosition = this.marble.body.getPosition().clone();
 				this.physicsWorld.step(1 / PHYSICS_TICK_RATE);
 
 				this.marble.update();
@@ -246,8 +286,70 @@ export class Level {
 
 				this.shapeImmunity.clear();
 				for (let s of newImmunity) this.shapeImmunity.add(s);
+
+				let movementDiff = this.marble.body.getPosition().sub(prevMarblePosition);
+				let movementDist = movementDiff.length();
+				let movementRot = new OIMO.Quat();
+				movementRot.setArc(new OIMO.Vec3(0, 1, 0), movementDiff.clone().normalize());
+
+				(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._halfHeight = movementDist;
+				let pos = this.marble.body.getPosition().add(movementDiff.scale(0.5));
+
+				this.auxMarbleBody.setPosition(pos);
+				this.auxMarbleBody.setOrientation(movementRot);
+				this.auxPhysicsWorld.getContactManager()._updateContacts();
+
+				let current = this.auxMarbleBody.getContactLinkList();
+				while (current) {
+					let contact = current.getContact();
+					let contactShape = contact.getShape1();
+					if (contactShape === this.auxMarbleShape) contactShape = contact.getShape2();
+					let shape = this.shapeLookup.get(contactShape.userData);
+
+					contact._updateManifold();
+					if (contact.isTouching()) {
+						shape.onMarbleInside(time);
+						if (!this.shapeInside.get(shape)) {
+							this.shapeInside.set(shape, true);
+							shape.onMarbleEnter(time);
+						}
+					} else {
+						if (this.shapeInside.get(shape)) {
+							this.shapeInside.set(shape, false);
+							shape.onMarbleLeave(time);
+						}
+					}
+
+					current = current.getNext();
+				}
 			}
 		}
+	}
+
+	getOrientationQuat(time: number) {
+		let completion = Util.clamp((time - this.orientationChangeTime) / 300, 0, 1);
+		return this.oldOrientationQuat.clone().slerp(this.newOrientationQuat, completion);
+	}
+
+	setUp(vec: OIMO.Vec3, time: number) {
+		this.currentUp = vec;
+		this.physicsWorld.setGravity(vec.scale(-1 * this.physicsWorld.getGravity().length()));
+
+		let currentQuat = this.getOrientationQuat(time);
+		let oldUp = new THREE.Vector3(0, 0, 1);
+		oldUp.applyQuaternion(currentQuat);
+
+		let quatChange = new THREE.Quaternion();
+		quatChange.setFromUnitVectors(oldUp, Util.vecOimoToThree(vec));
+
+		this.newOrientationQuat = currentQuat.clone().multiply(quatChange);
+		this.oldOrientationQuat = currentQuat;
+		this.orientationChangeTime = time;
+	}
+
+	setGravityIntensity(intensity: number) {
+		let gravityVector = this.currentUp.scale(-1 * intensity);
+		this.physicsWorld.setGravity(gravityVector);
 	}
 
 	onMouseMove(e: MouseEvent) {
@@ -256,5 +358,12 @@ export class Level {
 		this.pitch += e.movementY / 1000;
 		this.pitch = Math.max(-Math.PI/2 + 0.0001, Math.min(Math.PI/2 - 0.0001, this.pitch));
 		this.yaw -= e.movementX / 1000;
+	}
+
+	pickUpPowerUp(powerUp: PowerUp) {
+		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
+		this.heldPowerUp = powerUp;
+
+		return true;
 	}
 }

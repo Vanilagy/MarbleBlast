@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { Util } from "./util";
 
 type DirectoryStructure = {[name: string]: null | DirectoryStructure};
 
@@ -12,11 +13,16 @@ export abstract class ResourceManager {
 		this.dataDirectoryStructure = await response.json();
 	}
 
-	static getTexture(path: string) {
+	static getTexture(path: string, removeAlpha = false) {
 		let cached = this.textureCache.get(path);
 		if (cached) return cached;
 
-		let texture = this.textureLoader.load("assets/data/" + path);
+		let texture = this.textureLoader.load("assets/data/" + path, () => {
+			if (!removeAlpha) return;
+
+			texture.image = Util.removeAlphaChannel(texture.image);
+			texture.needsUpdate = true;
+		});
 		texture.flipY = false;
 		texture.anisotropy = 1;
 
