@@ -29,6 +29,7 @@ import { Oilslick } from "./shapes/oilslick";
 import { Util } from "./util";
 import { PowerUp } from "./shapes/power_up";
 import { gameButtons } from "./input";
+import { SmallDuctFan } from "./shapes/small_duct_fan";
 
 export const PHYSICS_TICK_RATE = 120;
 
@@ -167,6 +168,8 @@ export class Level {
 			shape = new Helicopter();
 		} else if (element.dataBlock === "DuctFan") {
 			shape = new DuctFan();
+		} else if (element.dataBlock === "SmallDuctFan") {
+			shape = new SmallDuctFan();
 		} else if (element.dataBlock === "AntiGravityItem") {
 			shape = new AntiGravity();
 		} else if (element.dataBlock === "LandMine") {
