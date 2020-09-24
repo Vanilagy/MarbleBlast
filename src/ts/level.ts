@@ -16,7 +16,7 @@ import { SignCaution } from "./shapes/sign_caution";
 import { SuperBounce } from "./shapes/super_bounce";
 import { RoundBumper } from "./shapes/round_bumper";
 import { Helicopter } from "./shapes/helicopter";
-import { DuctFan } from "./shapes/ductfan";
+import { DuctFan } from "./shapes/duct_fan";
 import { AntiGravity } from "./shapes/anti_gravity";
 import { LandMine } from "./shapes/land_mine";
 import { ShockAbsorber } from "./shapes/shock_absorber";
@@ -38,6 +38,7 @@ export class Level {
 	marble: Marble;
 	shapes: Shape[] = [];
 	shapeLookup = new Map<any, Shape>();
+	shapeColliderLookup = new Map<any, Shape>();
 
 	lastPhysicsTick: number = null;
 	shapeImmunity = new Set<Shape>();
@@ -194,8 +195,12 @@ export class Level {
 
 		this.scene.add(shape.group);
 		for (let body of shape.bodies) {
-			if (shape.isItem) this.auxPhysicsWorld.addRigidBody(body);
-			else this.physicsWorld.addRigidBody(body);
+			if (shape.collideable) this.physicsWorld.addRigidBody(body);
+			else this.auxPhysicsWorld.addRigidBody(body);
+		}
+		for (let collider of shape.colliders) {
+			this.auxPhysicsWorld.addRigidBody(collider.body);
+			this.shapeColliderLookup.set(collider.id, shape);
 		}
 		this.shapes.push(shape);
 		this.shapeLookup.set(shape.id, shape);
@@ -302,21 +307,28 @@ export class Level {
 				let current = this.auxMarbleBody.getContactLinkList();
 				while (current) {
 					let contact = current.getContact();
+					contact._updateManifold();
 					let contactShape = contact.getShape1();
 					if (contactShape === this.auxMarbleShape) contactShape = contact.getShape2();
 					let shape = this.shapeLookup.get(contactShape.userData);
 
-					contact._updateManifold();
-					if (contact.isTouching()) {
-						shape.onMarbleInside(time);
-						if (!this.shapeInside.get(shape)) {
-							this.shapeInside.set(shape, true);
-							shape.onMarbleEnter(time);
+					if (!shape) {
+						if (contact.isTouching()) {
+							shape = this.shapeColliderLookup.get(contactShape.userData);
+							shape.onColliderInside(contactShape.userData);
 						}
 					} else {
-						if (this.shapeInside.get(shape)) {
-							this.shapeInside.set(shape, false);
-							shape.onMarbleLeave(time);
+						if (contact.isTouching()) {
+							shape.onMarbleInside(time);
+							if (!this.shapeInside.get(shape)) {
+								this.shapeInside.set(shape, true);
+								shape.onMarbleEnter(time);
+							}
+						} else {
+							if (this.shapeInside.get(shape)) {
+								this.shapeInside.set(shape, false);
+								shape.onMarbleLeave(time);
+							}
 						}
 					}
 

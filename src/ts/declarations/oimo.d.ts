@@ -31,6 +31,9 @@ declare namespace OIMO {
 	const BroadPhaseType: typeof oimo.collision.broadphase.BroadPhaseType;
 	type BroadPhaseType = oimo.collision.broadphase.BroadPhaseType;
 
+	const Geometry: typeof oimo.collision.geometry.Geometry;
+	type Geometry = oimo.collision.geometry.Geometry;
+
 	const SphereGeometry: typeof oimo.collision.geometry.SphereGeometry;
 	type SphereGeometry = oimo.collision.geometry.SphereGeometry;
 
@@ -39,6 +42,9 @@ declare namespace OIMO {
 
 	const CapsuleGeometry: typeof oimo.collision.geometry.CapsuleGeometry;
 	type CapsuleGeometry = oimo.collision.geometry.CapsuleGeometry;
+
+	const ConeGeometry: typeof oimo.collision.geometry.ConeGeometry;
+	type ConeGeometry = oimo.collision.geometry.ConeGeometry;
 
 	const Setting: typeof oimo.common.Setting;
 	type Setting = oimo.common.Setting;

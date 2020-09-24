@@ -9,7 +9,8 @@ export default [{
 	external: ['three', './declarations/oimo'],
 	globals: {
 		'three': 'THREE',
-		'./declarations/oimo': 'OIMO'
+		'./declarations/oimo': 'OIMO',
+		'../declarations/oimo': 'OIMO'
 	},
     plugins: [
 		resolve({

@@ -16,7 +16,8 @@ export default [{
 		typescript(),
 		external_globals({
 			'three': 'THREE',
-			'./declarations/oimo': 'OIMO'
+			'./declarations/oimo': 'OIMO',
+			'../declarations/oimo': 'OIMO'
 		})
     ],
     output: {

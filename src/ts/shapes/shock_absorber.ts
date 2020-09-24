@@ -3,7 +3,6 @@ import { state } from "../state";
 
 export class ShockAbsorber extends PowerUp {
 	dtsPath = "shapes/items/shockabsorber.dts";
-	isItem = true;
 
 	pickUp(): boolean {
 		return state.currentLevel.pickUpPowerUp(this);

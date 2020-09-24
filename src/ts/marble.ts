@@ -100,7 +100,6 @@ export class Marble {
 		}
 
 		if (!current) {
-			//console.log(movementVec);
 			let airVelocity = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
 			airVelocity = airVelocity.scale(2 / PHYSICS_TICK_RATE);
 			this.body.addLinearVelocity(airVelocity);
@@ -131,7 +130,7 @@ export class Marble {
 		let dot = unitVelocity.dot(direction);
 		let directionalSpeed = dot * this.body.getLinearVelocity().length();
 
-		if (directionalSpeed > 0 && (directionalSpeed < magnitude || !onlyIncrease)) {
+		if ((directionalSpeed < magnitude || !onlyIncrease)) {
 			let velocity = this.body.getLinearVelocity();
 			velocity = velocity.sub(direction.scale(directionalSpeed));
 			velocity = velocity.add(direction.scale(magnitude));

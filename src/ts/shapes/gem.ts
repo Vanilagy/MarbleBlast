@@ -6,7 +6,8 @@ const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "or
 
 export class Gem extends Shape {
 	dtsPath = "shapes/items/gem.dts";
-	isItem = true;
+	ambientRotate = true;
+	collideable = false;
 
 	constructor(element: MissionElementItem) {
 		super();

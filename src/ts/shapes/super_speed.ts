@@ -5,7 +5,6 @@ import { Util } from "../util";
 
 export class SuperSpeed extends PowerUp {
 	dtsPath = "shapes/items/superspeed.dts";
-	isItem = true;
 
 	pickUp(): boolean {
 		return state.currentLevel.pickUpPowerUp(this);
@@ -14,7 +13,10 @@ export class SuperSpeed extends PowerUp {
 	use() {
 		let level = state.currentLevel;
 		let movementVector = new THREE.Vector3(1, 0, 0);
-		movementVector.applyAxisAngle(Util.vecOimoToThree(level.currentUp), level.yaw);
+		movementVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), level.yaw);
+
+		let quat = level.newOrientationQuat;
+		movementVector.applyQuaternion(quat);
 
 		let marble = state.currentLevel.marble;
 		let currentUpwardsMotion = marble.body.getLinearVelocity().dot(level.currentUp);

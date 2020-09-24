@@ -5,6 +5,8 @@ export abstract class PowerUp extends Shape {
 	lastPickUpTime: number = null;
 	cooldownDuration: number = 5000;
 	autoUse = false;
+	ambientRotate = true;
+	collideable = false;
 
 	onMarbleInside(time: number) {
 		let pickupable = this.lastPickUpTime === null || (time - this.lastPickUpTime) >= this.cooldownDuration;

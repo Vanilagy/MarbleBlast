@@ -17,6 +17,13 @@ interface SkinMeshData {
 	group: THREE.Group
 }
 
+interface ColliderInfo {
+	body: OIMO.RigidBody,
+	id: number,
+	onInside: () => void,
+	transform: THREE.Matrix4
+}
+
 enum MaterialFlags {
 	S_Wrap = 1 << 0,
 	T_Wrap = 1 << 1,
@@ -47,11 +54,13 @@ export class Shape {
 	materialInfo: WeakMap<THREE.Material, MaterialInfo>;
 	nodeTransforms: THREE.Matrix4[] = [];
 	skinMeshInfo: SkinMeshData[] = [];
-	isItem = false;
+	collideable = true;
+	ambientRotate = false;
 	worldPosition = new THREE.Vector3();
 	worldOrientation = new THREE.Quaternion();
 	currentOpacity = 1;
 	showSequences = true;
+	colliders: ColliderInfo[] = [];
 
 	async init() {
 		this.id = getUniqueId();
@@ -373,7 +382,7 @@ export class Shape {
 			this.materials[i].map = texture;
 		}
 
-		if (this.isItem) {
+		if (this.ambientRotate) {
 			let spinAnimation = new THREE.Quaternion();
 			let up = new THREE.Vector3(0, 0, 1);
 			spinAnimation.setFromAxisAngle(up, -time / 3000 * Math.PI * 2);
@@ -388,6 +397,8 @@ export class Shape {
 	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion) {
 		this.worldPosition = position;
 		this.worldOrientation = orientation;
+		let worldMatrix = new THREE.Matrix4();
+		worldMatrix.compose(position, orientation, new THREE.Vector3(1, 1, 1));
 
 		this.group.position.copy(position);
 		this.group.quaternion.copy(orientation);
@@ -398,6 +409,18 @@ export class Shape {
 
 			body.setPosition(new OIMO.Vec3(position.x + localTranslation.x, position.y + localTranslation.y, position.z + localTranslation.z));
 			body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
+		}
+
+		for (let collider of this.colliders) {
+			let mat = collider.transform.clone();
+			mat.multiplyMatrices(worldMatrix, mat);
+
+			let position = new THREE.Vector3();
+			let orientation = new THREE.Quaternion();
+			mat.decompose(position, orientation, new THREE.Vector3());
+
+			collider.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
+			collider.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
 		}
 	}
 
@@ -416,12 +439,12 @@ export class Shape {
 	
 				if (mesh.material instanceof THREE.Material) {
 					mesh.material.transparent = true;
-					mesh.material.depthWrite = false;
+					mesh.material.depthWrite = opacity > 0;
 					mesh.material.opacity = opacity;
 				} else {
 					for (let material of (mesh.material as THREE.Material[])) {
 						material.transparent = true;
-						material.depthWrite = false;
+						material.depthWrite = opacity > 0;
 						material.opacity = opacity;
 					}
 				}
@@ -430,6 +453,29 @@ export class Shape {
 
 		setOpacityOfChildren(this.group);
 		this.currentOpacity = opacity;
+	}
+
+	addCollider(geometry: OIMO.Geometry, onInside: () => void, localTransform: THREE.Matrix4) {
+		let shapeConfig = new OIMO.ShapeConfig();
+		shapeConfig.geometry = geometry;
+		let shape = new OIMO.Shape(shapeConfig);
+		shape.userData = getUniqueId();
+		let config = new OIMO.RigidBodyConfig();
+		config.type = OIMO.RigidBodyType.STATIC;
+		let body = new OIMO.RigidBody(config);
+		body.addShape(shape);
+
+		this.colliders.push({
+			body: body,
+			id: shape.userData,
+			onInside: onInside,
+			transform: localTransform
+		});
+	}
+
+	onColliderInside(id: number) {
+		let collider = this.colliders.find((collider) => collider.id === id);
+		collider.onInside();
 	}
 
 	onMarbleContact(contact: OIMO.Contact, time: number) {}

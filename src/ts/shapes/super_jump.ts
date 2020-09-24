@@ -3,7 +3,6 @@ import { state } from "../state";
 
 export class SuperJump extends PowerUp {
 	dtsPath = "shapes/items/superjump.dts";
-	isItem = true;
 
 	pickUp(): boolean {
 		return state.currentLevel.pickUpPowerUp(this);
