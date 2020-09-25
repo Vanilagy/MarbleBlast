@@ -3,7 +3,7 @@ import { Shape } from "../shape";
 
 export abstract class PowerUp extends Shape {
 	lastPickUpTime: number = null;
-	cooldownDuration: number = 5000;
+	cooldownDuration: number = 7000;
 	autoUse = false;
 	ambientRotate = true;
 	collideable = false;

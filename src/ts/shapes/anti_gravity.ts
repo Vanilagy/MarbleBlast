@@ -6,7 +6,6 @@ import { Util } from "../util";
 export class AntiGravity extends PowerUp {
 	dtsPath = "shapes/items/antigravity.dts";
 	autoUse = true;
-	cooldownDuration: number = 7000;
 
 	pickUp() {return true;}
 

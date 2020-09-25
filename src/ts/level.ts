@@ -5,7 +5,7 @@ import { renderer, camera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble } from "./marble";
 import { Shape } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
@@ -68,12 +68,14 @@ export class Level {
 
 		let sunElement = missionGroup.elements.find((element) => element._type === MissionElementType.Sun) as MissionElementSun;
 		let sunDirection = MisParser.parsePosition(sunElement.direction);
+		let directionalColor = MisParser.parseVector4(sunElement.color);
+		let ambientColor = MisParser.parseVector4(sunElement.ambient);
 
-		let ambientLight = new THREE.AmbientLight(new THREE.Color(0.3, 0.3, 0.475), 1);
+		let ambientLight = new THREE.AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z), 1);
         ambientLight.position.z = 0;
         ambientLight.position.y = 5;
         this.scene.add(ambientLight);
-        let sunlight = new THREE.DirectionalLight(new THREE.Color(1.4, 1.2, 0.4), 0.9);
+        let sunlight = new THREE.DirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), 1);
         this.scene.add(sunlight);
         sunlight.position.x = -sunDirection.x * 30;
         sunlight.position.y = -sunDirection.y * 30;
@@ -236,7 +238,7 @@ export class Level {
 		this.marble.render(time);
 		for (let shape of this.shapes) shape.render(time);
 
-		renderer.render(this.scene, camera);		
+		renderer.render(this.scene, camera);
 
 		requestAnimationFrame(() => this.render());
 	}
@@ -286,8 +288,6 @@ export class Level {
 
 				let prevMarblePosition = this.marble.body.getPosition().clone();
 				this.physicsWorld.step(1 / PHYSICS_TICK_RATE);
-
-				this.marble.update();
 
 				this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
 				elapsed -= 1000 / PHYSICS_TICK_RATE;

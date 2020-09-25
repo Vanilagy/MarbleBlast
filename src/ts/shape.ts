@@ -354,8 +354,8 @@ export class Shape {
 				info.vertexNormals[mesh.vertIndices[i]].add(vec2);
 			}
 
-			for (let bruh of info.group.children) {
-				let mesh = bruh as THREE.Mesh;
+			for (let child of info.group.children) {
+				let mesh = child as THREE.Mesh;
 				let geometry = mesh.geometry as THREE.Geometry;
 				geometry.verticesNeedUpdate = true;
 

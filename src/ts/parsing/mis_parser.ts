@@ -384,6 +384,11 @@ export class MisParser {
 		return new THREE.Vector3(parts[0], parts[1], parts[2]);
 	}
 
+	static parseVector4(string: string) {
+		let parts = string.split(' ').map((part) => Number(part));
+		return new THREE.Vector4(parts[0], parts[1], parts[2], parts[3]);
+	}
+
 	static parseRotation(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
 

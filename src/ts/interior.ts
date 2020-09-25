@@ -4,6 +4,18 @@ import { Point3F } from "./parsing/binary_file_parser";
 import OIMO from "./declarations/oimo";
 import { ResourceManager } from "./resources";
 
+const specialFriction: Record<string, number> = {
+	"friction_high": 1.5,
+	"friction_low": 0.2,
+	"friction_none": 0.001,
+	"friction_ramp_yellow": 2.0
+};
+const specialResistutionFactor: Record<string, number> = {
+	"friction_high": 0.35,
+	"friction_low": 0.5,
+	"friction_none": 0.5
+};
+
 let interiorRigidBodyConfig =  new OIMO.RigidBodyConfig();
 interiorRigidBodyConfig.type = OIMO.RigidBodyType.STATIC;
 
@@ -57,13 +69,17 @@ export class Interior {
 		geom.computeFaceNormals();
 		geom.computeVertexNormals();
 
-		let texture = ResourceManager.getTexture("interiors/" + material + '.jpg');
-		texture.wrapS = THREE.RepeatWrapping;
-		texture.wrapT = THREE.RepeatWrapping;
-
-		let mat = new THREE.MeshLambertMaterial({ map: texture });
+		let mat = new THREE.MeshLambertMaterial();
 		let mesh = new THREE.Mesh(geom, mat);
 		this.group.add(mesh);
+
+		if (ResourceManager.getFullNameOf("interiors/" + material).length) {
+			let texture = ResourceManager.getTexture("interiors/" + material + '.jpg');
+			texture.wrapS = THREE.RepeatWrapping;
+			texture.wrapT = THREE.RepeatWrapping;
+
+			mat.map = texture;
+		}
 
 		mesh.castShadow = true;
 		mesh.receiveShadow = true;
@@ -71,8 +87,8 @@ export class Interior {
 		let collisionGeom = new OIMO.ConvexHullGeometry(points.map(a => new OIMO.Vec3(a.x, a.y, a.z)));
 		let shapeConfig = new OIMO.ShapeConfig();
 		shapeConfig.geometry = collisionGeom;
-		shapeConfig.restitution = 0.4;
-		shapeConfig.friction = 1;
+		shapeConfig.restitution = 0.5 * (specialResistutionFactor[material] ?? 1);
+		shapeConfig.friction = specialFriction[material] ?? 1;
 		let shape = new OIMO.Shape(shapeConfig);
 		this.body.addShape(shape);
 	}

@@ -8,7 +8,7 @@ import { Shape } from "./shape";
 import { Util } from "./util";
 
 const MARBLE_SIZE = 0.2;
-export const MARBLE_ROLL_FORCE = 60;
+export const MARBLE_ROLL_FORCE = 40;
 const JUMP_IMPULSE = 7.5;
 
 export class Marble {
@@ -23,6 +23,7 @@ export class Marble {
 	superBounceEnableTime = -Infinity;
 	shockAbsorberEnableTime = -Infinity;
 	helicopterEnableTime = -Infinity;
+	lastContactNormal = new OIMO.Vec3(0, 0, 1);
 
 	constructor() {
 		this.group = new THREE.Group();
@@ -38,12 +39,11 @@ export class Marble {
 
 		let shapeConfig = new OIMO.ShapeConfig();
 		shapeConfig.geometry = new OIMO.SphereGeometry(MARBLE_SIZE);
-		shapeConfig.friction = 10;
+		shapeConfig.friction = 1;
 		shapeConfig.restitution = 0.5;
 		let shape = new OIMO.Shape(shapeConfig);
 
 		let config = new OIMO.RigidBodyConfig();
-		config.angularDamping = 3;
 		let body = new OIMO.RigidBody(config);
 		body.addShape(shape);
 		body.setAutoSleep(false);
@@ -73,15 +73,14 @@ export class Marble {
 		if (gameButtons.down) movementVec.add(new THREE.Vector3(-1, 0, 0));
 		if (gameButtons.left) movementVec.add(new THREE.Vector3(0, 1, 0));
 		if (gameButtons.right) movementVec.add(new THREE.Vector3(0, -1, 0));
+
+		let inputStrength = movementVec.length();
+
 		movementVec.multiplyScalar(MARBLE_ROLL_FORCE * 5 / PHYSICS_TICK_RATE);
 		movementVec.applyAxisAngle(new THREE.Vector3(0, 0, 1), state.currentLevel.yaw);
 
 		let quat = state.currentLevel.newOrientationQuat;
 		movementVec.applyQuaternion(quat);
-
-		let ohShit = Util.vecOimoToThree(state.currentLevel.currentUp).cross(movementVec);
-
-		this.body.addAngularVelocity(new OIMO.Vec3(ohShit.x, ohShit.y, ohShit.z));
 
 		let current = this.body.getContactLinkList();
 		while (current) {
@@ -91,19 +90,55 @@ export class Marble {
 			current = current.getNext();
 		}
 
-		if (current && gameButtons.jump) {
+		let movementRotationAxis = state.currentLevel.currentUp.cross(Util.vecThreeToOimo(movementVec));
+
+		if (current) {
 			let contact = current.getContact();
 			let contactNormal = contact.getManifold().getNormal();
+			let surfaceShape = contact.getShape2();
+			if (surfaceShape === this.shape) {
+				contactNormal = contactNormal.scale(-1);
+				surfaceShape = contact.getShape1();
+			}
+			this.lastContactNormal = contactNormal;
+			let inverseContactNormal = contactNormal.scale(-1);
 
-			if (contact.getShape2() === this.shape) contactNormal = contactNormal.scale(-1);
-			this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE, true);
-		}
+			let dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
+			if (dot0 > 0 && dot0 < 0.2) {
+				let linearVelocity = this.body.getLinearVelocity();
+				this.body.addLinearVelocity(contactNormal.scale(-dot0 * linearVelocity.length()));
+			}
 
-		if (!current) {
+			if (gameButtons.jump) {
+				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE, true);
+			}
+
+			let dot = Util.vecThreeToOimo(movementVec).normalize().dot(inverseContactNormal);
+			let penalty = Math.max(0, dot - Math.max(0, (surfaceShape.getFriction() - 1.0)));
+
+			movementRotationAxis = movementRotationAxis.scale(1 - penalty);
+
+			let angVel = this.body.getAngularVelocity();
+			let direction = movementRotationAxis.clone().normalize();
+			let dot2 = Math.max(0, angVel.dot(direction));
+			angVel = angVel.sub(direction.scale(dot2));
+			angVel = angVel.scale(0.15 ** (1 / PHYSICS_TICK_RATE));
+			angVel = angVel.add(direction.scale(dot2));
+			this.body.setAngularVelocity(angVel);
+
+			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength) {
+				let newLength = Math.max(0, 12 * Math.PI*2 * inputStrength - dot2);
+				movementRotationAxis = movementRotationAxis.normalize().scale(newLength);
+			}
+		} else {
+			movementRotationAxis = movementRotationAxis.scale(1/2);
+
 			let airVelocity = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
-			airVelocity = airVelocity.scale(2 / PHYSICS_TICK_RATE);
+			airVelocity = airVelocity.scale(3 / PHYSICS_TICK_RATE);
 			this.body.addLinearVelocity(airVelocity);
 		}
+
+		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 100));
 
 		if (time - this.shockAbsorberEnableTime < 5000) {
 			this.forcefield.setOpacity(1);
@@ -139,14 +174,12 @@ export class Marble {
 		}
 	}
 
-	update() {
+	render(time: number) {
 		let bodyPosition = this.body.getPosition();
 		let bodyOrientation = this.body.getOrientation();
 		this.group.position.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
 		this.sphere.quaternion.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
-	}
 
-	render(time: number) {
 		this.forcefield.render(time);
 		this.helicopter.render(time);
 	}

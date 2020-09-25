@@ -67,4 +67,16 @@ export abstract class Util {
 	static isSameVector(v1: {x: number, y: number, z: number}, v2: {x: number, y: number, z: number}) {
 		return v1.x === v2.x && v1.y === v2.y && v1.z === v2.z;
 	}
+
+	static addToVectorCapped(target: OIMO.Vec3, add: OIMO.Vec3, magnitudeCap: number) {
+		let direction = add.clone().normalize();
+		let dot = Math.max(0, target.dot(direction));
+
+		if (dot + add.length() > magnitudeCap) {
+			let newLength = Math.max(0, magnitudeCap - dot);
+			add = add.normalize().scale(newLength);
+		}
+
+		return target.add(add);
+	}
 }
