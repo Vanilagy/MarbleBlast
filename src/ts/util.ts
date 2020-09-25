@@ -38,6 +38,7 @@ export abstract class Util {
 		for (let i = 0; i < imageData.data.length; i += 4) {
 			imageData.data[i + 3] = 255;
 		}
+		ctx.putImageData(imageData, 0, 0);
 
 		return canvas;
 	}

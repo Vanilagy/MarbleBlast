@@ -24,6 +24,8 @@ export class Marble {
 	shockAbsorberEnableTime = -Infinity;
 	helicopterEnableTime = -Infinity;
 	lastContactNormal = new OIMO.Vec3(0, 0, 1);
+	wallHitBoosterTimeout = 0;
+	lastVel = new OIMO.Vec3();
 
 	constructor() {
 		this.group = new THREE.Group();
@@ -57,7 +59,8 @@ export class Marble {
 		this.forcefield.dtsPath = "shapes/images/glow_bounce.dts";
 		await this.forcefield.init();
 		this.forcefield.setOpacity(0);
-		this.group.add(this.forcefield.group);
+		this.forcefield.showSequences = false;
+		this.sphere.add(this.forcefield.group);
 
 		this.helicopter = new Shape();
 		this.helicopter.dtsPath = "shapes/images/helicopter.dts";
@@ -103,10 +106,24 @@ export class Marble {
 			this.lastContactNormal = contactNormal;
 			let inverseContactNormal = contactNormal.scale(-1);
 
-			let dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
-			if (dot0 > 0 && dot0 < 0.2) {
+			let dot0 = contactNormal.dot(this.lastVel.clone().normalize());
+			if (dot0 > -0.4 && dot0 < 0) {
+				dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
 				let linearVelocity = this.body.getLinearVelocity();
 				this.body.addLinearVelocity(contactNormal.scale(-dot0 * linearVelocity.length()));
+			}
+
+			outer:
+			if (this.wallHitBoosterTimeout-- <= 0) {
+				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scale((1 - contactNormal.dot(state.currentLevel.currentUp)) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 20);
+				if (angularBoost.length() < 0.01) break outer;
+
+				let currentVelocity = this.body.getLinearVelocity();
+				let ratio = angularBoost.length() / currentVelocity.length();
+				currentVelocity = currentVelocity.scale(1 / (1 + ratio * 0.5)).add(angularBoost);
+				this.body.setLinearVelocity(currentVelocity);
+
+				this.wallHitBoosterTimeout = 1;
 			}
 
 			if (gameButtons.jump) {
@@ -133,9 +150,10 @@ export class Marble {
 		} else {
 			movementRotationAxis = movementRotationAxis.scale(1/2);
 
-			let airVelocity = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
-			airVelocity = airVelocity.scale(3 / PHYSICS_TICK_RATE);
-			this.body.addLinearVelocity(airVelocity);
+			let airMovementVector = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
+			let airVelocity = (time - this.helicopterEnableTime) < 5000 ? 5 : 3;
+			airMovementVector = airMovementVector.scale(airVelocity / PHYSICS_TICK_RATE);
+			this.body.addLinearVelocity(airMovementVector);
 		}
 
 		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 100));
@@ -145,7 +163,7 @@ export class Marble {
 			this.shape.setRestitution(0);
 		} else if (time - this.superBounceEnableTime < 5000) {
 			this.forcefield.setOpacity(1);
-			this.shape.setRestitution(2);
+			this.shape.setRestitution(1.6); // Found through experimentation
 		} else {
 			this.forcefield.setOpacity(0);
 			this.shape.setRestitution(0.5);
@@ -158,6 +176,8 @@ export class Marble {
 			this.helicopter.setOpacity(0);
 			state.currentLevel.setGravityIntensity(20);
 		}
+
+		this.lastVel = this.body.getLinearVelocity();
 	}
 
 	setLinearVelocityInDirection(direction: OIMO.Vec3, magnitude: number, onlyIncrease: boolean) {

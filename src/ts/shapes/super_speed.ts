@@ -24,6 +24,6 @@ export class SuperSpeed extends PowerUp {
 		quat2.setArc(state.currentLevel.currentUp, marble.lastContactNormal);
 		movementVector.applyQuaternion(new THREE.Quaternion(quat2.x, quat2.y, quat2.z, quat2.w));
 		
-		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(25));
+		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirlgig's determined value
 	}
 }
