@@ -26,6 +26,7 @@ export class PathedInterior extends Interior {
 
 		let triggers = simGroup.elements.filter((element) => element._type === MissionElementType.Trigger) as MissionElementTrigger[];
 		for (let triggerElement of triggers) {
+			// Make sure the interior doesn't start moving on its own (the default)
 			pathedInterior.timeStart = 0;
 			pathedInterior.timeDest = 0;
 			pathedInterior.changeTime = -Infinity;

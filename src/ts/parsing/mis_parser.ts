@@ -151,7 +151,7 @@ export interface MissionElementTrigger extends MissionElementBase {
 	scale: string,
 	dataBlock: string,
 	polyhedron: string,
-	text: string,
+	text?: string,
 	targetTime?: string
 }
 

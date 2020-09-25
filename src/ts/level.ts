@@ -32,6 +32,9 @@ import { gameButtons } from "./input";
 import { SmallDuctFan } from "./shapes/small_duct_fan";
 import { PathedInterior } from "./pathed_interior";
 import { Trigger } from "./triggers/trigger";
+import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
+import { HelpTrigger } from "./triggers/help_trigger";
+import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
 
 export const PHYSICS_TICK_RATE = 120;
 
@@ -250,7 +253,13 @@ export class Level {
 	addTrigger(element: MissionElementTrigger) {
 		let trigger: Trigger;
 
-		// Do stuff
+		if (element.dataBlock === "OutOfBoundsTrigger") {
+			trigger = new OutOfBoundsTrigger(element);
+		} else if (element.dataBlock === "InBoundsTrigger") {
+			trigger = new InBoundsTrigger(element);
+		} else if (element.dataBlock === "HelpTrigger") {
+			trigger = new HelpTrigger(element);
+		}
 
 		if (!trigger) return;
 

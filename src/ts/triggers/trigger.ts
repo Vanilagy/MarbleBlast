@@ -8,9 +8,11 @@ import * as THREE from "three";
 export class Trigger {
 	id: number;
 	body: OIMO.RigidBody;
+	element: MissionElementTrigger;
 
 	constructor(element: MissionElementTrigger) {
 		this.id = getUniqueId();
+		this.element = element;
 
 		let coordinates = element.polyhedron.split(' ').map((part) => Number(part));
 		let origin = new OIMO.Vec3(coordinates[0], coordinates[1], coordinates[2]);
