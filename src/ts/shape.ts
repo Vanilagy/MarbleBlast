@@ -5,6 +5,7 @@ import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
 import { getUniqueId } from "./state";
 import { Util } from "./util";
+import { TimeState } from "./level";
 
 interface MaterialInfo {
 	keyframes: string[]
@@ -114,9 +115,7 @@ export class Shape {
 					let config = new OIMO.RigidBodyConfig();
 					config.type = OIMO.RigidBodyType.STATIC;
 					let body = new OIMO.RigidBody(config);
-					body.userData = {
-						nodeIndex: i
-					};
+					body.userData = { nodeIndex: i };
 	
 					for (let j = object.startMeshIndex; j < object.startMeshIndex + object.numMeshes; j++) {
 						let mesh = this.dts.meshes[j];
@@ -278,8 +277,13 @@ export class Shape {
 
 	updateBodyTransforms() {
 		for (let body of this.bodies) {
-			let mat = this.nodeTransforms[body.userData.nodeIndex].clone();
-			mat.multiplyMatrices(this.worldMatrix, mat);
+			let mat: THREE.Matrix4;
+			if (body.userData?.nodeIndex !== undefined) {
+				mat = this.nodeTransforms[body.userData.nodeIndex].clone();
+				mat.multiplyMatrices(this.worldMatrix, mat);
+			} else {
+				mat = this.worldMatrix;
+			}
 
 			let position = new THREE.Vector3();
 			let orientation = new THREE.Quaternion();
@@ -293,13 +297,13 @@ export class Shape {
 		}
 	}
 
-	tick(time: number) {
+	tick(time: TimeState) {
 		for (let sequence of this.dts.sequences) {
 			if (!this.showSequences) break;
 
 			let rot = sequence.rotationMatters[0];
 			let affectedCount = 0;
-			let completion = time / (sequence.duration * 1000);
+			let completion = time.timeSinceLoad / (sequence.duration * 1000);
 
 			if (rot > 0) {
 				let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
@@ -345,9 +349,7 @@ export class Shape {
 		}
 	}
 
-	render(time: number) {
-		if (this.currentOpacity === 0) return;
-
+	render(time: TimeState) {
 		for (let info of this.skinMeshInfo) {
 			let mesh = this.dts.meshes[info.meshIndex];
 
@@ -398,7 +400,7 @@ export class Shape {
 			let iflSequence = this.dts.sequences.find((seq) => seq.iflMatters[0] > 0);
 			if (!iflSequence || !this.showSequences) continue;
 
-			let completion = time / (iflSequence.duration * 1000);
+			let completion = time.timeSinceLoad / (iflSequence.duration * 1000);
 			let keyframe = Math.floor(completion * info.keyframes.length) % info.keyframes.length;
 			let currentFile = info.keyframes[keyframe];
 
@@ -413,7 +415,7 @@ export class Shape {
 		if (this.ambientRotate) {
 			let spinAnimation = new THREE.Quaternion();
 			let up = new THREE.Vector3(0, 0, 1);
-			spinAnimation.setFromAxisAngle(up, -time / 3000 * Math.PI * 2);
+			spinAnimation.setFromAxisAngle(up, -time.timeSinceLoad / 3000 * Math.PI * 2);
 
 			let orientation = this.worldOrientation.clone();
 			spinAnimation.multiplyQuaternions(orientation, spinAnimation);
@@ -499,8 +501,8 @@ export class Shape {
 		collider.onInside();
 	}
 
-	onMarbleContact(contact: OIMO.Contact, time: number) {}
-	onMarbleInside(time: number) {}
-	onMarbleEnter(time: number) {}
-	onMarbleLeave(time: number) {}
+	onMarbleContact(contact: OIMO.Contact, time: TimeState) {}
+	onMarbleInside(time: TimeState) {}
+	onMarbleEnter(time: TimeState) {}
+	onMarbleLeave(time: TimeState) {}
 }

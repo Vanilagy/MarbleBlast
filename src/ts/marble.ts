@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { gameButtons } from "./input";
 import { state } from "./state";
-import { PHYSICS_TICK_RATE } from "./level";
+import { PHYSICS_TICK_RATE, TimeState } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
 
@@ -69,7 +69,7 @@ export class Marble {
 		this.group.add(this.helicopter.group);
 	}
 
-	handleControl(time: number) {
+	handleControl(time: TimeState) {
 		let movementVec = new THREE.Vector3(0, 0, 0);
 
 		if (gameButtons.up) movementVec.add(new THREE.Vector3(1, 0, 0));
@@ -126,8 +126,8 @@ export class Marble {
 				this.wallHitBoosterTimeout = 1;
 			}
 
-			if (gameButtons.jump) {
-				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE, true);
+			if (gameButtons.jump && contactNormal.dot(state.currentLevel.currentUp) !== 0) {
+				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true);
 			}
 
 			let dot = Util.vecThreeToOimo(movementVec).normalize().dot(inverseContactNormal);
@@ -151,17 +151,17 @@ export class Marble {
 			movementRotationAxis = movementRotationAxis.scale(1/2);
 
 			let airMovementVector = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
-			let airVelocity = (time - this.helicopterEnableTime) < 5000 ? 5 : 3;
+			let airVelocity = (time.currentAttemptTime - this.helicopterEnableTime) < 5000 ? 5 : 3;
 			airMovementVector = airMovementVector.scale(airVelocity / PHYSICS_TICK_RATE);
 			this.body.addLinearVelocity(airMovementVector);
 		}
 
 		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 100));
 
-		if (time - this.shockAbsorberEnableTime < 5000) {
+		if (time.currentAttemptTime - this.shockAbsorberEnableTime < 5000) {
 			this.forcefield.setOpacity(1);
 			this.shape.setRestitution(0);
-		} else if (time - this.superBounceEnableTime < 5000) {
+		} else if (time.currentAttemptTime - this.superBounceEnableTime < 5000) {
 			this.forcefield.setOpacity(1);
 			this.shape.setRestitution(1.6); // Found through experimentation
 		} else {
@@ -169,7 +169,7 @@ export class Marble {
 			this.shape.setRestitution(0.5);
 		}
 
-		if (time - this.helicopterEnableTime < 5000) {
+		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) {
 			this.helicopter.setOpacity(1);
 			state.currentLevel.setGravityIntensity(5);
 		} else {
@@ -194,7 +194,7 @@ export class Marble {
 		}
 	}
 
-	render(time: number) {
+	render(time: TimeState) {
 		let bodyPosition = this.body.getPosition();
 		let bodyOrientation = this.body.getOrientation();
 		this.group.position.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
@@ -204,15 +204,15 @@ export class Marble {
 		this.helicopter.render(time);
 	}
 
-	enableSuperBounce(time: number) {
-		this.superBounceEnableTime = time;
+	enableSuperBounce(time: TimeState) {
+		this.superBounceEnableTime = time.currentAttemptTime;
 	}
 
-	enableShockAbsorber(time: number) {
-		this.shockAbsorberEnableTime = time;
+	enableShockAbsorber(time: TimeState) {
+		this.shockAbsorberEnableTime = time.currentAttemptTime;
 	}
 
-	enableHelicopter(time: number) {
-		this.helicopterEnableTime = time;
+	enableHelicopter(time: TimeState) {
+		this.helicopterEnableTime = time.currentAttemptTime;
 	}
 }

@@ -5,7 +5,8 @@ const NUM_COORD_BINS = 16;
 export interface DifFile {
 	version: number,
 	previewIncluded: boolean,
-	detailLevels: InteriorDetailLevel[]
+	detailLevels: InteriorDetailLevel[],
+	subObjects: InteriorDetailLevel[]
 }
 
 export interface LightMapTexGen {
@@ -181,12 +182,20 @@ export class DifParser extends BinaryFileParser {
         for (let i = 0; i < numDetailLevels; i++) {
             let interior = this.parseInterior();
             detailLevels.push(interior);
-        }
+		}
+		
+		let numSubObjects = this.readU32();
+		let subObjects: InteriorDetailLevel[] = [];
+		for (let i = 0; i < numSubObjects; i++) {
+			let interior = this.parseInterior();
+            subObjects.push(interior);
+		}
 
         return {
             version: version,
             previewIncluded: previewIncluded,
-            detailLevels: detailLevels
+			detailLevels: detailLevels,
+			subObjects: subObjects
         };
 	}
 
@@ -547,7 +556,18 @@ export class DifParser extends BinaryFileParser {
             alarmAmbientColor = this.readColorF();
 
         let numStaticMeshes = this.readU32();
-        console.log(numStaticMeshes); // TODO!
+		
+		numNormals = this.readU32();
+		let numTexMatrices = this.readU32();
+		let numTexMatIndices = this.readU32();
+
+		/* SIKE SIKE SIKE
+		let extendedLightMapData = this.readU32();
+
+		if (extendedLightMapData === 1) {
+			let lightMapBorderSize = this.readU32();
+			this.readU32(); // dummy
+		}*/
 
         return {
             interiorFileVersion: interiorFileVersion,

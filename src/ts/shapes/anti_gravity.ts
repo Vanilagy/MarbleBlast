@@ -2,6 +2,7 @@ import { PowerUp } from "./power_up";
 import * as THREE from "three";
 import { state } from "../state";
 import { Util } from "../util";
+import { TimeState } from "../level";
 
 export class AntiGravity extends PowerUp {
 	dtsPath = "shapes/items/antigravity.dts";
@@ -9,7 +10,7 @@ export class AntiGravity extends PowerUp {
 
 	pickUp() {return true;}
 
-	use(time: number) {
+	use(time: TimeState) {
 		let direction = new THREE.Vector3(0, 0, -1);
 		direction.applyQuaternion(this.worldOrientation);
 

@@ -1,8 +1,9 @@
-import { DifFile } from "./parsing/dif_parser";
+import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
 import * as THREE from "three";
 import { Point3F } from "./parsing/binary_file_parser";
 import OIMO from "./declarations/oimo";
 import { ResourceManager } from "./resources";
+import { TimeState } from "./level";
 
 const specialFriction: Record<string, number> = {
 	"friction_high": 1.5,
@@ -16,26 +17,27 @@ const specialResistutionFactor: Record<string, number> = {
 	"friction_none": 0.5
 };
 
-let interiorRigidBodyConfig =  new OIMO.RigidBodyConfig();
-interiorRigidBodyConfig.type = OIMO.RigidBodyType.STATIC;
-
 export class Interior {
 	dif: DifFile;
 	group: THREE.Group;
 	body: OIMO.RigidBody;
 	detailLevel: DifFile["detailLevels"][number];
+	worldMatrix = new THREE.Matrix4();
 
-	constructor(file: DifFile) {
+	constructor(file: DifFile, subObjectIndex?: number) {
 		this.group = new THREE.Group();
-		this.detailLevel = file.detailLevels[0];
-		this.body = new OIMO.RigidBody(interiorRigidBodyConfig);
+		this.detailLevel = (subObjectIndex === undefined)? file.detailLevels[0] : file.subObjects[subObjectIndex];
+
+		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
+		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
+		this.body = new OIMO.RigidBody(rigidBodyConfig);
 
 		for (let surface of this.detailLevel.surfaces) {
 			this.addSurface(surface);
 		}
 	}
 
-	addSurface(surface: DifFile["detailLevels"][number]["surfaces"][number]) {
+	addSurface(surface: InteriorDetailLevel["surfaces"][number]) {
 		let detailLevel = this.detailLevel;
 
 		let points = this.getPointsForSurface(surface);
@@ -93,7 +95,7 @@ export class Interior {
 		this.body.addShape(shape);
 	}
 
-	getPointsForSurface(surface: DifFile["detailLevels"][number]["surfaces"][number]) {
+	getPointsForSurface(surface: InteriorDetailLevel["surfaces"][number]) {
 		let arr: Point3F[] = [];
 
 		for (let i = 0; i < surface.windingCount; i++) {
@@ -110,8 +112,11 @@ export class Interior {
 	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion) {
 		this.group.position.copy(position);
 		this.group.quaternion.copy(orientation);
+		this.worldMatrix.compose(position, orientation, new THREE.Vector3(1, 1, 1));
 
 		this.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
 		this.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
 	}
+
+	tick(time: TimeState) {}
 }

@@ -151,7 +151,8 @@ export interface MissionElementTrigger extends MissionElementBase {
 	scale: string,
 	dataBlock: string,
 	polyhedron: string,
-	text: string
+	text: string,
+	targetTime?: string
 }
 
 export interface MissionElementAudioProfile extends MissionElementBase {
@@ -332,7 +333,7 @@ export class MisParser {
 		return {
 			_type: MissionElementType.Path,
 			_subtype: subtype,
-			markers: markers
+			markers: markers.sort((a, b) => Number(a.seqNum) - Number(b.seqNum)) // Make sure they're sorted sequentially
 		} as MissionElementPath;
 	}
 
@@ -379,7 +380,7 @@ export class MisParser {
 		return parser.parse();
 	}
 
-	static parsePosition(string: string) {
+	static parseVector3(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
 		return new THREE.Vector3(parts[0], parts[1], parts[2]);
 	}

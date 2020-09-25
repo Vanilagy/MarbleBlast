@@ -5,7 +5,7 @@ import { renderer, camera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble } from "./marble";
 import { Shape } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky, MissionElementTrigger } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
@@ -30,20 +30,31 @@ import { Util } from "./util";
 import { PowerUp } from "./shapes/power_up";
 import { gameButtons } from "./input";
 import { SmallDuctFan } from "./shapes/small_duct_fan";
+import { PathedInterior } from "./pathed_interior";
+import { Trigger } from "./triggers/trigger";
 
 export const PHYSICS_TICK_RATE = 120;
+
+export interface TimeState {
+	timeSinceLoad: number,
+	currentAttemptTime: number,
+	gameplayClock: number
+}
 
 export class Level {
 	scene: THREE.Scene;
 	physicsWorld: OIMO.World;
 	marble: Marble;
+	interiors: Interior[] = [];
 	shapes: Shape[] = [];
 	shapeLookup = new Map<any, Shape>();
 	shapeColliderLookup = new Map<any, Shape>();
+	triggerLookup = new Map<any, Trigger>();
 
+	timeState: TimeState;
 	lastPhysicsTick: number = null;
 	shapeImmunity = new Set<Shape>();
-	shapeInside = new Map<Shape, boolean>();
+	shapeOrTriggerInside = new Map<Shape | Trigger, boolean>();
 	pitch = 0;
 	yaw = 0;
 
@@ -67,7 +78,7 @@ export class Level {
 		this.auxPhysicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, 0));
 
 		let sunElement = missionGroup.elements.find((element) => element._type === MissionElementType.Sun) as MissionElementSun;
-		let sunDirection = MisParser.parsePosition(sunElement.direction);
+		let sunDirection = MisParser.parseVector3(sunElement.direction);
 		let directionalColor = MisParser.parseVector4(sunElement.color);
 		let ambientColor = MisParser.parseVector4(sunElement.ambient);
 
@@ -117,11 +128,32 @@ export class Level {
 
 		this.addSimGroup(missionGroup);
 
+		this.timeState = {
+			timeSinceLoad: 0,
+			currentAttemptTime: 0,
+			gameplayClock: 0
+		};
+
 		this.render();
 		setInterval(() => this.tick());
 	}
 
 	async addSimGroup(simGroup: MissionElementSimGroup) {
+		if (simGroup._subtype.startsWith("MustChange")) {
+			let pathedInterior = await PathedInterior.createFromSimGroup(simGroup);
+
+			this.scene.add(pathedInterior.group);
+			this.physicsWorld.addRigidBody(pathedInterior.body);
+			this.interiors.push(pathedInterior);
+
+			for (let trigger of pathedInterior.triggers) {
+				this.auxPhysicsWorld.addRigidBody(trigger.body);
+				this.triggerLookup.set(trigger.id, trigger);
+			}
+
+			return;
+		}
+
 		for (let element of simGroup.elements) {
 			switch (element._type) {
 				case MissionElementType.SimGroup: {
@@ -131,13 +163,17 @@ export class Level {
 					let path = element.interiorFile.slice(element.interiorFile.indexOf('data/'));
 					let difFile = await DifParser.loadFile('./assets/' + path);
 					let interior = new Interior(difFile);
-					interior.setTransform(MisParser.parsePosition(element.position), MisParser.parseRotation(element.rotation));
+					interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
 	
 					this.scene.add(interior.group);
 					this.physicsWorld.addRigidBody(interior.body);
+					this.interiors.push(interior);
 				}; break;
 				case MissionElementType.StaticShape: case MissionElementType.Item: {
 					await this.addShape(element);
+				}; break;
+				case MissionElementType.Trigger: {
+					this.addTrigger(element);
 				}; break;
 			}
 		}
@@ -193,7 +229,7 @@ export class Level {
 		if (!shape) return;
 		await shape.init();
 
-		shape.setTransform(MisParser.parsePosition(element.position), MisParser.parseRotation(element.rotation));
+		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
 
 		// temp
 		if (shape instanceof StartPad) this.marble.body.setPosition(new OIMO.Vec3(shape.worldPosition.x, shape.worldPosition.y, shape.worldPosition.z + 2));
@@ -211,13 +247,24 @@ export class Level {
 		this.shapeLookup.set(shape.id, shape);
 	}
 
+	addTrigger(element: MissionElementTrigger) {
+		let trigger: Trigger;
+
+		// Do stuff
+
+		if (!trigger) return;
+
+		this.auxPhysicsWorld.addRigidBody(trigger.body);
+		this.triggerLookup.set(trigger.id, trigger);
+	}
+
 	render() {
 		let time = performance.now();
 
 		this.tick(time);
 
 		let marblePosition = this.marble.body.getPosition();
-		let orientationQuat = this.getOrientationQuat(time);
+		let orientationQuat = this.getOrientationQuat(this.timeState);
 		let up = new THREE.Vector3(0, 0, 1).applyQuaternion(orientationQuat);
 		let directionVector = new THREE.Vector3(1, 0, 0);
 		let cameraVerticalTranslation = new THREE.Vector3(0, 0, 0.3);
@@ -235,8 +282,8 @@ export class Level {
 		camera.lookAt(new THREE.Vector3(marblePosition.x, marblePosition.y, marblePosition.z));
 		camera.position.add(cameraVerticalTranslation);
 
-		this.marble.render(time);
-		for (let shape of this.shapes) shape.render(time);
+		this.marble.render(this.timeState);
+		for (let shape of this.shapes) shape.render(this.timeState);
 
 		renderer.render(this.scene, camera);
 
@@ -247,7 +294,7 @@ export class Level {
 		if (time === undefined) time = performance.now();
 
 		if (gameButtons.use) {
-			this.heldPowerUp?.use(time);
+			this.heldPowerUp?.use(this.timeState);
 			this.heldPowerUp = null;
 		}
 
@@ -262,6 +309,10 @@ export class Level {
 			}
 
 			while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
+				this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
+				this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
+				this.timeState.gameplayClock += 1000 / PHYSICS_TICK_RATE;
+
 				let newImmunity: Shape[] = [];
 
 				let calledShapes = new Set<Shape>();
@@ -277,18 +328,21 @@ export class Level {
 						if (shape && !this.shapeImmunity.has(shape) && !calledShapes.has(shape)) {
 							calledShapes.add(shape);
 							newImmunity.push(shape);
-							shape.onMarbleContact(contact, time);
+							shape.onMarbleContact(contact, this.timeState);
 						}
 					}
 
 					linkedList = linkedList.getNext();
 				}
 
-				for (let shape of this.shapes) shape.tick(time);
-				this.marble.handleControl(time);
+				for (let shape of this.shapes) shape.tick(this.timeState);
+				this.marble.handleControl(this.timeState);
 
 				let prevMarblePosition = this.marble.body.getPosition().clone();
 				this.physicsWorld.step(1 / PHYSICS_TICK_RATE);
+
+				// I know it's kind of strange to update interiors later, but this actually made them in-sync with the marble.
+				for (let interior of this.interiors) interior.tick(this.timeState);
 
 				this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
 				elapsed -= 1000 / PHYSICS_TICK_RATE;
@@ -314,24 +368,25 @@ export class Level {
 					contact._updateManifold();
 					let contactShape = contact.getShape1();
 					if (contactShape === this.auxMarbleShape) contactShape = contact.getShape2();
-					let shape = this.shapeLookup.get(contactShape.userData);
 
-					if (!shape) {
+					let object = this.shapeLookup.get(contactShape.userData) ?? this.triggerLookup.get(contactShape.userData);
+
+					if (!object) {
 						if (contact.isTouching()) {
-							shape = this.shapeColliderLookup.get(contactShape.userData);
-							shape.onColliderInside(contactShape.userData);
+							object = this.shapeColliderLookup.get(contactShape.userData);
+							object.onColliderInside(contactShape.userData);
 						}
 					} else {
 						if (contact.isTouching()) {
-							shape.onMarbleInside(time);
-							if (!this.shapeInside.get(shape)) {
-								this.shapeInside.set(shape, true);
-								shape.onMarbleEnter(time);
+							object.onMarbleInside(this.timeState);
+							if (!this.shapeOrTriggerInside.get(object)) {
+								this.shapeOrTriggerInside.set(object, true);
+								object.onMarbleEnter(this.timeState);
 							}
 						} else {
-							if (this.shapeInside.get(shape)) {
-								this.shapeInside.set(shape, false);
-								shape.onMarbleLeave(time);
+							if (this.shapeOrTriggerInside.get(object)) {
+								this.shapeOrTriggerInside.set(object, false);
+								object.onMarbleLeave(this.timeState);
 							}
 						}
 					}
@@ -342,12 +397,12 @@ export class Level {
 		}
 	}
 
-	getOrientationQuat(time: number) {
-		let completion = Util.clamp((time - this.orientationChangeTime) / 300, 0, 1);
+	getOrientationQuat(time: TimeState) {
+		let completion = Util.clamp((time.currentAttemptTime - this.orientationChangeTime) / 300, 0, 1);
 		return this.oldOrientationQuat.clone().slerp(this.newOrientationQuat, completion);
 	}
 
-	setUp(vec: OIMO.Vec3, time: number) {
+	setUp(vec: OIMO.Vec3, time: TimeState) {
 		this.currentUp = vec;
 		this.physicsWorld.setGravity(vec.scale(-1 * this.physicsWorld.getGravity().length()));
 
@@ -360,7 +415,7 @@ export class Level {
 
 		this.newOrientationQuat = currentQuat.clone().multiply(quatChange);
 		this.oldOrientationQuat = currentQuat;
-		this.orientationChangeTime = time;
+		this.orientationChangeTime = time.currentAttemptTime;
 	}
 
 	setGravityIntensity(intensity: number) {
@@ -381,5 +436,9 @@ export class Level {
 		this.heldPowerUp = powerUp;
 
 		return true;
+	}
+
+	pickUpGem() {
+		
 	}
 }
