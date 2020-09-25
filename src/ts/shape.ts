@@ -58,9 +58,12 @@ export class Shape {
 	ambientRotate = false;
 	worldPosition = new THREE.Vector3();
 	worldOrientation = new THREE.Quaternion();
+	worldMatrix = new THREE.Matrix4();
 	currentOpacity = 1;
 	showSequences = true;
 	colliders: ColliderInfo[] = [];
+	sequenceKeyframeOverride = new WeakMap<DtsFile["sequences"][number], number>();
+	lastSequenceKeyframes = new WeakMap<DtsFile["sequences"][number], number>();
 
 	async init() {
 		this.id = getUniqueId();
@@ -111,16 +114,17 @@ export class Shape {
 					let config = new OIMO.RigidBodyConfig();
 					config.type = OIMO.RigidBodyType.STATIC;
 					let body = new OIMO.RigidBody(config);
+					body.userData = {
+						nodeIndex: i
+					};
 	
 					for (let j = object.startMeshIndex; j < object.startMeshIndex + object.numMeshes; j++) {
 						let mesh = this.dts.meshes[j];
 						if (!mesh) continue;
 	
 						for (let primitive of mesh.primitives) {
-							let mat = this.nodeTransforms[i];
 							let vertices = mesh.indices.slice(primitive.start, primitive.start + primitive.numElements)
 								.map((index) => mesh.verts[index])
-								.map((vert) => (new THREE.Vector3(vert.x, vert.y, vert.z)).applyMatrix4(mat))
 								.map((vert) => new OIMO.Vec3(vert.x, vert.y, vert.z));
 							let geometry = new OIMO.ConvexHullGeometry(vertices);
 	
@@ -272,9 +276,24 @@ export class Shape {
 		}
 	}
 
-	render(time: number) {
-		if (this.currentOpacity === 0) return;
+	updateBodyTransforms() {
+		for (let body of this.bodies) {
+			let mat = this.nodeTransforms[body.userData.nodeIndex].clone();
+			mat.multiplyMatrices(this.worldMatrix, mat);
 
+			let position = new THREE.Vector3();
+			let orientation = new THREE.Quaternion();
+			mat.decompose(position, orientation, new THREE.Vector3());
+
+			let localTranslation = this.bodiesLocalTranslation.get(body);
+			if (!localTranslation) localTranslation = new OIMO.Vec3();
+
+			body.setPosition(new OIMO.Vec3(position.x + localTranslation.x, position.y + localTranslation.y, position.z + localTranslation.z));
+			body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
+		}
+	}
+
+	tick(time: number) {
 		for (let sequence of this.dts.sequences) {
 			if (!this.showSequences) break;
 
@@ -283,7 +302,10 @@ export class Shape {
 			let completion = time / (sequence.duration * 1000);
 
 			if (rot > 0) {
-				let actualKeyframe = (completion * sequence.numKeyframes) % sequence.numKeyframes;
+				let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
+				if (this.lastSequenceKeyframes.get(sequence) === actualKeyframe) continue;
+				this.lastSequenceKeyframes.set(sequence, actualKeyframe);
+
 				let keyframeLow = Math.floor(actualKeyframe);
 				let keyframeHigh = Math.ceil(actualKeyframe) % sequence.numKeyframes;
 				let t = (actualKeyframe - keyframeLow) % 1;
@@ -316,9 +338,15 @@ export class Shape {
 						return quaternion;
 					}
 				});
+
 				this.updateNodeTransforms(quaternions);
+				this.updateBodyTransforms();
 			}
 		}
+	}
+
+	render(time: number) {
+		if (this.currentOpacity === 0) return;
 
 		for (let info of this.skinMeshInfo) {
 			let mesh = this.dts.meshes[info.meshIndex];
@@ -397,23 +425,14 @@ export class Shape {
 	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion) {
 		this.worldPosition = position;
 		this.worldOrientation = orientation;
-		let worldMatrix = new THREE.Matrix4();
-		worldMatrix.compose(position, orientation, new THREE.Vector3(1, 1, 1));
+		this.worldMatrix.compose(position, orientation, new THREE.Vector3(1, 1, 1));
 
 		this.group.position.copy(position);
 		this.group.quaternion.copy(orientation);
 
-		for (let body of this.bodies) {
-			let localTranslation = this.bodiesLocalTranslation.get(body);
-			if (!localTranslation) localTranslation = new OIMO.Vec3();
-
-			body.setPosition(new OIMO.Vec3(position.x + localTranslation.x, position.y + localTranslation.y, position.z + localTranslation.z));
-			body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
-		}
-
 		for (let collider of this.colliders) {
 			let mat = collider.transform.clone();
-			mat.multiplyMatrices(worldMatrix, mat);
+			mat.multiplyMatrices(this.worldMatrix, mat);
 
 			let position = new THREE.Vector3();
 			let orientation = new THREE.Quaternion();
@@ -422,6 +441,8 @@ export class Shape {
 			collider.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
 			collider.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
 		}
+
+		this.updateBodyTransforms();
 	}
 
 	setOpacity(opacity: number) {

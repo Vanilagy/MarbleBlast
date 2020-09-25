@@ -284,7 +284,8 @@ export class Level {
 					linkedList = linkedList.getNext();
 				}
 
-				this.marble.handleControl(time);				
+				for (let shape of this.shapes) shape.tick(time);
+				this.marble.handleControl(time);
 
 				let prevMarblePosition = this.marble.body.getPosition().clone();
 				this.physicsWorld.step(1 / PHYSICS_TICK_RATE);
