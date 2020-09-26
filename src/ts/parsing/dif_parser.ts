@@ -1,4 +1,5 @@
 import { BinaryFileParser, Box3F, SphereF, Point3F, PlaneF } from "./binary_file_parser";
+import { ResourceManager } from "../resources";
 
 const NUM_COORD_BINS = 16;
 
@@ -655,12 +656,22 @@ export class DifParser extends BinaryFileParser {
 
         return { red, green, blue, alpha };
 	}
-	
-	static async loadFile(path: string) {
-		let response = await fetch(path);
-		let arrayBuffer = await response.arrayBuffer();
-		let parser = new DifParser(arrayBuffer);
 
-		return parser.parse();
+	static cachedFiles = new Map<string, Promise<DifFile>>();
+	
+	static loadFile(path: string) {
+		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
+
+		let promise = new Promise<DifFile>(async (resolve) => {
+			let blob = await ResourceManager.loadResource(path);
+			let arrayBuffer = await blob.arrayBuffer();
+			let parser = new DifParser(arrayBuffer);
+	
+			let result = parser.parse();
+			resolve(result);
+		});
+		this.cachedFiles.set(path, promise);
+
+		return promise;
 	}
 }

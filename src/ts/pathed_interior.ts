@@ -21,6 +21,7 @@ export class PathedInterior extends Interior {
 		let difFile = await DifParser.loadFile('./assets/' + path);
 
 		let pathedInterior = new PathedInterior(difFile, Number(interiorElement.interiorIndex));
+		await pathedInterior.init();
 		pathedInterior.path = simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 		pathedInterior.computeDuration();
 

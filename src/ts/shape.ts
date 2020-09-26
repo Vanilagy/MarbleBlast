@@ -1,4 +1,4 @@
-import { DtsFile, MeshType, Quat16, DtsParser } from "./parsing/dts_parser";
+import { DtsFile, MeshType, DtsParser } from "./parsing/dts_parser";
 import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
@@ -57,6 +57,7 @@ export class Shape {
 	skinMeshInfo: SkinMeshData[] = [];
 	collideable = true;
 	ambientRotate = false;
+	ambientSpinFactor = -1 / 3000 * Math.PI * 2;
 	worldPosition = new THREE.Vector3();
 	worldOrientation = new THREE.Quaternion();
 	worldMatrix = new THREE.Matrix4();
@@ -92,8 +93,14 @@ export class Shape {
 			} else if (fullName.endsWith('.ifl')) {
 				let keyframes = await IflParser.loadFile('./assets/data/' + this.directoryPath + '/' + fullName);
 				this.materialInfo.set(material, { keyframes });
+
+				let promises: Promise<any>[] = [];
+				for (let frame of new Set(keyframes)) {
+					promises.push(ResourceManager.getTexture(this.directoryPath + '/' + frame));
+				}
+				await Promise.all(promises);
 			} else {
-				let texture = ResourceManager.getTexture(this.directoryPath + '/' + fullName, (flags & MaterialFlags.Translucent) === 0);
+				let texture = await ResourceManager.getTexture(this.directoryPath + '/' + fullName, (flags & MaterialFlags.Translucent) === 0);
 				if (flags & MaterialFlags.S_Wrap) texture.wrapS = THREE.RepeatWrapping;
 				if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
 				material.map = texture;
@@ -405,7 +412,7 @@ export class Shape {
 			let currentFile = info.keyframes[keyframe];
 
 			let flags = this.dts.matFlags[i];
-			let texture = ResourceManager.getTexture(this.directoryPath + '/' + currentFile);
+			let texture = ResourceManager.getTextureFromCache(this.directoryPath + '/' + currentFile);
 			if (flags & MaterialFlags.S_Wrap) texture.wrapS = THREE.RepeatWrapping;
 			if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
 
@@ -415,7 +422,7 @@ export class Shape {
 		if (this.ambientRotate) {
 			let spinAnimation = new THREE.Quaternion();
 			let up = new THREE.Vector3(0, 0, 1);
-			spinAnimation.setFromAxisAngle(up, -time.timeSinceLoad / 3000 * Math.PI * 2);
+			spinAnimation.setFromAxisAngle(up, time.timeSinceLoad * this.ambientSpinFactor);
 
 			let orientation = this.worldOrientation.clone();
 			spinAnimation.multiplyQuaternions(orientation, spinAnimation);

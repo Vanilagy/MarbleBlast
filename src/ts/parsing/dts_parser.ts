@@ -1,4 +1,5 @@
 import { BinaryFileParser, Point2F, Point3F, Box3F } from "./binary_file_parser";
+import { ResourceManager } from "../resources";
 
 export enum MeshType {
 	Standard = 0,
@@ -680,11 +681,21 @@ export class DtsParser extends BinaryFileParser {
 		return words;
 	}
 
-	static async loadFile(path: string) {
-		let response = await fetch(path);
-		let arrayBuffer = await response.arrayBuffer();
-		let parser = new DtsParser(arrayBuffer);
+	static cachedFiles = new Map<string, Promise<DtsFile>>();
+	
+	static loadFile(path: string) {
+		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
-		return parser.parse();
+		let promise = new Promise<DtsFile>(async (resolve) => {
+			let blob = await ResourceManager.loadResource(path);
+			let arrayBuffer = await blob.arrayBuffer();
+			let parser = new DtsParser(arrayBuffer);
+	
+			let result = parser.parse();
+			resolve(result);
+		});
+		this.cachedFiles.set(path, promise);
+
+		return promise;
 	}
 }

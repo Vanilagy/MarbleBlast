@@ -1,11 +1,11 @@
 import { DifParser } from "./parsing/dif_parser";
 import { Interior } from "./interior";
 import * as THREE from "three";
-import { renderer, camera } from "./rendering";
+import { renderer, camera, orthographicCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble } from "./marble";
 import { Shape } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky, MissionElementTrigger } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky, MissionElementTrigger, MissionElementInteriorInstance } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
@@ -35,9 +35,17 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount } from "./ui/game";
+import { displayTime, displayAlert, displayGemCount, gemCountElement } from "./ui/game";
+import { ResourceManager } from "./resources";
 
 export const PHYSICS_TICK_RATE = 120;
+const SHAPE_OVERLAY_OFFSETS = {
+	"shapes/images/helicopter.dts": -67,
+	"shapes/items/superjump.dts": -70,
+	"shapes/items/superbounce.dts": -55,
+	"shapes/items/superspeed.dts": -53,
+	"shapes/items/shockabsorber.dts": -53
+};
 
 export interface TimeState {
 	timeSinceLoad: number,
@@ -46,6 +54,7 @@ export interface TimeState {
 }
 
 export class Level {
+	mission: MissionElementSimGroup;
 	scene: THREE.Scene;
 	physicsWorld: OIMO.World;
 	marble: Marble;
@@ -54,6 +63,8 @@ export class Level {
 	shapeLookup = new Map<any, Shape>();
 	shapeColliderLookup = new Map<any, Shape>();
 	triggerLookup = new Map<any, Trigger>();
+	overlayShapes: Shape[] = [];
+	overlayScene: THREE.Scene;
 
 	timeState: TimeState;
 	lastPhysicsTick: number = null;
@@ -75,15 +86,33 @@ export class Level {
 	gemCount = 0;
 
 	constructor(missionGroup: MissionElementSimGroup) {
-		this.init(missionGroup);
+		this.mission = missionGroup;
+		this.init();
 	}
 
-	async init(missionGroup: MissionElementSimGroup) {
-		this.scene = new THREE.Scene();
-		this.physicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, -20));
-		this.auxPhysicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, 0));
+	async init() {
+		await this.initScene();
+		this.initPhysics();
+		await this.initMarble();
+		await this.addSimGroup(this.mission);
+		await this.initUi();
 
-		let sunElement = missionGroup.elements.find((element) => element._type === MissionElementType.Sun) as MissionElementSun;
+		this.timeState = {
+			timeSinceLoad: 0,
+			currentAttemptTime: 0,
+			gameplayClock: 0
+		};
+
+		this.render();
+		setInterval(() => this.tick());
+
+		this.restart();
+	}
+
+	async initScene() {
+		this.scene = new THREE.Scene();
+
+		let sunElement = this.mission.elements.find((element) => element._type === MissionElementType.Sun) as MissionElementSun;
 		let sunDirection = MisParser.parseVector3(sunElement.direction);
 		let directionalColor = MisParser.parseVector4(sunElement.color);
 		let ambientColor = MisParser.parseVector4(sunElement.ambient);
@@ -98,27 +127,31 @@ export class Level {
         sunlight.position.y = -sunDirection.y * 30;
 		sunlight.position.z = -sunDirection.z * 30;
 
-		const skyboxLoader = new THREE.CubeTextureLoader();
-        const texture = skyboxLoader.load([
+		let skyboxImages = await ResourceManager.loadImages([
             './assets/data/skies/sky_lf.jpg',
             './assets/data/skies/sky_rt.jpg',
             './assets/data/skies/sky_bk.jpg',
             './assets/data/skies/sky_fr.jpg',
             './assets/data/skies/sky_up.jpg',
             './assets/data/skies/sky_dn.jpg',
-		], () => {
-			this.scene.background = texture;
+		]) as (HTMLImageElement | HTMLCanvasElement)[];
+		skyboxImages[0] = Util.modifyImageWithCanvas(skyboxImages[0], -Math.PI/2, true);
+		skyboxImages[1] = Util.modifyImageWithCanvas(skyboxImages[1], Math.PI/2, true);
+		skyboxImages[2] = Util.modifyImageWithCanvas(skyboxImages[2], 0, true);
+		skyboxImages[3] = Util.modifyImageWithCanvas(skyboxImages[3], Math.PI, true);
+		skyboxImages[4] = Util.modifyImageWithCanvas(skyboxImages[4], Math.PI, true);
+		skyboxImages[5] = Util.modifyImageWithCanvas(skyboxImages[5], 0, true);
+		let skyboxTexture = new THREE.CubeTexture(skyboxImages);
+		skyboxTexture.needsUpdate = true;
+		this.scene.background = skyboxTexture;
+	}
 
-			texture.images[0] = Util.modifyImageWithCanvas(texture.images[0], -Math.PI/2, true);
-			texture.images[1] = Util.modifyImageWithCanvas(texture.images[1], Math.PI/2, true);
-			texture.images[2] = Util.modifyImageWithCanvas(texture.images[2], 0, true);
-			texture.images[3] = Util.modifyImageWithCanvas(texture.images[3], Math.PI, true);
-			texture.images[4] = Util.modifyImageWithCanvas(texture.images[4], Math.PI, true);
-			texture.images[5] = Util.modifyImageWithCanvas(texture.images[5], 0, true);
+	initPhysics() {
+		this.physicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, -20));
+		this.auxPhysicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, 0));
+	}
 
-			texture.needsUpdate = true;
-		});
-
+	async initMarble() {
 		this.marble = new Marble();
 		await this.marble.init();
 		this.scene.add(this.marble.group);
@@ -131,17 +164,57 @@ export class Level {
 		this.auxMarbleBody = new OIMO.RigidBody(new OIMO.RigidBodyConfig());
 		this.auxMarbleBody.addShape(this.auxMarbleShape);
 		this.auxPhysicsWorld.addRigidBody(this.auxMarbleBody);
+	}
 
-		this.addSimGroup(missionGroup);
+	async initUi() {
+		await ResourceManager.loadImages(['0.png', '1.png', '2.png', '3.png', '4.png', '5.png', '6.png', '7.png', '8.png', '9.png'].map(x => "./assets/ui/game/numbers/" + x));
 
-		this.timeState = {
-			timeSinceLoad: 0,
-			currentAttemptTime: 0,
-			gameplayClock: 0
-		};
+		let hudOverlayShapePaths = new Set<string>();
+		for (let shape of this.shapes) {
+			if (shape instanceof PowerUp || shape instanceof Gem) {
+				hudOverlayShapePaths.add(shape.dtsPath);
+			}
+		}
 
-		this.render();
-		setInterval(() => this.tick());
+		this.overlayScene = new THREE.Scene();
+		let overlayLight = new THREE.AmbientLight(0xffffff);
+		this.overlayScene.add(overlayLight);
+
+		for (let path of hudOverlayShapePaths) {
+			let shape = new Shape();
+			shape.dtsPath = path;
+			shape.ambientRotate = true;
+			await shape.init();
+
+			this.overlayShapes.push(shape);
+			if (path.includes("gem")) shape.ambientSpinFactor /= -2;
+			else shape.ambientSpinFactor /= 2;
+		}
+
+		if (this.totalGems > 0) {
+			gemCountElement.style.display = '';
+			let gemOverlayShape = this.overlayShapes.find((shape) => shape.dtsPath.includes("gem"));
+			this.overlayScene.add(gemOverlayShape.group);
+		} else {
+			gemCountElement.style.display = 'none';
+		}
+	}
+
+	restart() {
+		this.timeState.currentAttemptTime = 0;
+		this.timeState.gameplayClock = 0;
+		
+		if (this.totalGems > 0) {
+			this.gemCount = 0;
+			displayGemCount(this.gemCount, this.totalGems);
+		}
+
+		let startPad = this.shapes.find((shape) => shape instanceof StartPad);
+		this.marble.body.setLinearVelocity(new OIMO.Vec3());
+		this.marble.body.setAngularVelocity(new OIMO.Vec3());
+		this.marble.body.setPosition(new OIMO.Vec3(startPad.worldPosition.x, startPad.worldPosition.y, startPad.worldPosition.z + 4));
+
+		this.deselectPowerUp();
 	}
 
 	async addSimGroup(simGroup: MissionElementSimGroup) {
@@ -160,29 +233,38 @@ export class Level {
 			return;
 		}
 
+		let promises: Promise<any>[] = [];
+
 		for (let element of simGroup.elements) {
 			switch (element._type) {
 				case MissionElementType.SimGroup: {
-					await this.addSimGroup(element);
+					promises.push(this.addSimGroup(element));
 				}; break;
 				case MissionElementType.InteriorInstance: {
-					let path = element.interiorFile.slice(element.interiorFile.indexOf('data/'));
-					let difFile = await DifParser.loadFile('./assets/' + path);
-					let interior = new Interior(difFile);
-					interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
-	
-					this.scene.add(interior.group);
-					this.physicsWorld.addRigidBody(interior.body);
-					this.interiors.push(interior);
+					promises.push(this.addInterior(element));
 				}; break;
 				case MissionElementType.StaticShape: case MissionElementType.Item: {
-					await this.addShape(element);
+					promises.push(this.addShape(element));
 				}; break;
 				case MissionElementType.Trigger: {
 					this.addTrigger(element);
 				}; break;
 			}
 		}
+
+		await Promise.all(promises);
+	}
+
+	async addInterior(element: MissionElementInteriorInstance) {
+		let path = element.interiorFile.slice(element.interiorFile.indexOf('data/'));
+		let difFile = await DifParser.loadFile('./assets/' + path);
+		let interior = new Interior(difFile);
+		await interior.init();
+		interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
+
+		this.scene.add(interior.group);
+		this.physicsWorld.addRigidBody(interior.body);
+		this.interiors.push(interior);
 	}
 
 	async addShape(element: MissionElementStaticShape | MissionElementItem) {
@@ -237,9 +319,6 @@ export class Level {
 		await shape.init();
 
 		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
-
-		// temp
-		if (shape instanceof StartPad) this.marble.body.setPosition(new OIMO.Vec3(shape.worldPosition.x, shape.worldPosition.y, shape.worldPosition.z + 2));
 
 		this.scene.add(shape.group);
 		for (let body of shape.bodies) {
@@ -300,6 +379,25 @@ export class Level {
 
 		renderer.render(this.scene, camera);
 
+		for (let overlayShape of this.overlayShapes) {
+			overlayShape.group.position.x = 500;
+			overlayShape.render(this.timeState);
+
+			if (overlayShape.dtsPath.includes("gem")) {
+				overlayShape.group.scale.setScalar(45);
+				overlayShape.group.position.y = 25;
+				overlayShape.group.position.z = -35;
+			} else {
+				overlayShape.group.scale.setScalar(40);
+				overlayShape.group.position.y = window.innerWidth - 55;
+				overlayShape.group.position.z = SHAPE_OVERLAY_OFFSETS[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_OFFSETS];
+			}
+		}
+
+		renderer.autoClear = false;
+		renderer.render(this.overlayScene, orthographicCamera);
+		renderer.autoClear = true;
+
 		displayTime(this.timeState.gameplayClock / 1000);
 
 		requestAnimationFrame(() => this.render());
@@ -310,7 +408,7 @@ export class Level {
 
 		if (gameButtons.use) {
 			this.heldPowerUp?.use(this.timeState);
-			this.heldPowerUp = null;
+			this.deselectPowerUp();
 		}
 
 		if (this.lastPhysicsTick === null) {
@@ -450,7 +548,24 @@ export class Level {
 		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
 		this.heldPowerUp = powerUp;
 
+		for (let overlayShape of this.overlayShapes) {
+			if (overlayShape.dtsPath.includes("gem")) continue;
+
+			if (overlayShape.dtsPath === powerUp.dtsPath) this.overlayScene.add(overlayShape.group);
+			else this.overlayScene.remove(overlayShape.group);
+		}
+
 		return true;
+	}
+
+	deselectPowerUp() {
+		if (!this.heldPowerUp) return;
+		this.heldPowerUp = null;
+
+		for (let overlayShape of this.overlayShapes) {
+			if (overlayShape.dtsPath.includes("gem")) continue;
+			this.overlayScene.remove(overlayShape.group);
+		}
 	}
 
 	pickUpGem() {

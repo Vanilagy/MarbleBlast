@@ -1,3 +1,7 @@
+import { ResourceManager } from "../resources";
+
+export type IflFile = string[]; // lol
+
 export class IflParser {
 	text: string;
 
@@ -5,7 +9,7 @@ export class IflParser {
 		this.text = text;
 	}
 
-	parse() {
+	parse(): IflFile {
 		let lines = this.text.split('\n');
 		let keyframes: string[] = [];
 
@@ -25,11 +29,18 @@ export class IflParser {
 		return keyframes;
 	}
 
+	static cachedFiles = new Map<string, IflFile>();
+	
 	static async loadFile(path: string) {
-		let response = await fetch(path);
-		let text = await response.text();
-		let parser = new IflParser(text);
+		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
-		return parser.parse();
+		let blob = await ResourceManager.loadResource(path);
+		let arrayBuffer = await blob.text();
+		let parser = new IflParser(arrayBuffer);
+		
+		let result = parser.parse();
+		this.cachedFiles.set(path, result);
+
+		return result;
 	}
 }

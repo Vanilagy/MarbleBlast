@@ -59,7 +59,7 @@ export abstract class Util {
 		return arr[Math.floor(Math.random() * arr.length)];
 	}
 
-	static modifyImageWithCanvas(image: HTMLImageElement, rotate: number, flip = false) {
+	static modifyImageWithCanvas(image: HTMLImageElement | HTMLCanvasElement, rotate: number, flip = false) {
 		let canvas = document.createElement('canvas');
 		canvas.setAttribute('width', image.width.toString());
 		canvas.setAttribute('height', image.height.toString());

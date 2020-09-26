@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Util } from "../util";
+import { ResourceManager } from "../resources";
 
 const elementHeadRegEx = /^new (\w+)\((\w*)\) *{$/;
 
@@ -372,12 +373,19 @@ export class MisParser {
 		}, this.readValues()) as unknown as MissionElementMessageVector;
 	}
 
+	static cachedFiles = new Map<string, MissionElementSimGroup>();
+	
 	static async loadFile(path: string) {
-		let response = await fetch(path);
-		let text = await response.text();
-		let parser = new MisParser(text);
+		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
-		return parser.parse();
+		let blob = await ResourceManager.loadResource(path);
+		let arrayBuffer = await blob.text();
+		let parser = new MisParser(arrayBuffer);
+		
+		let result = parser.parse();
+		this.cachedFiles.set(path, result);
+
+		return result;
 	}
 
 	static parseVector3(string: string) {

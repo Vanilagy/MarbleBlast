@@ -31,13 +31,15 @@ export class Interior {
 		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
 		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
 		this.body = new OIMO.RigidBody(rigidBodyConfig);
+	}
 
+	async init() {
 		for (let surface of this.detailLevel.surfaces) {
-			this.addSurface(surface);
+			await this.addSurface(surface);
 		}
 	}
 
-	addSurface(surface: InteriorDetailLevel["surfaces"][number]) {
+	async addSurface(surface: InteriorDetailLevel["surfaces"][number]) {
 		let detailLevel = this.detailLevel;
 
 		let points = this.getPointsForSurface(surface);
@@ -76,7 +78,7 @@ export class Interior {
 		this.group.add(mesh);
 
 		if (ResourceManager.getFullNameOf("interiors/" + material).length) {
-			let texture = ResourceManager.getTexture("interiors/" + material + '.jpg');
+			let texture = await ResourceManager.getTexture("interiors/" + material + '.jpg');
 			texture.wrapS = THREE.RepeatWrapping;
 			texture.wrapT = THREE.RepeatWrapping;
 

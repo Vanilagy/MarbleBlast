@@ -1,6 +1,6 @@
 import { Util } from "../util";
 
-const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
+export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
 const clockElement = document.querySelector('#clock') as HTMLDivElement;
 const helpElement = document.querySelector('#help-text') as HTMLDivElement;
 const alertElement = document.querySelector('#alert-text') as HTMLDivElement;

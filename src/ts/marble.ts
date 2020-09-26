@@ -27,10 +27,10 @@ export class Marble {
 	wallHitBoosterTimeout = 0;
 	lastVel = new OIMO.Vec3();
 
-	constructor() {
+	async init() {
 		this.group = new THREE.Group();
 
-		let textureMarble = ResourceManager.getTexture("shapes/balls/base.marble.png");
+		let textureMarble = await ResourceManager.getTexture("shapes/balls/base.marble.png");
 
         let geometry = new THREE.SphereGeometry(MARBLE_SIZE, 64, 64);
 		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({map: textureMarble, color: 0xffffff}));
@@ -52,9 +52,7 @@ export class Marble {
 
 		this.body = body;
 		this.shape = shape;
-	}
 
-	async init() {
 		this.forcefield = new Shape();
 		this.forcefield.dtsPath = "shapes/images/glow_bounce.dts";
 		await this.forcefield.init();
