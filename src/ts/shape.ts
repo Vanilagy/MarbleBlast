@@ -512,4 +512,5 @@ export class Shape {
 	onMarbleInside(time: TimeState) {}
 	onMarbleEnter(time: TimeState) {}
 	onMarbleLeave(time: TimeState) {}
+	reset() {}
 }

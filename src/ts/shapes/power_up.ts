@@ -35,6 +35,10 @@ export abstract class PowerUp extends Shape {
 		this.setOpacity(opacity);
 	}
 
+	reset() {
+		this.lastPickUpTime = null;
+	}
+
 	abstract pickUp(): boolean;
 	abstract use(time: TimeState): void;
 }

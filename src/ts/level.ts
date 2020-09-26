@@ -364,6 +364,14 @@ export class Level {
 
 		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
 		if (missionInfo.startHelpText) displayHelp(missionInfo.startHelpText);
+
+		for (let shape of this.shapes) shape.reset();
+
+		this.currentUp = new OIMO.Vec3(0, 0, 1);
+		this.orientationChangeTime = -Infinity;
+		this.oldOrientationQuat = new THREE.Quaternion();
+		this.newOrientationQuat = new THREE.Quaternion();
+		this.setGravityIntensity(20);
 		
 		this.deselectPowerUp();
 		setCenterText('none');
