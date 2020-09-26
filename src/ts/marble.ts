@@ -107,7 +107,7 @@ export class Marble {
 			let inverseContactNormal = contactNormal.scale(-1);
 
 			let dot0 = contactNormal.dot(this.lastVel.clone().normalize());
-			if (dot0 > -0.4 && dot0 < 0) {
+			if (dot0 > -0.4 && dot0 < -0.001) {
 				dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
 				let linearVelocity = this.body.getLinearVelocity();
 				this.body.addLinearVelocity(contactNormal.scale(-dot0 * linearVelocity.length()));

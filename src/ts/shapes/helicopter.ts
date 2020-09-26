@@ -5,6 +5,7 @@ import { TimeState } from "../level";
 export class Helicopter extends PowerUp {
 	dtsPath = "shapes/images/helicopter.dts";
 	showSequences = false;
+	pickUpName = "Gyrocopter PowerUp";
 
 	pickUp(): boolean {
 		return state.currentLevel.pickUpPowerUp(this);

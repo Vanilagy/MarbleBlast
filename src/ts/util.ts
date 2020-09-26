@@ -248,4 +248,12 @@ export abstract class Util {
 				return x;
 		}
 	}
+
+	static leftPadZeroes(str: string, amount: number) {
+		return "000000000000000000".slice(0, Math.max(0, amount - str.length)) + str;
+	}
+
+	static forceLayout(element: Element) {
+		element.clientWidth;
+	}
 }

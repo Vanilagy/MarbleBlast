@@ -1,6 +1,7 @@
 import { Util } from "../util";
 import { Shape } from "../shape";
 import { TimeState } from "../level";
+import { displayAlert } from "../ui/game";
 
 export abstract class PowerUp extends Shape {
 	lastPickUpTime: number = null;
@@ -8,6 +9,7 @@ export abstract class PowerUp extends Shape {
 	autoUse = false;
 	ambientRotate = true;
 	collideable = false;
+	pickUpName: string;
 
 	onMarbleInside(time: TimeState) {
 		let pickupable = this.lastPickUpTime === null || (time.currentAttemptTime - this.lastPickUpTime) >= this.cooldownDuration;
@@ -16,6 +18,8 @@ export abstract class PowerUp extends Shape {
 		if (this.pickUp()) {
 			this.lastPickUpTime = time.currentAttemptTime;
 			if (this.autoUse) this.use(time);
+
+			displayAlert(`You picked up a ${this.pickUpName}!`);
 		}
 	}
 

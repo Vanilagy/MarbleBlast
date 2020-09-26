@@ -4,6 +4,7 @@ import { TimeState } from "../level";
 
 export class SuperBounce extends PowerUp {
 	dtsPath = "shapes/items/superbounce.dts";
+	pickUpName = "Super Bounce PowerUp";
 
 	pickUp(): boolean {
 		return state.currentLevel.pickUpPowerUp(this);

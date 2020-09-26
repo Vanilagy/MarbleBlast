@@ -6,6 +6,7 @@ import OIMO from "../declarations/oimo";
 
 export class SuperSpeed extends PowerUp {
 	dtsPath = "shapes/items/superspeed.dts";
+	pickUpName = "Super Speed PowerUp";
 
 	pickUp(): boolean {
 		return state.currentLevel.pickUpPowerUp(this);

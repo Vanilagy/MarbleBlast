@@ -1,8 +1,9 @@
 import { Trigger } from "./trigger";
 import { TimeState } from "../level";
+import { displayHelp } from "../ui/game";
 
 export class HelpTrigger extends Trigger {
 	onMarbleEnter(time: TimeState) {
-		console.log(this.element.text);
+		displayHelp(this.element.text);
 	}
 }

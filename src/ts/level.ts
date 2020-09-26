@@ -35,6 +35,7 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
+import { displayTime, displayAlert, displayGemCount } from "./ui/game";
 
 export const PHYSICS_TICK_RATE = 120;
 
@@ -70,6 +71,8 @@ export class Level {
 	oldOrientationQuat = new THREE.Quaternion();
 	newOrientationQuat = new THREE.Quaternion();
 	heldPowerUp: PowerUp = null;
+	totalGems = 0;
+	gemCount = 0;
 
 	constructor(missionGroup: MissionElementSimGroup) {
 		this.init(missionGroup);
@@ -195,6 +198,7 @@ export class Level {
 			shape = new SignPlain(element as MissionElementStaticShape);
 		} else if (element.dataBlock.startsWith("GemItem")) {
 			shape = new Gem(element as MissionElementItem);
+			this.totalGems++;
 		} else if (element.dataBlock === "SuperJumpItem") {
 			shape = new SuperJump();
 		} else if (element.dataBlock.startsWith("SignCaution")) {
@@ -295,6 +299,8 @@ export class Level {
 		for (let shape of this.shapes) shape.render(this.timeState);
 
 		renderer.render(this.scene, camera);
+
+		displayTime(this.timeState.gameplayClock / 1000);
 
 		requestAnimationFrame(() => this.render());
 	}
@@ -448,6 +454,23 @@ export class Level {
 	}
 
 	pickUpGem() {
-		
+		this.gemCount++;
+		let string: string;
+
+		if (this.gemCount === this.totalGems) {
+			string = "You have all the gems, head for the finish!";
+		} else {
+			string = "You picked up a gem.  ";
+
+			let remaining = this.totalGems - this.gemCount;
+			if (remaining === 1) {
+				string += "Only one gem to go!";
+			} else {
+				string += `${remaining} gems to go!`;
+			}
+		}
+
+		displayAlert(string);
+		displayGemCount(this.gemCount, this.totalGems);
 	}
 }

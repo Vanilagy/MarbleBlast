@@ -7,6 +7,7 @@ import { TimeState } from "../level";
 export class AntiGravity extends PowerUp {
 	dtsPath = "shapes/items/antigravity.dts";
 	autoUse = true;
+	pickUpName = "Gravity Modifier";
 
 	pickUp() {return true;}
 
