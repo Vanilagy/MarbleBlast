@@ -12,7 +12,7 @@ THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
 async function init() {
 	await ResourceManager.init();
 
-	let mission = await MisParser.loadFile("./assets/data/missions/beginner/finale.mis");
+	let mission = await MisParser.loadFile("./assets/data/missions/intermediate/skeeball.mis");
 	state.currentLevel = new Level(mission);
 }
 window.onload = init;

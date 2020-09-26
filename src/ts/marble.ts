@@ -124,7 +124,7 @@ export class Marble {
 				this.wallHitBoosterTimeout = 1;
 			}
 
-			if (gameButtons.jump && contactNormal.dot(state.currentLevel.currentUp) !== 0) {
+			if (gameButtons.jump && Math.abs(contactNormal.dot(state.currentLevel.currentUp)) > 1e-10) {
 				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true);
 			}
 

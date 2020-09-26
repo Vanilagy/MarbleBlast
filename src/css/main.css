@@ -79,3 +79,12 @@ html, body {
 #gem-count > img:last-child {
 	margin-right: 0px;
 }
+
+#center-text {
+	display: block;
+	margin: auto;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 30%;
+}

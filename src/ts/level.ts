@@ -35,7 +35,7 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement } from "./ui/game";
+import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText } from "./ui/game";
 import { ResourceManager } from "./resources";
 
 export const PHYSICS_TICK_RATE = 120;
@@ -46,6 +46,7 @@ const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/items/superspeed.dts": -53,
 	"shapes/items/shockabsorber.dts": -53
 };
+const GO_TIME = 3500;
 
 export interface TimeState {
 	timeSinceLoad: number,
@@ -65,13 +66,18 @@ export class Level {
 	triggerLookup = new Map<any, Trigger>();
 	overlayShapes: Shape[] = [];
 	overlayScene: THREE.Scene;
+	scheduled: {
+		time: number,
+		callback: () => any
+	}[] = [];
 
 	timeState: TimeState;
 	lastPhysicsTick: number = null;
 	shapeImmunity = new Set<Shape>();
 	shapeOrTriggerInside = new Map<Shape | Trigger, boolean>();
-	pitch = 0;
+	pitch = 0.45;
 	yaw = 0;
+	currentTimeTravelBonus = 0;
 
 	auxPhysicsWorld: OIMO.World;
 	auxMarbleShape: OIMO.Shape;
@@ -167,7 +173,8 @@ export class Level {
 	}
 
 	async initUi() {
-		await ResourceManager.loadImages(['0.png', '1.png', '2.png', '3.png', '4.png', '5.png', '6.png', '7.png', '8.png', '9.png'].map(x => "./assets/ui/game/numbers/" + x));
+		await ResourceManager.loadImages(Object.values(numberSources).map(x => "./assets/ui/game/numbers/" + x));
+		await ResourceManager.loadImages(["ready.png", "set.png", "go.png", "outofbounds.png", "powerup.png"].map(x => "./assets/ui/game/" + x));
 
 		let hudOverlayShapePaths = new Set<string>();
 		for (let shape of this.shapes) {
@@ -198,23 +205,6 @@ export class Level {
 		} else {
 			gemCountElement.style.display = 'none';
 		}
-	}
-
-	restart() {
-		this.timeState.currentAttemptTime = 0;
-		this.timeState.gameplayClock = 0;
-		
-		if (this.totalGems > 0) {
-			this.gemCount = 0;
-			displayGemCount(this.gemCount, this.totalGems);
-		}
-
-		let startPad = this.shapes.find((shape) => shape instanceof StartPad);
-		this.marble.body.setLinearVelocity(new OIMO.Vec3());
-		this.marble.body.setAngularVelocity(new OIMO.Vec3());
-		this.marble.body.setPosition(new OIMO.Vec3(startPad.worldPosition.x, startPad.worldPosition.y, startPad.worldPosition.z + 4));
-
-		this.deselectPowerUp();
 	}
 
 	async addSimGroup(simGroup: MissionElementSimGroup) {
@@ -306,7 +296,7 @@ export class Level {
 		} else if (element.dataBlock === "SuperSpeedItem") {
 			shape = new SuperSpeed();
 		} else if (element.dataBlock === "TimeTravelItem") {
-			shape = new TimeTravel();
+			shape = new TimeTravel(element as MissionElementItem);
 		} else if (element.dataBlock === "Tornado") {
 			shape = new Tornado();
 		} else if (element.dataBlock === "TrapDoor") {
@@ -348,6 +338,43 @@ export class Level {
 
 		this.auxPhysicsWorld.addRigidBody(trigger.body);
 		this.triggerLookup.set(trigger.id, trigger);
+	}
+
+	restart() {
+		this.timeState.currentAttemptTime = 0;
+		this.timeState.gameplayClock = 0;
+		this.currentTimeTravelBonus = 0;
+		
+		if (this.totalGems > 0) {
+			this.gemCount = 0;
+			displayGemCount(this.gemCount, this.totalGems);
+		}
+
+		let startPad = this.shapes.find((shape) => shape instanceof StartPad);
+		this.marble.body.setLinearVelocity(new OIMO.Vec3());
+		this.marble.body.setAngularVelocity(new OIMO.Vec3());
+		this.marble.body.setPosition(new OIMO.Vec3(startPad.worldPosition.x, startPad.worldPosition.y, startPad.worldPosition.z + 4));
+
+		let euler = new THREE.Euler();
+		euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
+		this.yaw = euler.z + Math.PI/2;
+		
+		this.deselectPowerUp();
+		setCenterText('none');
+
+		this.clearSchedule();
+		this.schedule(500, () => {
+			setCenterText('ready');
+		});
+		this.schedule(2000, () => {
+			setCenterText('set');
+		});
+		this.schedule(GO_TIME, () => {
+			setCenterText('go');
+		});
+		this.schedule(5500, () => {
+			setCenterText('none');
+		});
 	}
 
 	render() {
@@ -422,9 +449,13 @@ export class Level {
 			}
 
 			while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
-				this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
-				this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
-				this.timeState.gameplayClock += 1000 / PHYSICS_TICK_RATE;
+				for (let i = 0; i < this.scheduled.length; i++) {
+					let item = this.scheduled[i];
+					if (this.timeState.currentAttemptTime >= item.time) {
+						item.callback();
+						this.scheduled.splice(i--, 1);
+					}
+				}
 
 				let newImmunity: Shape[] = [];
 
@@ -456,6 +487,30 @@ export class Level {
 
 				// I know it's kind of strange to update interiors later, but this actually made them in-sync with the marble.
 				for (let interior of this.interiors) interior.tick(this.timeState);
+
+				if (this.timeState.currentAttemptTime < GO_TIME) {
+					let startPad = this.shapes.find((element) => element instanceof StartPad);
+					let position = this.marble.body.getPosition();
+					position.x = startPad.worldPosition.x; position.y = startPad.worldPosition.y;
+					this.marble.body.setPosition(position);
+					this.marble.body._velX = 0;
+					this.marble.body._velY = 0;
+
+					this.marble.shape.setFriction(0.25);
+				} else {
+					this.marble.shape.setFriction(1);
+
+					if (this.currentTimeTravelBonus > 0) {
+						this.currentTimeTravelBonus -= 1000 / PHYSICS_TICK_RATE;
+					} else {
+						this.timeState.gameplayClock += 1000 / PHYSICS_TICK_RATE;
+					}
+
+					if (this.currentTimeTravelBonus < 0) {
+						this.timeState.gameplayClock += -this.currentTimeTravelBonus;
+						this.currentTimeTravelBonus = 0;
+					}
+				}
 
 				this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
 				elapsed -= 1000 / PHYSICS_TICK_RATE;
@@ -506,6 +561,9 @@ export class Level {
 
 					current = current.getNext();
 				}
+
+				this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
+				this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
 			}
 		}
 	}
@@ -587,5 +645,17 @@ export class Level {
 
 		displayAlert(string);
 		displayGemCount(this.gemCount, this.totalGems);
+	}
+
+	addTimeTravelBonus(bonus: number) {
+		this.currentTimeTravelBonus += bonus;
+	}
+
+	schedule(time: number, callback: () => any) {
+		this.scheduled.push({ time, callback });
+	}
+
+	clearSchedule() {
+		this.scheduled.length = 0;
 	}
 }

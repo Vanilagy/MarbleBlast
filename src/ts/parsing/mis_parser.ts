@@ -113,7 +113,8 @@ export interface MissionElementItem extends MissionElementBase {
 	collideable: string,
 	static: string,
 	rotate: string,
-	showHelpOnPickup: string
+	showHelpOnPickup: string,
+	timeBonus?: string
 }
 
 export interface MissionElementPath extends MissionElementBase {

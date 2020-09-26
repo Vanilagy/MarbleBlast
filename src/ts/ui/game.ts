@@ -4,8 +4,9 @@ export const gemCountElement = document.querySelector('#gem-count') as HTMLDivEl
 const clockElement = document.querySelector('#clock') as HTMLDivElement;
 const helpElement = document.querySelector('#help-text') as HTMLDivElement;
 const alertElement = document.querySelector('#alert-text') as HTMLDivElement;
+const centerElement = document.querySelector('#center-text') as HTMLImageElement;
 
-let numberSources = {
+export let numberSources = {
 	"0": "0.png",
 	"1": "1.png",
 	"2": "2.png",
@@ -68,3 +69,11 @@ export const displayAlert = (message: string) => {
 	Util.forceLayout(alertElement);
 	alertElement.style.animation = 'gameplay-text-popup 4s forwards ease-in';
 };
+
+export const setCenterText = (type: 'none' | 'ready' | 'set' | 'go' | 'outofbounds') => {
+	if (type === 'none') centerElement.src = '';
+	if (type === 'ready') centerElement.src = './assets/ui/game/ready.png';
+	if (type === 'set') centerElement.src = './assets/ui/game/set.png';
+	if (type === 'go') centerElement.src = './assets/ui/game/go.png';
+	if (type === 'outofbounds') centerElement.src = './assets/ui/game/outofbounds.png';
+}
