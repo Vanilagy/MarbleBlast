@@ -5,7 +5,7 @@ import { renderer, camera, orthographicCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble } from "./marble";
 import { Shape } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky, MissionElementTrigger, MissionElementInteriorInstance } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
@@ -35,7 +35,7 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText } from "./ui/game";
+import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp } from "./ui/game";
 import { ResourceManager } from "./resources";
 
 export const PHYSICS_TICK_RATE = 120;
@@ -361,6 +361,9 @@ export class Level {
 		euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
 		this.yaw = euler.z + Math.PI/2;
 		this.pitch = 0.45;
+
+		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
+		if (missionInfo.startHelpText) displayHelp(missionInfo.startHelpText);
 		
 		this.deselectPowerUp();
 		setCenterText('none');
