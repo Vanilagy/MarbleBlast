@@ -1,4 +1,5 @@
 import { Util } from "../util";
+import { gameButtonMapping } from "../input";
 
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
 const clockElement = document.querySelector('#clock') as HTMLDivElement;
@@ -54,7 +55,25 @@ export const displayGemCount = (count: number, total: number) => {
 	}
 };
 
-export const displayHelp = (message: string) => {
+const keybindRegex = /<func:bind (\w+)>/g;
+export const displayHelp = async (message: string) => {
+	keybindRegex.lastIndex = 0;
+	let match: RegExpMatchArray;
+
+	while ((match = keybindRegex.exec(message)) !== null) {
+		let gameButton = ({
+			"moveforward": "up",
+			"movebackward": "down",
+			"moveleft": "left",
+			"moveright": "right",
+			"jump": "jump"
+		} as Record<string, string>)[match[1]];
+		if (!gameButton) continue;
+
+		let keyName = await Util.getKeyForButtonCode(gameButtonMapping[gameButton as keyof typeof gameButtonMapping]);
+		message = message.slice(0, match.index) + keyName + message.slice(match.index + match[0].length);
+	}
+
 	helpElement.textContent = message;
 
 	helpElement.style.animation = '';

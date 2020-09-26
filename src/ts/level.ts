@@ -74,10 +74,11 @@ export class Level {
 	timeState: TimeState;
 	lastPhysicsTick: number = null;
 	shapeImmunity = new Set<Shape>();
-	shapeOrTriggerInside = new Map<Shape | Trigger, boolean>();
-	pitch = 0.45;
+	shapeOrTriggerInside = new Set<Shape | Trigger>();
+	pitch = 0;
 	yaw = 0;
 	currentTimeTravelBonus = 0;
+	outOfBounds = false;
 
 	auxPhysicsWorld: OIMO.World;
 	auxMarbleShape: OIMO.Shape;
@@ -344,6 +345,7 @@ export class Level {
 		this.timeState.currentAttemptTime = 0;
 		this.timeState.gameplayClock = 0;
 		this.currentTimeTravelBonus = 0;
+		this.outOfBounds = false;
 		
 		if (this.totalGems > 0) {
 			this.gemCount = 0;
@@ -358,6 +360,7 @@ export class Level {
 		let euler = new THREE.Euler();
 		euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
 		this.yaw = euler.z + Math.PI/2;
+		this.pitch = 0.45;
 		
 		this.deselectPowerUp();
 		setCenterText('none');
@@ -379,27 +382,9 @@ export class Level {
 
 	render() {
 		let time = performance.now();
-
 		this.tick(time);
 
-		let marblePosition = this.marble.body.getPosition();
-		let orientationQuat = this.getOrientationQuat(this.timeState);
-		let up = new THREE.Vector3(0, 0, 1).applyQuaternion(orientationQuat);
-		let directionVector = new THREE.Vector3(1, 0, 0);
-		let cameraVerticalTranslation = new THREE.Vector3(0, 0, 0.3);
-		
-		camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z);
-		directionVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
-		directionVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
-		cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
-		cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
-		cameraVerticalTranslation.applyQuaternion(orientationQuat);
-		directionVector.multiplyScalar(2.5);
-		directionVector.applyQuaternion(orientationQuat);
-		camera.position.sub(directionVector);
-		camera.up = up;
-		camera.lookAt(new THREE.Vector3(marblePosition.x, marblePosition.y, marblePosition.z));
-		camera.position.add(cameraVerticalTranslation);
+		this.updateCamera();
 
 		this.marble.render(this.timeState);
 		for (let shape of this.shapes) shape.render(this.timeState);
@@ -430,12 +415,42 @@ export class Level {
 		requestAnimationFrame(() => this.render());
 	}
 
+	updateCamera() {
+		let marblePosition = this.marble.body.getPosition();
+		let orientationQuat = this.getOrientationQuat(this.timeState);
+		let up = new THREE.Vector3(0, 0, 1).applyQuaternion(orientationQuat);
+		let directionVector = new THREE.Vector3(1, 0, 0);
+		let cameraVerticalTranslation = new THREE.Vector3(0, 0, 0.3);
+
+		if (!this.outOfBounds) {
+			camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z);
+			directionVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
+			directionVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
+			cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
+			cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
+			cameraVerticalTranslation.applyQuaternion(orientationQuat);
+			directionVector.multiplyScalar(2.5);
+			directionVector.applyQuaternion(orientationQuat);
+			camera.position.sub(directionVector);
+			camera.up = up;
+			camera.lookAt(Util.vecOimoToThree(marblePosition));
+			camera.position.add(cameraVerticalTranslation);
+		} else {
+			camera.lookAt(Util.vecOimoToThree(marblePosition));
+		}
+	}
+
 	tick(time?: number) {
 		if (time === undefined) time = performance.now();
 
 		if (gameButtons.use) {
-			this.heldPowerUp?.use(this.timeState);
-			this.deselectPowerUp();
+			if (this.outOfBounds) {
+				this.clearSchedule();
+				this.restart();
+			} else {
+				this.heldPowerUp?.use(this.timeState);
+				this.deselectPowerUp();
+			}
 		}
 
 		if (this.lastPhysicsTick === null) {
@@ -530,6 +545,8 @@ export class Level {
 				this.auxMarbleBody.setOrientation(movementRot);
 				this.auxPhysicsWorld.getContactManager()._updateContacts();
 
+				let inside = new Set<Shape | Trigger>();
+
 				let current = this.auxMarbleBody.getContactLinkList();
 				while (current) {
 					let contact = current.getContact();
@@ -544,22 +561,24 @@ export class Level {
 							object = this.shapeColliderLookup.get(contactShape.userData);
 							object.onColliderInside(contactShape.userData);
 						}
-					} else {
-						if (contact.isTouching()) {
-							object.onMarbleInside(this.timeState);
-							if (!this.shapeOrTriggerInside.get(object)) {
-								this.shapeOrTriggerInside.set(object, true);
-								object.onMarbleEnter(this.timeState);
-							}
-						} else {
-							if (this.shapeOrTriggerInside.get(object)) {
-								this.shapeOrTriggerInside.set(object, false);
-								object.onMarbleLeave(this.timeState);
-							}
+					} else if (contact.isTouching()) {
+						object.onMarbleInside(this.timeState);
+						if (!this.shapeOrTriggerInside.has(object)) {
+							this.shapeOrTriggerInside.add(object);
+							object.onMarbleEnter(this.timeState);
 						}
+
+						inside.add(object);
 					}
 
 					current = current.getNext();
+				}
+
+				for (let object of this.shapeOrTriggerInside) {
+					if (!inside.has(object)) {
+						this.shapeOrTriggerInside.delete(object);
+						object.onMarbleLeave(this.timeState);
+					}
 				}
 
 				this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
@@ -657,5 +676,15 @@ export class Level {
 
 	clearSchedule() {
 		this.scheduled.length = 0;
+	}
+
+	goOutOfBounds() {
+		if (this.outOfBounds) return;
+		this.outOfBounds = true;
+
+		this.updateCamera();
+		setCenterText('outofbounds');
+
+		this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart());
 	}
 }

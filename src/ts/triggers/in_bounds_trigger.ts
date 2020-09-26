@@ -1,6 +1,8 @@
 import { Trigger } from "./trigger";
-import { TimeState } from "../level";
+import { state } from "../state";
 
 export class InBoundsTrigger extends Trigger {
-	onMarbleLeave(time: TimeState) {}
+	onMarbleLeave() {
+		state.currentLevel.goOutOfBounds();
+	}
 }

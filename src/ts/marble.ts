@@ -9,7 +9,7 @@ import { Util } from "./util";
 
 const MARBLE_SIZE = 0.2;
 export const MARBLE_ROLL_FORCE = 40;
-const JUMP_IMPULSE = 7.5;
+const JUMP_IMPULSE = 7 || 7.5; // For now, seems to fit more.
 
 export class Marble {
 	group: THREE.Group;

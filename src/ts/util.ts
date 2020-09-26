@@ -256,4 +256,24 @@ export abstract class Util {
 	static forceLayout(element: Element) {
 		element.clientWidth;
 	}
+
+	static async getKeyForButtonCode(code: string): Promise<string> {
+		let keyboard = (navigator as any).keyboard;
+
+		outer:
+		if (keyboard.getLayoutMap) {
+			let map = await keyboard.getLayoutMap();
+			let value = map.get(code);
+			if (!value) break outer;
+
+			// Use the value from the keyboard map. This maps things like KeyZ to Y for German keyboards, for example.
+			return (value.toUpperCase().length > 1)? value : value.toUpperCase(); // This special handling here is for characters that turn into more than one letter when capitalized (like ß).
+		}
+
+		if (code.startsWith("Key")) return code.slice(3);
+		if (code.startsWith("Digit")) return code.slice(5);
+		if (code.startsWith('Arrow')) return code.slice(5);
+		if (code === "Space") return "Space Bar";
+		return code;
+	}
 }

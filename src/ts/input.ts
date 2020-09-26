@@ -48,7 +48,7 @@ window.addEventListener('keyup', (e) => {
 	}
 });
 
-const gameButtonMapping = {
+export const gameButtonMapping = {
 	"up": "KeyW",
 	"down": "KeyS",
 	"left": "KeyA",
