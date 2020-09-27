@@ -74,6 +74,9 @@ export const displayHelp = async (message: string) => {
 		message = message.slice(0, match.index) + keyName + message.slice(match.index + match[0].length);
 	}
 
+	// Remove all backslashes
+	message = message.replace(/\\/g, '');
+
 	helpElement.textContent = message;
 
 	helpElement.style.animation = '';
