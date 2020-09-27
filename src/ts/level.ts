@@ -482,8 +482,8 @@ export class Level {
 				for (let i = 0; i < this.scheduled.length; i++) {
 					let item = this.scheduled[i];
 					if (this.timeState.currentAttemptTime >= item.time) {
-						item.callback();
 						this.scheduled.splice(i--, 1);
+						item.callback();
 					}
 				}
 

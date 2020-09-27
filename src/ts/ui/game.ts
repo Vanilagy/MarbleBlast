@@ -93,7 +93,9 @@ export const displayAlert = (message: string) => {
 };
 
 export const setCenterText = (type: 'none' | 'ready' | 'set' | 'go' | 'outofbounds') => {
-	if (type === 'none') centerElement.src = '';
+	if (type === 'none') centerElement.style.display = 'none';
+	else centerElement.style.display = '';
+	
 	if (type === 'ready') centerElement.src = './assets/ui/game/ready.png';
 	if (type === 'set') centerElement.src = './assets/ui/game/set.png';
 	if (type === 'go') centerElement.src = './assets/ui/game/go.png';

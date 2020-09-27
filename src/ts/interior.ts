@@ -10,7 +10,7 @@ export const INTERIOR_DEFAULT_RESTITUTION = 0.5;
 
 const specialFriction: Record<string, number> = {
 	"friction_high": 1.5,
-	"friction_low": 0.1,
+	"friction_low": 0.025,
 	"friction_none": 0.001,
 	"friction_ramp_yellow": 2.0
 };
