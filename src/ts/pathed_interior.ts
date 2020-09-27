@@ -1,7 +1,7 @@
 import { Interior } from "./interior";
 import { DifParser } from "./parsing/dif_parser";
 import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "./parsing/mis_parser";
-import { Util, EaseType } from "./util";
+import { Util } from "./util";
 import * as THREE from "three";
 import { TimeState } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
@@ -37,7 +37,14 @@ export class PathedInterior extends Interior {
 			pathedInterior.triggers.push(trigger);
 		}
 
-		if (interiorElement.initialPosition) pathedInterior.timeOffset = Number(interiorElement.initialPosition);
+		let initialTargetPosition = Number(interiorElement.initialTargetPosition ?? -1);
+		if (initialTargetPosition >= 0) {
+			pathedInterior.timeStart = Number(interiorElement.initialPosition);
+			pathedInterior.timeDest = initialTargetPosition;
+			pathedInterior.changeTime = 0;
+		} else if (interiorElement.initialPosition) {
+			pathedInterior.timeOffset = Number(interiorElement.initialPosition);
+		}
 
 		return pathedInterior;
 	}
@@ -45,8 +52,9 @@ export class PathedInterior extends Interior {
 	computeDuration() {
 		let total = 0;
 
-		for (let marker of this.path.markers) {
-			total += Number(marker.msToNext);
+		// Don't count the last marker
+		for (let i = 0; i < this.path.markers.length-1; i++) {
+			total += Number(this.path.markers[i].msToNext);
 		}
 
 		this.duration = total;
@@ -111,16 +119,36 @@ export class PathedInterior extends Interior {
 		let m1Time = currentEndTime - Number(m1.msToNext);
 		let m2Time = currentEndTime;
 		let duration = m2Time - m1Time;
+		let position: THREE.Vector3;
 
 		let completion = Util.clamp(duration? (time - m1Time) / duration : 1, 0, 1);
-		if (m1.smoothingType !== "Linear") completion = Util.ease(completion, EaseType.EaseInOutQuad);
+		if (m1.smoothingType === "Accelerate") {
+			completion = Math.sin(completion * Math.PI - (Math.PI / 2)) * 0.5 + 0.5;
+		} else if (m1.smoothingType === "Spline") {
+			let preStart = (i - 2) - 1;
+			let postEnd = (i - 1) + 1;
+			if (postEnd >= this.path.markers.length) postEnd = 0;
+			if (preStart < 0) preStart = this.path.markers.length - 1;
 
-		let p1 = MisParser.parseVector3(m1.position);
-		let p2 = MisParser.parseVector3(m2.position);
+			let p0 = MisParser.parseVector3(this.path.markers[preStart].position);
+			let p1 = MisParser.parseVector3(m1.position);
+			let p2 = MisParser.parseVector3(m2.position);
+			let p3 = MisParser.parseVector3(this.path.markers[postEnd].position);
+
+			position = new THREE.Vector3();
+			position.x = Util.catmullRom(completion, p0.x, p1.x, p2.x, p3.x);
+			position.y = Util.catmullRom(completion, p0.y, p1.y, p2.y, p3.y);
+			position.z = Util.catmullRom(completion, p0.z, p1.z, p2.z, p3.z);
+		}
+
+		if (!position) {
+			let p1 = MisParser.parseVector3(m1.position);
+			let p2 = MisParser.parseVector3(m2.position);
+			position = p1.multiplyScalar(1 - completion).add(p2.multiplyScalar(completion));
+		}
+		
 		let r1 = MisParser.parseRotation(m1.rotation);
 		let r2 = MisParser.parseRotation(m2.rotation);
-
-		let position = p1.multiplyScalar(1 - completion).add(p2.multiplyScalar(completion));
 		let rotation = r1.slerp(r2, completion);
 
 		let firstPosition = MisParser.parseVector3(this.path.markers[0].position);
