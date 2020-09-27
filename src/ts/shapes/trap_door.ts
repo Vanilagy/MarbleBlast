@@ -2,6 +2,7 @@ import { Shape } from "../shape";
 import { Util } from "../util";
 import OIMO from "../declarations/oimo";
 import { TimeState } from "../level";
+import { MissionElementStaticShape } from "../parsing/mis_parser";
 
 const ANIMATION_DURATION = 1666.6676998138428;
 const RESET_TIME = 5000;
@@ -9,6 +10,14 @@ const RESET_TIME = 5000;
 export class TrapDoor extends Shape {
 	dtsPath = "shapes/hazards/trapdoor.dts";
 	lastContactTime = -Infinity;
+	/** The time it takes from the moment of touching the trapdoor to it opening. */
+	timeout = 0;
+
+	constructor(element: MissionElementStaticShape) {
+		super();
+
+		if (element.timeout) this.timeout = Number(element.timeout);
+	}
 
 	tick(time: TimeState) {
 		this.sequenceKeyframeOverride.set(this.dts.sequences[0], this.getCurrentCompletion(time) * (this.dts.sequences[0].numKeyframes - 1));
@@ -24,8 +33,10 @@ export class TrapDoor extends Shape {
 	}
 
 	onMarbleContact(contact: OIMO.Contact, time: TimeState) {
+		if (time.timeSinceLoad - this.lastContactTime <= 0) return;
 		let currentCompletion = this.getCurrentCompletion(time);
 
 		this.lastContactTime = time.timeSinceLoad - currentCompletion * ANIMATION_DURATION;
+		if (currentCompletion === 0) this.lastContactTime += this.timeout;
 	}
 }

@@ -101,7 +101,8 @@ export interface MissionElementStaticShape extends MissionElementBase {
 	rotation: string,
 	scale: string,
 	dataBlock: string,
-	resetTime: string
+	resetTime?: string,
+	timeout?: string
 }
 
 export interface MissionElementItem extends MissionElementBase {
