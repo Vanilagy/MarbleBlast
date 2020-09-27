@@ -3,10 +3,12 @@ import { state } from "../state";
 import * as THREE from "three";
 import { Util } from "../util";
 import OIMO from "../declarations/oimo";
+import { AudioManager } from "../audio";
 
 export class SuperSpeed extends PowerUp {
 	dtsPath = "shapes/items/superspeed.dts";
 	pickUpName = "Super Speed PowerUp";
+	sounds = ["pusuperspeedvoice.wav", "dosuperspeed.wav"];
 
 	pickUp(): boolean {
 		return state.currentLevel.pickUpPowerUp(this);
@@ -26,5 +28,7 @@ export class SuperSpeed extends PowerUp {
 		movementVector.applyQuaternion(new THREE.Quaternion(quat2.x, quat2.y, quat2.z, quat2.w));
 		
 		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirlgig's determined value
+
+		AudioManager.play(this.sounds[1]);
 	}
 }

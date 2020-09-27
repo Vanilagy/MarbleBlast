@@ -3,11 +3,13 @@ import * as THREE from "three";
 import { state } from "../state";
 import { Util } from "../util";
 import { TimeState } from "../level";
+import { AudioManager } from "../audio";
 
 export class AntiGravity extends PowerUp {
 	dtsPath = "shapes/items/antigravity.dts";
 	autoUse = true;
 	pickUpName = "Gravity Modifier";
+	sounds = ["gravitychange.wav"];
 
 	pickUp() {return true;}
 
@@ -18,5 +20,6 @@ export class AntiGravity extends PowerUp {
 		if (Util.isSameVector(direction, state.currentLevel.currentUp)) return;
 
 		state.currentLevel.setUp(Util.vecThreeToOimo(direction), time);
+		AudioManager.play(this.sounds[0]);
 	}
 }

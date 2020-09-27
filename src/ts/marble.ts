@@ -6,6 +6,7 @@ import { state } from "./state";
 import { PHYSICS_TICK_RATE, TimeState } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
+import { AudioManager, AudioSource } from "./audio";
 
 const MARBLE_SIZE = 0.2;
 export const MARBLE_ROLL_FORCE = 40;
@@ -25,7 +26,13 @@ export class Marble {
 	helicopterEnableTime = -Infinity;
 	lastContactNormal = new OIMO.Vec3(0, 0, 1);
 	wallHitBoosterTimeout = 0;
+	collisionTimeout = 0;
 	lastVel = new OIMO.Vec3();
+	rollingSound: AudioSource;
+	slidingSound: AudioSource;
+	helicopterSound: AudioSource = null;
+	shockAbsorberSound: AudioSource = null;
+	superBounceSound: AudioSource = null;
 
 	async init() {
 		this.group = new THREE.Group();
@@ -64,6 +71,18 @@ export class Marble {
 		await this.helicopter.init();
 		this.helicopter.setOpacity(0);
 		this.group.add(this.helicopter.group);
+
+		await AudioManager.loadBuffers(["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"]);
+
+		this.rollingSound = await AudioManager.createAudioSource('rolling_hard.wav');
+		this.rollingSound.play();
+		this.rollingSound.gain.gain.value = 0;
+		this.rollingSound.node.loop = true;
+
+		this.slidingSound = await AudioManager.createAudioSource('sliding.wav');
+		this.slidingSound.play();
+		this.slidingSound.gain.gain.value = 0;
+		this.slidingSound.node.loop = true;
 	}
 
 	handleControl(time: TimeState) {
@@ -92,7 +111,11 @@ export class Marble {
 
 		let movementRotationAxis = state.currentLevel.currentUp.cross(Util.vecThreeToOimo(movementVec));
 
+		this.collisionTimeout--;
+		if_block:
 		if (current) {
+			if (this.collisionTimeout >= 0) break if_block;
+
 			let contact = current.getContact();
 			let contactNormal = contact.getManifold().getNormal();
 			let surfaceShape = contact.getShape2();
@@ -120,11 +143,42 @@ export class Marble {
 				currentVelocity = currentVelocity.scale(1 / (1 + ratio * 0.5)).add(angularBoost);
 				this.body.setLinearVelocity(currentVelocity);
 
-				this.wallHitBoosterTimeout = 1;
+				//this.wallHitBoosterTimeout = 1;
 			}
 
+			let jumpSoundPlayed = false;
 			if (gameButtons.jump && Math.abs(contactNormal.dot(state.currentLevel.currentUp)) > 1e-10) {
-				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true);
+				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
+					AudioManager.play(['jump.wav']);
+					jumpSoundPlayed = true;
+				});
+			}
+			if (!jumpSoundPlayed) {
+				let impactVelocity = -contactNormal.dot(this.lastVel);
+				let volume = Util.clamp(impactVelocity / 15, 0, 1);
+
+				if (impactVelocity > 1) {
+					AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'], volume);
+				}
+			}
+			if (contactNormal.dot(this.body.getLinearVelocity()) < 0.0001) {
+				let predictedMovement = this.body.getAngularVelocity().cross(state.currentLevel.currentUp).scale(1 / Math.PI / 2);
+				let dot = predictedMovement.dot(this.body.getLinearVelocity().clone().normalize());
+
+				if (predictedMovement.dot(this.body.getLinearVelocity()) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > this.body.getLinearVelocity().length() * 1.5)) {
+					this.slidingSound.gain.gain.value = 0.6;
+					this.rollingSound.gain.gain.value = 0;
+				} else {
+					this.slidingSound.gain.gain.value = 0;
+					let pitch = Util.clamp(this.body.getLinearVelocity().length() / 15, 0, 1) * 0.75 + 0.75;
+
+					this.rollingSound.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02)
+					this.rollingSound.node.playbackRate.value = pitch;
+				}
+			} else {
+				//this.rollingSound.gain.gain.setValueAtTime(this.rollingSound.gain.gain.value, AudioManager.context.currentTime);
+				this.slidingSound.gain.gain.value = 0;
+				this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02)
 			}
 
 			let dot = Util.vecThreeToOimo(movementVec).normalize().dot(inverseContactNormal);
@@ -144,13 +198,21 @@ export class Marble {
 				let newLength = Math.max(0, 12 * Math.PI*2 * inputStrength - dot2);
 				movementRotationAxis = movementRotationAxis.normalize().scale(newLength);
 			}
-		} else {
+
+			this.collisionTimeout = 1;
+		}
+
+		if (!current) {
 			movementRotationAxis = movementRotationAxis.scale(1/2);
 
 			let airMovementVector = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
 			let airVelocity = (time.currentAttemptTime - this.helicopterEnableTime) < 5000 ? 5 : 3;
 			airMovementVector = airMovementVector.scale(airVelocity / PHYSICS_TICK_RATE);
 			this.body.addLinearVelocity(airMovementVector);
+
+			this.slidingSound.gain.gain.value = 0;
+			//this.rollingSound.gain.gain.setValueAtTime(this.rollingSound.gain.gain.value, AudioManager.context.currentTime);
+			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 		}
 
 		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 100));
@@ -158,26 +220,60 @@ export class Marble {
 		if (time.currentAttemptTime - this.shockAbsorberEnableTime < 5000) {
 			this.forcefield.setOpacity(1);
 			this.shape.setRestitution(0);
+
+			if (!this.shockAbsorberSound) {
+				AudioManager.createAudioSource('superbounceactive.wav').then((source) => {
+					this.shockAbsorberSound = source;
+					this.shockAbsorberSound.node.loop = true;
+					this.shockAbsorberSound.play();
+				});
+			}
 		} else if (time.currentAttemptTime - this.superBounceEnableTime < 5000) {
 			this.forcefield.setOpacity(1);
 			this.shape.setRestitution(1.6); // Found through experimentation
+
+			this.shockAbsorberSound?.stop();
+			this.shockAbsorberSound = null;
 		} else {
 			this.forcefield.setOpacity(0);
 			this.shape.setRestitution(0.5);
+
+			this.shockAbsorberSound?.stop();
+			this.shockAbsorberSound = null;
+			this.superBounceSound?.stop();
+			this.superBounceSound = null;
+		}
+		if (time.currentAttemptTime - this.superBounceEnableTime < 5000 && !this.superBounceSound) {
+			AudioManager.createAudioSource('forcefield.wav').then((source) => {
+				this.superBounceSound = source;
+				this.superBounceSound.node.loop = true;
+				this.superBounceSound.play();
+			});
 		}
 
 		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) {
 			this.helicopter.setOpacity(1);
 			state.currentLevel.setGravityIntensity(5);
+			
+			if (!this.helicopterSound) {
+				AudioManager.createAudioSource('use_gyrocopter.wav').then((source) => {
+					this.helicopterSound = source;
+					this.helicopterSound.node.loop = true;
+					this.helicopterSound.play();
+				});
+			}
 		} else {
 			this.helicopter.setOpacity(0);
 			state.currentLevel.setGravityIntensity(20);
+
+			this.helicopterSound?.stop();
+			this.helicopterSound = null;
 		}
 
 		this.lastVel = this.body.getLinearVelocity();
 	}
 
-	setLinearVelocityInDirection(direction: OIMO.Vec3, magnitude: number, onlyIncrease: boolean) {
+	setLinearVelocityInDirection(direction: OIMO.Vec3, magnitude: number, onlyIncrease: boolean, onIncrease: () => any = () => {}) {
 		let unitVelocity = this.body.getLinearVelocity().clone().normalize();
 		let dot = unitVelocity.dot(direction);
 		let directionalSpeed = dot * this.body.getLinearVelocity().length();
@@ -188,6 +284,7 @@ export class Marble {
 			velocity = velocity.add(direction.scale(magnitude));
 
 			this.body.setLinearVelocity(velocity);
+			onIncrease();
 		}
 	}
 

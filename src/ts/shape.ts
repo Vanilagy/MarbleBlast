@@ -7,6 +7,7 @@ import { getUniqueId } from "./state";
 import { Util } from "./util";
 import { TimeState } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
+import { AudioManager } from "./audio";
 
 interface MaterialInfo {
 	keyframes: string[]
@@ -70,6 +71,7 @@ export class Shape {
 	lastSequenceKeyframes = new WeakMap<DtsFile["sequences"][number], number>();
 	restitution = INTERIOR_DEFAULT_RESTITUTION;
 	friction = INTERIOR_DEFAULT_FRICTION;
+	sounds: string[] = [];
 
 	async init() {
 		this.id = getUniqueId();
@@ -132,18 +134,20 @@ export class Shape {
 					this.bodies.push(body);
 				}
 
-				let nodeGroup = new THREE.Group();
-				this.group.add(nodeGroup);
-				nodeGroup.matrixAutoUpdate = false;
-				nodeGroup.matrix = this.nodeTransforms[i];
-
-				for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
-					let mesh = this.dts.meshes[i];
-					if (!mesh) continue;
-
-					let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-					let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-					this.addMeshGeometry(mesh, vertices, vertexNormals, nodeGroup, isCollisionObject);
+				if (!isCollisionObject || this.collideable) {
+					let nodeGroup = new THREE.Group();
+					this.group.add(nodeGroup);
+					nodeGroup.matrixAutoUpdate = false;
+					nodeGroup.matrix = this.nodeTransforms[i];
+	
+					for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
+						let mesh = this.dts.meshes[i];
+						if (!mesh) continue;
+	
+						let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+						let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+						this.addMeshGeometry(mesh, vertices, vertexNormals, nodeGroup, isCollisionObject);
+					}
 				}
 			}
 		}
@@ -173,6 +177,10 @@ export class Shape {
 			config.type = OIMO.RigidBodyType.STATIC;
 			let body = new OIMO.RigidBody(config);
 			this.bodies.push(body);
+		}
+
+		for (let sound of this.sounds) {
+			await AudioManager.loadBuffer(sound);
 		}
 	}
 
@@ -265,7 +273,7 @@ export class Shape {
 		}
 
 		let material: THREE.Material | THREE.Material[];
-		if (isCollisionMesh) material = new THREE.ShadowMaterial({opacity: 0.25});
+		if (isCollisionMesh) material = new THREE.ShadowMaterial({opacity: 0.25, depthWrite: false});
 		else material = this.materials;
 
 		let threeMesh = new THREE.Mesh(geometry, material);
@@ -497,7 +505,7 @@ export class Shape {
 			for (let child of group.children) {
 				if (child.type === 'Group') {
 					setOpacityOfChildren(child as THREE.Group);
-					return;
+					continue;
 				}
 
 				let mesh = child as THREE.Mesh;

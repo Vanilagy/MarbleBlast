@@ -3,10 +3,12 @@ import { state } from "../state";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import OIMO from "../declarations/oimo";
+import { AudioManager } from "../audio";
 
 export class LandMine extends Shape {
 	dtsPath = "shapes/hazards/landmine.dts";
 	disappearTime = -Infinity;
+	sounds = ['explode1.wav'];
 
 	onMarbleContact(contact: OIMO.Contact, time: TimeState) {
 		let marble = state.currentLevel.marble;
@@ -14,6 +16,8 @@ export class LandMine extends Shape {
 
 		marble.body.addLinearVelocity(vec.scale(10));
 		this.disappearTime = time.timeSinceLoad;
+
+		AudioManager.play(this.sounds[0]);
 	}
 
 	tick(time: TimeState) {

@@ -3,9 +3,11 @@ import OIMO from "../declarations/oimo";
 import { state } from "../state";
 import { Util } from "../util";
 import { TimeState } from "../level";
+import { AudioManager } from "../audio";
 
 export abstract class AbstractBumper extends Shape {
 	wiggleAnimationStart = -Infinity;
+	soundEffect: string;
 
 	onMarbleContact(contact: OIMO.Contact, time: TimeState) {
 		let contactNormal = contact.getManifold().getNormal();
@@ -15,6 +17,7 @@ export abstract class AbstractBumper extends Shape {
 		
 		marble.setLinearVelocityInDirection(contactNormal, 15, false);
 		this.wiggleAnimationStart = time.timeSinceLoad;
+		AudioManager.play(this.sounds[0]);
 	}
 
 	render(time: TimeState) {

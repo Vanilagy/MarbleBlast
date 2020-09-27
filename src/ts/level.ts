@@ -5,7 +5,7 @@ import { renderer, camera, orthographicCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble } from "./marble";
 import { Shape } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementAudioProfile } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
@@ -37,6 +37,7 @@ import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
 import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp } from "./ui/game";
 import { ResourceManager } from "./resources";
+import { AudioManager, AudioSource } from "./audio";
 
 export const PHYSICS_TICK_RATE = 120;
 const SHAPE_OVERLAY_OFFSETS = {
@@ -93,6 +94,8 @@ export class Level {
 	heldPowerUp: PowerUp = null;
 	totalGems = 0;
 	gemCount = 0;
+	timeTravelSound: AudioSource;
+	music: AudioSource;
 
 	constructor(missionGroup: MissionElementSimGroup) {
 		this.mission = missionGroup;
@@ -105,6 +108,7 @@ export class Level {
 		await this.initMarble();
 		await this.addSimGroup(this.mission);
 		await this.initUi();
+		await this.initSounds();
 
 		this.timeState = {
 			timeSinceLoad: 0,
@@ -144,7 +148,7 @@ export class Level {
 		sunlight.shadow.radius = 2;
 		this.scene.add(sunlight.target); // Necessary for it to update
 		this.sunlight = sunlight;
-		
+
 		let skyboxImages = await ResourceManager.loadImages([
             './assets/data/skies/sky_lf.jpg',
             './assets/data/skies/sky_rt.jpg',
@@ -176,7 +180,7 @@ export class Level {
 		this.marble.group.renderOrder = 10;
 		this.physicsWorld.addRigidBody(this.marble.body);
 
-		let auxMarbleGeometry = new OIMO.CapsuleGeometry(0.2 * Math.sqrt(3), 0); // The normal game's hitbox can expand to up to sqrt(3)x the normal size
+		let auxMarbleGeometry = new OIMO.CapsuleGeometry(0.2 * 2, 0); // The normal game's hitbox can expand to up to sqrt(3)x the normal size, but since we're using a sphere, let's be generous and make it 2x
 		this.auxMarbleShape = new OIMO.Shape(new OIMO.ShapeConfig());
 		this.auxMarbleShape._geom = auxMarbleGeometry;
 		this.auxMarbleBody = new OIMO.RigidBody(new OIMO.RigidBodyConfig());
@@ -217,6 +221,17 @@ export class Level {
 		} else {
 			gemCountElement.style.display = 'none';
 		}
+	}
+
+	async initSounds() {
+		let musicProfile = this.mission.elements.find((element) => element._type === MissionElementType.AudioProfile && element.description === "AudioMusic") as MissionElementAudioProfile;
+		let musicFileName = musicProfile.fileName.slice(musicProfile.fileName.lastIndexOf('/') + 1);
+
+		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
+		this.music = await AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
+		this.music.node.loop = true;
+		//this.music.play();
+		// NO! TODO! I WANNA HEAR MORE THAN FUCKING SHELL!
 	}
 
 	async addSimGroup(simGroup: MissionElementSimGroup) {
@@ -391,15 +406,23 @@ export class Level {
 		this.deselectPowerUp();
 		setCenterText('none');
 
+		this.timeTravelSound?.stop();
+		this.timeTravelSound = null;
+
+		AudioManager.play('spawn.wav');
+
 		this.clearSchedule();
 		this.schedule(500, () => {
 			setCenterText('ready');
+			AudioManager.play('ready.wav');
 		});
 		this.schedule(2000, () => {
 			setCenterText('set');
+			AudioManager.play('set.wav');
 		});
 		this.schedule(GO_TIME, () => {
 			setCenterText('go');
+			AudioManager.play('go.wav');
 		});
 		this.schedule(5500, () => {
 			setCenterText('none');
@@ -479,8 +502,8 @@ export class Level {
 			if (this.outOfBounds) {
 				this.clearSchedule();
 				this.restart();
-			} else {
-				this.heldPowerUp?.use(this.timeState);
+			} else if (this.heldPowerUp) {
+				this.heldPowerUp.use(this.timeState);
 				this.deselectPowerUp();
 			}
 		}
@@ -549,8 +572,19 @@ export class Level {
 
 					if (this.currentTimeTravelBonus > 0) {
 						this.currentTimeTravelBonus -= 1000 / PHYSICS_TICK_RATE;
+
+						if (!this.timeTravelSound) {
+							AudioManager.createAudioSource('timetravelactive.wav').then((source) => {
+								this.timeTravelSound = source;
+								this.timeTravelSound.node.loop = true;
+								this.timeTravelSound.play();
+							});
+						}
 					} else {
 						this.timeState.gameplayClock += 1000 / PHYSICS_TICK_RATE;
+
+						this.timeTravelSound?.stop();
+						this.timeTravelSound = null;
 					}
 
 					if (this.currentTimeTravelBonus < 0) {
@@ -664,6 +698,8 @@ export class Level {
 			else this.overlayScene.remove(overlayShape.group);
 		}
 
+		AudioManager.play(powerUp.sounds[0]);
+
 		return true;
 	}
 
@@ -683,6 +719,7 @@ export class Level {
 
 		if (this.gemCount === this.totalGems) {
 			string = "You have all the gems, head for the finish!";
+			AudioManager.play('gotallgems.wav');
 		} else {
 			string = "You picked up a gem.  ";
 
@@ -692,6 +729,8 @@ export class Level {
 			} else {
 				string += `${remaining} gems to go!`;
 			}
+
+			AudioManager.play('gotgem.wav');
 		}
 
 		displayAlert(string);
@@ -716,6 +755,7 @@ export class Level {
 
 		this.updateCamera();
 		setCenterText('outofbounds');
+		AudioManager.play('whoosh.wav');
 
 		this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart());
 	}

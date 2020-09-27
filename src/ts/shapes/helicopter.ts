@@ -6,6 +6,7 @@ export class Helicopter extends PowerUp {
 	dtsPath = "shapes/images/helicopter.dts";
 	showSequences = false;
 	pickUpName = "Gyrocopter PowerUp";
+	sounds = ["pugyrocoptervoice.wav", "use_gyrocopter.wav"];
 
 	pickUp(): boolean {
 		return state.currentLevel.pickUpPowerUp(this);
