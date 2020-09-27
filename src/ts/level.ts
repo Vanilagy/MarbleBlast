@@ -70,6 +70,8 @@ export class Level {
 		time: number,
 		callback: () => any
 	}[] = [];
+	sunlight: THREE.DirectionalLight;
+	sunDirection: THREE.Vector3;
 
 	timeState: TimeState;
 	lastPhysicsTick: number = null;
@@ -120,20 +122,29 @@ export class Level {
 		this.scene = new THREE.Scene();
 
 		let sunElement = this.mission.elements.find((element) => element._type === MissionElementType.Sun) as MissionElementSun;
-		let sunDirection = MisParser.parseVector3(sunElement.direction);
+		this.sunDirection = MisParser.parseVector3(sunElement.direction);
 		let directionalColor = MisParser.parseVector4(sunElement.color);
 		let ambientColor = MisParser.parseVector4(sunElement.ambient);
 
 		let ambientLight = new THREE.AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z), 1);
         ambientLight.position.z = 0;
         ambientLight.position.y = 5;
-        this.scene.add(ambientLight);
+		this.scene.add(ambientLight);
+		
         let sunlight = new THREE.DirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), 1);
         this.scene.add(sunlight);
-        sunlight.position.x = -sunDirection.x * 30;
-        sunlight.position.y = -sunDirection.y * 30;
-		sunlight.position.z = -sunDirection.z * 30;
-
+		sunlight.castShadow = true;
+		sunlight.shadow.camera.far = 10000;
+        sunlight.shadow.camera.left = -0.5;
+        sunlight.shadow.camera.right = 0.5;
+        sunlight.shadow.camera.bottom = -0.5;
+		sunlight.shadow.camera.top = 0.5;
+		sunlight.shadow.mapSize.width = 128;
+		sunlight.shadow.mapSize.height = 128;
+		sunlight.shadow.radius = 2;
+		this.scene.add(sunlight.target); // Necessary for it to update
+		this.sunlight = sunlight;
+		
 		let skyboxImages = await ResourceManager.loadImages([
             './assets/data/skies/sky_lf.jpg',
             './assets/data/skies/sky_rt.jpg',
@@ -403,6 +414,12 @@ export class Level {
 
 		this.marble.render(this.timeState);
 		for (let shape of this.shapes) shape.render(this.timeState);
+
+		let shadowCameraPosition = this.marble.group.position.clone();
+		shadowCameraPosition.sub(this.sunDirection.clone().multiplyScalar(5));
+		this.sunlight.shadow.camera.position.copy(shadowCameraPosition);
+		this.sunlight.position.copy(shadowCameraPosition);
+		this.sunlight.target.position.copy(this.marble.group.position);
 
 		renderer.render(this.scene, camera);
 

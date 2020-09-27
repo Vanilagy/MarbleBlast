@@ -62,7 +62,6 @@ export class Interior {
 		}
 
 		let mesh = new THREE.Mesh(geometry, materials);
-		mesh.castShadow = true;
 		mesh.receiveShadow = true;
 		this.group.add(mesh);
 

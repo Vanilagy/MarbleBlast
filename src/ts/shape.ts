@@ -122,27 +122,28 @@ export class Shape {
 			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
 
 			for (let object of objects) {
-				if (this.dts.names[object.nameIndex].startsWith("Col")) {
+				let isCollisionObject = this.dts.names[object.nameIndex].startsWith("Col");
+				if (isCollisionObject) {
 					let config = new OIMO.RigidBodyConfig();
 					config.type = OIMO.RigidBodyType.STATIC;
 					let body = new OIMO.RigidBody(config);
 					body.userData = { nodeIndex: i };
 
 					this.bodies.push(body);
-				} else {
-					let nodeGroup = new THREE.Group();
-					this.group.add(nodeGroup);
-					nodeGroup.matrixAutoUpdate = false;
-					nodeGroup.matrix = this.nodeTransforms[i];
+				}
 
-					for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
-						let mesh = this.dts.meshes[i];
-						if (!mesh) continue;
+				let nodeGroup = new THREE.Group();
+				this.group.add(nodeGroup);
+				nodeGroup.matrixAutoUpdate = false;
+				nodeGroup.matrix = this.nodeTransforms[i];
 
-						let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-						let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-						this.addMeshGeometry(mesh, vertices, vertexNormals, nodeGroup);
-					}
+				for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
+					let mesh = this.dts.meshes[i];
+					if (!mesh) continue;
+
+					let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+					let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+					this.addMeshGeometry(mesh, vertices, vertexNormals, nodeGroup, isCollisionObject);
 				}
 			}
 		}
@@ -155,7 +156,7 @@ export class Shape {
 
 			let vertices = new Array(mesh.verts.length).fill(null).map(() => new THREE.Vector3());
 			let vertexNormals = new Array(mesh.norms.length).fill(null).map(() => new THREE.Vector3());
-			this.addMeshGeometry(mesh, vertices, vertexNormals, group);
+			this.addMeshGeometry(mesh, vertices, vertexNormals, group, false);
 
 			this.group.add(group);
 
@@ -235,7 +236,7 @@ export class Shape {
 		}
 	}
 
-	addMeshGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[], group: THREE.Group) {
+	addMeshGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[], group: THREE.Group, isCollisionMesh: boolean) {
 		let geometry = new THREE.Geometry();
 		geometry.vertices = vertices;
 
@@ -263,7 +264,13 @@ export class Shape {
 			geometry.computeVertexNormals();	
 		}
 
-		let threeMesh = new THREE.Mesh(geometry, this.materials);
+		let material: THREE.Material | THREE.Material[];
+		if (isCollisionMesh) material = new THREE.ShadowMaterial({opacity: 0.25});
+		else material = this.materials;
+
+		let threeMesh = new THREE.Mesh(geometry, material);
+		if (isCollisionMesh) threeMesh.receiveShadow = true;
+
 		group.add(threeMesh);
 	}
 

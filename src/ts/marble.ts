@@ -32,10 +32,9 @@ export class Marble {
 
 		let textureMarble = await ResourceManager.getTexture("shapes/balls/base.marble.png");
 
-        let geometry = new THREE.SphereGeometry(MARBLE_SIZE, 64, 64);
+        let geometry = new THREE.SphereGeometry(MARBLE_SIZE, 32, 32);
 		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({map: textureMarble, color: 0xffffff}));
 		sphere.castShadow = true;
-		sphere.receiveShadow = true;
 		this.sphere = sphere;
 		this.group.add(sphere);
 
