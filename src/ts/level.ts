@@ -209,7 +209,7 @@ export class Level {
 	}
 
 	async addSimGroup(simGroup: MissionElementSimGroup) {
-		if (simGroup._subtype.startsWith("MustChange")) {
+		if (simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior)) {
 			let pathedInterior = await PathedInterior.createFromSimGroup(simGroup);
 
 			this.scene.add(pathedInterior.group);
@@ -249,6 +249,8 @@ export class Level {
 	async addInterior(element: MissionElementInteriorInstance) {
 		let path = element.interiorFile.slice(element.interiorFile.indexOf('data/'));
 		let difFile = await DifParser.loadFile('./assets/' + path);
+		if (!difFile) return;
+
 		let interior = new Interior(difFile);
 		await interior.init();
 		interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
@@ -261,55 +263,56 @@ export class Level {
 	async addShape(element: MissionElementStaticShape | MissionElementItem) {
 		let shape: Shape;
 
-		if (element.dataBlock === "StartPad") {
+		let dataBlockLowerCase = element.dataBlock.toLowerCase();
+		if (dataBlockLowerCase === "startpad") {
 			shape = new StartPad();
-		} else if (element.dataBlock === "EndPad") {
+		} else if (dataBlockLowerCase === "endpad") {
 			shape = new EndPad();
-		} else if (element.dataBlock === "SignFinish") {
+		} else if (dataBlockLowerCase === "signfinish") {
 			shape = new SignFinish();
-		} else if (element.dataBlock.startsWith("SignPlain")) {
+		} else if (dataBlockLowerCase.startsWith("signplain")) {
 			shape = new SignPlain(element as MissionElementStaticShape);
-		} else if (element.dataBlock.startsWith("GemItem")) {
+		} else if (dataBlockLowerCase.startsWith("gemitem")) {
 			shape = new Gem(element as MissionElementItem);
 			this.totalGems++;
-		} else if (element.dataBlock === "SuperJumpItem") {
+		} else if (dataBlockLowerCase === "superjumpitem") {
 			shape = new SuperJump();
-		} else if (element.dataBlock.startsWith("SignCaution")) {
+		} else if (dataBlockLowerCase.startsWith("signcaution")) {
 			shape = new SignCaution(element as MissionElementStaticShape);
-		} else if (element.dataBlock === "SuperBounceItem") {
+		} else if (dataBlockLowerCase === "superbounceitem") {
 			shape = new SuperBounce();
-		} else if (element.dataBlock === "RoundBumper") {
+		} else if (dataBlockLowerCase === "roundbumper") {
 			shape = new RoundBumper();
-		} else if (element.dataBlock === "TriangleBumper") {
+		} else if (dataBlockLowerCase === "trianglebumper") {
 			shape = new TriangleBumper();
-		} else if (element.dataBlock === "HelicopterItem") {
+		} else if (dataBlockLowerCase === "helicopteritem") {
 			shape = new Helicopter();
-		} else if (element.dataBlock === "DuctFan") {
+		} else if (dataBlockLowerCase === "ductfan") {
 			shape = new DuctFan();
-		} else if (element.dataBlock === "SmallDuctFan") {
+		} else if (dataBlockLowerCase === "smallductfan") {
 			shape = new SmallDuctFan();
-		} else if (element.dataBlock === "AntiGravityItem") {
+		} else if (dataBlockLowerCase === "antigravityitem") {
 			shape = new AntiGravity();
-		} else if (element.dataBlock === "LandMine") {
+		} else if (dataBlockLowerCase === "landmine") {
 			shape = new LandMine();
-		} else if (element.dataBlock === "ShockAbsorberItem") {
+		} else if (dataBlockLowerCase === "shockabsorberitem") {
 			shape = new ShockAbsorber();
-		} else if (element.dataBlock === "SuperSpeedItem") {
+		} else if (dataBlockLowerCase === "superspeeditem") {
 			shape = new SuperSpeed();
-		} else if (element.dataBlock === "TimeTravelItem") {
+		} else if (dataBlockLowerCase === "timetravelitem") {
 			shape = new TimeTravel(element as MissionElementItem);
-		} else if (element.dataBlock === "Tornado") {
+		} else if (dataBlockLowerCase === "tornado") {
 			shape = new Tornado();
-		} else if (element.dataBlock === "TrapDoor") {
-			shape = new TrapDoor();
-		} else if (element.dataBlock === "oilslick") {
+		} else if (dataBlockLowerCase === "trapdoor") {
+			shape = new TrapDoor(element as MissionElementStaticShape);
+		} else if (dataBlockLowerCase === "oilslick") {
 			shape = new Oilslick();
 		}
 
 		if (!shape) return;
 		await shape.init();
 
-		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
+		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
 		this.scene.add(shape.group);
 		for (let body of shape.bodies) {

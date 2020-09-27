@@ -664,6 +664,11 @@ export class DifParser extends BinaryFileParser {
 
 		let promise = new Promise<DifFile>(async (resolve) => {
 			let blob = await ResourceManager.loadResource(path);
+			if (!blob) {
+				resolve(null);
+				return;
+			}
+
 			let arrayBuffer = await blob.arrayBuffer();
 			let parser = new DifParser(arrayBuffer);
 	

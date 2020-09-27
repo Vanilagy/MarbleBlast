@@ -6,6 +6,7 @@ import { IflParser } from "./parsing/ifl_parser";
 import { getUniqueId } from "./state";
 import { Util } from "./util";
 import { TimeState } from "./level";
+import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 
 interface MaterialInfo {
 	keyframes: string[]
@@ -60,12 +61,15 @@ export class Shape {
 	ambientSpinFactor = -1 / 3000 * Math.PI * 2;
 	worldPosition = new THREE.Vector3();
 	worldOrientation = new THREE.Quaternion();
+	worldScale = new THREE.Vector3();
 	worldMatrix = new THREE.Matrix4();
 	currentOpacity = 1;
 	showSequences = true;
 	colliders: ColliderInfo[] = [];
 	sequenceKeyframeOverride = new WeakMap<DtsFile["sequences"][number], number>();
 	lastSequenceKeyframes = new WeakMap<DtsFile["sequences"][number], number>();
+	restitution = INTERIOR_DEFAULT_RESTITUTION;
+	friction = INTERIOR_DEFAULT_FRICTION;
 
 	async init() {
 		this.id = getUniqueId();
@@ -123,28 +127,7 @@ export class Shape {
 					config.type = OIMO.RigidBodyType.STATIC;
 					let body = new OIMO.RigidBody(config);
 					body.userData = { nodeIndex: i };
-	
-					for (let j = object.startMeshIndex; j < object.startMeshIndex + object.numMeshes; j++) {
-						let mesh = this.dts.meshes[j];
-						if (!mesh) continue;
-	
-						for (let primitive of mesh.primitives) {
-							let vertices = mesh.indices.slice(primitive.start, primitive.start + primitive.numElements)
-								.map((index) => mesh.verts[index])
-								.map((vert) => new OIMO.Vec3(vert.x, vert.y, vert.z));
-							let geometry = new OIMO.ConvexHullGeometry(vertices);
-	
-							let shapeConfig = new OIMO.ShapeConfig();
-							shapeConfig.geometry = geometry;
-							shapeConfig.restitution = 0.4;
-							shapeConfig.friction = 1;
-							let shape = new OIMO.Shape(shapeConfig);
-							shape.userData = this.id;
 
-							body.addShape(shape);
-						}
-					}
-	
 					this.bodies.push(body);
 				} else {
 					let nodeGroup = new THREE.Group();
@@ -185,24 +168,65 @@ export class Shape {
 		}
 
 		if (this.bodies.length === 0) {
-			let dx = this.dts.bounds.max.x - this.dts.bounds.min.x;
-			let dy = this.dts.bounds.max.y - this.dts.bounds.min.y;
-			let dz = this.dts.bounds.max.z - this.dts.bounds.min.z;
-
 			let config = new OIMO.RigidBodyConfig();
 			config.type = OIMO.RigidBodyType.STATIC;
 			let body = new OIMO.RigidBody(config);
+			this.bodies.push(body);
+		}
+	}
+
+	generateCollisionGeometry() {
+		let bodyIndex = 0;
+
+		for (let i = 0; i < this.dts.nodes.length; i++) {
+			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
+
+			for (let object of objects) {
+				if (!this.dts.names[object.nameIndex].startsWith("Col")) continue;
+
+				let body = this.bodies[bodyIndex++];
+				while (body.getNumShapes() > 0) body.removeShape(body.getShapeList()); // Remove all previous shapes
+
+				for (let j = object.startMeshIndex; j < object.startMeshIndex + object.numMeshes; j++) {
+					let mesh = this.dts.meshes[j];
+					if (!mesh) continue;
+
+					for (let primitive of mesh.primitives) {
+						let vertices = mesh.indices.slice(primitive.start, primitive.start + primitive.numElements)
+							.map((index) => mesh.verts[index])
+							.map((vert) => new OIMO.Vec3(vert.x * this.worldScale.x, vert.y * this.worldScale.y, vert.z * this.worldScale.z));
+						let geometry = new OIMO.ConvexHullGeometry(vertices);
+
+						let shapeConfig = new OIMO.ShapeConfig();
+						shapeConfig.geometry = geometry;
+						shapeConfig.restitution = this.restitution;
+						shapeConfig.friction = this.friction;
+						let shape = new OIMO.Shape(shapeConfig);
+						shape.userData = this.id;
+
+						body.addShape(shape);
+					}
+				}
+			}
+		}
+
+		if (bodyIndex === 0) {
+			let body = this.bodies[0];
+			while (body.getNumShapes() > 0) body.removeShape(body.getShapeList()); // Remove all previous shapes
+
+			let dx = (this.dts.bounds.max.x - this.dts.bounds.min.x) * this.worldScale.x;
+			let dy = (this.dts.bounds.max.y - this.dts.bounds.min.y) * this.worldScale.y;
+			let dz = (this.dts.bounds.max.z - this.dts.bounds.min.z) * this.worldScale.z;
 
 			let geometry = new OIMO.BoxGeometry(new OIMO.Vec3(dx/2, dy/2, dz/2));
 			let shapeConfig = new OIMO.ShapeConfig();
 			shapeConfig.geometry = geometry;
-			shapeConfig.restitution = 0.4;
-			shapeConfig.friction = 1;
+			shapeConfig.restitution = this.restitution;
+			shapeConfig.friction = this.friction;
 			let shape = new OIMO.Shape(shapeConfig);
 			shape.userData = this.id;
 			body.addShape(shape);
 
-			this.bodies.push(body);
 			this.bodiesLocalTranslation.set(body, new OIMO.Vec3(
 				Util.avg(this.dts.bounds.max.x, this.dts.bounds.min.x),
 				Util.avg(this.dts.bounds.max.y, this.dts.bounds.min.y),
@@ -431,13 +455,17 @@ export class Shape {
 		}
 	}
 
-	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion) {
+	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
+		let scaleUpdated = scale.clone().sub(this.worldScale).length() !== 0;
+
 		this.worldPosition = position;
 		this.worldOrientation = orientation;
-		this.worldMatrix.compose(position, orientation, new THREE.Vector3(1, 1, 1));
+		this.worldScale = scale;
+		this.worldMatrix.compose(position, orientation, scale);
 
 		this.group.position.copy(position);
 		this.group.quaternion.copy(orientation);
+		this.group.scale.copy(scale);
 
 		for (let collider of this.colliders) {
 			let mat = collider.transform.clone();
@@ -451,6 +479,7 @@ export class Shape {
 			collider.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
 		}
 
+		if (scaleUpdated) this.generateCollisionGeometry();
 		this.updateBodyTransforms();
 	}
 
@@ -506,6 +535,18 @@ export class Shape {
 	onColliderInside(id: number) {
 		let collider = this.colliders.find((collider) => collider.id === id);
 		collider.onInside();
+	}
+
+	setCollisionEnabled(enabled: boolean) {
+		let collisionMask = enabled? 1 : 0;
+
+		for (let body of this.bodies) {
+			let shape = body.getShapeList();
+			while (shape) {
+				shape.setCollisionMask(collisionMask);
+				shape = shape.getNext();
+			}
+		}
 	}
 
 	onMarbleContact(contact: OIMO.Contact, time: TimeState) {}

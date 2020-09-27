@@ -73,8 +73,13 @@ export abstract class ResourceManager {
 			const attempt = async () => {
 				try {
 					let response = await fetch(path);
+					if (!response.ok) {
+						this.cachedResources.set(path, null);
+						resolve(null);
+						return;
+					}
+
 					let blob = await response.blob();
-	
 					this.cachedResources.set(path, blob);
 					resolve(blob);
 				} catch (e) {

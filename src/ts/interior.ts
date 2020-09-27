@@ -5,9 +5,12 @@ import { ResourceManager } from "./resources";
 import { TimeState } from "./level";
 import { Util } from "./util";
 
+export const INTERIOR_DEFAULT_FRICTION = 1;
+export const INTERIOR_DEFAULT_RESTITUTION = 0.5;
+
 const specialFriction: Record<string, number> = {
 	"friction_high": 1.5,
-	"friction_low": 0.2,
+	"friction_low": 0.1,
 	"friction_none": 0.001,
 	"friction_ramp_yellow": 2.0
 };
@@ -107,8 +110,8 @@ export class Interior {
 			let geometry = new OIMO.ConvexHullGeometry(vertices);
 			let shapeConfig = new OIMO.ShapeConfig();
 			shapeConfig.geometry = geometry;
-			shapeConfig.restitution = 0.5 * (specialResistutionFactor[material] ?? 1);
-			shapeConfig.friction = specialFriction[material] ?? 1;
+			shapeConfig.restitution = INTERIOR_DEFAULT_RESTITUTION * (specialResistutionFactor[material] ?? 1);
+			shapeConfig.friction = INTERIOR_DEFAULT_FRICTION * (specialFriction[material] ?? 1);
 			let shape = new OIMO.Shape(shapeConfig);
 			this.body.addShape(shape);
 		};
@@ -127,6 +130,7 @@ export class Interior {
 
 			for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
 				let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
+				if (!surface) continue;
 				let material = this.detailLevel.materialList.materials[surface.textureIndex];
 				materials.add(material);
 				firstMaterial = material;
