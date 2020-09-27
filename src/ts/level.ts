@@ -356,6 +356,7 @@ export class Level {
 		this.marble.body.setLinearVelocity(new OIMO.Vec3());
 		this.marble.body.setAngularVelocity(new OIMO.Vec3());
 		this.marble.body.setPosition(new OIMO.Vec3(startPad.worldPosition.x, startPad.worldPosition.y, startPad.worldPosition.z + 4));
+		this.marble.reset();
 
 		let euler = new THREE.Euler();
 		euler.setFromQuaternion(startPad.worldOrientation, "ZXY");

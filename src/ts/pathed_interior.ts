@@ -13,6 +13,7 @@ export class PathedInterior extends Interior {
 	timeDest: number = null;
 	changeTime: number = null;
 	triggers: MustChangeTrigger[] = [];
+	timeOffset: number = 0;
 
 	static async createFromSimGroup(simGroup: MissionElementSimGroup) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
@@ -36,6 +37,8 @@ export class PathedInterior extends Interior {
 			pathedInterior.triggers.push(trigger);
 		}
 
+		if (interiorElement.initialPosition) pathedInterior.timeOffset = Number(interiorElement.initialPosition);
+
 		return pathedInterior;
 	}
 
@@ -58,7 +61,7 @@ export class PathedInterior extends Interior {
 	}
 
 	getInternalTime(externalTime: number) {
-		if (this.changeTime === null) return externalTime % this.duration;
+		if (this.changeTime === null) return (externalTime + this.timeOffset) % this.duration;
 
 		let dur = Math.abs(this.timeStart - this.timeDest);
 		let completion = Util.clamp((externalTime - this.changeTime) / dur, 0, 1);

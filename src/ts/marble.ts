@@ -214,4 +214,13 @@ export class Marble {
 	enableHelicopter(time: TimeState) {
 		this.helicopterEnableTime = time.currentAttemptTime;
 	}
+
+	reset() {
+		this.superBounceEnableTime = -Infinity;
+		this.shockAbsorberEnableTime = -Infinity;
+		this.helicopterEnableTime = -Infinity;
+		this.lastContactNormal = new OIMO.Vec3(0, 0, 1);
+		this.wallHitBoosterTimeout = 0;
+		this.lastVel = new OIMO.Vec3();
+	}
 }

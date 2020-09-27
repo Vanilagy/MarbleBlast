@@ -143,7 +143,8 @@ export interface MissionElementPathedInterior extends MissionElementBase {
 	basePosition: string,
 	baseRotation: string,
 	baseScale: string,
-	initialTargetPosition: string
+	initialTargetPosition: string,
+	initialPosition: string
 }
 
 export interface MissionElementTrigger extends MissionElementBase {

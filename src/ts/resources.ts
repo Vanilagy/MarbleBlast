@@ -46,20 +46,22 @@ export abstract class ResourceManager {
 	static getFullNameOf(path: string) {
 		let parts = path.split('/');
 
-		const search = (directory: DirectoryStructure, partIndex: number) => {
-			if (partIndex === parts.length) return [];
-			let part = parts[partIndex];
-			let results: string[] = [];
+		let current: DirectoryStructure = this.dataDirectoryStructure;
+		while (parts.length) {
+			let part = parts.shift();
 
-			for (let name in directory) {
-				if (partIndex === parts.length - 1 && name.toLowerCase().startsWith(part.toLowerCase())) results.push(name);
-				else if (directory[name]) results.push(...search(directory[name], partIndex + 1));
-			}
+			if (parts.length === 0) {
+				let results: string[] = [];
 
-			return results;
-		};
+				for (let name in current) {
+					if (name.toLowerCase().startsWith(part.toLowerCase())) results.push(name);
+				}
 
-		return search(this.dataDirectoryStructure, 0);
+				return results;
+			} else {
+				current = current[part];
+			}	
+		}
 	}
 
 	static loadResource(path: string) {

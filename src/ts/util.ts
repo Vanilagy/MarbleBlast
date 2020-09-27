@@ -276,4 +276,11 @@ export abstract class Util {
 		if (code === "Space") return "Space Bar";
 		return code;
 	}
+
+	static setsHaveOverlap<T>(a: Set<T>, b: Set<T>) {
+		for (let val of a) {
+			if (b.has(val)) return true;
+		}
+		return false;
+	}
 }
