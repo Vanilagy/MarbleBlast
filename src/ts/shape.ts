@@ -569,4 +569,5 @@ export class Shape {
 	onMarbleEnter(time: TimeState) {}
 	onMarbleLeave(time: TimeState) {}
 	reset() {}
+	async onLevelStart() {}
 }

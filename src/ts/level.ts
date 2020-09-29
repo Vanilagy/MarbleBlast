@@ -114,6 +114,7 @@ export class Level {
 		setInterval(() => this.tick());
 
 		this.restart();
+		for (let shape of this.shapes) await shape.onLevelStart();
 	}
 
 	async initScene() {
@@ -456,70 +457,74 @@ export class Level {
 		}
 
 		if (this.lastPhysicsTick === null) {
-			this.lastPhysicsTick = time;
-		} else {
-			let elapsed = time - this.lastPhysicsTick;
-			if (elapsed >= 1000) {
-				elapsed = 1000;
-				this.lastPhysicsTick = time - 1000;
-			}
-
-			while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
-				for (let i = 0; i < this.scheduled.length; i++) {
-					let item = this.scheduled[i];
-					if (this.timeState.currentAttemptTime >= item.time) {
-						this.scheduled.splice(i--, 1);
-						item.callback();
-					}
-				}
-
-				this.physics.step();
-
-				for (let shape of this.shapes) shape.tick(this.timeState);
-				this.marble.handleControl(this.timeState);
-
-				if (this.timeState.currentAttemptTime < GO_TIME) {
-					let startPad = this.shapes.find((element) => element instanceof StartPad);
-					let position = this.marble.body.getPosition();
-					position.x = startPad.worldPosition.x;
-					position.y = startPad.worldPosition.y;
-					this.marble.body.setPosition(position);
-					this.marble.body._velX = 0;
-					this.marble.body._velY = 0;
-
-					this.marble.shape.setFriction(0.25);
-				} else {
-					this.marble.shape.setFriction(1);
-
-					if (this.currentTimeTravelBonus > 0) {
-						this.currentTimeTravelBonus -= 1000 / PHYSICS_TICK_RATE;
-
-						if (!this.timeTravelSound) {
-							AudioManager.createAudioSource('timetravelactive.wav').then((source) => {
-								this.timeTravelSound = source;
-								this.timeTravelSound.node.loop = true;
-								this.timeTravelSound.play();
-							});
-						}
-					} else {
-						this.timeState.gameplayClock += 1000 / PHYSICS_TICK_RATE;
-
-						this.timeTravelSound?.stop();
-						this.timeTravelSound = null;
-					}
-
-					if (this.currentTimeTravelBonus < 0) {
-						this.timeState.gameplayClock += -this.currentTimeTravelBonus;
-						this.currentTimeTravelBonus = 0;
-					}
-				}
-
-				this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
-				this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
-				this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
-				elapsed -= 1000 / PHYSICS_TICK_RATE;
-			}
+			this.lastPhysicsTick = time - 1000 / PHYSICS_TICK_RATE * 1.1;
 		}
+
+		let elapsed = time - this.lastPhysicsTick;
+		if (elapsed >= 1000) {
+			elapsed = 1000;
+			this.lastPhysicsTick = time - 1000;
+		}
+
+		while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
+			for (let i = 0; i < this.scheduled.length; i++) {
+				let item = this.scheduled[i];
+				if (this.timeState.currentAttemptTime >= item.time) {
+					this.scheduled.splice(i--, 1);
+					item.callback();
+				}
+			}
+
+			this.physics.step();
+
+			for (let shape of this.shapes) shape.tick(this.timeState);
+			this.marble.handleControl(this.timeState);
+
+			if (this.timeState.currentAttemptTime < GO_TIME) {
+				let startPad = this.shapes.find((element) => element instanceof StartPad);
+				let position = this.marble.body.getPosition().clone();
+				position.x = startPad.worldPosition.x;
+				position.y = startPad.worldPosition.y;
+				this.marble.body.setPosition(position);
+
+				let vel = this.marble.body.getLinearVelocity();
+				vel.x = vel.y = 0;
+				this.marble.body.setLinearVelocity(vel);
+
+				this.marble.shape.setFriction(0.25);
+			} else {
+				this.marble.shape.setFriction(1);
+
+				if (this.currentTimeTravelBonus > 0) {
+					this.currentTimeTravelBonus -= 1000 / PHYSICS_TICK_RATE;
+
+					if (!this.timeTravelSound) {
+						AudioManager.createAudioSource('timetravelactive.wav').then((source) => {
+							this.timeTravelSound = source;
+							this.timeTravelSound.node.loop = true;
+							this.timeTravelSound.play();
+						});
+					}
+				} else {
+					this.timeState.gameplayClock += 1000 / PHYSICS_TICK_RATE;
+
+					this.timeTravelSound?.stop();
+					this.timeTravelSound = null;
+				}
+
+				if (this.currentTimeTravelBonus < 0) {
+					this.timeState.gameplayClock += -this.currentTimeTravelBonus;
+					this.currentTimeTravelBonus = 0;
+				}
+			}
+
+			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
+			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
+			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
+			elapsed -= 1000 / PHYSICS_TICK_RATE;
+		}
+
+		AudioManager.updatePositionalAudio(this.timeState, camera.position, this.yaw);
 	}
 
 	getOrientationQuat(time: TimeState) {

@@ -1,5 +1,8 @@
 import { ResourceManager } from "./resources";
 import { Util } from "./util";
+import { state } from "./state";
+import * as THREE from "three";
+import { TimeState } from "./level";
 
 export abstract class AudioManager {
 	static context: AudioContext;
@@ -8,6 +11,7 @@ export abstract class AudioManager {
 	static musicGain: GainNode;
 
 	static audioBufferCache = new Map<string, Promise<AudioBuffer>>();
+	static positionalSources: AudioSource[] = [];
 
 	static init() {
 		this.context = new AudioContext();
@@ -43,10 +47,13 @@ export abstract class AudioManager {
 		return Promise.all(paths.map((path) => this.loadBuffer(path)));
 	}
 
-	static async createAudioSource(path: string | string[], destination = this.soundGain) {
+	static async createAudioSource(path: string | string[], destination = this.soundGain, position?: THREE.Vector3) {
 		let chosenPath = (typeof path === "string")? path : Util.randomFromArray(path);
 		let buffer = await this.loadBuffer(chosenPath);
-		let audioSource = new AudioSource(buffer, destination);
+		let audioSource = new AudioSource(buffer, destination, position);
+
+		if (position) this.positionalSources.push(audioSource);
+
 		return audioSource;
 	}
 
@@ -55,19 +62,44 @@ export abstract class AudioManager {
 		audioSource.gain.gain.value = volume;
 		audioSource.play();
 	}
+
+	static updatePositionalAudio(time: TimeState, listenerPos: THREE.Vector3, listenerYaw: number) {
+		let quat = state.currentLevel.getOrientationQuat(time);
+		quat.conjugate();
+
+		for (let source of this.positionalSources) {
+			let relativePosition = source.position.clone().sub(listenerPos);
+			relativePosition.applyQuaternion(quat);
+			relativePosition.applyAxisAngle(new THREE.Vector3(0, 0, 1), -listenerYaw);
+			relativePosition.normalize();
+			relativePosition.z = 0;
+
+			let distance = source.position.distanceTo(listenerPos);
+			let panRemoval = Util.clamp(distance / 1, 0, 1)
+			
+			source.panner.pan.value = -relativePosition.y * 0.8 * panRemoval;
+			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1);
+		}
+	}
 }
 
 export class AudioSource {
 	node: AudioBufferSourceNode;
 	gain: GainNode;
+	panner: StereoPannerNode;
+	position: THREE.Vector3;
 
-	constructor(buffer: AudioBuffer, destination: AudioNode) {
+	constructor(buffer: AudioBuffer, destination: AudioNode, position?: THREE.Vector3) {
 		this.node = AudioManager.context.createBufferSource();
 		this.node.buffer = buffer;
 
 		this.gain = AudioManager.context.createGain();
+		this.panner = AudioManager.context.createStereoPanner();
 		this.node.connect(this.gain);
-		this.gain.connect(destination);
+		this.gain.connect(this.panner);
+		this.panner.connect(destination);
+
+		this.position = position;
 	}
 
 	play() {

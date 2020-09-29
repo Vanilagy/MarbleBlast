@@ -112,11 +112,12 @@ export class Marble {
 		let movementRotationAxis = state.currentLevel.currentUp.cross(Util.vecThreeToOimo(movementVec));
 
 		this.collisionTimeout--;
-		if_block:
-		if (current) {
-			if (this.collisionTimeout >= 0) break if_block;
 
+		if (current) {
 			let contact = current.getContact();
+			contact._updateManifold();
+			contact._postSolve();
+			
 			let contactNormal = contact.getManifold().getNormal();
 			let surfaceShape = contact.getShape2();
 			if (surfaceShape === this.shape) {
@@ -127,6 +128,7 @@ export class Marble {
 			let inverseContactNormal = contactNormal.scale(-1);
 
 			let contactNormalUpDot = Math.abs(contactNormal.dot(state.currentLevel.currentUp));
+			let collisionTimeoutNeeded = false;
 
 			let contactNormalRotation = new OIMO.Quat();
 			contactNormalRotation.setArc(state.currentLevel.currentUp, contactNormal);
@@ -140,7 +142,7 @@ export class Marble {
 			}
 
 			outer:
-			if (this.wallHitBoosterTimeout-- <= 0) {
+			if (this.collisionTimeout <= 0) {
 				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scale((1 - contactNormal.dot(state.currentLevel.currentUp)) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 20);
 				if (angularBoost.length() < 0.01) break outer;
 
@@ -149,40 +151,43 @@ export class Marble {
 				currentVelocity = currentVelocity.scale(1 / (1 + ratio * 0.5)).add(angularBoost);
 				this.body.setLinearVelocity(currentVelocity);
 
-				//this.wallHitBoosterTimeout = 1;
+				collisionTimeoutNeeded = true;
 			}
 
 			let jumpSoundPlayed = false;
-			if (gameButtons.jump && contactNormalUpDot > 1e-10) {
+			if (this.collisionTimeout <= 0 && gameButtons.jump && contactNormalUpDot > 1e-10) {
 				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
 					AudioManager.play(['jump.wav']);
 					jumpSoundPlayed = true;
+					collisionTimeoutNeeded = true;
 				});
 			}
-			if (!jumpSoundPlayed) {
-				let impactVelocity = -contactNormal.dot(this.lastVel);
+
+			if (!jumpSoundPlayed && this.collisionTimeout <= 0) {
+				let impactVelocity = -contactNormal.dot(this.lastVel.sub(surfaceShape.getRigidBody().getLinearVelocity()));
 				let volume = Util.clamp(impactVelocity / 15, 0, 1);
 
 				if (impactVelocity > 1) {
 					AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'], volume);
+					collisionTimeoutNeeded = true;
 				}
 			}
-			if (contactNormal.dot(this.body.getLinearVelocity()) < 0.0001) {
-				let predictedMovement = this.body.getAngularVelocity().cross(state.currentLevel.currentUp).scale(1 / Math.PI / 2);
-				let dot = predictedMovement.dot(this.body.getLinearVelocity().clone().normalize());
 
-				if (predictedMovement.dot(this.body.getLinearVelocity()) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > this.body.getLinearVelocity().length() * 1.5)) {
+			let surfaceRelativeVelocity = this.body.getLinearVelocity().sub(surfaceShape.getRigidBody().getLinearVelocity());
+			if (contactNormal.dot(surfaceRelativeVelocity) < 0.0001) {
+				let predictedMovement = this.body.getAngularVelocity().cross(state.currentLevel.currentUp).scale(1 / Math.PI / 2);
+
+				if (predictedMovement.dot(surfaceRelativeVelocity) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > surfaceRelativeVelocity.length() * 1.5)) {
 					this.slidingSound.gain.gain.value = 0.6;
 					this.rollingSound.gain.gain.value = 0;
 				} else {
 					this.slidingSound.gain.gain.value = 0;
-					let pitch = Util.clamp(this.body.getLinearVelocity().length() / 15, 0, 1) * 0.75 + 0.75;
+					let pitch = Util.clamp(surfaceRelativeVelocity.length() / 15, 0, 1) * 0.75 + 0.75;
 
 					this.rollingSound.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02)
 					this.rollingSound.node.playbackRate.value = pitch;
 				}
 			} else {
-				//this.rollingSound.gain.gain.setValueAtTime(this.rollingSound.gain.gain.value, AudioManager.context.currentTime);
 				this.slidingSound.gain.gain.value = 0;
 				this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02)
 			}
@@ -205,7 +210,7 @@ export class Marble {
 				movementRotationAxis = movementRotationAxis.normalize().scale(newLength);
 			}
 
-			this.collisionTimeout = 1;
+			if (collisionTimeoutNeeded) this.collisionTimeout = 2;
 		}
 
 		if (!current) {
