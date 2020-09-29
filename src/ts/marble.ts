@@ -126,6 +126,12 @@ export class Marble {
 			this.lastContactNormal = contactNormal;
 			let inverseContactNormal = contactNormal.scale(-1);
 
+			let contactNormalUpDot = Math.abs(contactNormal.dot(state.currentLevel.currentUp));
+
+			let contactNormalRotation = new OIMO.Quat();
+			contactNormalRotation.setArc(state.currentLevel.currentUp, contactNormal);
+			movementRotationAxis.mulMat3Eq(contactNormalRotation.toMat3());
+
 			let dot0 = contactNormal.dot(this.lastVel.clone().normalize());
 			if (dot0 > -0.4 && dot0 < -0.001) {
 				dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
@@ -147,7 +153,7 @@ export class Marble {
 			}
 
 			let jumpSoundPlayed = false;
-			if (gameButtons.jump && Math.abs(contactNormal.dot(state.currentLevel.currentUp)) > 1e-10) {
+			if (gameButtons.jump && contactNormalUpDot > 1e-10) {
 				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
 					AudioManager.play(['jump.wav']);
 					jumpSoundPlayed = true;
@@ -194,8 +200,8 @@ export class Marble {
 			angVel = angVel.add(direction.scale(dot2));
 			this.body.setAngularVelocity(angVel);
 
-			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength) {
-				let newLength = Math.max(0, 12 * Math.PI*2 * inputStrength - dot2);
+			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot) {
+				let newLength = Math.max(0, 12 * Math.PI*2 * inputStrength / contactNormalUpDot - dot2);
 				movementRotationAxis = movementRotationAxis.normalize().scale(newLength);
 			}
 
