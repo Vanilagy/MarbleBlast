@@ -51,6 +51,12 @@ declare namespace OIMO {
 
 	const Contact: typeof oimo.dynamics.Contact;
 	type Contact = oimo.dynamics.Contact;
+
+	const Transform: typeof oimo.common.Transform;
+	type Transform = oimo.common.Transform;
+
+	const RayCastHit: typeof oimo.collision.geometry.RayCastHit;
+	type RayCastHit = oimo.collision.geometry.RayCastHit;
 }
 
 export default OIMO;

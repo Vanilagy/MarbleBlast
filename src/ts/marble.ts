@@ -190,7 +190,7 @@ export class Marble {
 			let direction = movementRotationAxis.clone().normalize();
 			let dot2 = Math.max(0, angVel.dot(direction));
 			angVel = angVel.sub(direction.scale(dot2));
-			angVel = angVel.scale(0.15 ** (1 / PHYSICS_TICK_RATE));
+			angVel = angVel.scale(0.02 ** (1 / PHYSICS_TICK_RATE));
 			angVel = angVel.add(direction.scale(dot2));
 			this.body.setAngularVelocity(angVel);
 

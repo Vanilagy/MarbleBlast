@@ -3,8 +3,9 @@ import { DifParser } from "./parsing/dif_parser";
 import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "./parsing/mis_parser";
 import { Util } from "./util";
 import * as THREE from "three";
-import { TimeState } from "./level";
+import { TimeState, PHYSICS_TICK_RATE } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
+import OIMO from "./declarations/oimo";
 
 export class PathedInterior extends Interior {
 	path: MissionElementPath;
@@ -14,6 +15,8 @@ export class PathedInterior extends Interior {
 	changeTime: number = null;
 	triggers: MustChangeTrigger[] = [];
 	timeOffset: number = 0;
+	prevVelocity = new OIMO.Vec3();
+	prevPosition = new THREE.Vector3();
 
 	static async createFromSimGroup(simGroup: MissionElementSimGroup) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
@@ -86,21 +89,24 @@ export class PathedInterior extends Interior {
 		let orientation = new THREE.Quaternion();
 		mat.decompose(position, orientation, new THREE.Vector3());
 
+		if (!this.prevPosition) this.prevPosition.copy(position);
+		else this.prevPosition.copy(this.group.position);
+
 		this.group.position.copy(position);
 		this.group.quaternion.copy(orientation);
 
 		this.body.setPosition(Util.vecThreeToOimo(position));
 
-		let deltaTransform = this.getTransformAtTime(this.getInternalTime(time.currentAttemptTime + 1));
-		mat = this.worldMatrix.clone();
-		mat.multiplyMatrices(deltaTransform, mat);
+		this.prevVelocity = this.body.getLinearVelocity().clone();
+		let velocity = position.clone().sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
 
-		let position2 = new THREE.Vector3();
-		let orientation2 = new THREE.Quaternion();
-		mat.decompose(position2, orientation2, new THREE.Vector3());
-
-		let velocity = position2.sub(position).multiplyScalar(1000);
-		this.body.setLinearVelocity(Util.vecThreeToOimo(velocity));
+		if (velocity.length() > 0) {
+			this.body.setType(OIMO.RigidBodyType.KINEMATIC);
+			this.body.setLinearVelocity(Util.vecThreeToOimo(velocity));
+		} else if (this.body.getType() !== OIMO.RigidBodyType.STATIC) {
+			this.body.setType(OIMO.RigidBodyType.STATIC);
+			this.body.setLinearVelocity(new OIMO.Vec3());
+		}
 	}
 
 	getTransformAtTime(time: number) {
@@ -158,5 +164,13 @@ export class PathedInterior extends Interior {
 		mat.compose(position, rotation, new THREE.Vector3(1, 1, 1));
 
 		return mat;
+	}
+
+	reset() {
+		if (this.triggers.length > 0) {
+			this.timeStart = 0;
+			this.timeDest = 0;
+			this.changeTime = -Infinity;
+		}
 	}
 }

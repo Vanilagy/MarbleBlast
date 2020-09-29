@@ -124,4 +124,8 @@ export abstract class Util {
 
 		return point;
 	}
+
+	static jsonClone<T>(obj: T) {
+		return JSON.parse(JSON.stringify(obj));
+	}
 }

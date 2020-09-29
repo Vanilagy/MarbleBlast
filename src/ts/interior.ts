@@ -130,6 +130,7 @@ export class Interior {
 			for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
 				let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
 				if (!surface) continue;
+				
 				let material = this.detailLevel.materialList.materials[surface.textureIndex];
 				materials.add(material);
 				firstMaterial = material;
@@ -139,9 +140,11 @@ export class Interior {
 			if (materials.size > 1 && Util.setsHaveOverlap(materials, specialMaterials)) {
 				for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
 					let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
-					let material = this.detailLevel.materialList.materials[surface.textureIndex];
+					if (!surface) continue;
 
+					let material = this.detailLevel.materialList.materials[surface.textureIndex];
 					let vertices: OIMO.Vec3[] = [];
+
 					for (let k = surface.windingStart; k < surface.windingStart + surface.windingCount; k++) {
 						let point = this.detailLevel.points[this.detailLevel.windings[k]];
 						vertices.push(new OIMO.Vec3(point.x, point.y, point.z));
@@ -165,4 +168,5 @@ export class Interior {
 	}
 
 	tick(time: TimeState) {}
+	reset() {}
 }

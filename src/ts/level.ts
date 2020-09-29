@@ -38,6 +38,7 @@ import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
 import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
+import { PhysicsHelper } from "./physics";
 
 export const PHYSICS_TICK_RATE = 120;
 const SHAPE_OVERLAY_OFFSETS = {
@@ -58,13 +59,11 @@ export interface TimeState {
 export class Level {
 	mission: MissionElementSimGroup;
 	scene: THREE.Scene;
-	physicsWorld: OIMO.World;
+	physics: PhysicsHelper;
+	
 	marble: Marble;
 	interiors: Interior[] = [];
 	shapes: Shape[] = [];
-	shapeLookup = new Map<any, Shape>();
-	shapeColliderLookup = new Map<any, Shape>();
-	triggerLookup = new Map<any, Trigger>();
 	overlayShapes: Shape[] = [];
 	overlayScene: THREE.Scene;
 	scheduled: {
@@ -76,16 +75,11 @@ export class Level {
 
 	timeState: TimeState;
 	lastPhysicsTick: number = null;
-	shapeImmunity = new Set<Shape>();
-	shapeOrTriggerInside = new Set<Shape | Trigger>();
+	
 	pitch = 0;
 	yaw = 0;
 	currentTimeTravelBonus = 0;
 	outOfBounds = false;
-
-	auxPhysicsWorld: OIMO.World;
-	auxMarbleShape: OIMO.Shape;
-	auxMarbleBody: OIMO.RigidBody;
 
 	currentUp = new OIMO.Vec3(0, 0, 1);
 	orientationChangeTime = -Infinity;
@@ -103,8 +97,8 @@ export class Level {
 	}
 
 	async init() {
+		this.physics = new PhysicsHelper(this);
 		await this.initScene();
-		this.initPhysics();
 		await this.initMarble();
 		await this.addSimGroup(this.mission);
 		await this.initUi();
@@ -168,24 +162,12 @@ export class Level {
 		this.scene.background = skyboxTexture;
 	}
 
-	initPhysics() {
-		this.physicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, -20));
-		this.auxPhysicsWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3(0, 0, 0));
-	}
-
 	async initMarble() {
 		this.marble = new Marble();
 		await this.marble.init();
-		this.scene.add(this.marble.group);
-		this.marble.group.renderOrder = 10;
-		this.physicsWorld.addRigidBody(this.marble.body);
 
-		let auxMarbleGeometry = new OIMO.CapsuleGeometry(0.2 * 2, 0); // The normal game's hitbox can expand to up to sqrt(3)x the normal size, but since we're using a sphere, let's be generous and make it 2x
-		this.auxMarbleShape = new OIMO.Shape(new OIMO.ShapeConfig());
-		this.auxMarbleShape._geom = auxMarbleGeometry;
-		this.auxMarbleBody = new OIMO.RigidBody(new OIMO.RigidBodyConfig());
-		this.auxMarbleBody.addShape(this.auxMarbleShape);
-		this.auxPhysicsWorld.addRigidBody(this.auxMarbleBody);
+		this.scene.add(this.marble.group);
+		this.physics.initMarble();
 	}
 
 	async initUi() {
@@ -239,13 +221,8 @@ export class Level {
 			let pathedInterior = await PathedInterior.createFromSimGroup(simGroup);
 
 			this.scene.add(pathedInterior.group);
-			this.physicsWorld.addRigidBody(pathedInterior.body);
+			this.physics.addInterior(pathedInterior);
 			this.interiors.push(pathedInterior);
-
-			for (let trigger of pathedInterior.triggers) {
-				this.auxPhysicsWorld.addRigidBody(trigger.body);
-				this.triggerLookup.set(trigger.id, trigger);
-			}
 
 			return;
 		}
@@ -282,7 +259,7 @@ export class Level {
 		interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
 
 		this.scene.add(interior.group);
-		this.physicsWorld.addRigidBody(interior.body);
+		this.physics.addInterior(interior);
 		this.interiors.push(interior);
 	}
 
@@ -290,50 +267,27 @@ export class Level {
 		let shape: Shape;
 
 		let dataBlockLowerCase = element.dataBlock.toLowerCase();
-		if (dataBlockLowerCase === "startpad") {
-			shape = new StartPad();
-		} else if (dataBlockLowerCase === "endpad") {
-			shape = new EndPad();
-		} else if (dataBlockLowerCase === "signfinish") {
-			shape = new SignFinish();
-		} else if (dataBlockLowerCase.startsWith("signplain")) {
-			shape = new SignPlain(element as MissionElementStaticShape);
-		} else if (dataBlockLowerCase.startsWith("gemitem")) {
-			shape = new Gem(element as MissionElementItem);
-			this.totalGems++;
-		} else if (dataBlockLowerCase === "superjumpitem") {
-			shape = new SuperJump();
-		} else if (dataBlockLowerCase.startsWith("signcaution")) {
-			shape = new SignCaution(element as MissionElementStaticShape);
-		} else if (dataBlockLowerCase === "superbounceitem") {
-			shape = new SuperBounce();
-		} else if (dataBlockLowerCase === "roundbumper") {
-			shape = new RoundBumper();
-		} else if (dataBlockLowerCase === "trianglebumper") {
-			shape = new TriangleBumper();
-		} else if (dataBlockLowerCase === "helicopteritem") {
-			shape = new Helicopter();
-		} else if (dataBlockLowerCase === "ductfan") {
-			shape = new DuctFan();
-		} else if (dataBlockLowerCase === "smallductfan") {
-			shape = new SmallDuctFan();
-		} else if (dataBlockLowerCase === "antigravityitem") {
-			shape = new AntiGravity();
-		} else if (dataBlockLowerCase === "landmine") {
-			shape = new LandMine();
-		} else if (dataBlockLowerCase === "shockabsorberitem") {
-			shape = new ShockAbsorber();
-		} else if (dataBlockLowerCase === "superspeeditem") {
-			shape = new SuperSpeed();
-		} else if (dataBlockLowerCase === "timetravelitem") {
-			shape = new TimeTravel(element as MissionElementItem);
-		} else if (dataBlockLowerCase === "tornado") {
-			shape = new Tornado();
-		} else if (dataBlockLowerCase === "trapdoor") {
-			shape = new TrapDoor(element as MissionElementStaticShape);
-		} else if (dataBlockLowerCase === "oilslick") {
-			shape = new Oilslick();
-		}
+		if (dataBlockLowerCase === "startpad") shape = new StartPad();
+		else if (dataBlockLowerCase === "endpad") shape = new EndPad();
+		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
+		else if (dataBlockLowerCase.startsWith("signplain")) shape = new SignPlain(element as MissionElementStaticShape);
+		else if (dataBlockLowerCase.startsWith("gemitem")) shape = new Gem(element as MissionElementItem), this.totalGems++;
+		else if (dataBlockLowerCase === "superjumpitem") shape = new SuperJump();
+		else if (dataBlockLowerCase.startsWith("signcaution")) shape = new SignCaution(element as MissionElementStaticShape);
+		else if (dataBlockLowerCase === "superbounceitem") shape = new SuperBounce();
+		else if (dataBlockLowerCase === "roundbumper") shape = new RoundBumper();
+		else if (dataBlockLowerCase === "trianglebumper") shape = new TriangleBumper();
+		else if (dataBlockLowerCase === "helicopteritem") shape = new Helicopter();
+		else if (dataBlockLowerCase === "ductfan") shape = new DuctFan();
+		else if (dataBlockLowerCase === "smallductfan") shape = new SmallDuctFan();
+		else if (dataBlockLowerCase === "antigravityitem") shape = new AntiGravity();
+		else if (dataBlockLowerCase === "landmine") shape = new LandMine();
+		else if (dataBlockLowerCase === "shockabsorberitem") shape = new ShockAbsorber();
+		else if (dataBlockLowerCase === "superspeeditem") shape = new SuperSpeed();
+		else if (dataBlockLowerCase === "timetravelitem") shape = new TimeTravel(element as MissionElementItem);
+		else if (dataBlockLowerCase === "tornado") shape = new Tornado();
+		else if (dataBlockLowerCase === "trapdoor") shape = new TrapDoor(element as MissionElementStaticShape);
+		else if (dataBlockLowerCase === "oilslick") shape = new Oilslick();
 
 		if (!shape) return;
 		await shape.init();
@@ -341,16 +295,8 @@ export class Level {
 		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
 		this.scene.add(shape.group);
-		for (let body of shape.bodies) {
-			if (shape.collideable) this.physicsWorld.addRigidBody(body);
-			else this.auxPhysicsWorld.addRigidBody(body);
-		}
-		for (let collider of shape.colliders) {
-			this.auxPhysicsWorld.addRigidBody(collider.body);
-			this.shapeColliderLookup.set(collider.id, shape);
-		}
+		this.physics.addShape(shape);
 		this.shapes.push(shape);
-		this.shapeLookup.set(shape.id, shape);
 	}
 
 	addTrigger(element: MissionElementTrigger) {
@@ -366,8 +312,7 @@ export class Level {
 
 		if (!trigger) return;
 
-		this.auxPhysicsWorld.addRigidBody(trigger.body);
-		this.triggerLookup.set(trigger.id, trigger);
+		this.physics.addTrigger(trigger);
 	}
 
 	restart() {
@@ -396,12 +341,14 @@ export class Level {
 		if (missionInfo.startHelpText) displayHelp(missionInfo.startHelpText);
 
 		for (let shape of this.shapes) shape.reset();
+		for (let interior of this.interiors) interior.reset();
 
 		this.currentUp = new OIMO.Vec3(0, 0, 1);
 		this.orientationChangeTime = -Infinity;
 		this.oldOrientationQuat = new THREE.Quaternion();
 		this.newOrientationQuat = new THREE.Quaternion();
 		this.setGravityIntensity(20);
+		this.physics.reset();
 		
 		this.deselectPowerUp();
 		setCenterText('none');
@@ -513,7 +460,6 @@ export class Level {
 		} else {
 			let elapsed = time - this.lastPhysicsTick;
 			if (elapsed >= 1000) {
-				// temp: (for quicker loading)
 				elapsed = 1000;
 				this.lastPhysicsTick = time - 1000;
 			}
@@ -527,41 +473,16 @@ export class Level {
 					}
 				}
 
-				let newImmunity: Shape[] = [];
-
-				let calledShapes = new Set<Shape>();
-				let linkedList = this.marble.body.getContactLinkList();
-				while (linkedList) {
-					let contact = linkedList.getContact();
-					let contactShape = contact.getShape1();
-					if (contactShape === this.marble.shape) contactShape = contact.getShape2();
-
-					if (contactShape.userData && contact.isTouching()) {
-						let shape = this.shapeLookup.get(contactShape.userData);
-
-						if (shape && !this.shapeImmunity.has(shape) && !calledShapes.has(shape)) {
-							calledShapes.add(shape);
-							newImmunity.push(shape);
-							shape.onMarbleContact(contact, this.timeState);
-						}
-					}
-
-					linkedList = linkedList.getNext();
-				}
+				this.physics.step();
 
 				for (let shape of this.shapes) shape.tick(this.timeState);
 				this.marble.handleControl(this.timeState);
 
-				let prevMarblePosition = this.marble.body.getPosition().clone();
-				this.physicsWorld.step(1 / PHYSICS_TICK_RATE);
-
-				// I know it's kind of strange to update interiors later, but this actually made them in-sync with the marble.
-				for (let interior of this.interiors) interior.tick(this.timeState);
-
 				if (this.timeState.currentAttemptTime < GO_TIME) {
 					let startPad = this.shapes.find((element) => element instanceof StartPad);
 					let position = this.marble.body.getPosition();
-					position.x = startPad.worldPosition.x; position.y = startPad.worldPosition.y;
+					position.x = startPad.worldPosition.x;
+					position.y = startPad.worldPosition.y;
 					this.marble.body.setPosition(position);
 					this.marble.body._velX = 0;
 					this.marble.body._velY = 0;
@@ -593,62 +514,10 @@ export class Level {
 					}
 				}
 
-				this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
-				elapsed -= 1000 / PHYSICS_TICK_RATE;
-
-				this.shapeImmunity.clear();
-				for (let s of newImmunity) this.shapeImmunity.add(s);
-
-				let movementDiff = this.marble.body.getPosition().sub(prevMarblePosition);
-				let movementDist = movementDiff.length();
-				let movementRot = new OIMO.Quat();
-				movementRot.setArc(new OIMO.Vec3(0, 1, 0), movementDiff.clone().normalize());
-
-				(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._halfHeight = movementDist;
-				let pos = this.marble.body.getPosition().add(movementDiff.scale(0.5));
-
-				this.auxMarbleBody.setPosition(pos);
-				this.auxMarbleBody.setOrientation(movementRot);
-				this.auxPhysicsWorld.getContactManager()._updateContacts();
-
-				let inside = new Set<Shape | Trigger>();
-
-				let current = this.auxMarbleBody.getContactLinkList();
-				while (current) {
-					let contact = current.getContact();
-					contact._updateManifold();
-					let contactShape = contact.getShape1();
-					if (contactShape === this.auxMarbleShape) contactShape = contact.getShape2();
-
-					let object = this.shapeLookup.get(contactShape.userData) ?? this.triggerLookup.get(contactShape.userData);
-
-					if (!object) {
-						if (contact.isTouching()) {
-							object = this.shapeColliderLookup.get(contactShape.userData);
-							object.onColliderInside(contactShape.userData);
-						}
-					} else if (contact.isTouching()) {
-						object.onMarbleInside(this.timeState);
-						if (!this.shapeOrTriggerInside.has(object)) {
-							this.shapeOrTriggerInside.add(object);
-							object.onMarbleEnter(this.timeState);
-						}
-
-						inside.add(object);
-					}
-
-					current = current.getNext();
-				}
-
-				for (let object of this.shapeOrTriggerInside) {
-					if (!inside.has(object)) {
-						this.shapeOrTriggerInside.delete(object);
-						object.onMarbleLeave(this.timeState);
-					}
-				}
-
 				this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
 				this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
+				this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
+				elapsed -= 1000 / PHYSICS_TICK_RATE;
 			}
 		}
 	}
@@ -660,7 +529,7 @@ export class Level {
 
 	setUp(vec: OIMO.Vec3, time: TimeState) {
 		this.currentUp = vec;
-		this.physicsWorld.setGravity(vec.scale(-1 * this.physicsWorld.getGravity().length()));
+		this.physics.world.setGravity(vec.scale(-1 * this.physics.world.getGravity().length()));
 
 		let currentQuat = this.getOrientationQuat(time);
 		let oldUp = new THREE.Vector3(0, 0, 1);
@@ -676,7 +545,7 @@ export class Level {
 
 	setGravityIntensity(intensity: number) {
 		let gravityVector = this.currentUp.scale(-1 * intensity);
-		this.physicsWorld.setGravity(gravityVector);
+		this.physics.world.setGravity(gravityVector);
 	}
 
 	onMouseMove(e: MouseEvent) {
