@@ -41,6 +41,13 @@ export const displayTime = (seconds: number) => {
 		let node = clockElement.children[i] as HTMLImageElement;
 
 		node.src = "./assets/ui/game/numbers/" + numberSources[char as keyof typeof numberSources];
+		if (char === ':' || char === '.') {
+			node.style.marginLeft = '-3px';
+			node.style.marginRight = '-26px';
+		} else {
+			node.style.marginLeft = '';
+			node.style.marginRight = '';
+		}
 	}
 };
 

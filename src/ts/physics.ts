@@ -101,7 +101,16 @@ export class PhysicsHelper {
 		let prevMarblePosition = this.level.marble.body.getPosition().clone();
 		let prevMarbleTransform = this.level.marble.body.getTransform().clone();
 
+		let gravityBefore = this.world.getGravity().clone();
+		if (this.level.finishTime) {
+			let vel = this.level.marble.body.getLinearVelocity();
+			vel.scaleEq(0.9);
+			this.level.marble.body.setLinearVelocity(vel);
+
+			this.world.setGravity(new OIMO.Vec3());
+		}
 		this.world.step(1 / PHYSICS_TICK_RATE);
+		this.world.setGravity(gravityBefore);
 		// I know it's kind of strange to update interiors later, but this actually made them in-sync with the marble.
 		for (let interior of this.level.interiors) interior.tick(this.level.timeState);
 

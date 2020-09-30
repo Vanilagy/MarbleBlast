@@ -12,6 +12,29 @@ const MARBLE_SIZE = 0.2;
 export const MARBLE_ROLL_FORCE = 40;
 const JUMP_IMPULSE = 7 || 7.5; // For now, seems to fit more.
 
+const bounceParticleOptions = {
+	ejectionPeriod: 1,
+	ambientVelocity: new THREE.Vector3(0, 0, 0.0),
+	ejectionVelocity: 2.6,
+	velocityVariance: 0.25 * 0.5,
+	emitterLifetime: 4,
+	inheritedVelFactor: 0,
+	particleOptions: {
+		texture: 'particles/star.png',
+		blending: THREE.NormalBlending,
+		spinSpeed: 90,
+		spinRandomMin: -90,
+		spinRandomMax: 90,
+		lifetime: 500,
+		lifetimeVariance: 100,
+		dragCoefficient: 0.5,
+		acceleration: -2,
+		colors: [{r: 0.9, g: 0, b: 0, a: 1}, {r: 0.9, g: 0.9, b: 0, a: 1}, {r: 0.9, g: 0.9, b: 0, a: 0}],
+		sizes: [0.25, 0.25, 0.25],
+		times: [0, 0.75, 1]
+	}
+};
+
 export class Marble {
 	group: THREE.Group;
 	sphere: THREE.Mesh;
@@ -117,7 +140,7 @@ export class Marble {
 			let contact = current.getContact();
 			contact._updateManifold();
 			contact._postSolve();
-			
+
 			let contactNormal = contact.getManifold().getNormal();
 			let surfaceShape = contact.getShape2();
 			if (surfaceShape === this.shape) {
@@ -135,7 +158,7 @@ export class Marble {
 			movementRotationAxis.mulMat3Eq(contactNormalRotation.toMat3());
 
 			let dot0 = contactNormal.dot(this.lastVel.clone().normalize());
-			if (dot0 > -0.4 && dot0 < -0.001) {
+			if (dot0 > -0.5 && dot0 < -0.001) {
 				dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
 				let linearVelocity = this.body.getLinearVelocity();
 				this.body.addLinearVelocity(contactNormal.scale(-dot0 * linearVelocity.length()));
@@ -163,13 +186,17 @@ export class Marble {
 				});
 			}
 
-			if (!jumpSoundPlayed && this.collisionTimeout <= 0) {
-				let impactVelocity = -contactNormal.dot(this.lastVel.sub(surfaceShape.getRigidBody().getLinearVelocity()));
-				let volume = Util.clamp(impactVelocity / 15, 0, 1);
+			let impactVelocity = -contactNormal.dot(this.lastVel.sub(surfaceShape.getRigidBody().getLinearVelocity()));
+			if (this.collisionTimeout <= 0) {
+				if (impactVelocity > 6) state.currentLevel.particles.createEmitter(bounceParticleOptions, Util.vecOimoToThree(this.body.getPosition()));
 
-				if (impactVelocity > 1) {
-					AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'], volume);
-					collisionTimeoutNeeded = true;
+				if (!jumpSoundPlayed) {
+					let volume = Util.clamp(impactVelocity / 15, 0, 1);
+
+					if (impactVelocity > 1) {
+						AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'], volume);
+						collisionTimeoutNeeded = true;
+					}
 				}
 			}
 
@@ -218,11 +245,11 @@ export class Marble {
 
 			let airMovementVector = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
 			let airVelocity = (time.currentAttemptTime - this.helicopterEnableTime) < 5000 ? 5 : 3;
+			if (state.currentLevel.finishTime) airVelocity = 0;
 			airMovementVector = airMovementVector.scale(airVelocity / PHYSICS_TICK_RATE);
 			this.body.addLinearVelocity(airMovementVector);
 
 			this.slidingSound.gain.gain.value = 0;
-			//this.rollingSound.gain.gain.setValueAtTime(this.rollingSound.gain.gain.value, AudioManager.context.currentTime);
 			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 		}
 

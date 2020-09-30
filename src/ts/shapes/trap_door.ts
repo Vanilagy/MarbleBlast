@@ -3,6 +3,7 @@ import { Util } from "../util";
 import OIMO from "../declarations/oimo";
 import { TimeState } from "../level";
 import { MissionElementStaticShape } from "../parsing/mis_parser";
+import { AudioManager } from "../audio";
 
 const ANIMATION_DURATION = 1666.6676998138428;
 const RESET_TIME = 5000;
@@ -12,6 +13,9 @@ export class TrapDoor extends Shape {
 	lastContactTime = -Infinity;
 	/** The time it takes from the moment of touching the trapdoor to it opening. */
 	timeout = 0;
+	lastDirection: number;
+	lastCompletion: number = 0;
+	sounds = ['trapdooropen.wav'];
 
 	constructor(element: MissionElementStaticShape) {
 		super();
@@ -20,8 +24,19 @@ export class TrapDoor extends Shape {
 	}
 
 	tick(time: TimeState) {
-		this.sequenceKeyframeOverride.set(this.dts.sequences[0], this.getCurrentCompletion(time) * (this.dts.sequences[0].numKeyframes - 1));
+		let currentCompletion = this.getCurrentCompletion(time);
+
+		this.sequenceKeyframeOverride.set(this.dts.sequences[0], currentCompletion * (this.dts.sequences[0].numKeyframes - 1));
 		super.tick(time);
+
+		let direction = Math.sign(currentCompletion - this.lastCompletion);
+		if (direction !== 0 && direction !== this.lastDirection) {
+			// If the direction has changed, play the sound
+			AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
+		}
+
+		this.lastCompletion = currentCompletion;
+		this.lastDirection = direction;
 	}
 
 	getCurrentCompletion(time: TimeState) {

@@ -26,7 +26,7 @@ import { Tornado } from "./shapes/tornado";
 import { TrapDoor } from "./shapes/trap_door";
 import { TriangleBumper } from "./shapes/triangle_bumper";
 import { Oilslick } from "./shapes/oilslick";
-import { Util } from "./util";
+import { Util, Scheduler } from "./util";
 import { PowerUp } from "./shapes/power_up";
 import { gameButtons } from "./input";
 import { SmallDuctFan } from "./shapes/small_duct_fan";
@@ -39,6 +39,7 @@ import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSour
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
+import { ParticleManager } from "./particles";
 
 export const PHYSICS_TICK_RATE = 120;
 const SHAPE_OVERLAY_OFFSETS = {
@@ -48,7 +49,8 @@ const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/items/superspeed.dts": -53,
 	"shapes/items/shockabsorber.dts": -53
 };
-const GO_TIME = 3500;
+const GO_TIME = 0 ?? 3500;
+const DEFAULT_PITCH = 0.45;
 
 export interface TimeState {
 	timeSinceLoad: number,
@@ -56,20 +58,17 @@ export interface TimeState {
 	gameplayClock: number
 }
 
-export class Level {
+export class Level extends Scheduler {
 	mission: MissionElementSimGroup;
 	scene: THREE.Scene;
 	physics: PhysicsHelper;
+	particles: ParticleManager;
 	
 	marble: Marble;
 	interiors: Interior[] = [];
 	shapes: Shape[] = [];
 	overlayShapes: Shape[] = [];
 	overlayScene: THREE.Scene;
-	scheduled: {
-		time: number,
-		callback: () => any
-	}[] = [];
 	sunlight: THREE.DirectionalLight;
 	sunDirection: THREE.Vector3;
 
@@ -80,6 +79,9 @@ export class Level {
 	yaw = 0;
 	currentTimeTravelBonus = 0;
 	outOfBounds = false;
+	finishTime: TimeState = null;
+	finishYaw: number;
+	finishPitch: number;
 
 	currentUp = new OIMO.Vec3(0, 0, 1);
 	orientationChangeTime = -Infinity;
@@ -92,6 +94,8 @@ export class Level {
 	music: AudioSource;
 
 	constructor(missionGroup: MissionElementSimGroup) {
+		super();
+
 		this.mission = missionGroup;
 		this.init();
 	}
@@ -103,6 +107,9 @@ export class Level {
 		await this.addSimGroup(this.mission);
 		await this.initUi();
 		await this.initSounds();
+
+		this.particles = new ParticleManager(this);
+		await this.particles.init();
 
 		this.timeState = {
 			timeSinceLoad: 0,
@@ -327,16 +334,18 @@ export class Level {
 			displayGemCount(this.gemCount, this.totalGems);
 		}
 
+		this.finishTime = null;
+
 		let startPad = this.shapes.find((shape) => shape instanceof StartPad);
 		this.marble.body.setLinearVelocity(new OIMO.Vec3());
 		this.marble.body.setAngularVelocity(new OIMO.Vec3());
-		this.marble.body.setPosition(new OIMO.Vec3(startPad.worldPosition.x, startPad.worldPosition.y, startPad.worldPosition.z + 4));
+		this.marble.body.setPosition(new OIMO.Vec3(startPad.worldPosition.x, startPad.worldPosition.y, startPad.worldPosition.z + 3));
 		this.marble.reset();
 
 		let euler = new THREE.Euler();
 		euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
 		this.yaw = euler.z + Math.PI/2;
-		this.pitch = 0.45;
+		this.pitch = DEFAULT_PITCH;
 
 		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
 		if (missionInfo.startHelpText) displayHelp(missionInfo.startHelpText);
@@ -385,6 +394,7 @@ export class Level {
 
 		this.marble.render(this.timeState);
 		for (let shape of this.shapes) shape.render(this.timeState);
+		this.particles.render(this.timeState.timeSinceLoad);
 
 		let shadowCameraPosition = this.marble.group.position.clone();
 		shadowCameraPosition.sub(this.sunDirection.clone().multiplyScalar(5));
@@ -424,6 +434,11 @@ export class Level {
 		let up = new THREE.Vector3(0, 0, 1).applyQuaternion(orientationQuat);
 		let directionVector = new THREE.Vector3(1, 0, 0);
 		let cameraVerticalTranslation = new THREE.Vector3(0, 0, 0.3);
+
+		if (this.finishTime) {
+			this.pitch = Util.lerp(this.finishPitch, DEFAULT_PITCH, Util.clamp((this.timeState.timeSinceLoad - this.finishTime.timeSinceLoad) / 333, 0, 1));
+			this.yaw = this.finishYaw - (this.timeState.timeSinceLoad - this.finishTime.timeSinceLoad) / 1000 * 0.6;
+		}
 
 		if (!this.outOfBounds) {
 			camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z);
@@ -467,14 +482,7 @@ export class Level {
 		}
 
 		while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
-			for (let i = 0; i < this.scheduled.length; i++) {
-				let item = this.scheduled[i];
-				if (this.timeState.currentAttemptTime >= item.time) {
-					this.scheduled.splice(i--, 1);
-					item.callback();
-				}
-			}
-
+			this.tickSchedule(this.timeState.currentAttemptTime);
 			this.physics.step();
 
 			for (let shape of this.shapes) shape.tick(this.timeState);
@@ -518,6 +526,8 @@ export class Level {
 				}
 			}
 
+			this.particles.tick();
+
 			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
 			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
 			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
@@ -554,7 +564,7 @@ export class Level {
 	}
 
 	onMouseMove(e: MouseEvent) {
-		if (!document.pointerLockElement) return;
+		if (!document.pointerLockElement || this.finishTime) return;
 
 		this.pitch += e.movementY / 1000;
 		this.pitch = Math.max(-Math.PI/2 + 0.0001, Math.min(Math.PI/2 - 0.0001, this.pitch));
@@ -615,14 +625,6 @@ export class Level {
 		this.currentTimeTravelBonus += bonus;
 	}
 
-	schedule(time: number, callback: () => any) {
-		this.scheduled.push({ time, callback });
-	}
-
-	clearSchedule() {
-		this.scheduled.length = 0;
-	}
-
 	goOutOfBounds() {
 		if (this.outOfBounds) return;
 		this.outOfBounds = true;
@@ -632,5 +634,21 @@ export class Level {
 		AudioManager.play('whoosh.wav');
 
 		this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart());
+	}
+
+	touchFinish() {
+		if (this.finishTime !== null) return;
+
+		if (this.gemCount < this.totalGems) {
+			AudioManager.play('missinggems.wav');
+			displayAlert("You can't finish without all the gems!!");
+		} else {
+			this.finishTime = Util.jsonClone(this.timeState);
+			this.finishYaw = this.yaw;
+			this.finishPitch = this.pitch;
+
+			let endPad = this.shapes.find((shape) => shape instanceof EndPad) as EndPad;
+			endPad.spawnFirework(this.timeState);
+		}
 	}
 }

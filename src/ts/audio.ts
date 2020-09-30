@@ -57,8 +57,8 @@ export abstract class AudioManager {
 		return audioSource;
 	}
 
-	static async play(path: string | string[], volume = 1, destination = this.soundGain) {
-		let audioSource = await this.createAudioSource(path, destination);
+	static async play(path: string | string[], volume = 1, destination = this.soundGain, position?: THREE.Vector3) {
+		let audioSource = await this.createAudioSource(path, destination, position);
 		audioSource.gain.gain.value = volume;
 		audioSource.play();
 	}

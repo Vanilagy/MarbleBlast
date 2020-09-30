@@ -5,6 +5,29 @@ import { Util } from "../util";
 import OIMO from "../declarations/oimo";
 import { AudioManager } from "../audio";
 
+const particleOptions = {
+	ejectionPeriod: 5,
+	ambientVelocity: new THREE.Vector3(0, 0, 0.2),
+	ejectionVelocity: 1 * 0.5,
+	velocityVariance: 0.25 * 0.5,
+	emitterLifetime: 1100,
+	inheritedVelFactor: 0.25,
+	particleOptions: {
+		texture: 'particles/spark.png',
+		blending: THREE.AdditiveBlending,
+		spinSpeed: 0,
+		spinRandomMin: 0,
+		spinRandomMax: 0,
+		lifetime: 1500,
+		lifetimeVariance: 150,
+		dragCoefficient: 0.25,
+		acceleration: 0,
+		colors: [{r: 0.8, g: 0.8, b: 0, a: 0}, {r: 0.8, g: 0.8, b: 0, a: 1}, {r: 0.8, g: 0.8, b: 0, a: 0}],
+		sizes: [0.25, 0.25, 1],
+		times: [0, 0.25, 1]
+	}
+};
+
 export class SuperSpeed extends PowerUp {
 	dtsPath = "shapes/items/superspeed.dts";
 	pickUpName = "Super Speed PowerUp";
@@ -30,5 +53,6 @@ export class SuperSpeed extends PowerUp {
 		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirlgig's determined value
 
 		AudioManager.play(this.sounds[1]);
+		state.currentLevel.particles.createEmitter(particleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
 	}
 }

@@ -46,6 +46,9 @@ declare namespace OIMO {
 	const ConeGeometry: typeof oimo.collision.geometry.ConeGeometry;
 	type ConeGeometry = oimo.collision.geometry.ConeGeometry;
 
+	const CylinderGeometry: typeof oimo.collision.geometry.CylinderGeometry;
+	type CylinderGeometry = oimo.collision.geometry.CylinderGeometry;
+
 	const Setting: typeof oimo.common.Setting;
 	type Setting = oimo.common.Setting;
 
@@ -57,6 +60,9 @@ declare namespace OIMO {
 
 	const RayCastHit: typeof oimo.collision.geometry.RayCastHit;
 	type RayCastHit = oimo.collision.geometry.RayCastHit;
+
+	const PositionCorrectionAlgorithm: typeof oimo.dynamics.constraint.PositionCorrectionAlgorithm;
+	type PositionCorrectionAlgorithm = oimo.dynamics.constraint.PositionCorrectionAlgorithm;
 }
 
 export default OIMO;

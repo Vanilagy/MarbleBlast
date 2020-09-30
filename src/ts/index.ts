@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { AudioManager } from "./audio";
 
 OIMO.Setting.defaultGJKMargin = 0.005;
-//OIMO.Setting.defaultContactPositionCorrectionAlgorithm = OIMO.PositionCorrectionAlgorithm.NGS;
+OIMO.Setting.defaultContactPositionCorrectionAlgorithm = OIMO.PositionCorrectionAlgorithm.NGS;
 THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
 
 async function init() {
@@ -22,7 +22,7 @@ async function init() {
 
 		AudioManager.context.resume();
 
-		let mission = await MisParser.loadFile("./assets/data/missions/advanced/siege.mis"); 
+		let mission = await MisParser.loadFile("./assets/data/missions/beginner/trapdoor.mis"); 
 		state.currentLevel = new Level(mission);
 	});
 }

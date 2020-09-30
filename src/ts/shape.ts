@@ -273,7 +273,7 @@ export class Shape {
 		}
 
 		let material: THREE.Material | THREE.Material[];
-		if (isCollisionMesh) material = new THREE.ShadowMaterial({opacity: 0.25, depthWrite: false});
+		if (isCollisionMesh) material = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
 		else material = this.materials;
 
 		let threeMesh = new THREE.Mesh(geometry, material);
@@ -501,6 +501,17 @@ export class Shape {
 	setOpacity(opacity: number) {
 		if (opacity === this.currentOpacity) return;
 
+		const updateMaterial = (material: THREE.Material) => {
+			material.transparent = true;
+			
+			if (material instanceof THREE.ShadowMaterial) {
+				material.opacity = opacity * 0.25;
+			} else {
+				material.depthWrite = opacity > 0;
+				material.opacity = opacity;
+			}
+		};
+
 		const setOpacityOfChildren = (group: THREE.Group) => {
 			for (let child of group.children) {
 				if (child.type === 'Group') {
@@ -511,17 +522,8 @@ export class Shape {
 				let mesh = child as THREE.Mesh;
 				if (!mesh.material) continue;
 	
-				if (mesh.material instanceof THREE.Material) {
-					mesh.material.transparent = true;
-					mesh.material.depthWrite = opacity > 0;
-					mesh.material.opacity = opacity;
-				} else {
-					for (let material of (mesh.material as THREE.Material[])) {
-						material.transparent = true;
-						material.depthWrite = opacity > 0;
-						material.opacity = opacity;
-					}
-				}
+				if (mesh.material instanceof THREE.Material) updateMaterial(mesh.material);
+				else for (let material of (mesh.material as THREE.Material[])) updateMaterial(material);
 			}
 		};
 

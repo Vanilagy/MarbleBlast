@@ -1,6 +1,13 @@
 import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 
+export interface RGBAColor {
+	r: number,
+	g: number,
+	b: number,
+	a: number
+}
+
 export abstract class Util {
 	static degToRad(deg: number) {
 		return deg / 180 * Math.PI;
@@ -127,5 +134,51 @@ export abstract class Util {
 
 	static jsonClone<T>(obj: T) {
 		return JSON.parse(JSON.stringify(obj));
+	}
+
+	static lerpColors(c1: RGBAColor, c2: RGBAColor, t: number) {
+		return {
+			r: Util.lerp(c1.r, c2.r, t),
+			g: Util.lerp(c1.g, c2.g, t),
+			b: Util.lerp(c1.b, c2.b, t),
+			a: Util.lerp(c1.a, c2.a, t)
+		} as RGBAColor;
+	}
+
+	static randomPointInUnitCircle() {
+		let r = Math.sqrt(Math.random());
+		let theta = Math.random() * Math.PI * 2;
+		
+		return new THREE.Vector2(r * Math.cos(theta), r * Math.sin(theta));
+	}
+
+	static removeFromArray<T>(arr: T[], item: T) {
+		let index = arr.indexOf(item);
+		if (index !== -1) arr.splice(index, 1);
+	}
+}
+
+export abstract class Scheduler {
+	scheduled: {
+		time: number,
+		callback: () => any
+	}[] = [];
+
+	tickSchedule(time: number) {
+		for (let i = 0; i < this.scheduled.length; i++) {
+			let item = this.scheduled[i];
+			if (time >= item.time) {
+				this.scheduled.splice(i--, 1);
+				item.callback();
+			}
+		}
+	}
+
+	schedule(time: number, callback: () => any) {
+		this.scheduled.push({ time, callback });
+	}
+
+	clearSchedule() {
+		this.scheduled.length = 0;
 	}
 }
