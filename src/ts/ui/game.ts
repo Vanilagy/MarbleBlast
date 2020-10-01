@@ -81,6 +81,8 @@ export const displayHelp = async (message: string) => {
 		message = message.slice(0, match.index) + keyName + message.slice(match.index + match[0].length);
 	}
 
+	// Replace newlines with... newlines
+	message = message.replace(/\\n/g, '\n');
 	// Remove all backslashes
 	message = message.replace(/\\/g, '');
 

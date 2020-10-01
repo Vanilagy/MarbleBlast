@@ -21,7 +21,7 @@ window.addEventListener('resize', resize);
 export const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: true });
 renderer.shadowMap.enabled = true;
 
-export const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight);
+export const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.001);
 camera.up.set(0, 0, 1);
 
 export const orthographicCamera = new THREE.OrthographicCamera(-window.innerWidth/2, window.innerWidth/2, -window.innerHeight/2, window.innerHeight/2, 0.1, 100000);

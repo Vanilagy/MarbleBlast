@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { gameButtons } from "./input";
 import { state } from "./state";
-import { PHYSICS_TICK_RATE, TimeState, Level } from "./level";
+import { PHYSICS_TICK_RATE, TimeState, Level, GO_TIME } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
@@ -235,7 +235,7 @@ export class Marble {
 			angVel = angVel.sub(direction.scale(dot2));
 			angVel = angVel.scale(0.02 ** (1 / PHYSICS_TICK_RATE));
 			angVel = angVel.add(direction.scale(dot2));
-			this.body.setAngularVelocity(angVel);
+		 	if (time.currentAttemptTime >= GO_TIME)	this.body.setAngularVelocity(angVel);
 
 			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot) {
 				let newLength = Math.max(0, 12 * Math.PI*2 * inputStrength / contactNormalUpDot - dot2);

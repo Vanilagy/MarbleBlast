@@ -44,8 +44,7 @@ export class Interior {
 		for (let surface of this.detailLevel.surfaces) {
 			await this.addSurface(surface, geometry);
 		}
-		geometry.computeFaceNormals();
-		// No need to compute vertex normals here because interiors aren't shaded smoothly
+		// No need to compute vertex normals here because interiors aren't shaded smoothly. Nevermind, they are, but eh.
 
 		let materials: THREE.Material[] = [];
 		for (let i = 0; i < this.detailLevel.materialList.materials.length; i++) {
@@ -71,8 +70,10 @@ export class Interior {
 	async addSurface(surface: InteriorDetailLevel["surfaces"][number], geometry: THREE.Geometry) {
 		let detailLevel = this.detailLevel;
 		let texGenEqs = detailLevel.texGenEqs[surface.texGenIndex];
-		let planeX = new THREE.Plane(new THREE.Vector3(texGenEqs.planeX.x, texGenEqs.planeX.y, texGenEqs.planeX.z), texGenEqs.planeX.d);
-		let planeY = new THREE.Plane(new THREE.Vector3(texGenEqs.planeY.x, texGenEqs.planeY.y, texGenEqs.planeY.z), texGenEqs.planeY.d);
+		let texPlaneX = new THREE.Plane(new THREE.Vector3(texGenEqs.planeX.x, texGenEqs.planeX.y, texGenEqs.planeX.z), texGenEqs.planeX.d);
+		let texPlaneY = new THREE.Plane(new THREE.Vector3(texGenEqs.planeY.x, texGenEqs.planeY.y, texGenEqs.planeY.z), texGenEqs.planeY.d);
+		let planeData = detailLevel.planes[surface.planeIndex & ~0x8000];
+		let planeNormal = Util.jsonClone(detailLevel.normals[planeData.normalIndex]);
 
 		let k = 0;
 		for (let i = surface.windingStart; i < surface.windingStart + surface.windingCount - 2; i++) {
@@ -89,13 +90,15 @@ export class Interior {
 			let face = new THREE.Face3(i1, i2, i3);
 			let uvs = [i1, i2, i3].map((index) => {
 				let point = this.detailLevel.points[index];
-				let u = planeX.distanceToPoint(new THREE.Vector3(point.x, point.y, point.z));
-				let v = planeY.distanceToPoint(new THREE.Vector3(point.x, point.y, point.z));
+				let u = texPlaneX.distanceToPoint(new THREE.Vector3(point.x, point.y, point.z));
+				let v = texPlaneY.distanceToPoint(new THREE.Vector3(point.x, point.y, point.z));
 
 				return new THREE.Vector2(u, v);
 			});
 
 			face.materialIndex = surface.textureIndex;
+			face.normal = new THREE.Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
+			if (surface.planeIndex & 0x8000) face.normal.multiplyScalar(-1);
 
 			geometry.faceVertexUvs[0].push(uvs);
 			geometry.faces.push(face);

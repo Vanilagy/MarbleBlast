@@ -49,7 +49,7 @@ const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/items/superspeed.dts": -53,
 	"shapes/items/shockabsorber.dts": -53
 };
-const GO_TIME = 3500;
+export const GO_TIME = 3500;
 const DEFAULT_PITCH = 0.45;
 
 export interface TimeState {
@@ -445,11 +445,30 @@ export class Level extends Scheduler {
 			camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z);
 			directionVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
 			directionVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
+			directionVector.applyQuaternion(orientationQuat);
+
 			cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
 			cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
 			cameraVerticalTranslation.applyQuaternion(orientationQuat);
-			directionVector.multiplyScalar(2.5);
-			directionVector.applyQuaternion(orientationQuat);
+
+			let translationVec = directionVector.clone().multiplyScalar(-2.5).add(cameraVerticalTranslation);
+			let ogTranslationLength = translationVec.length();
+			translationVec.multiplyScalar(1 + 0.25 / translationVec.length());
+			let rayCastDest = camera.position.clone().add(translationVec);
+
+			let self = this;
+			let minDistance = Infinity;
+			this.physics.world.rayCast(marblePosition, Util.vecThreeToOimo(rayCastDest), {
+				process(shape, hit) {
+					if (shape === self.marble.shape) return;
+					minDistance = Math.min(minDistance, hit.fraction * translationVec.length());
+				}
+			});
+
+			let fac = Util.clamp(minDistance / ogTranslationLength - 0.25 / ogTranslationLength, 0.2, 1);
+
+			cameraVerticalTranslation.multiplyScalar(fac);
+			directionVector.multiplyScalar(2.5 * fac);
 			camera.position.sub(directionVector);
 			camera.up = up;
 			camera.lookAt(Util.vecOimoToThree(marblePosition));
@@ -506,7 +525,11 @@ export class Level extends Scheduler {
 				vel.x = vel.y = 0;
 				this.marble.body.setLinearVelocity(vel);
 
-				this.marble.shape.setFriction(0.25);
+				let angVel = this.marble.body.getAngularVelocity();
+				if (angVel.length() > 70) angVel.normalize().scaleEq(70);
+				this.marble.body.setAngularVelocity(angVel);
+
+				this.marble.shape.setFriction(0);
 			} else {
 				this.marble.shape.setFriction(1);
 
@@ -569,7 +592,7 @@ export class Level extends Scheduler {
 		if (!document.pointerLockElement || this.finishTime) return;
 
 		this.pitch += e.movementY / 1000;
-		this.pitch = Math.max(-Math.PI/2 + 0.0001, Math.min(Math.PI/2 - 0.0001, this.pitch));
+		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
 		this.yaw -= e.movementX / 1000;
 	}
 
