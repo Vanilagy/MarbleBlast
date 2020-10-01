@@ -49,7 +49,7 @@ const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/items/superspeed.dts": -53,
 	"shapes/items/shockabsorber.dts": -53
 };
-const GO_TIME = 0 ?? 3500;
+const GO_TIME = 3500;
 const DEFAULT_PITCH = 0.45;
 
 export interface TimeState {
@@ -117,11 +117,12 @@ export class Level extends Scheduler {
 			gameplayClock: 0
 		};
 
-		this.render();
-		setInterval(() => this.tick());
-
 		this.restart();
 		for (let shape of this.shapes) await shape.onLevelStart();
+
+		this.updateCamera(); // Ensure that the camera is positioned correctly before the first tick
+		this.render();
+		setInterval(() => this.tick());
 	}
 
 	async initScene() {
@@ -171,7 +172,7 @@ export class Level extends Scheduler {
 	}
 
 	async initMarble() {
-		this.marble = new Marble();
+		this.marble = new Marble(this);
 		await this.marble.init();
 
 		this.scene.add(this.marble.group);
@@ -482,10 +483,16 @@ export class Level extends Scheduler {
 		}
 
 		while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
+			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
+			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
+			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
+			elapsed -= 1000 / PHYSICS_TICK_RATE;
+
 			this.tickSchedule(this.timeState.currentAttemptTime);
 			this.physics.step();
 
 			for (let shape of this.shapes) shape.tick(this.timeState);
+			for (let interior of this.interiors) if (interior instanceof PathedInterior) interior.updatePosition();
 			this.marble.handleControl(this.timeState);
 
 			if (this.timeState.currentAttemptTime < GO_TIME) {
@@ -527,11 +534,6 @@ export class Level extends Scheduler {
 			}
 
 			this.particles.tick();
-
-			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
-			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
-			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
-			elapsed -= 1000 / PHYSICS_TICK_RATE;
 		}
 
 		AudioManager.updatePositionalAudio(this.timeState, camera.position, this.yaw);

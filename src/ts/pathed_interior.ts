@@ -9,6 +9,7 @@ import OIMO from "./declarations/oimo";
 
 export class PathedInterior extends Interior {
 	path: MissionElementPath;
+	element: MissionElementPathedInterior;
 	duration: number;
 	timeStart: number = null;
 	timeDest: number = null;
@@ -17,6 +18,7 @@ export class PathedInterior extends Interior {
 	timeOffset: number = 0;
 	prevVelocity = new OIMO.Vec3();
 	prevPosition = new THREE.Vector3();
+	nextPosition = new THREE.Vector3();
 
 	static async createFromSimGroup(simGroup: MissionElementSimGroup) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
@@ -26,29 +28,17 @@ export class PathedInterior extends Interior {
 
 		let pathedInterior = new PathedInterior(difFile, Number(interiorElement.interiorIndex));
 		await pathedInterior.init();
+		pathedInterior.element = interiorElement;
 		pathedInterior.path = simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 		pathedInterior.computeDuration();
 
 		let triggers = simGroup.elements.filter((element) => element._type === MissionElementType.Trigger) as MissionElementTrigger[];
 		for (let triggerElement of triggers) {
-			// Make sure the interior doesn't start moving on its own (the default)
-			pathedInterior.timeStart = 0;
-			pathedInterior.timeDest = 0;
-			pathedInterior.changeTime = -Infinity;
-
 			let trigger = new MustChangeTrigger(triggerElement, pathedInterior);
 			pathedInterior.triggers.push(trigger);
 		}
 
-		let initialTargetPosition = Number(interiorElement.initialTargetPosition ?? -1);
-		if (initialTargetPosition >= 0) {
-			pathedInterior.timeStart = Number(interiorElement.initialPosition);
-			pathedInterior.timeDest = initialTargetPosition;
-			pathedInterior.changeTime = 0;
-		} else if (interiorElement.initialPosition) {
-			pathedInterior.timeOffset = Number(interiorElement.initialPosition);
-		}
-
+		pathedInterior.reset();
 		return pathedInterior;
 	}
 
@@ -76,7 +66,7 @@ export class PathedInterior extends Interior {
 
 		let dur = Math.abs(this.timeStart - this.timeDest);
 		let completion = Util.clamp((externalTime - this.changeTime) / dur, 0, 1);
-		return Util.lerp(this.timeStart, this.timeDest, completion) % this.duration;
+		return Util.clamp(Util.lerp(this.timeStart, this.timeDest, completion), 0, this.duration);
 	}
 
 	tick(time: TimeState) {
@@ -86,16 +76,12 @@ export class PathedInterior extends Interior {
 		mat.multiplyMatrices(transform, mat);
 
 		let position = new THREE.Vector3();
-		let orientation = new THREE.Quaternion();
-		mat.decompose(position, orientation, new THREE.Vector3());
+		mat.decompose(position, new THREE.Quaternion(), new THREE.Vector3());
 
 		if (!this.prevPosition) this.prevPosition.copy(position);
 		else this.prevPosition.copy(this.group.position);
 
-		this.group.position.copy(position);
-		this.group.quaternion.copy(orientation);
-
-		this.body.setPosition(Util.vecThreeToOimo(position));
+		this.nextPosition = position;
 
 		this.prevVelocity = this.body.getLinearVelocity().clone();
 		let velocity = position.clone().sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
@@ -107,6 +93,11 @@ export class PathedInterior extends Interior {
 			this.body.setType(OIMO.RigidBodyType.STATIC);
 			this.body.setLinearVelocity(new OIMO.Vec3());
 		}
+	}
+
+	updatePosition() {
+		this.group.position.copy(this.nextPosition);
+		this.body.setPosition(Util.vecThreeToOimo(this.nextPosition));
 	}
 
 	getTransformAtTime(time: number) {
@@ -168,9 +159,24 @@ export class PathedInterior extends Interior {
 
 	reset() {
 		if (this.triggers.length > 0) {
+			// Make sure the interior doesn't start moving on its own (the default)
 			this.timeStart = 0;
 			this.timeDest = 0;
 			this.changeTime = -Infinity;
+		}
+
+		let initialTargetPosition = Number(this.element.initialTargetPosition ?? -1);
+		if (initialTargetPosition >= 0) {
+			this.timeStart = Number(this.element.initialPosition);
+			if (isNaN(this.timeStart)) {
+				// Yeah I know, strange, and this only seems to happen on Money Tree.
+				this.timeStart = this.duration;
+				this.timeDest = initialTargetPosition;
+			}
+
+			this.changeTime = 0;
+		} else if (this.element.initialPosition) {
+			this.timeOffset = Number(this.element.initialPosition);
 		}
 	}
 }

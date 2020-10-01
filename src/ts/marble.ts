@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { gameButtons } from "./input";
 import { state } from "./state";
-import { PHYSICS_TICK_RATE, TimeState } from "./level";
+import { PHYSICS_TICK_RATE, TimeState, Level } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
@@ -36,6 +36,7 @@ const bounceParticleOptions = {
 };
 
 export class Marble {
+	level: Level;
 	group: THREE.Group;
 	sphere: THREE.Mesh;
 	body: OIMO.RigidBody;
@@ -56,6 +57,10 @@ export class Marble {
 	helicopterSound: AudioSource = null;
 	shockAbsorberSound: AudioSource = null;
 	superBounceSound: AudioSource = null;
+
+	constructor(level: Level) {
+		this.level = level;
+	}
 
 	async init() {
 		this.group = new THREE.Group();
@@ -119,9 +124,9 @@ export class Marble {
 		let inputStrength = movementVec.length();
 
 		movementVec.multiplyScalar(MARBLE_ROLL_FORCE * 5 / PHYSICS_TICK_RATE);
-		movementVec.applyAxisAngle(new THREE.Vector3(0, 0, 1), state.currentLevel.yaw);
+		movementVec.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.level.yaw);
 
-		let quat = state.currentLevel.newOrientationQuat;
+		let quat = this.level.newOrientationQuat;
 		movementVec.applyQuaternion(quat);
 
 		let current = this.body.getContactLinkList();
@@ -132,7 +137,7 @@ export class Marble {
 			current = current.getNext();
 		}
 
-		let movementRotationAxis = state.currentLevel.currentUp.cross(Util.vecThreeToOimo(movementVec));
+		let movementRotationAxis = this.level.currentUp.cross(Util.vecThreeToOimo(movementVec));
 
 		this.collisionTimeout--;
 
@@ -150,15 +155,15 @@ export class Marble {
 			this.lastContactNormal = contactNormal;
 			let inverseContactNormal = contactNormal.scale(-1);
 
-			let contactNormalUpDot = Math.abs(contactNormal.dot(state.currentLevel.currentUp));
+			let contactNormalUpDot = Math.abs(contactNormal.dot(this.level.currentUp));
 			let collisionTimeoutNeeded = false;
 
 			let contactNormalRotation = new OIMO.Quat();
-			contactNormalRotation.setArc(state.currentLevel.currentUp, contactNormal);
+			contactNormalRotation.setArc(this.level.currentUp, contactNormal);
 			movementRotationAxis.mulMat3Eq(contactNormalRotation.toMat3());
 
 			let dot0 = contactNormal.dot(this.lastVel.clone().normalize());
-			if (dot0 > -0.5 && dot0 < -0.001) {
+			if (dot0 > -0.45 && dot0 < -0.001) {
 				dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
 				let linearVelocity = this.body.getLinearVelocity();
 				this.body.addLinearVelocity(contactNormal.scale(-dot0 * linearVelocity.length()));
@@ -166,7 +171,7 @@ export class Marble {
 
 			outer:
 			if (this.collisionTimeout <= 0) {
-				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scale((1 - contactNormal.dot(state.currentLevel.currentUp)) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 20);
+				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scale((1 - contactNormal.dot(this.level.currentUp)) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 20);
 				if (angularBoost.length() < 0.01) break outer;
 
 				let currentVelocity = this.body.getLinearVelocity();
@@ -188,7 +193,7 @@ export class Marble {
 
 			let impactVelocity = -contactNormal.dot(this.lastVel.sub(surfaceShape.getRigidBody().getLinearVelocity()));
 			if (this.collisionTimeout <= 0) {
-				if (impactVelocity > 6) state.currentLevel.particles.createEmitter(bounceParticleOptions, Util.vecOimoToThree(this.body.getPosition()));
+				if (impactVelocity > 6) this.level.particles.createEmitter(bounceParticleOptions, Util.vecOimoToThree(this.body.getPosition()));
 
 				if (!jumpSoundPlayed) {
 					let volume = Util.clamp(impactVelocity / 15, 0, 1);
@@ -201,8 +206,8 @@ export class Marble {
 			}
 
 			let surfaceRelativeVelocity = this.body.getLinearVelocity().sub(surfaceShape.getRigidBody().getLinearVelocity());
-			if (contactNormal.dot(surfaceRelativeVelocity) < 0.0001) {
-				let predictedMovement = this.body.getAngularVelocity().cross(state.currentLevel.currentUp).scale(1 / Math.PI / 2);
+			if (contactNormal.dot(surfaceRelativeVelocity) < 0.01) {
+				let predictedMovement = this.body.getAngularVelocity().cross(this.level.currentUp).scale(1 / Math.PI / 2);
 
 				if (predictedMovement.dot(surfaceRelativeVelocity) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > surfaceRelativeVelocity.length() * 1.5)) {
 					this.slidingSound.gain.gain.value = 0.6;
@@ -245,7 +250,7 @@ export class Marble {
 
 			let airMovementVector = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
 			let airVelocity = (time.currentAttemptTime - this.helicopterEnableTime) < 5000 ? 5 : 3;
-			if (state.currentLevel.finishTime) airVelocity = 0;
+			if (this.level.finishTime) airVelocity = 0;
 			airMovementVector = airMovementVector.scale(airVelocity / PHYSICS_TICK_RATE);
 			this.body.addLinearVelocity(airMovementVector);
 
@@ -291,7 +296,8 @@ export class Marble {
 
 		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) {
 			this.helicopter.setOpacity(1);
-			state.currentLevel.setGravityIntensity(5);
+			this.helicopter.setTransform(new THREE.Vector3(), this.level.newOrientationQuat, new THREE.Vector3(1, 1, 1));
+			this.level.setGravityIntensity(5);
 			
 			if (!this.helicopterSound) {
 				AudioManager.createAudioSource('use_gyrocopter.wav').then((source) => {
@@ -302,7 +308,7 @@ export class Marble {
 			}
 		} else {
 			this.helicopter.setOpacity(0);
-			state.currentLevel.setGravityIntensity(20);
+			this.level.setGravityIntensity(20);
 
 			this.helicopterSound?.stop();
 			this.helicopterSound = null;

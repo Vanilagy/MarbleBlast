@@ -3,7 +3,7 @@ import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
-import { getUniqueId } from "./state";
+import { getUniqueId, state } from "./state";
 import { Util } from "./util";
 import { TimeState } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
@@ -184,6 +184,49 @@ export class Shape {
 		}
 	}
 
+	addMeshGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[], group: THREE.Group, isCollisionMesh: boolean) {
+		let geometry = new THREE.Geometry();
+		geometry.vertices = vertices;
+
+		for (let primitive of dtsMesh.primitives) {
+			let k = 0;
+			for (let i = primitive.start; i < primitive.start + primitive.numElements - 2; i++) {
+				let i1 = dtsMesh.indices[i];
+				let i2 = dtsMesh.indices[i+1];
+				let i3 = dtsMesh.indices[i+2];
+
+				if (k % 2 === 0) {
+					let temp = i1;
+					i1 = i3;
+					i3 = temp;
+				}
+				let face = new THREE.Face3(i1, i2, i3);
+				face.materialIndex = primitive.matIndex;
+				geometry.faces.push(face);
+
+				let uvs = [i1, i2, i3].map((x) => new THREE.Vector2(dtsMesh.tverts[x].x, dtsMesh.tverts[x].y));
+				geometry.faceVertexUvs[0].push(uvs);
+
+				face.vertexNormals = [vertexNormals[i1], vertexNormals[i2], vertexNormals[i3]];
+
+				k++;
+			}
+
+			// Don't do these for now, setting the vertex normals manually should be enough:
+			//geometry.computeFaceNormals();
+			//geometry.computeVertexNormals();	
+		}
+
+		let material: THREE.Material | THREE.Material[];
+		if (isCollisionMesh) material = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
+		else material = this.materials;
+
+		let threeMesh = new THREE.Mesh(geometry, material);
+		if (isCollisionMesh) threeMesh.receiveShadow = true;
+
+		group.add(threeMesh);
+	}
+
 	generateCollisionGeometry() {
 		let bodyIndex = 0;
 
@@ -242,44 +285,6 @@ export class Shape {
 				Util.avg(this.dts.bounds.max.z, this.dts.bounds.min.z)
 			));
 		}
-	}
-
-	addMeshGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[], group: THREE.Group, isCollisionMesh: boolean) {
-		let geometry = new THREE.Geometry();
-		geometry.vertices = vertices;
-
-		for (let primitive of dtsMesh.primitives) {
-			let k = 0;
-			for (let i = primitive.start; i < primitive.start + primitive.numElements - 2; i++) {
-				let i1 = dtsMesh.indices[i];
-				let i2 = dtsMesh.indices[i+1];
-				let i3 = dtsMesh.indices[i+2];
-
-				if (k % 2 === 0) [i1, i3] = [i3, i1];
-				let face = new THREE.Face3(i1, i2, i3);
-				face.materialIndex = primitive.matIndex;
-				geometry.faces.push(face);
-
-				let uvs = [i1, i2, i3].map((x) => new THREE.Vector2(dtsMesh.tverts[x].x, dtsMesh.tverts[x].y));
-				geometry.faceVertexUvs[0].push(uvs);
-
-				face.vertexNormals = [vertexNormals[i1], vertexNormals[i2], vertexNormals[i3]];
-
-				k++;
-			}
-
-			geometry.computeFaceNormals();
-			geometry.computeVertexNormals();	
-		}
-
-		let material: THREE.Material | THREE.Material[];
-		if (isCollisionMesh) material = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
-		else material = this.materials;
-
-		let threeMesh = new THREE.Mesh(geometry, material);
-		if (isCollisionMesh) threeMesh.receiveShadow = true;
-
-		group.add(threeMesh);
 	}
 
 	updateNodeTransforms(quaternions?: THREE.Quaternion[]) {
@@ -405,37 +410,47 @@ export class Shape {
 			}
 
 			let boneTransformations: THREE.Matrix4[] = [];
+			let boneTransformationsTransposed: THREE.Matrix4[] = [];
 			for (let i = 0; i < mesh.nodeIndices.length; i++) {
 				let mat = new THREE.Matrix4();
-				mat.elements = mesh.initialTransforms[i].slice(0);
+				mat.elements = mesh.initialTransforms[i].slice();
 				mat.transpose();
 				mat.multiplyMatrices(this.nodeTransforms[mesh.nodeIndices[i]], mat);
 
 				boneTransformations.push(mat);
+				boneTransformationsTransposed.push(mat.clone().transpose());
 			}
 
 			for (let i = 0; i < mesh.vertIndices.length; i++) {
-				let vertex = mesh.verts[mesh.vertIndices[i]];
-				let normal = mesh.norms[mesh.vertIndices[i]];
+				let vIndex = mesh.vertIndices[i];
+				let vertex = mesh.verts[vIndex];
+				let normal = mesh.norms[vIndex];
+
 				let vec = new THREE.Vector3(vertex.x, vertex.y, vertex.z);
 				let vec2 = new THREE.Vector3(normal.x, normal.y, normal.z);
 				let mat = boneTransformations[mesh.boneIndices[i]];
 
 				vec.applyMatrix4(mat);
 				vec.multiplyScalar(mesh.weights[i]);
-				vec2.applyMatrix4(mat);
+				Util.m_matF_x_vectorF(mat, vec2);
 				vec2.multiplyScalar(mesh.weights[i]);
 
-				info.vertices[mesh.vertIndices[i]].add(vec);
-				info.vertexNormals[mesh.vertIndices[i]].add(vec2);
+				info.vertices[vIndex].add(vec);
+				info.vertexNormals[vIndex].add(vec2);
+			}
+
+			for (let i = 0; i < info.vertexNormals.length; i++) {
+				let norm = info.vertexNormals[i];
+				let len2 = norm.dot(norm);
+
+				if (len2 > 0.01) norm.normalize();
 			}
 
 			for (let child of info.group.children) {
 				let mesh = child as THREE.Mesh;
 				let geometry = mesh.geometry as THREE.Geometry;
 				geometry.verticesNeedUpdate = true;
-
-				geometry.computeFaceNormals();
+				geometry.normalsNeedUpdate = true;
 			}
 		}
 

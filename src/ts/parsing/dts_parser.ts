@@ -521,7 +521,7 @@ export class DtsParser extends BinaryFileParser {
 			if (type === MeshType.Skin) {
 				let numInitialVerts = alloc.readS32();
 				let initialVerts = Array(numInitialVerts).fill(null).map(() => alloc.readPoint3F());
-				let norms = Array(numInitialVerts).fill(null).map(() => alloc.readPoint3F());
+				let initialNorms = Array(numInitialVerts).fill(null).map(() => alloc.readPoint3F());
 				let encodedNorms = Array(numInitialVerts).fill(null).map(() => alloc.readU8());
 				let numInitialTransforms = alloc.readS32();
 				let initialTransforms = Array(numInitialTransforms).fill(null).map(() => alloc.readMatrixF());
@@ -534,7 +534,7 @@ export class DtsParser extends BinaryFileParser {
 				let nodeIndices = Array(numNodeIndices).fill(null).map(() => alloc.readS32());
 
 				mesh.verts = initialVerts;
-				mesh.norms = norms;
+				mesh.norms = initialNorms;
 				mesh.encodedNorms = encodedNorms;
 				mesh.initialTransforms = initialTransforms;
 				mesh.vertIndices = vertIndices;

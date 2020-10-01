@@ -18,9 +18,10 @@ export class EndPad extends Shape {
 
 		let height = 4;
 		let radius = 1.5;
-		let finishArea = new OIMO.CylinderGeometry(radius, height/2);
+		let finishArea = Util.createCylinderConvexHull(radius, height/2); // Using this instead of CylinderGeometry because CylinderGeometry is apparently bugged!
 		let transform = new THREE.Matrix4();
-		transform.compose(new THREE.Vector3(0, 0, height/2), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0)), new THREE.Vector3(1, 1, 1));
+		transform.compose(new THREE.Vector3(0, 0, height/2 + 0.2), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0)), new THREE.Vector3(1, 1, 1));
+
 		this.addCollider(finishArea, () => {
 			let exit = this.inArea > 0;
 			this.inArea = 2;
@@ -125,7 +126,7 @@ const blueTrail = {
 const redSpark = {
 	ejectionPeriod: 1,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
-	ejectionVelocity: 1,
+	ejectionVelocity: 0.8,
 	velocityVariance: 0.25,
 	emitterLifetime: 10,
 	inheritedVelFactor: 0,
@@ -137,7 +138,7 @@ const redSpark = {
 		spinRandomMax: 90,
 		lifetime: 500,
 		lifetimeVariance: 50,
-		dragCoefficient: 0,
+		dragCoefficient: 0.5,
 		acceleration: 0,
 		colors: [{r: 1, g: 1, b: 0, a: 1}, {r: 1, g: 1, b: 0, a: 1}, {r: 1, g: 0, b: 0, a: 0}],
 		sizes: [0.2, 0.2, 0.2],
@@ -217,7 +218,7 @@ class Firework extends Scheduler {
 	}
 
 	doWave(time: number) {
-		let count = Math.floor(15 + Math.random() * 10);
+		let count = Math.floor(17 + Math.random() * 10);
 		for (let i = 0; i < count; i++) this.spawnTrail(time);
 
 		this.wavesLeft--;
@@ -234,7 +235,7 @@ class Firework extends Scheduler {
 		let distanceFac = 0.5 + lifetime / 5000;
 		let emitter = state.currentLevel.particles.createEmitter((type === 'red')? redTrail : blueTrail, this.pos);
 		let randomPointInCircle = Util.randomPointInUnitCircle();
-		let targetPos = new THREE.Vector3(randomPointInCircle.x * 4, randomPointInCircle.y * 4, 1 + Math.sqrt(Math.random()) * 3).multiplyScalar(distanceFac).add(this.pos);
+		let targetPos = new THREE.Vector3(randomPointInCircle.x * 4, randomPointInCircle.y * 4, 1 + Math.sqrt(Math.random()) * 4).multiplyScalar(distanceFac).add(this.pos);
 
 		let trail: Trail = {
 			type: type,

@@ -156,6 +156,38 @@ export abstract class Util {
 		let index = arr.indexOf(item);
 		if (index !== -1) arr.splice(index, 1);
 	}
+
+	/** Shamelessly copied from Torque's source code. */
+	static m_matF_x_vectorF(matrix: THREE.Matrix4, v: THREE.Vector3) {
+		let m = matrix.clone().transpose().elements;
+
+		let v0 = v.x, v1 = v.y, v2 = v.z;
+		let m0 = m[0], m1 = m[1], m2 = m[2];
+		let m4 = m[4], m5 = m[5], m6 = m[6];
+		let m8 = m[8], m9 = m[9], m10 = m[10];
+		
+		let vresult_0 = m0*v0 + m1*v1 + m2*v2;
+		let vresult_1 = m4*v0 + m5*v1 + m6*v2;
+		let vresult_2 = m8*v0 + m9*v1 + m10*v2;
+
+		v.set(vresult_0, vresult_1, vresult_2);
+	}
+
+	static createCylinderConvexHull(radius: number, halfHeight: number, radialSegments = 32) {
+		let vertices: OIMO.Vec3[] = [];
+
+		for (let i = 0; i < 2; i++) {
+			for (let j = 0; j < radialSegments; j++) {
+				let angle = j/radialSegments * Math.PI * 2;
+				let x = Math.cos(angle);
+				let z = Math.sin(angle);
+
+				vertices.push(new OIMO.Vec3(x * radius, i? halfHeight : -halfHeight, z * radius));
+			}
+		}
+
+		return new OIMO.ConvexHullGeometry(vertices);
+	}
 }
 
 export abstract class Scheduler {
@@ -165,10 +197,9 @@ export abstract class Scheduler {
 	}[] = [];
 
 	tickSchedule(time: number) {
-		for (let i = 0; i < this.scheduled.length; i++) {
-			let item = this.scheduled[i];
+		for (let item of this.scheduled.slice()) {
 			if (time >= item.time) {
-				this.scheduled.splice(i--, 1);
+				Util.removeFromArray(this.scheduled, item);
 				item.callback();
 			}
 		}

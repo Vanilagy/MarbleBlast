@@ -52,14 +52,17 @@ export abstract class AudioManager {
 		let buffer = await this.loadBuffer(chosenPath);
 		let audioSource = new AudioSource(buffer, destination, position);
 
-		if (position) this.positionalSources.push(audioSource);
+		if (position) {
+			audioSource.gain.gain.value = 0;
+			this.positionalSources.push(audioSource);
+		}
 
 		return audioSource;
 	}
 
 	static async play(path: string | string[], volume = 1, destination = this.soundGain, position?: THREE.Vector3) {
 		let audioSource = await this.createAudioSource(path, destination, position);
-		audioSource.gain.gain.value = volume;
+		audioSource.gain.gain.value = position? 0 : volume;
 		audioSource.play();
 	}
 
