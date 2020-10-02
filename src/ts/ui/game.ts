@@ -2,7 +2,10 @@ import { Util } from "../util";
 import { gameButtonMapping } from "../input";
 import { setupButton, menuDiv, startMenuMusic } from "./ui";
 import { state } from "../state";
-import { levelSelectDiv } from "./level_select";
+import { levelSelectDiv, cycleMission } from "./level_select";
+import { MissionElementScriptObject, MissionElementType } from "../parsing/mis_parser";
+import { GO_TIME } from "../level";
+import { StorageManager } from "../storage";
 
 export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
@@ -32,16 +35,20 @@ export let numberSources = {
 	"-": "dash.png"
 };
 
-setupButton(pauseYesButton, 'common/yes', () => {
-	if (!state.currentLevel) return;
-
+const stopAndExit = () => {
 	state.currentLevel.stop();
 	state.currentLevel = null;
 	pauseScreenDiv.classList.add('hidden');
 	gameUiDiv.classList.add('hidden');
 	levelSelectDiv.classList.remove('hidden');
 	menuDiv.classList.remove('hidden');
+	finishScreenDiv.classList.add('hidden');
 	startMenuMusic();
+};
+
+setupButton(pauseYesButton, 'common/yes', () => {
+	if (!state.currentLevel) return;
+	stopAndExit();
 });
 setupButton(pauseNoButton, 'common/no', () => state.currentLevel.unpause());
 setupButton(pauseRestartButton, 'common/restart', () => {
@@ -67,7 +74,7 @@ document.addEventListener('keyup', (e) => {
 });
 
 const tryPause = () => {
-	if (gameUiDiv.classList.contains('hidden') || !state.currentLevel || state.currentLevel.paused) return;
+	if (gameUiDiv.classList.contains('hidden') || !state.currentLevel || state.currentLevel.paused || state.currentLevel.finishTime) return;
 	state.currentLevel.pause();
 };
 
@@ -79,9 +86,15 @@ export const hidePauseScreen = () => {
 	pauseScreenDiv.classList.add('hidden');
 };
 
-export const displayTime = (seconds: number) => {
+export const secondsToTimeString = (seconds: number) => {
 	let minutes = Math.floor(seconds / 60);
 	let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(seconds % 60).toString(), 2) + '.' + (seconds % 1).toFixed(2).slice(2);
+
+	return string;
+}
+
+export const displayTime = (seconds: number) => {
+	let string = secondsToTimeString(seconds);
 
 	while (clockElement.children.length < string.length) {
 		let img = document.createElement('img');
@@ -165,3 +178,76 @@ export const setCenterText = (type: 'none' | 'ready' | 'set' | 'go' | 'outofboun
 	if (type === 'go') centerElement.src = './assets/ui/game/go.png';
 	if (type === 'outofbounds') centerElement.src = './assets/ui/game/outofbounds.png';
 }
+
+export const finishScreenDiv = document.querySelector('#finish-screen') as HTMLDivElement;
+const finishScreenTime = document.querySelector('#finish-screen-time-time') as HTMLParagraphElement;
+const finishScreenMessage = document.querySelector('#finish-message') as HTMLParagraphElement;
+const qualifyTimeElement = document.querySelector('#finish-qualify-time') as HTMLParagraphElement;
+const goldTimeElement = document.querySelector('#finish-gold-time') as HTMLParagraphElement;
+const elapsedTimeElement = document.querySelector('#finish-elapsed-time') as HTMLParagraphElement;
+const bonusTimeElement = document.querySelector('#finish-bonus-time') as HTMLParagraphElement;
+const bestTime1 = document.querySelector('#best-time-1') as HTMLParagraphElement;
+const bestTime2 = document.querySelector('#best-time-2') as HTMLParagraphElement;
+const bestTime3 = document.querySelector('#best-time-3') as HTMLParagraphElement;
+const replayButton = document.querySelector('#finish-replay') as HTMLImageElement;
+const continueButton = document.querySelector('#finish-continue') as HTMLImageElement;
+
+setupButton(replayButton, 'endgame/replay', () => {
+	finishScreenDiv.classList.add('hidden');
+	state.currentLevel.restart();
+	document.documentElement.requestPointerLock();
+});
+setupButton(continueButton, 'endgame/continue', () => {
+	let level = state.currentLevel;
+	let missionInfo = level.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
+	let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
+	let failedToQualify = level.finishTime.gameplayClock > qualifyTime;
+
+	stopAndExit();
+	if (!failedToQualify) cycleMission(1);
+});
+
+export const showFinishScreen = () => {
+	let level = state.currentLevel;
+	finishScreenDiv.classList.remove('hidden');
+
+	let missionInfo = level.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
+	let elapsedTime = level.finishTime.currentAttemptTime - GO_TIME;
+	let bonusTime = Math.max(0, elapsedTime - level.finishTime.gameplayClock);
+	let goldTime = Number(missionInfo.goldTime);
+	let failedToQualify = false;
+
+	finishScreenMessage.style.color = '';
+	if (level.finishTime.gameplayClock <= goldTime) {
+		finishScreenMessage.innerHTML = 'You beat the <span color="#fff700">GOLD</span> time!';
+	} else {
+		let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
+		if (level.finishTime.gameplayClock <= qualifyTime) {
+			finishScreenMessage.innerHTML = "You've qualified!";
+		} else {
+			finishScreenMessage.innerHTML = "You failed to qualify!";
+			finishScreenMessage.style.color = 'red';
+			failedToQualify = true;
+		}
+	}
+
+	finishScreenTime.textContent = secondsToTimeString(level.finishTime.gameplayClock / 1000);
+	qualifyTimeElement.textContent = (missionInfo.time && missionInfo.time !== "0")? secondsToTimeString(Number(missionInfo.time) / 1000) : '99:59.99';
+	qualifyTimeElement.style.color = failedToQualify? 'red' : '';
+	qualifyTimeElement.style.textShadow = failedToQualify? '1px 1px 0px black' : '';
+	
+	goldTimeElement.textContent = secondsToTimeString(goldTime / 1000);
+	elapsedTimeElement.textContent = secondsToTimeString(elapsedTime / 1000);
+	bonusTimeElement.textContent = secondsToTimeString(bonusTime / 1000);
+
+	let bestTimes = StorageManager.getBestTimesForMission(level.missionPath);
+	bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
+	bestTime1.children[1].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
+	(bestTime1.children[1] as HTMLParagraphElement).style.color = (bestTimes[0][1] <= goldTime)? '#fff700' : '';
+	bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
+	bestTime2.children[1].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
+	(bestTime2.children[1] as HTMLParagraphElement).style.color = (bestTimes[1][1] <= goldTime)? '#fff700' : '';
+	bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
+	bestTime3.children[1].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
+	(bestTime2.children[1] as HTMLParagraphElement).style.color = (bestTimes[2][1] <= goldTime)? '#fff700' : '';
+};

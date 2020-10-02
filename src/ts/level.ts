@@ -35,7 +35,7 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen } from "./ui/game";
+import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, finishScreenDiv, showFinishScreen } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
@@ -66,6 +66,7 @@ interface LoadingState {
 
 export class Level extends Scheduler {
 	mission: MissionElementSimGroup;
+	missionPath: string;
 	scene: THREE.Scene;
 	physics: PhysicsHelper;
 	particles: ParticleManager;
@@ -103,9 +104,10 @@ export class Level extends Scheduler {
 	music: AudioSource;
 	loadingState: LoadingState;
 
-	constructor(missionGroup: MissionElementSimGroup) {
+	constructor(missionGroup: MissionElementSimGroup, missionPath: string) {
 		super();
 		this.mission = missionGroup;
+		this.missionPath = missionPath;
 		this.loadingState = { loaded: 0, total: 0};
 	}
 
@@ -142,6 +144,9 @@ export class Level extends Scheduler {
 			gameplayClock: 0,
 			physicsTickCompletion: 0
 		};
+
+		displayHelp('');
+		displayAlert('');
 
 		this.restart();
 		for (let shape of this.shapes) await shape.onLevelStart();
@@ -462,7 +467,7 @@ export class Level extends Scheduler {
 		renderer.render(this.overlayScene, orthographicCamera);
 		renderer.autoClear = true;
 
-		displayTime(this.timeState.gameplayClock / 1000);
+		displayTime((this.finishTime ?? this.timeState).gameplayClock / 1000);
 
 		requestAnimationFrame(() => this.render());
 	}
@@ -593,6 +598,14 @@ export class Level extends Scheduler {
 				if (this.currentTimeTravelBonus < 0) {
 					this.timeState.gameplayClock += -this.currentTimeTravelBonus;
 					this.currentTimeTravelBonus = 0;
+				}
+			}
+
+			if (this.finishTime) {
+				let elapsed = this.timeState.currentAttemptTime - this.finishTime.currentAttemptTime;
+				if (elapsed >= 2000 && finishScreenDiv.classList.contains('hidden')) {
+					document.exitPointerLock();
+					showFinishScreen();
 				}
 			}
 

@@ -5,6 +5,8 @@ import { setupButton } from "./ui";
 import { Util } from "../util";
 import { homeScreenDiv } from "./home";
 import { loadLevel } from "./loading";
+import { secondsToTimeString } from "./game";
+import { StorageManager } from "../storage";
 
 interface Mission {
 	path: string,
@@ -24,6 +26,10 @@ const tabAdvanced = document.querySelector('#tab-advanced') as HTMLImageElement;
 const tabCustom = document.querySelector('#tab-custom') as HTMLImageElement;
 const levelTitle = document.querySelector('#level-title') as HTMLParagraphElement;
 const levelDescription = document.querySelector('#level-description') as HTMLParagraphElement;
+const levelQualifyTime = document.querySelector('#level-qualify-time') as HTMLParagraphElement;
+const bestTime1 = document.querySelector('#level-select-best-time-1') as HTMLDivElement;
+const bestTime2 = document.querySelector('#level-select-best-time-2') as HTMLDivElement;
+const bestTime3 = document.querySelector('#level-select-best-time-3') as HTMLDivElement;
 const levelImage = document.querySelector('#level-image') as HTMLImageElement;
 const notQualifiedOverlay = document.querySelector('#not-qualified-overlay') as HTMLDivElement;
 const levelNumberElement = document.querySelector('#level-number') as HTMLParagraphElement;
@@ -65,11 +71,11 @@ setupTab(tabCustom, 'custom');
 
 setupButton(prevButton, 'play/prev', () => cycleMission(-1));
 setupButton(playButton, 'play/play', () => {
-	let currentMission = currentLevelArray[currentLevelIndex]?.simGroup;
+	let currentMission = currentLevelArray[currentLevelIndex];
 	if (!currentMission) return;
 
 	levelSelectDiv.classList.add('hidden');
-	loadLevel(currentMission);
+	loadLevel(currentMission.simGroup, currentMission.path);
 });
 setupButton(nextButton, 'play/next', () => cycleMission(1));
 setupButton(homeButton, 'play/back', () => {
@@ -131,6 +137,7 @@ const displayMission = () => {
 		levelImage.style.display = 'none';
 		levelTitle.innerHTML = '<br>';
 		levelDescription.innerHTML = '<br>';
+		levelQualifyTime.innerHTML = '';
 		levelNumberElement.textContent = `Level ${currentLevelIndex + 1}`;
 	} else {
 		notQualifiedOverlay.style.display = 'none';
@@ -140,6 +147,20 @@ const displayMission = () => {
 	
 		levelTitle.textContent = missionInfo.name.replace(/\\n/g, '\n').replace(/\\/g, '');
 		levelDescription.textContent = missionInfo.desc.replace(/\\n/g, '\n').replace(/\\/g, '');
+		let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
+		levelQualifyTime.textContent = isFinite(qualifyTime)? "Time to Qualify: " + secondsToTimeString(qualifyTime / 1000) : '';
+		let goldTime = Number(missionInfo.goldTime);
+
+		let bestTimes = StorageManager.getBestTimesForMission(missionObj.path);
+		bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
+		(bestTime1.children[1] as HTMLImageElement).style.opacity = (bestTimes[0][1] <= goldTime)? '' : '0';
+		bestTime1.children[2].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
+		bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
+		(bestTime2.children[1] as HTMLImageElement).style.opacity = (bestTimes[1][1] <= goldTime)? '' : '0';
+		bestTime2.children[2].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
+		bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
+		(bestTime3.children[1] as HTMLImageElement).style.opacity = (bestTimes[2][1] <= goldTime)? '' : '0';
+		bestTime3.children[2].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
 	
 		let withoutExtension = "missions/" + missionObj.path.slice(0, -4);
 		let imagePaths = ResourceManager.getFullNameOf(withoutExtension);
@@ -172,7 +193,7 @@ const displayMission = () => {
 	}
 };
 
-const cycleMission = (direction: number) => {
+export const cycleMission = (direction: number) => {
 	currentLevelIndex += direction;
 	if (currentLevelIndex < 0) currentLevelIndex = 0;
 	if (currentLevelIndex >= currentLevelArray.length) currentLevelIndex = currentLevelArray.length - 1;

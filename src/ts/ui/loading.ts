@@ -17,7 +17,7 @@ setupButton(cancelButton, 'loading/cancel', () => {
 	levelSelectDiv.classList.remove('hidden');
 });
 
-export const loadLevel = async (mission: MissionElementSimGroup) => {
+export const loadLevel = async (mission: MissionElementSimGroup, missionPath: string) => {
 	loadingDiv.classList.remove('hidden');
 
 	let missionInfo = mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
@@ -32,7 +32,7 @@ export const loadLevel = async (mission: MissionElementSimGroup) => {
 		progressBar.style.width = (completion * maxProgressBarWidth) + 'px';
 	}) as unknown as number;
 
-	let level = new Level(mission);
+	let level = new Level(mission, missionPath);
 	level.init().then(async () => {
 		clearInterval(refresher);
 

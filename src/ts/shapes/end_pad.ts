@@ -16,7 +16,7 @@ export class EndPad extends Shape {
 	constructor() {
 		super();
 
-		let height = 4;
+		let height = 4.8;
 		let radius = 1.5;
 		let finishArea = Util.createCylinderConvexHull(radius, height/2); // Using this instead of CylinderGeometry because CylinderGeometry is apparently bugged!
 		let transform = new THREE.Matrix4();
