@@ -11,14 +11,17 @@ const levelNameElement = document.querySelector('#loading-level-name') as HTMLPa
 const cancelButton = document.querySelector('#loading-cancel') as HTMLImageElement;
 const progressBar = document.querySelector('#loading-progress') as HTMLDivElement;
 const maxProgressBarWidth = 252;
+let loadingIndex = 0;
 
 setupButton(cancelButton, 'loading/cancel', () => {
 	loadingDiv.classList.add('hidden');
 	levelSelectDiv.classList.remove('hidden');
+	loadingIndex++;
 });
 
 export const loadLevel = async (mission: MissionElementSimGroup, missionPath: string) => {
 	loadingDiv.classList.remove('hidden');
+	let indexAtStart = loadingIndex;
 
 	let missionInfo = mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
 	levelNameElement.textContent = missionInfo.name.replace(/\\n/g, '\n').replace(/\\/g, '');
@@ -35,6 +38,7 @@ export const loadLevel = async (mission: MissionElementSimGroup, missionPath: st
 	let level = new Level(mission, missionPath);
 	level.init().then(async () => {
 		clearInterval(refresher);
+		if (loadingIndex !== indexAtStart) return;
 
 		// Fake some second loading pass
 		let start = performance.now();
@@ -45,6 +49,8 @@ export const loadLevel = async (mission: MissionElementSimGroup, missionPath: st
 
 		await Util.wait(150);
 		clearInterval(refresher);
+
+		if (loadingIndex !== indexAtStart) return;
 
 		stopMenuMusic();
 		state.currentLevel = level;

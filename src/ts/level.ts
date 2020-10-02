@@ -361,6 +361,7 @@ export class Level extends Scheduler {
 		this.timeState.gameplayClock = 0;
 		this.currentTimeTravelBonus = 0;
 		this.outOfBounds = false;
+		this.lastPhysicsTick = null;
 		
 		if (this.totalGems > 0) {
 			this.gemCount = 0;

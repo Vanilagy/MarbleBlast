@@ -34,7 +34,7 @@ export abstract class ForceShape extends Shape {
 
 			strengthFac *= 1 - Util.clamp(distanceToCenter / radiusAtDistance, 0, 1)**3;
 
-			marble.body.addLinearVelocity(vec.normalize().scale(0.9 * strength * strengthFac / PHYSICS_TICK_RATE));
+			marble.body.addLinearVelocity(vec.normalize().scale(0.7 * strength * strengthFac / PHYSICS_TICK_RATE));
 		}, transform);
 	}
 

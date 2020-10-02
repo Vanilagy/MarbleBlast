@@ -107,9 +107,13 @@ export class AudioSource {
 
 	play() {
 		this.node.start();
-	}
+		this.node.onended = () => {
+			this.stop();
+		};
+	};
 
 	stop() {
 		this.node.stop();
+		if (this.position) Util.removeFromArray(AudioManager.positionalSources, this);
 	}
 }
