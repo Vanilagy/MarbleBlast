@@ -1,0 +1,39 @@
+#loading {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 468px;
+	height: 325px;
+	z-index: 0;
+}
+
+#loading-cancel {
+	display: block;
+	position: absolute;
+	top: 232px;
+    left: 316px;
+}
+
+#loading-level-name {
+	position: absolute;
+    top: 50px;
+    left: 61px;
+    text-align: center;
+    width: 100%;
+    font-family: DomCasualRegular;
+    font-size: 24px;
+}
+
+#loading-progress {
+	height: 67px;
+    position: absolute;
+    width: 0px;
+    background: #0000001f;
+    left: 160px;
+    top: 140px;
+    z-index: -1;
+}

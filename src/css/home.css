@@ -1,0 +1,39 @@
+#home-screen {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 349px;
+	height: 477px;
+}
+
+#home-play {
+	display: block;
+	position: absolute;
+	top: 113px;
+	left: 48px;
+}
+
+#home-help {
+	display: block;
+	position: absolute;
+	top: 200px;
+    left: 60px;
+}
+
+#home-options {
+	display: block;
+	position: absolute;
+	top: 279px;
+    left: 54px;
+}
+
+#home-exit {
+	display: block;
+	position: absolute;
+	top: 359px;
+    left: 82px;
+}

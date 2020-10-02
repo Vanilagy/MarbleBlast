@@ -1,0 +1,189 @@
+#level-select {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 610px;
+	height: 351px;
+	z-index: 0;
+}
+
+#tab-beginner {
+	display: block;
+	position: absolute;
+	top: -40px;
+    left: 29px;
+}
+
+#tab-intermediate {
+	display: block;
+	position: absolute;
+	top: -38px;
+    left: 212px;
+}
+
+#tab-advanced {
+	display: block;
+	position: absolute;
+	top: -21px;
+    left: 407px;
+}
+
+#tab-custom {
+	display: block;
+	position: absolute;
+	top: 43px;
+    left: 589px;
+}
+
+#level-select-text-window {
+	display: block;
+	position: absolute;
+	top: 30px;
+	left: 33px;
+	z-index: 0;
+}
+
+#level-select-home-button {
+	display: block;
+	position: absolute;
+	top: 257px;
+    left: 103px;
+}
+
+#level-select-level-window {
+	display: block;
+	position: absolute;
+	top: 47px;
+	left: 303px;
+	width: 258px;
+	height: 193px;
+	z-index: 0;
+}
+
+#level-select-level-window > img:first-child {
+	position: absolute;
+    top: 0;
+	left: 0;
+	z-index: 0;
+}
+
+#level-image {
+    width: 100%;
+    height: 100%;
+	object-fit: fill;
+	z-index: -2;
+	position: absolute;
+	top: 0;
+}
+
+#not-qualified-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    color: white;
+    background: #0000007a;
+    text-align: center;
+    font-family: DomCasualRegular;
+    font-size: 24px;
+    line-height: 200px;
+    z-index: -1;
+}
+
+#level-number {
+	position: absolute;
+    margin: auto;
+    left: 0;
+    right: 0;
+    text-align: center;
+    bottom: 14px;
+    font-family: DomCasualRegular;
+    color: white;
+    text-shadow: 1px 1px 0px black, 1px 1px 0px black;
+    font-size: 19px;
+}
+
+#level-select-prev {
+	display: block;
+	position: absolute;
+	top: 257px;
+    left: 314px;
+}
+
+#level-select-play {
+	display: block;
+	position: absolute;
+	top: 255px;
+    left: 385px;
+}
+
+#level-select-next {
+	display: block;
+	position: absolute;
+	top: 260px;
+    left: 501px;
+}
+
+#level-title {
+	font-family: DomCasualRegular;
+    margin: 0;
+    margin-top: 14px;
+    margin-left: 30px;
+	font-size: 20px;
+	white-space: pre-line;
+}
+
+#level-description {
+	font-family: Arial, sans-serif;
+    margin: 0;
+    margin-top: 16px;
+    margin-left: 38px;
+    width: 207px;
+	font-size: 11px;
+	white-space: pre-line;
+}
+
+#level-qualify-time {
+	font-family: DomCasualRegular;
+    margin: 0;
+    margin-left: 30px;
+	font-size: 20px;
+	white-space: pre-line;
+}
+
+#best-times-heading {
+	font-family: DomCasualRegular;
+    margin: 0;
+    margin-top: 14px;
+    margin-left: 30px;
+	font-size: 20px;
+	margin-bottom: 14px;
+}
+
+.level-select-best-time {
+	font-family: Arial, sans-serif;
+    font-weight: bolder;
+    font-size: 11px;
+    width: 189px;
+    margin-left: 42px;
+    clear: both;
+}
+
+.level-select-best-time > div:first-child {
+	float: left;
+}
+
+.level-select-best-time > div:last-child {
+	float: right;
+}
+
+.level-select-best-time > img {
+	vertical-align: top;
+	margin-left: 8px;
+	float: right;
+}
