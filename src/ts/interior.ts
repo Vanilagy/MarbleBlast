@@ -2,8 +2,9 @@ import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
 import * as THREE from "three";
 import OIMO from "./declarations/oimo";
 import { ResourceManager } from "./resources";
-import { TimeState } from "./level";
+import { TimeState, Level } from "./level";
 import { Util } from "./util";
+import { state } from "./state";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 0.5;
@@ -22,15 +23,17 @@ const specialResistutionFactor: Record<string, number> = {
 const specialMaterials = new Set(Object.keys(specialFriction));
 
 export class Interior {
+	level: Level;
 	dif: DifFile;
 	group: THREE.Group;
 	body: OIMO.RigidBody;
 	detailLevel: DifFile["detailLevels"][number];
 	worldMatrix = new THREE.Matrix4();
 
-	constructor(file: DifFile, subObjectIndex?: number) {
+	constructor(file: DifFile, level: Level, subObjectIndex?: number) {
 		this.group = new THREE.Group();
 		this.dif = file;
+		this.level = level;
 		this.detailLevel = (subObjectIndex === undefined)? file.detailLevels[0] : file.subObjects[subObjectIndex];
 
 		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
@@ -65,6 +68,8 @@ export class Interior {
 		this.group.add(mesh);
 
 		this.buildCollisionGeometry();
+
+		this.level.loadingState.loaded++;
 	}
 
 	async addSurface(surface: InteriorDetailLevel["surfaces"][number], geometry: THREE.Geometry) {

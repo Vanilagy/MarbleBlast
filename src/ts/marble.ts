@@ -91,14 +91,14 @@ export class Marble {
 
 		this.forcefield = new Shape();
 		this.forcefield.dtsPath = "shapes/images/glow_bounce.dts";
-		await this.forcefield.init();
+		await this.forcefield.init(this.level);
 		this.forcefield.setOpacity(0);
 		this.forcefield.showSequences = false;
 		this.sphere.add(this.forcefield.group);
 
 		this.helicopter = new Shape();
 		this.helicopter.dtsPath = "shapes/images/helicopter.dts";
-		await this.helicopter.init();
+		await this.helicopter.init(this.level);
 		this.helicopter.setOpacity(0);
 		this.group.add(this.helicopter.group);
 

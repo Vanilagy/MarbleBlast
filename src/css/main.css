@@ -9,10 +9,19 @@
 	100% { opacity: 0; filter: brightness(0.25); }
 }
 
+* {
+	user-select: none;
+	-webkit-user-drag: none;
+}
+
+.hidden {
+	display: none !important;
+	pointer-events: none !important;
+}
+
 html, body {
 	margin: 0;
 	overflow: hidden;
-	user-select: none;
 	width: 100%;
 	height: 100%;
 }
@@ -89,4 +98,305 @@ html, body {
 	left: 0;
 	right: 0;
 	top: 30%;
+}
+
+#pause-screen {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 380px;
+    height: 183px;
+}
+
+#pause-screen > img:first-child {
+	width: 380px;
+    height: 183px;
+}
+
+#pause-screen > p {
+	position: absolute;
+    font-family: DomCasualRegular;
+    font-size: 24px;
+    top: 17px;
+    left: 106px;
+}
+
+#pause-yes {
+	display: block;
+	position: absolute;
+	top: 104px;
+    left: 46px;
+}
+
+#pause-no {
+	display: block;
+	position: absolute;
+	top: 102px;
+    left: 146px;
+}
+
+#pause-restart {
+	display: block;
+	position: absolute;
+	top: 101px;
+    left: 243px;
+}
+
+#menu {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+#background-image {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+    height: 100%;
+	object-fit: fill;
+}
+
+#home-screen {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 349px;
+	height: 477px;
+}
+
+#home-play {
+	display: block;
+	position: absolute;
+	top: 113px;
+	left: 48px;
+}
+
+#home-help {
+	display: block;
+	position: absolute;
+	top: 200px;
+    left: 60px;
+}
+
+#home-options {
+	display: block;
+	position: absolute;
+	top: 279px;
+    left: 54px;
+}
+
+#home-exit {
+	display: block;
+	position: absolute;
+	top: 359px;
+    left: 82px;
+}
+
+#level-select {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 610px;
+	height: 351px;
+	z-index: 0;
+}
+
+#tab-beginner {
+	display: block;
+	position: absolute;
+	top: -40px;
+    left: 29px;
+}
+
+#tab-intermediate {
+	display: block;
+	position: absolute;
+	top: -38px;
+    left: 212px;
+}
+
+#tab-advanced {
+	display: block;
+	position: absolute;
+	top: -21px;
+    left: 407px;
+}
+
+#tab-custom {
+	display: block;
+	position: absolute;
+	top: 43px;
+    left: 589px;
+}
+
+#level-select-text-window {
+	display: block;
+	position: absolute;
+	top: 30px;
+	left: 33px;
+	z-index: 0;
+}
+
+#level-select-home-button {
+	display: block;
+	position: absolute;
+	top: 257px;
+    left: 103px;
+}
+
+#level-select-level-window {
+	display: block;
+	position: absolute;
+	top: 47px;
+	left: 303px;
+	width: 258px;
+	height: 193px;
+	z-index: 0;
+}
+
+#level-select-level-window > img:first-child {
+	position: absolute;
+    top: 0;
+	left: 0;
+	z-index: 0;
+}
+
+#level-image {
+    width: 100%;
+    height: 100%;
+	object-fit: fill;
+	z-index: -2;
+	position: absolute;
+	top: 0;
+}
+
+#not-qualified-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    color: white;
+    background: #0000007a;
+    text-align: center;
+    font-family: DomCasualRegular;
+    font-size: 24px;
+    line-height: 200px;
+    z-index: -1;
+}
+
+#level-number {
+	position: absolute;
+    margin: auto;
+    left: 0;
+    right: 0;
+    text-align: center;
+    bottom: 14px;
+    font-family: DomCasualRegular;
+    color: white;
+    text-shadow: 1px 1px 0px black, 1px 1px 0px black;
+    font-size: 19px;
+}
+
+#level-select-prev {
+	display: block;
+	position: absolute;
+	top: 257px;
+    left: 314px;
+}
+
+#level-select-play {
+	display: block;
+	position: absolute;
+	top: 255px;
+    left: 385px;
+}
+
+#level-select-next {
+	display: block;
+	position: absolute;
+	top: 260px;
+    left: 501px;
+}
+
+#level-title {
+	font-family: DomCasualRegular;
+    margin: 0;
+    margin-top: 14px;
+    margin-left: 30px;
+	font-size: 20px;
+	white-space: pre-line;
+}
+
+#level-description {
+	font-family: sans-serif;
+    margin: 0;
+    margin-top: 16px;
+    margin-left: 38px;
+    width: 207px;
+	font-size: 11px;
+	white-space: pre-line;
+}
+
+#best-times-heading {
+	font-family: DomCasualRegular;
+    margin: 0;
+    margin-top: 14px;
+    margin-left: 30px;
+    font-size: 20px;
+}
+
+#loading {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 468px;
+	height: 325px;
+	z-index: 0;
+}
+
+#loading-cancel {
+	display: block;
+	position: absolute;
+	top: 232px;
+    left: 316px;
+}
+
+#loading-level-name {
+	position: absolute;
+    top: 50px;
+    left: 61px;
+    text-align: center;
+    width: 100%;
+    font-family: DomCasualRegular;
+    font-size: 24px;
+}
+
+#loading-progress {
+	height: 67px;
+    position: absolute;
+    width: 0px;
+    background: #0000001f;
+    left: 160px;
+    top: 140px;
+    z-index: -1;
 }

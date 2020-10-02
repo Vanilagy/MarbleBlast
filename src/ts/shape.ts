@@ -5,7 +5,7 @@ import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
 import { getUniqueId, state } from "./state";
 import { Util } from "./util";
-import { TimeState } from "./level";
+import { TimeState, Level } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 import { AudioManager } from "./audio";
 
@@ -46,6 +46,7 @@ enum MaterialFlags {
 
 export class Shape {
 	id: number;
+	level: Level;
 	dtsPath: string;
 	dts: DtsFile;
 	directoryPath: string;
@@ -73,8 +74,9 @@ export class Shape {
 	friction = INTERIOR_DEFAULT_FRICTION;
 	sounds: string[] = [];
 
-	async init() {
+	async init(level: Level) {
 		this.id = getUniqueId();
+		this.level = level;
 		this.dts = await DtsParser.loadFile('./assets/data/' + this.dtsPath);
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
 
@@ -182,6 +184,8 @@ export class Shape {
 		for (let sound of this.sounds) {
 			await AudioManager.loadBuffer(sound);
 		}
+
+		this.level.loadingState.loaded++;
 	}
 
 	addMeshGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[], group: THREE.Group, isCollisionMesh: boolean) {

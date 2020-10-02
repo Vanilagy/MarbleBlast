@@ -35,7 +35,7 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp } from "./ui/game";
+import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
@@ -59,6 +59,11 @@ export interface TimeState {
 	physicsTickCompletion: number
 }
 
+interface LoadingState {
+	loaded: number,
+	total: number
+}
+
 export class Level extends Scheduler {
 	mission: MissionElementSimGroup;
 	scene: THREE.Scene;
@@ -73,8 +78,11 @@ export class Level extends Scheduler {
 	sunlight: THREE.DirectionalLight;
 	sunDirection: THREE.Vector3;
 
+	tickInterval: number;
 	timeState: TimeState;
 	lastPhysicsTick: number = null;
+	paused = false;
+	stopped = false;
 	
 	pitch = 0;
 	yaw = 0;
@@ -93,24 +101,40 @@ export class Level extends Scheduler {
 	gemCount = 0;
 	timeTravelSound: AudioSource;
 	music: AudioSource;
+	loadingState: LoadingState;
 
 	constructor(missionGroup: MissionElementSimGroup) {
 		super();
-
 		this.mission = missionGroup;
-		this.init();
+		this.loadingState = { loaded: 0, total: 0};
 	}
 
 	async init() {
+		const scanMission = (simGroup: MissionElementSimGroup) => {
+			for (let element of simGroup.elements) {
+				if ([MissionElementType.InteriorInstance, MissionElementType.Item, MissionElementType.PathedInterior, MissionElementType.StaticShape].includes(element._type)) {
+					this.loadingState.total++;
+				} else if (element._type === MissionElementType.SimGroup) {
+					scanMission(element);
+				}
+			}
+		};
+		scanMission(this.mission);
+		this.loadingState.total += 5 + 1 + 3 + 6; // For the scene, marble, UI and sounds (includes music!)
+
 		this.physics = new PhysicsHelper(this);
-		await this.initScene();
-		await this.initMarble();
+		await this.initScene(); this.loadingState.loaded += 5;
+		await this.initMarble(); this.loadingState.loaded += 1;
 		await this.addSimGroup(this.mission);
-		await this.initUi();
-		await this.initSounds();
+		await this.initUi(); this.loadingState.loaded += 3;
+		await this.initSounds(); this.loadingState.loaded += 6;
 
 		this.particles = new ParticleManager(this);
 		await this.particles.init();
+	}
+
+	async start() {
+		if (this.stopped) return;
 
 		this.timeState = {
 			timeSinceLoad: 0,
@@ -124,7 +148,8 @@ export class Level extends Scheduler {
 
 		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick
 		this.render();
-		setInterval(() => this.tick());
+		this.tickInterval = setInterval(() => this.tick());
+		this.music.play();
 	}
 
 	async initScene() {
@@ -200,7 +225,7 @@ export class Level extends Scheduler {
 			let shape = new Shape();
 			shape.dtsPath = path;
 			shape.ambientRotate = true;
-			await shape.init();
+			await shape.init(this);
 
 			this.overlayShapes.push(shape);
 			if (path.includes("gem")) shape.ambientSpinFactor /= -2;
@@ -217,19 +242,19 @@ export class Level extends Scheduler {
 	}
 
 	async initSounds() {
+		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
 		let musicProfile = this.mission.elements.find((element) => element._type === MissionElementType.AudioProfile && element.description === "AudioMusic") as MissionElementAudioProfile;
 		let musicFileName = musicProfile.fileName.slice(musicProfile.fileName.lastIndexOf('/') + 1);
+		if (musicFileName.includes('Shell')) musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][Number(missionInfo.level) % 3];
 
 		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
 		this.music = await AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
 		this.music.node.loop = true;
-		//this.music.play();
-		// NO! TODO! I WANNA HEAR MORE THAN FUCKING SHELL!
 	}
 
 	async addSimGroup(simGroup: MissionElementSimGroup) {
 		if (simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior)) {
-			let pathedInterior = await PathedInterior.createFromSimGroup(simGroup);
+			let pathedInterior = await PathedInterior.createFromSimGroup(simGroup, this);
 
 			this.scene.add(pathedInterior.group);
 			this.physics.addInterior(pathedInterior);
@@ -265,7 +290,7 @@ export class Level extends Scheduler {
 		let difFile = await DifParser.loadFile('./assets/' + path);
 		if (!difFile) return;
 
-		let interior = new Interior(difFile);
+		let interior = new Interior(difFile, this);
 		await interior.init();
 		interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
 
@@ -301,7 +326,7 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "oilslick") shape = new Oilslick();
 
 		if (!shape) return;
-		await shape.init();
+		await shape.init(this);
 
 		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
@@ -368,20 +393,20 @@ export class Level extends Scheduler {
 		this.timeTravelSound?.stop();
 		this.timeTravelSound = null;
 
-		//AudioManager.play('spawn.wav');
+		AudioManager.play('spawn.wav');
 
 		this.clearSchedule();
 		this.schedule(500, () => {
 			setCenterText('ready');
-			//AudioManager.play('ready.wav');
+			AudioManager.play('ready.wav');
 		});
 		this.schedule(2000, () => {
 			setCenterText('set');
-			//AudioManager.play('set.wav');
+			AudioManager.play('set.wav');
 		});
 		this.schedule(GO_TIME, () => {
 			setCenterText('go');
-			//AudioManager.play('go.wav');
+			AudioManager.play('go.wav');
 		});
 		this.schedule(5500, () => {
 			setCenterText('none');
@@ -389,6 +414,8 @@ export class Level extends Scheduler {
 	}
 
 	render() {
+		if (this.stopped) return;
+
 		let time = performance.now();
 		this.tick(time);
 
@@ -490,6 +517,7 @@ export class Level extends Scheduler {
 	}
 
 	tick(time?: number) {
+		if (this.paused || this.stopped) return;
 		if (time === undefined) time = performance.now();
 
 		if (gameButtons.use) {
@@ -619,7 +647,7 @@ export class Level extends Scheduler {
 	}
 
 	onMouseMove(e: MouseEvent) {
-		if (!document.pointerLockElement || this.finishTime) return;
+		if (!document.pointerLockElement || this.finishTime || this.paused) return;
 
 		this.pitch += e.movementY / 1000;
 		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
@@ -705,5 +733,38 @@ export class Level extends Scheduler {
 			let endPad = this.shapes.find((shape) => shape instanceof EndPad) as EndPad;
 			endPad.spawnFirework(this.timeState);
 		}
+	}
+
+	pause() {
+		this.paused = true;
+		document.exitPointerLock();
+		showPauseScreen();
+	}
+
+	unpause() {
+		this.paused = false;
+		document.documentElement.requestPointerLock();
+		hidePauseScreen();
+		this.lastPhysicsTick = performance.now();
+	}
+
+	stop() {
+		this.stopped = true;
+		clearInterval(this.tickInterval);
+
+		this.music.stop();
+		for (let shape of this.shapes) {
+			if (shape instanceof Tornado || shape instanceof DuctFan) shape.soundSource?.stop();
+		}
+
+		this.marble.rollingSound?.stop();
+		this.marble.slidingSound?.stop();
+		this.marble.helicopterSound?.stop();
+		this.marble.shockAbsorberSound?.stop();
+		this.marble.superBounceSound?.stop();
+	}
+
+	getLoadingCompletion() {
+		return this.loadingState.total? this.loadingState.loaded / this.loadingState.total : 0;
 	}
 }

@@ -1,11 +1,19 @@
 import { Util } from "../util";
 import { gameButtonMapping } from "../input";
+import { setupButton, menuDiv, startMenuMusic } from "./ui";
+import { state } from "../state";
+import { levelSelectDiv } from "./level_select";
 
+export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
 const clockElement = document.querySelector('#clock') as HTMLDivElement;
 const helpElement = document.querySelector('#help-text') as HTMLDivElement;
 const alertElement = document.querySelector('#alert-text') as HTMLDivElement;
 const centerElement = document.querySelector('#center-text') as HTMLImageElement;
+const pauseScreenDiv = document.querySelector('#pause-screen') as HTMLDivElement;
+const pauseYesButton = document.querySelector('#pause-yes') as HTMLImageElement;
+const pauseNoButton = document.querySelector('#pause-no') as HTMLImageElement;
+const pauseRestartButton = document.querySelector('#pause-restart') as HTMLImageElement;
 
 export let numberSources = {
 	"0": "0.png",
@@ -22,6 +30,53 @@ export let numberSources = {
 	".": "point.png",
 	"/": "slash.png",
 	"-": "dash.png"
+};
+
+setupButton(pauseYesButton, 'common/yes', () => {
+	if (!state.currentLevel) return;
+
+	state.currentLevel.stop();
+	state.currentLevel = null;
+	pauseScreenDiv.classList.add('hidden');
+	gameUiDiv.classList.add('hidden');
+	levelSelectDiv.classList.remove('hidden');
+	menuDiv.classList.remove('hidden');
+	startMenuMusic();
+});
+setupButton(pauseNoButton, 'common/no', () => state.currentLevel.unpause());
+setupButton(pauseRestartButton, 'common/restart', () => {
+	state.currentLevel.unpause();
+	state.currentLevel.restart();
+});
+
+document.addEventListener('pointerlockchange', () => {
+	if (!document.pointerLockElement) tryPause();
+});
+
+document.addEventListener('keydown', (e) => {
+	if (!gameUiDiv.classList.contains('hidden') && state.currentLevel?.paused && e.key === 'Escape') {
+		pauseNoButton.src = './assets/ui/common/no_d.png';
+	}
+});
+
+document.addEventListener('keyup', (e) => {
+	if (!gameUiDiv.classList.contains('hidden') && state.currentLevel?.paused && e.key === 'Escape' && pauseNoButton.src.endsWith('/assets/ui/common/no_d.png')) {
+		pauseNoButton.src = './assets/ui/common/no_n.png';
+		state.currentLevel.unpause();
+	}
+});
+
+const tryPause = () => {
+	if (gameUiDiv.classList.contains('hidden') || !state.currentLevel || state.currentLevel.paused) return;
+	state.currentLevel.pause();
+};
+
+export const showPauseScreen = () => {
+	pauseScreenDiv.classList.remove('hidden');
+};
+
+export const hidePauseScreen = () => {
+	pauseScreenDiv.classList.add('hidden');
 };
 
 export const displayTime = (seconds: number) => {

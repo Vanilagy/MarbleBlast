@@ -3,7 +3,7 @@ import { DifParser } from "./parsing/dif_parser";
 import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "./parsing/mis_parser";
 import { Util } from "./util";
 import * as THREE from "three";
-import { TimeState, PHYSICS_TICK_RATE } from "./level";
+import { TimeState, PHYSICS_TICK_RATE, Level } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
 import OIMO from "./declarations/oimo";
 
@@ -20,13 +20,13 @@ export class PathedInterior extends Interior {
 	prevPosition = new THREE.Vector3();
 	currentPosition = new THREE.Vector3();
 
-	static async createFromSimGroup(simGroup: MissionElementSimGroup) {
+	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
 
 		let path = interiorElement.interiorResource.slice(interiorElement.interiorResource.indexOf('data/'));
 		let difFile = await DifParser.loadFile('./assets/' + path);
 
-		let pathedInterior = new PathedInterior(difFile, Number(interiorElement.interiorIndex));
+		let pathedInterior = new PathedInterior(difFile, level, Number(interiorElement.interiorIndex));
 		await pathedInterior.init();
 		pathedInterior.element = interiorElement;
 		pathedInterior.path = simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;

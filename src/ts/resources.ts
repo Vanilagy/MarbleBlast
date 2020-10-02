@@ -3,7 +3,7 @@ import { Util } from "./util";
 
 const imageCacheElement = document.querySelector('#image-cache');
 
-type DirectoryStructure = {[name: string]: null | DirectoryStructure};
+export type DirectoryStructure = {[name: string]: null | DirectoryStructure};
 
 export abstract class ResourceManager {
 	static textureCache = new Map<string, THREE.Texture>();

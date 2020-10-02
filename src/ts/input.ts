@@ -5,7 +5,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 window.addEventListener('mousedown', (e) => {
-	document.documentElement.requestPointerLock();
+	if (state.currentLevel && !state.currentLevel.paused) document.documentElement.requestPointerLock();
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName) {

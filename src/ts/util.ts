@@ -196,6 +196,14 @@ export abstract class Util {
 	static lerpThreeVectors(v1: THREE.Vector3, v2: THREE.Vector3, t: number) {
 		return new THREE.Vector3(Util.lerp(v1.x, v2.x, t), Util.lerp(v1.y, v2.y, t), Util.lerp(v1.z, v2.z, t));
 	}
+
+	static uppercaseFirstLetter(str: string) {
+		return str[0].toUpperCase() + str.slice(1);
+	}
+
+	static wait(ms: number) {
+		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
 }
 
 export abstract class Scheduler {

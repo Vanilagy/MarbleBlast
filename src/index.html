@@ -9,7 +9,7 @@
 	<body>
 		<canvas id="main-canvas"></canvas>
 
-		<div id="game-ui">
+		<div id="game-ui" class="hidden">
 			<img src="./assets/ui/game/powerup.png" id="powerup-border">
 			<div style="font-family: DomCasualRegular;" id="help-text"></div>
 			<div style="font-family: DomCasualRegular;" id="alert-text"></div>
@@ -21,6 +21,56 @@
 				<img src="./assets/ui/game/numbers/slash.png">
 				<img src="./assets/ui/game/numbers/0.png">
 				<img src="./assets/ui/game/numbers/0.png">
+			</div>
+			<div id="pause-screen" class="hidden">
+				<img src="./assets/ui/common/dialog.png">
+				<p>Exit from this Level?</p>
+				<img src="./assets/ui/common/yes_n.png" id="pause-yes">
+				<img src="./assets/ui/common/no_n.png" id="pause-no">
+				<img src="./assets/ui/common/restart_n.png" id="pause-restart">
+			</div>
+		</div>
+
+		<div id="menu" class="hidden">
+			<img src="./assets/ui/background.jpg" id="background-image">
+
+			<div id="home-screen">
+				<img src="./assets/ui/home/homegui.png">
+				<img src="./assets/ui/home/play_n.png" id="home-play">
+				<img src="./assets/ui/home/help_n.png" id="home-help">
+				<img src="./assets/ui/home/options_n.png" id="home-options">
+				<img src="./assets/ui/home/exit_n.png" id="home-exit">
+			</div>
+
+			<div id="level-select" class="hidden">
+				<img src="./assets/ui/play/playgui.png" style="pointer-events: none;">
+				<img src="./assets/ui/play/tab_begin.png" id="tab-beginner">
+				<img src="./assets/ui/play/tab_inter.png" id="tab-intermediate">
+				<img src="./assets/ui/play/tab_adv.png" id="tab-advanced">
+				<img src="./assets/ui/play/cust_tab.png" id="tab-custom">
+				<div id="level-select-text-window">
+					<img src="./assets/ui/play/text_window.png" style="position: absolute; top: 0; left: 0; z-index: -1;">
+					<p id="level-title">Learning to Roll</p>
+					<p id="level-description">A very simple level to help you get used to rolling around. And shit.</p>
+					<p id="best-times-heading">Best Times:</p>
+				</div>
+				<img src="./assets/ui/play/back_n.png" id="level-select-home-button">
+				<div id="level-select-level-window">
+					<img src="./assets/ui/play/level_window.png">
+					<img src="./assets/data/missions/advanced/3foldmaze.jpg" id="level-image">
+					<div id="not-qualified-overlay" style="display: none;">Not Qualified!</div>
+					<p id="level-number">Level 1</p>
+				</div>
+				<img src="./assets/ui/play/prev_n.png" id="level-select-prev">
+				<img src="./assets/ui/play/play_n.png" id="level-select-play">
+				<img src="./assets/ui/play/next_n.png" id="level-select-next">
+			</div>
+
+			<div id="loading" class="hidden">
+				<div id="loading-progress"></div>
+				<img src="./assets/ui/loading/loadinggui.png">
+				<img src="./assets/ui/loading/cancel_n.png" id="loading-cancel">
+				<p id="loading-level-name">Learning to Roll</p>
 			</div>
 		</div>
 		
