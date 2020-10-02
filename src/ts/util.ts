@@ -188,6 +188,14 @@ export abstract class Util {
 
 		return new OIMO.ConvexHullGeometry(vertices);
 	}
+
+	static lerpOimoVectors(v1: OIMO.Vec3, v2: OIMO.Vec3, t: number) {
+		return new OIMO.Vec3(Util.lerp(v1.x, v2.x, t), Util.lerp(v1.y, v2.y, t), Util.lerp(v1.z, v2.z, t));
+	}
+
+	static lerpThreeVectors(v1: THREE.Vector3, v2: THREE.Vector3, t: number) {
+		return new THREE.Vector3(Util.lerp(v1.x, v2.x, t), Util.lerp(v1.y, v2.y, t), Util.lerp(v1.z, v2.z, t));
+	}
 }
 
 export abstract class Scheduler {

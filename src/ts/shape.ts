@@ -348,7 +348,7 @@ export class Shape {
 		}
 	}
 
-	tick(time: TimeState) {
+	tick(time: TimeState, onlyVisual = false) {
 		for (let sequence of this.dts.sequences) {
 			if (!this.showSequences) break;
 
@@ -395,12 +395,14 @@ export class Shape {
 				});
 
 				this.updateNodeTransforms(quaternions);
-				this.updateBodyTransforms();
+				if (!onlyVisual) this.updateBodyTransforms();
 			}
 		}
 	}
 
 	render(time: TimeState) {
+		this.tick(time, true);
+
 		for (let info of this.skinMeshInfo) {
 			let mesh = this.dts.meshes[info.meshIndex];
 

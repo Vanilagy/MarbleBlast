@@ -171,5 +171,6 @@ export class Interior {
 	}
 
 	tick(time: TimeState) {}
+	render(time: TimeState) {}
 	reset() {}
 }

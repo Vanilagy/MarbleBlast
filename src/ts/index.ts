@@ -22,7 +22,7 @@ async function init() {
 
 		AudioManager.context.resume();
 
-		let mission = await MisParser.loadFile(0? "./assets/data/missions/beginner/movement.mis" : "./assets/data/missions/advanced/steppingstones.mis"); 
+		let mission = await MisParser.loadFile(0? "./assets/data/missions/beginner/movement.mis" : "./assets/data/missions/advanced/pinball.mis"); 
 		state.currentLevel = new Level(mission);
 	});
 }

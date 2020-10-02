@@ -40,6 +40,8 @@ export class Marble {
 	group: THREE.Group;
 	sphere: THREE.Mesh;
 	body: OIMO.RigidBody;
+	preemptivePosition: OIMO.Vec3;
+	preemptiveOrientation: OIMO.Quat;
 
 	shape: OIMO.Shape;
 	forcefield: Shape;
@@ -333,8 +335,8 @@ export class Marble {
 	}
 
 	render(time: TimeState) {
-		let bodyPosition = this.body.getPosition();
-		let bodyOrientation = this.body.getOrientation();
+		let bodyPosition = Util.lerpOimoVectors(this.body.getPosition(), this.preemptivePosition, time.physicsTickCompletion);
+		let bodyOrientation = this.body.getOrientation().slerp(this.preemptiveOrientation, time.physicsTickCompletion);
 		this.group.position.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
 		this.sphere.quaternion.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
 
@@ -356,6 +358,8 @@ export class Marble {
 	}
 
 	reset() {
+		this.body.setLinearVelocity(new OIMO.Vec3());
+		this.body.setAngularVelocity(new OIMO.Vec3());
 		this.superBounceEnableTime = -Infinity;
 		this.shockAbsorberEnableTime = -Infinity;
 		this.helicopterEnableTime = -Infinity;

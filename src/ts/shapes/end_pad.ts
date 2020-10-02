@@ -235,7 +235,7 @@ class Firework extends Scheduler {
 		let distanceFac = 0.5 + lifetime / 5000;
 		let emitter = state.currentLevel.particles.createEmitter((type === 'red')? redTrail : blueTrail, this.pos);
 		let randomPointInCircle = Util.randomPointInUnitCircle();
-		let targetPos = new THREE.Vector3(randomPointInCircle.x * 4, randomPointInCircle.y * 4, 1 + Math.sqrt(Math.random()) * 4).multiplyScalar(distanceFac).add(this.pos);
+		let targetPos = new THREE.Vector3(randomPointInCircle.x * 3, randomPointInCircle.y * 3, 1 + Math.sqrt(Math.random()) * 3).multiplyScalar(distanceFac).add(this.pos);
 
 		let trail: Trail = {
 			type: type,

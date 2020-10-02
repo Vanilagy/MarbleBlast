@@ -55,7 +55,8 @@ const DEFAULT_PITCH = 0.45;
 export interface TimeState {
 	timeSinceLoad: number,
 	currentAttemptTime: number,
-	gameplayClock: number
+	gameplayClock: number,
+	physicsTickCompletion: number
 }
 
 export class Level extends Scheduler {
@@ -114,13 +115,14 @@ export class Level extends Scheduler {
 		this.timeState = {
 			timeSinceLoad: 0,
 			currentAttemptTime: 0,
-			gameplayClock: 0
+			gameplayClock: 0,
+			physicsTickCompletion: 0
 		};
 
 		this.restart();
 		for (let shape of this.shapes) await shape.onLevelStart();
 
-		this.updateCamera(); // Ensure that the camera is positioned correctly before the first tick
+		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick
 		this.render();
 		setInterval(() => this.tick());
 	}
@@ -338,9 +340,8 @@ export class Level extends Scheduler {
 		this.finishTime = null;
 
 		let startPad = this.shapes.find((shape) => shape instanceof StartPad);
-		this.marble.body.setLinearVelocity(new OIMO.Vec3());
-		this.marble.body.setAngularVelocity(new OIMO.Vec3());
 		this.marble.body.setPosition(new OIMO.Vec3(startPad.worldPosition.x, startPad.worldPosition.y, startPad.worldPosition.z + 3));
+		this.marble.group.position.copy(Util.vecOimoToThree(this.marble.body.getPosition()));
 		this.marble.reset();
 
 		let euler = new THREE.Euler();
@@ -367,20 +368,20 @@ export class Level extends Scheduler {
 		this.timeTravelSound?.stop();
 		this.timeTravelSound = null;
 
-		AudioManager.play('spawn.wav');
+		//AudioManager.play('spawn.wav');
 
 		this.clearSchedule();
 		this.schedule(500, () => {
 			setCenterText('ready');
-			AudioManager.play('ready.wav');
+			//AudioManager.play('ready.wav');
 		});
 		this.schedule(2000, () => {
 			setCenterText('set');
-			AudioManager.play('set.wav');
+			//AudioManager.play('set.wav');
 		});
 		this.schedule(GO_TIME, () => {
 			setCenterText('go');
-			AudioManager.play('go.wav');
+			//AudioManager.play('go.wav');
 		});
 		this.schedule(5500, () => {
 			setCenterText('none');
@@ -391,11 +392,21 @@ export class Level extends Scheduler {
 		let time = performance.now();
 		this.tick(time);
 
-		this.updateCamera();
+		let physicsTickLength = 1000 / PHYSICS_TICK_RATE;
+		let completion = Util.clamp((time - this.lastPhysicsTick) / physicsTickLength, 0, 1);
+		let tempTimeState: TimeState = {
+			timeSinceLoad: this.timeState.timeSinceLoad + completion * physicsTickLength,
+			currentAttemptTime: this.timeState.currentAttemptTime + completion * physicsTickLength,
+			gameplayClock: this.timeState.gameplayClock + completion * physicsTickLength,
+			physicsTickCompletion: completion
+		};
 
-		this.marble.render(this.timeState);
-		for (let shape of this.shapes) shape.render(this.timeState);
-		this.particles.render(this.timeState.timeSinceLoad);
+		this.marble.render(tempTimeState);
+		for (let interior of this.interiors) interior.render(tempTimeState);
+		for (let shape of this.shapes) shape.render(tempTimeState);
+		this.particles.render(tempTimeState.timeSinceLoad);
+
+		this.updateCamera(tempTimeState);
 
 		let shadowCameraPosition = this.marble.group.position.clone();
 		shadowCameraPosition.sub(this.sunDirection.clone().multiplyScalar(5));
@@ -429,16 +440,16 @@ export class Level extends Scheduler {
 		requestAnimationFrame(() => this.render());
 	}
 
-	updateCamera() {
-		let marblePosition = this.marble.body.getPosition();
-		let orientationQuat = this.getOrientationQuat(this.timeState);
+	updateCamera(timeState: TimeState) {
+		let marblePosition = Util.vecThreeToOimo(this.marble.group.position);
+		let orientationQuat = this.getOrientationQuat(timeState);
 		let up = new THREE.Vector3(0, 0, 1).applyQuaternion(orientationQuat);
 		let directionVector = new THREE.Vector3(1, 0, 0);
 		let cameraVerticalTranslation = new THREE.Vector3(0, 0, 0.3);
 
 		if (this.finishTime) {
-			this.pitch = Util.lerp(this.finishPitch, DEFAULT_PITCH, Util.clamp((this.timeState.timeSinceLoad - this.finishTime.timeSinceLoad) / 333, 0, 1));
-			this.yaw = this.finishYaw - (this.timeState.timeSinceLoad - this.finishTime.timeSinceLoad) / 1000 * 0.6;
+			this.pitch = Util.lerp(this.finishPitch, DEFAULT_PITCH, Util.clamp((timeState.timeSinceLoad - this.finishTime.timeSinceLoad) / 333, 0, 1));
+			this.yaw = this.finishYaw - (timeState.timeSinceLoad - this.finishTime.timeSinceLoad) / 1000 * 0.6;
 		}
 
 		if (!this.outOfBounds) {
@@ -501,6 +512,7 @@ export class Level extends Scheduler {
 			this.lastPhysicsTick = time - 1000;
 		}
 
+		let tickDone = false;
 		while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
 			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
 			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
@@ -557,9 +569,27 @@ export class Level extends Scheduler {
 			}
 
 			this.particles.tick();
+			tickDone = true;
 		}
 
 		AudioManager.updatePositionalAudio(this.timeState, camera.position, this.yaw);
+		if (tickDone) this.calculatePreemptiveTransforms();
+	}
+
+	calculatePreemptiveTransforms() {
+		let vel = this.marble.body.getLinearVelocity();
+		let predictedPosition = this.marble.body.getPosition().add(vel.scale(1 / PHYSICS_TICK_RATE)).add(this.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
+
+		let angVel = this.marble.body.getAngularVelocity();
+		let orientation = this.marble.body.getOrientation();
+		let threeOrientation = new THREE.Quaternion(orientation.x, orientation.y, orientation.z, orientation.w);
+		let changeQuat = new THREE.Quaternion();
+		changeQuat.setFromAxisAngle(Util.vecOimoToThree(angVel).normalize(), angVel.length() / PHYSICS_TICK_RATE);
+		threeOrientation.multiply(changeQuat);
+		let predictedOrientation = new OIMO.Quat(threeOrientation.x, threeOrientation.y, threeOrientation.z, threeOrientation.w);
+
+		this.marble.preemptivePosition = predictedPosition;
+		this.marble.preemptiveOrientation = predictedOrientation;
 	}
 
 	getOrientationQuat(time: TimeState) {
@@ -654,7 +684,7 @@ export class Level extends Scheduler {
 		if (this.outOfBounds) return;
 		this.outOfBounds = true;
 
-		this.updateCamera();
+		this.updateCamera(this.timeState);
 		setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
 

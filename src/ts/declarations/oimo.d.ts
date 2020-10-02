@@ -63,6 +63,15 @@ declare namespace OIMO {
 
 	const PositionCorrectionAlgorithm: typeof oimo.dynamics.constraint.PositionCorrectionAlgorithm;
 	type PositionCorrectionAlgorithm = oimo.dynamics.constraint.PositionCorrectionAlgorithm;
+
+	const Manifold: typeof oimo.dynamics.constraint.contact.Manifold;
+	type Manifold = oimo.dynamics.constraint.contact.Manifold;
+
+	const ContactLink: typeof oimo.dynamics.ContactLink;
+	type ContactLink = oimo.dynamics.ContactLink;
+
+	const ContactConstraint: typeof oimo.dynamics.constraint.contact.ContactConstraint;
+	type ContactConstraint = oimo.dynamics.constraint.contact.ContactConstraint;
 }
 
 export default OIMO;

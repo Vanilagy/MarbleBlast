@@ -177,7 +177,7 @@ export class PhysicsHelper {
 			if (!(interior instanceof PathedInterior)) continue;
 			if (interior.body.getType() === OIMO.RigidBodyType.STATIC) continue;
 
-			let interiorMovement =  Util.vecThreeToOimo(interior.group.position.clone().sub(interior.prevPosition));
+			let interiorMovement =  Util.vecThreeToOimo(interior.currentPosition.clone().sub(interior.prevPosition));
 			let body = this.pathedInteriorBodies.get(interior);
 
 			this.pathedInteriorCollisionWorld.addRigidBody(body);
@@ -258,7 +258,6 @@ export class PhysicsHelper {
 			if (contactShape === this.auxMarbleShape) contactShape = contact.getShape2();
 
 			let object = this.shapeLookup.get(contactShape.userData) ?? this.triggerLookup.get(contactShape.userData);
-			//console.log(object)
 
 			if (!object) {
 				if (contact.isTouching()) {

@@ -18,7 +18,7 @@ export class PathedInterior extends Interior {
 	timeOffset: number = 0;
 	prevVelocity = new OIMO.Vec3();
 	prevPosition = new THREE.Vector3();
-	nextPosition = new THREE.Vector3();
+	currentPosition = new THREE.Vector3();
 
 	static async createFromSimGroup(simGroup: MissionElementSimGroup) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
@@ -79,9 +79,9 @@ export class PathedInterior extends Interior {
 		mat.decompose(position, new THREE.Quaternion(), new THREE.Vector3());
 
 		if (!this.prevPosition) this.prevPosition.copy(position);
-		else this.prevPosition.copy(this.group.position);
+		else this.prevPosition.copy(this.currentPosition);
 
-		this.nextPosition = position;
+		this.currentPosition = position;
 
 		this.prevVelocity = this.body.getLinearVelocity().clone();
 		let velocity = position.clone().sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
@@ -96,8 +96,7 @@ export class PathedInterior extends Interior {
 	}
 
 	updatePosition() {
-		this.group.position.copy(this.nextPosition);
-		this.body.setPosition(Util.vecThreeToOimo(this.nextPosition));
+		this.body.setPosition(Util.vecThreeToOimo(this.currentPosition));
 	}
 
 	getTransformAtTime(time: number) {
@@ -155,6 +154,20 @@ export class PathedInterior extends Interior {
 		mat.compose(position, rotation, new THREE.Vector3(1, 1, 1));
 
 		return mat;
+	}
+
+	render(time: TimeState) {
+		let transform = this.getTransformAtTime(this.getInternalTime(time.currentAttemptTime));
+
+		let mat = this.worldMatrix.clone();
+		mat.multiplyMatrices(transform, mat);
+
+		let position = new THREE.Vector3();
+		let orientation = new THREE.Quaternion();
+		mat.decompose(position, orientation, new THREE.Vector3());
+
+		this.group.position.copy(position);
+		this.group.quaternion.copy(orientation);
 	}
 
 	reset() {
