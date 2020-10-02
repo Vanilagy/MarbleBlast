@@ -14,7 +14,7 @@ export abstract class ForceShape extends Shape {
 		transform.compose(new THREE.Vector3(0, 0, height/2), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0)), new THREE.Vector3(1, 1, 1));
 
 		this.addCollider(new OIMO.ConeGeometry(radius, height/2), () => {
-			let marble = state.currentLevel.marble;
+			let marble = this.level.marble;
 			let threeMarblePosition = Util.vecOimoToThree(marble.body.getPosition());
 			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition));
 			if (vec.length() === 0) return;
@@ -40,7 +40,7 @@ export abstract class ForceShape extends Shape {
 
 	addSphericalForce(radius: number, strength: number) {
 		this.addCollider(new OIMO.SphereGeometry(radius), () => {
-			let marble = state.currentLevel.marble;
+			let marble = this.level.marble;
 			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition));
 			if (vec.length() === 0) return;
 
@@ -52,7 +52,7 @@ export abstract class ForceShape extends Shape {
 
 	addFieldForce(radius: number, forceVector: OIMO.Vec3) {
 		this.addCollider(new OIMO.SphereGeometry(radius), () => {
-			let marble = state.currentLevel.marble;
+			let marble = this.level.marble;
 			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition));
 			if (vec.length() >= radius) return;
 

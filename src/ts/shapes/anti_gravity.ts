@@ -17,9 +17,9 @@ export class AntiGravity extends PowerUp {
 		let direction = new THREE.Vector3(0, 0, -1);
 		direction.applyQuaternion(this.worldOrientation);
 
-		if (Util.isSameVector(direction, state.currentLevel.currentUp)) return;
+		if (Util.isSameVector(direction, this.level.currentUp)) return;
 
-		state.currentLevel.setUp(Util.vecThreeToOimo(direction), time);
+		this.level.setUp(Util.vecThreeToOimo(direction), time);
 		AudioManager.play(this.sounds[0]);
 	}
 }

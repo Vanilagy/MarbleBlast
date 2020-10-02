@@ -9,10 +9,10 @@ export class Helicopter extends PowerUp {
 	sounds = ["pugyrocoptervoice.wav", "use_gyrocopter.wav"];
 
 	pickUp(): boolean {
-		return state.currentLevel.pickUpPowerUp(this);
+		return this.level.pickUpPowerUp(this);
 	}
 
 	use(time: TimeState) {
-		state.currentLevel.marble.enableHelicopter(time);
+		this.level.marble.enableHelicopter(time);
 	}
 }

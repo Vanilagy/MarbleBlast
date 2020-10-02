@@ -344,11 +344,11 @@ export class Level extends Scheduler {
 		let trigger: Trigger;
 
 		if (element.dataBlock === "OutOfBoundsTrigger") {
-			trigger = new OutOfBoundsTrigger(element);
+			trigger = new OutOfBoundsTrigger(element, this);
 		} else if (element.dataBlock === "InBoundsTrigger") {
-			trigger = new InBoundsTrigger(element);
+			trigger = new InBoundsTrigger(element, this);
 		} else if (element.dataBlock === "HelpTrigger") {
-			trigger = new HelpTrigger(element);
+			trigger = new HelpTrigger(element, this);
 		}
 
 		if (!trigger) return;

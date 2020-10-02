@@ -13,7 +13,7 @@ export abstract class AbstractBumper extends Shape {
 		let contactNormal = contact.getManifold().getNormal();
 		if (contact.getShape1().userData === this.id) contactNormal = contactNormal.scale(-1);
 
-		let marble = state.currentLevel.marble;
+		let marble = this.level.marble;
 		
 		marble.setLinearVelocityInDirection(contactNormal, 15, false);
 		this.wiggleAnimationStart = time.timeSinceLoad;

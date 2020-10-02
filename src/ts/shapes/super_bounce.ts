@@ -8,10 +8,10 @@ export class SuperBounce extends PowerUp {
 	sounds = ["pusuperbouncevoice.wav", "forcefield.wav"];
 
 	pickUp(): boolean {
-		return state.currentLevel.pickUpPowerUp(this);
+		return this.level.pickUpPowerUp(this);
 	}
 
 	use(time: TimeState) {
-		state.currentLevel.marble.enableSuperBounce(time);
+		this.level.marble.enableSuperBounce(time);
 	}
 }

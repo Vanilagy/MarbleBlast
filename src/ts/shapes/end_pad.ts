@@ -27,7 +27,7 @@ export class EndPad extends Shape {
 			this.inArea = 2;
 			if (exit) return;
 
-			state.currentLevel.touchFinish();
+			this.level.touchFinish();
 		}, transform);
 	}
 

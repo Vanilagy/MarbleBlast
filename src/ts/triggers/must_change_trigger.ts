@@ -7,7 +7,7 @@ export class MustChangeTrigger extends Trigger {
 	interior: PathedInterior;
 
 	constructor(element: MissionElementTrigger, interior: PathedInterior) {
-		super(element);
+		super(element, interior.level);
 		this.interior = interior;
 	}
 

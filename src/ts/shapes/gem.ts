@@ -26,7 +26,7 @@ export class Gem extends Shape {
 
 		this.pickedUp = true;
 		this.setOpacity(0);
-		state.currentLevel.pickUpGem();
+		this.level.pickUpGem();
 	}
 
 	reset() {

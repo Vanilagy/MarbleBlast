@@ -8,10 +8,10 @@ export class ShockAbsorber extends PowerUp {
 	sounds = ["pushockabsorbervoice.wav", "superbounceactive.wav"];
 
 	pickUp(): boolean {
-		return state.currentLevel.pickUpPowerUp(this);
+		return this.level.pickUpPowerUp(this);
 	}
 
 	use(time: TimeState) {
-		state.currentLevel.marble.enableShockAbsorber(time);
+		this.level.marble.enableShockAbsorber(time);
 	}
 }

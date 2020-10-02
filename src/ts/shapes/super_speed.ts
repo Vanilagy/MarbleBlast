@@ -34,12 +34,12 @@ export class SuperSpeed extends PowerUp {
 	sounds = ["pusuperspeedvoice.wav", "dosuperspeed.wav"];
 
 	pickUp(): boolean {
-		return state.currentLevel.pickUpPowerUp(this);
+		return this.level.pickUpPowerUp(this);
 	}
 
 	use() {
-		let level = state.currentLevel;
-		let marble = state.currentLevel.marble;
+		let level = this.level;
+		let marble = this.level.marble;
 		let movementVector = new THREE.Vector3(1, 0, 0);
 		movementVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), level.yaw);
 
@@ -47,12 +47,12 @@ export class SuperSpeed extends PowerUp {
 		movementVector.applyQuaternion(quat);
 
 		let quat2 = new OIMO.Quat();
-		quat2.setArc(state.currentLevel.currentUp, marble.lastContactNormal);
+		quat2.setArc(this.level.currentUp, marble.lastContactNormal);
 		movementVector.applyQuaternion(new THREE.Quaternion(quat2.x, quat2.y, quat2.z, quat2.w));
 		
 		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirlgig's determined value
 
 		AudioManager.play(this.sounds[1]);
-		state.currentLevel.particles.createEmitter(particleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
+		this.level.particles.createEmitter(particleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
 	}
 }

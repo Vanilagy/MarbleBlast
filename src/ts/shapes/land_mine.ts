@@ -79,16 +79,16 @@ export class LandMine extends Shape {
 	sounds = ['explode1.wav'];
 
 	onMarbleContact(contact: OIMO.Contact, time: TimeState) {
-		let marble = state.currentLevel.marble;
+		let marble = this.level.marble;
 		let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition)).normalize();
 
 		marble.body.addLinearVelocity(vec.scale(10));
 		this.disappearTime = time.timeSinceLoad;
 
 		AudioManager.play(this.sounds[0]);
-		state.currentLevel.particles.createEmitter(landMineParticle, this.worldPosition);
-		state.currentLevel.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
-		state.currentLevel.particles.createEmitter(landMineSparksParticle, this.worldPosition);
+		this.level.particles.createEmitter(landMineParticle, this.worldPosition);
+		this.level.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
+		this.level.particles.createEmitter(landMineSparksParticle, this.worldPosition);
 		// Normally, we would add a light here, but that's too expensive for THREE, apparently.
 	}
 

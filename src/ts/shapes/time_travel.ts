@@ -26,6 +26,6 @@ export class TimeTravel extends PowerUp {
 	}
 
 	use() {
-		state.currentLevel.addTimeTravelBonus(this.timeBonus);
+		this.level.addTimeTravelBonus(this.timeBonus);
 	}
 }

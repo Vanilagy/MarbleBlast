@@ -1,18 +1,20 @@
 import { MissionElementTrigger, MisParser } from "../parsing/mis_parser";
 import OIMO from "../declarations/oimo";
 import { getUniqueId } from "../state";
-import { TimeState } from "../level";
+import { TimeState, Level } from "../level";
 import { Util } from "../util";
 import * as THREE from "three";
 
 export class Trigger {
 	id: number;
 	body: OIMO.RigidBody;
+	level: Level;
 	element: MissionElementTrigger;
 
-	constructor(element: MissionElementTrigger) {
+	constructor(element: MissionElementTrigger, level: Level) {
 		this.id = getUniqueId();
 		this.element = element;
+		this.level = level;
 
 		let coordinates = element.polyhedron.split(' ').map((part) => Number(part));
 		let origin = new OIMO.Vec3(coordinates[0], coordinates[1], coordinates[2]);
