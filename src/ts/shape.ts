@@ -74,7 +74,7 @@ export class Shape {
 	friction = INTERIOR_DEFAULT_FRICTION;
 	sounds: string[] = [];
 
-	async init(level: Level) {
+	async init(level?: Level) {
 		this.id = getUniqueId();
 		this.level = level;
 		this.dts = await DtsParser.loadFile('./assets/data/' + this.dtsPath);
@@ -185,7 +185,7 @@ export class Shape {
 			await AudioManager.loadBuffer(sound);
 		}
 
-		this.level.loadingState.loaded++;
+		if (this.level) this.level.loadingState.loaded++;
 	}
 
 	addMeshGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[], group: THREE.Group, isCollisionMesh: boolean) {

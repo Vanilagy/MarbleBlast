@@ -9,6 +9,12 @@ export interface RGBAColor {
 }
 
 export abstract class Util {
+	static keyboardMap: Map<string, string>;
+
+	static async init() {
+		this.keyboardMap = await (navigator as any).keyboard?.getLayoutMap();
+	}
+
 	static degToRad(deg: number) {
 		return deg / 180 * Math.PI;
 	}
@@ -96,13 +102,10 @@ export abstract class Util {
 		element.clientWidth;
 	}
 
-	static async getKeyForButtonCode(code: string): Promise<string> {
-		let keyboard = (navigator as any).keyboard;
-
+	static getKeyForButtonCode(code: string) {
 		outer:
-		if (keyboard.getLayoutMap) {
-			let map = await keyboard.getLayoutMap();
-			let value = map.get(code);
+		if (this.keyboardMap) {
+			let value = this.keyboardMap.get(code);
 			if (!value) break outer;
 
 			// Use the value from the keyboard map. This maps things like KeyZ to Y for German keyboards, for example.
@@ -113,6 +116,9 @@ export abstract class Util {
 		if (code.startsWith("Digit")) return code.slice(5);
 		if (code.startsWith('Arrow')) return code.slice(5);
 		if (code === "Space") return "Space Bar";
+		if (code === "LMB") return "the Left Mouse Button";
+		if (code === "MMB") return "the Middle Mouse Button";
+		if (code === "RMB") return "the Right Mouse Button";
 		return code;
 	}
 
@@ -203,6 +209,10 @@ export abstract class Util {
 
 	static wait(ms: number) {
 		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	static adjustedMod(a: number, n: number) {
+		return ((a % n) + n) % n;
 	}
 }
 

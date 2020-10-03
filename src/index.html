@@ -8,6 +8,7 @@
 		<link rel="stylesheet" href="./css/home.css">
 		<link rel="stylesheet" href="./css/level_select.css">
 		<link rel="stylesheet" href="./css/loading.css">
+		<link rel="stylesheet" href="./css/help.css">
 		<link rel="stylesheet" href="./css/game.css">
 	</head>
 	<body>
@@ -135,6 +136,149 @@
 				<img src="./assets/ui/loading/loadinggui.png">
 				<img src="./assets/ui/loading/cancel_n.png" id="loading-cancel">
 				<p id="loading-level-name"></p>
+			</div>
+
+			<div id="help" class="hidden">
+				<img src="./assets/ui/play/playgui.png">
+				<div>
+					<div class="help-page">
+						<div class="help-heading">Overview</div>
+						<div class="help-paragraph">Roll your marble through a rich cartoon landscape of moving<br>platforms and dangerous hazards. Along the way find<br>power ups to increase your speed, jumping ability or flight<br>power, and use them to collect the hidden gems and race to<br>the finish for the fastest time.</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">Basic Controls</div>
+						<div class="help-paragraph">The marble can be moved forward, back, left and right by pressing <span data-button="up"></span>, <span data-button="left"></span>, <span data-button="down"></span> and <span data-button="right"></span>, respectively. Pressing <span data-button="jump"></span> causes the marble to jump, and pressing <span data-button="use"></span> uses whatever powerup you currently have available. All movement is relative to view direction.</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">Camera Controls</div>
+						<div class="help-paragraph">The camera direction can be changed by moving the mouse or by pressing <span data-button="cameraUp"></span>, <span data-button="cameraDown"></span>, <span data-button="cameraLeft"></span> or <span data-button="cameraRight"></span>. &nbsp;In order to look up and down freely with the mouse, hold down <span data-button="freeLook"></span>. You can turn free look on always from the Mouse pane of the Control Options screen.</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">Goals</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="startPad"></canvas>
+							<div>Start Pad - this is where you start the level.</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="endPad"></canvas>
+							<div>End Pad - roll your marble here to end the level.</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="gems" style="margin-top: 18px;"></canvas>
+							<div>Gems - if a level has gems, you must pick them all<br>up before you can exit.</div>
+						</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">Bonus Items (1/2)</div>
+						<div class="help-canvas-row" style="margin-top: -20px;">
+							<canvas width="80" height="80" data-scene="superSpeed"></canvas>
+							<div>Super Speed PowerUp - gives you a burst of speed.</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="superJump"></canvas>
+							<div>Super Jump PowerUp - gives you a big jump up.</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="shockAbsorber"></canvas>
+							<div>Shock Absorber PowerUp - absorbs bounce impacts.</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="superBounce"></canvas>
+							<div>Super Bounce PowerUp - makes you bounce higher.</div>
+						</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">Bonus Items (2/2)</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="gyrocopter"></canvas>
+							<div>Gyrocopter PowerUp - slows your fall in the air.</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="timeTravel"></canvas>
+							<div>Time Travel - takes some time off the clock.</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="gravityModifier" style="margin-top: 24px;"></canvas>
+							<div>Gravity Modifier - Changes the direction of "down"<br>- the new down is in the direction of the arrow.</div>
+						</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">Hazards (1/2)</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="ductFan"></canvas>
+							<div>Duct Fan - be careful this doesn't blow you away!</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="tornado"></canvas>
+							<div>Tornado - it'll pull you in and spit you out.</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="trapDoor" style="margin-top: 18px;"></canvas>
+							<div>Trap Door - keep moving when you're rolling over<br>one of these.</div>
+						</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">Hazards (2/2)</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="bumper"></canvas>
+							<div>Bumper - this'll bounce you if you touch it.</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="mine"></canvas>
+							<div>Land Mine - Warning! &nbsp;Explodes on contact!</div>
+						</div>
+						<div class="help-canvas-row">
+							<canvas width="80" height="80" data-scene="oilslick" style="margin-top: 17px;"></canvas>
+							<div>Oil Slick - you won't have much traction on these<br>surfaces.</div>
+						</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">About GarageGames</div>
+						<div class="help-paragraph" style="white-space: pre;">GarageGames is a unique Internet publishing label for<br>independent games and gamemakers. &nbsp;Our mission is to<br>provide the independent developer with tools, knowledge,<br>co-conspirators - whatever is needed to unleash the creative<br>spirit and get great innovative independent games to<br>market.</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">About the Torque</div>
+						<div class="help-paragraph" style="white-space: pre;">The Torque Game Engine (TGE) is a full featured AAA<br>title engine with the latest in scripting, geometry, particle<br>effects, animation and texturing, as well as award winning<br>multi-player networking code. &nbsp;For $100 per programmer,<br>you get the source to the engine!</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">The Marble Blast Team</div>
+						<div class="help-left-right" style="margin-top: 30px;">
+							<div>Alex Swanson</div>
+							<div>Mark Frohnmayer</div>
+						</div>
+						<div class="help-left-right">
+							<div>Jeff Tunnell</div>
+							<div>Brian Hahn</div>
+						</div>
+						<div class="help-left-right">
+							<div>Liam Ryan</div>
+							<div>Tim Gift</div>
+						</div>
+						<div class="help-left-right">
+							<div>Rick Overman</div>
+							<div>Kevin Ryan</div>
+						</div>
+						<div class="help-left-right">
+							<div>Timothy Clarke</div>
+							<div>Jay Moore</div>
+						</div>
+						<div class="help-left-right">
+							<div>Pat Wilson</div>
+							<div>John Quigley</div>
+						</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">Special Thanks</div>
+						<div class="help-paragraph" style="white-space: pre;">We'd like to thank Nullsoft, for the SuperPiMP Install<br>System, and Markus F.X.J. Oberhumer, Laszlo Molnar and<br>the rest of the UPX team for the UPX executable packer.<br>Thanks also to Kurtis Seebaldt for his work on integrating<br>Ogg/Vorbis streaming into the Torque engine, and to the<br>Ogg/Vorbis team.</div>
+					</div>
+					<div class="help-page">
+						<div class="help-heading">Web Port</div>
+						<div class="help-paragraph">This web port of Marble Blast Gold was done by Vanilagy - all the code is free to access on <a href="https://github.com/Vanilagy/MarbleBlast" target="_blank">GitHub</a>. Full rights go to GarageGames and other creators of this game. Special thanks to the maintainers of three.js and OimoPhysics for making this project possible!</div>
+					</div>
+				</div>
+				<img src="./assets/ui/play/prev_n.png" id="help-prev">
+				<img src="./assets/ui/play/back_n.png" id="help-back">
+				<img src="./assets/ui/play/next_n.png" id="help-next">
 			</div>
 		</div>
 		

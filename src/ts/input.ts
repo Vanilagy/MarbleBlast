@@ -49,12 +49,17 @@ window.addEventListener('keyup', (e) => {
 });
 
 export const gameButtonMapping = {
-	"up": "KeyW",
+	"up": "KeyW", // kekw
 	"down": "KeyS",
 	"left": "KeyA",
 	"right": "KeyD",
 	"jump": "Space",
-	"use": "LMB"
+	"use": "LMB",
+	"cameraUp": "ArrowUp",
+	"cameraDown": "ArrowDown",
+	"cameraLeft": "ArrowLeft",
+	"cameraRight": "ArrowRight",
+	"freeLook": "RMB"
 };
 
 export const gameButtons = {
@@ -63,5 +68,10 @@ export const gameButtons = {
 	left: false,
 	right: false,
 	jump: false,
-	use: false
+	use: false,
+	cameraUp: false,
+	cameraDown: false,
+	cameraLeft: false,
+	cameraRight: false,
+	freeLook: false
 };

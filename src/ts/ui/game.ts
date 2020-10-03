@@ -131,7 +131,7 @@ export const displayGemCount = (count: number, total: number) => {
 };
 
 const keybindRegex = /<func:bind (\w+)>/g;
-export const displayHelp = async (message: string) => {
+export const displayHelp = (message: string) => {
 	keybindRegex.lastIndex = 0;
 	let match: RegExpMatchArray;
 
@@ -145,7 +145,7 @@ export const displayHelp = async (message: string) => {
 		} as Record<string, string>)[match[1]];
 		if (!gameButton) continue;
 
-		let keyName = await Util.getKeyForButtonCode(gameButtonMapping[gameButton as keyof typeof gameButtonMapping]);
+		let keyName = Util.getKeyForButtonCode(gameButtonMapping[gameButton as keyof typeof gameButtonMapping]);
 		message = message.slice(0, match.index) + keyName + message.slice(match.index + match[0].length);
 	}
 

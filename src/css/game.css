@@ -201,7 +201,8 @@
     top: 378px;
     left: 52px;
     height: 46px;
-    width: 102px;
+	width: 102px;
+	image-rendering: pixelated;
 }
 
 #finish-continue {
@@ -210,5 +211,6 @@
     top: 376px;
     left: 318px;
     height: 48px;
-    width: 120px;
+	width: 120px;
+	image-rendering: pixelated;
 }
