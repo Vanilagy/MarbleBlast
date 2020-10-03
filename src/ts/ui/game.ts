@@ -219,7 +219,7 @@ export const showFinishScreen = () => {
 
 	finishScreenMessage.style.color = '';
 	if (level.finishTime.gameplayClock <= goldTime) {
-		finishScreenMessage.innerHTML = 'You beat the <span color="#fff700">GOLD</span> time!';
+		finishScreenMessage.innerHTML = 'You beat the <span style="color: #fff700;">GOLD</span> time!';
 	} else {
 		let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
 		if (level.finishTime.gameplayClock <= qualifyTime) {

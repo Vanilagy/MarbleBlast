@@ -139,7 +139,13 @@ const displayMission = () => {
 		levelDescription.innerHTML = '<br>';
 		levelQualifyTime.innerHTML = '';
 		levelNumberElement.textContent = `Level ${currentLevelIndex + 1}`;
+
+		playButton.src = './assets/ui/play/play_i.png';
+		playButton.style.pointerEvents = 'none';
 	} else {
+		playButton.src = './assets/ui/play/play_n.png';
+		playButton.style.pointerEvents = '';
+
 		notQualifiedOverlay.style.display = 'none';
 		levelImage.style.display = '';
 	
@@ -206,10 +212,10 @@ window.addEventListener('keydown', (e) => {
 
 	if (e.code === 'ArrowLeft') {
 		cycleMission(-1);
-		prevButton.src = './assets/ui/play/prev_d.png';
+		if (!prevButton.style.pointerEvents) prevButton.src = './assets/ui/play/prev_d.png';
 	} else if (e.code === 'ArrowRight') {
 		cycleMission(1);
-		nextButton.src = './assets/ui/play/next_d.png';
+		if (!nextButton.style.pointerEvents) nextButton.src = './assets/ui/play/next_d.png';
 	} else if (e.code === 'Escape') {
 		homeButton.src = './assets/ui/play/back_d.png';
 	}
@@ -219,9 +225,9 @@ window.addEventListener('keyup', (e) => {
 	if (levelSelectDiv.classList.contains('hidden')) return;
 
 	if (e.code === 'ArrowLeft') {
-		prevButton.src = './assets/ui/play/prev_n.png';
+		if (!prevButton.style.pointerEvents) prevButton.src = './assets/ui/play/prev_n.png';
 	} else if (e.code === 'ArrowRight') {
-		nextButton.src = './assets/ui/play/next_n.png';
+		if (!nextButton.style.pointerEvents) nextButton.src = './assets/ui/play/next_n.png';
 	} else if (e.code === 'Escape') {
 		homeButton.click();
 	}

@@ -262,7 +262,11 @@ export class MisParser {
 				let index = Number(parts[0].slice(openingIndex + 1, -1));
 				array[index] = parts[1].slice(1, -2);
 			} else {
-				obj[parts[0]] = parts[1].slice(1, -2);
+				if (parts[1][0] === '"') {
+					obj[parts[0]] = parts[1].slice(1, -2); // Remove " " and final ;
+				} else {
+					obj[parts[0]] = parts[1].slice(0, -1); // Remove final ;
+				}
 			}
 
 			this.lineIndex++;
