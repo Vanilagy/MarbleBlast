@@ -1,6 +1,14 @@
 import { state } from "./state";
+import { StorageManager } from "./storage";
+
+export const currentMousePosition = {
+	x: 0,
+	y: 0
+};
 
 window.addEventListener('mousemove', (e) => {
+	currentMousePosition.x = e.clientX;
+	currentMousePosition.y = e.clientY;
 	state.currentLevel?.onMouseMove(e);
 });
 
@@ -9,9 +17,9 @@ window.addEventListener('mousedown', (e) => {
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName) {
-		for (let button in gameButtonMapping) {
-			let key = button as keyof typeof gameButtonMapping;
-			if (buttonName !== gameButtonMapping[key]) continue;
+		for (let button in StorageManager.data.settings.gameButtonMapping) {
+			let key = button as keyof typeof StorageManager.data.settings.gameButtonMapping;
+			if (buttonName !== StorageManager.data.settings.gameButtonMapping[key]) continue;
 	
 			gameButtons[key] = true;
 		}
@@ -21,9 +29,9 @@ window.addEventListener('mousedown', (e) => {
 window.addEventListener('mouseup', (e) => {
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName) {
-		for (let button in gameButtonMapping) {
-			let key = button as keyof typeof gameButtonMapping;
-			if (buttonName !== gameButtonMapping[key]) continue;
+		for (let button in StorageManager.data.settings.gameButtonMapping) {
+			let key = button as keyof typeof StorageManager.data.settings.gameButtonMapping;
+			if (buttonName !== StorageManager.data.settings.gameButtonMapping[key]) continue;
 	
 			gameButtons[key] = false;
 		}
@@ -31,36 +39,24 @@ window.addEventListener('mouseup', (e) => {
 });
 
 window.addEventListener('keydown', (e) => {
-	for (let button in gameButtonMapping) {
-		let key = button as keyof typeof gameButtonMapping;
-		if (e.code !== gameButtonMapping[key]) continue;
+	for (let button in StorageManager.data.settings.gameButtonMapping) {
+		let key = button as keyof typeof StorageManager.data.settings.gameButtonMapping;
+		if (e.code !== StorageManager.data.settings.gameButtonMapping[key]) continue;
 
 		gameButtons[key] = true;
 	}
 });
 
 window.addEventListener('keyup', (e) => {
-	for (let button in gameButtonMapping) {
-		let key = button as keyof typeof gameButtonMapping;
-		if (e.code !== gameButtonMapping[key]) continue;
+	for (let button in StorageManager.data.settings.gameButtonMapping) {
+		let key = button as keyof typeof StorageManager.data.settings.gameButtonMapping;
+		if (e.code !== StorageManager.data.settings.gameButtonMapping[key]) continue;
 
 		gameButtons[key] = false;
 	}
 });
 
-export const gameButtonMapping = {
-	"up": "KeyW", // kekw
-	"down": "KeyS",
-	"left": "KeyA",
-	"right": "KeyD",
-	"jump": "Space",
-	"use": "LMB",
-	"cameraUp": "ArrowUp",
-	"cameraDown": "ArrowDown",
-	"cameraLeft": "ArrowLeft",
-	"cameraRight": "ArrowRight",
-	"freeLook": "RMB"
-};
+window.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable right click context menu for good
 
 export const gameButtons = {
 	up: false,

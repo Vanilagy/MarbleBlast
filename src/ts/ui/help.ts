@@ -1,9 +1,9 @@
 import { setupButton } from "./ui";
 import { homeScreenDiv } from "./home";
 import { Util } from "../util";
-import { gameButtonMapping } from "../input";
 import * as THREE from "three";
 import { Shape } from "../shape";
+import { StorageManager } from "../storage";
 
 export const helpDiv = document.querySelector('#help') as HTMLDivElement;
 const prevButton = document.querySelector('#help-prev') as HTMLImageElement;
@@ -23,10 +23,10 @@ let currentPage: HTMLDivElement;
 const cyclePage = (direction: number) => {
 	let index = pages.indexOf(currentPage);
 	index = Util.adjustedMod(index + direction, pages.length);
-	showPage(index);
+	showHelpPage(index);
 };
 
-const showPage = (index: number) => {
+export const showHelpPage = (index: number) => {
 	for (let page of pages) {
 		page.classList.add('hidden');
 	}
@@ -38,13 +38,13 @@ const showPage = (index: number) => {
 		for (let element of paragraph.children) {
 			let buttonAttribute = element.getAttribute('data-button');
 			if (buttonAttribute) {
-				let str = Util.getKeyForButtonCode(gameButtonMapping[buttonAttribute as keyof typeof gameButtonMapping]);
+				let str = Util.getKeyForButtonCode(StorageManager.data.settings.gameButtonMapping[buttonAttribute as keyof typeof StorageManager.data.settings.gameButtonMapping]);
 				element.textContent = str;
 			}
 		}
 	}
 };
-showPage(0);
+showHelpPage(0);
 
 const update = () => {
 	requestAnimationFrame(update);

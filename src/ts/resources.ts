@@ -15,8 +15,8 @@ export abstract class ResourceManager {
 	static loadedImages = new Map<string, HTMLImageElement>();
 
 	static async init() {
-		let response = await fetch('./php/get_directory_structure.php');
-		this.dataDirectoryStructure = await response.json();
+		let response = await this.loadResource('./php/get_directory_structure.php');
+		this.dataDirectoryStructure = JSON.parse(await response.text());
 	}
 
 	static async getTexture(path: string, removeAlpha = false) {

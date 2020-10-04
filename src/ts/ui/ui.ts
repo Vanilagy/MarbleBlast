@@ -12,24 +12,24 @@ export const setupButton = (element: HTMLImageElement, path: string, onclick: ()
 	element.src = normal;
 	element.addEventListener('mouseenter', () => {
 		if (element.style.pointerEvents === 'none') return;
-		element.src = held? down : hover;
+		if (!element.hasAttribute('data-locked')) element.src = held? down : hover;
 		if (!held) AudioManager.play('buttonover.wav');
 	});
 	element.addEventListener('mouseleave', () => {
 		if (element.style.pointerEvents === 'none') return;
-		element.src = normal;
+		if (!element.hasAttribute('data-locked')) element.src = normal;
 	});
 	element.addEventListener('mousedown', (e) => {
 		if (element.style.pointerEvents === 'none') return;
 		if (e.button !== 0) return;
 		held = true;
-		element.src = down;
+		if (!element.hasAttribute('data-locked')) element.src = down;
 		AudioManager.play('buttonpress.wav');
 	});
 	window.addEventListener('mouseup', () => {
 		if (element.style.pointerEvents === 'none') return;
 		held = false;
-		element.src = normal;
+		if (!element.hasAttribute('data-locked')) element.src = normal;
 	});
 	element.addEventListener('click', (e) => e.button === 0 && onclick());
 };
@@ -42,7 +42,7 @@ export const startUi = async () => {
 };
 
 export const startMenuMusic = async () => {
-	menuMusic = await AudioManager.createAudioSource('shell.ogg');
+	menuMusic = await AudioManager.createAudioSource('shell.ogg', AudioManager.musicGain);
 	menuMusic.node.loop = true;
 	menuMusic.play();
 };

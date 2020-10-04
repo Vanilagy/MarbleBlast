@@ -135,7 +135,8 @@
 	height: 449px;
 	position: absolute;
     top: 0;
-    left: 0;
+	left: 0;
+	image-rendering: pixelated;
 }
 
 #finish-screen-time {

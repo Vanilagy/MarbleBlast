@@ -3,6 +3,7 @@ import { Util } from "./util";
 import { state } from "./state";
 import * as THREE from "three";
 import { TimeState } from "./level";
+import { StorageManager } from "./storage";
 
 export abstract class AudioManager {
 	static context: AudioContext;
@@ -17,15 +18,16 @@ export abstract class AudioManager {
 		this.context = new AudioContext();
 
 		this.masterGain = this.context.createGain();
-		this.masterGain.gain.value = 0.1;
+		this.masterGain.gain.value = 1;
 		this.masterGain.connect(this.context.destination);
 
 		this.soundGain = this.context.createGain();
 		this.soundGain.connect(this.masterGain);
 
 		this.musicGain = this.context.createGain();
-		this.musicGain.gain.value = 0.5;
 		this.musicGain.connect(this.masterGain);
+
+		this.updateVolumes();
 	}
 
 	static loadBuffer(path: string) {
@@ -83,6 +85,11 @@ export abstract class AudioManager {
 			source.panner.pan.value = -relativePosition.y * 0.8 * panRemoval;
 			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1);
 		}
+	}
+
+	static updateVolumes() {
+		this.musicGain.gain.linearRampToValueAtTime(StorageManager.data.settings.musicVolume ** 2, this.context.currentTime + 0.01);
+		this.soundGain.gain.linearRampToValueAtTime(StorageManager.data.settings.soundVolume ** 2, this.context.currentTime + 0.01);
 	}
 }
 
