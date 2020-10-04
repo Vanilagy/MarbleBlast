@@ -42,6 +42,7 @@ const stopAndExit = () => {
 	levelSelectDiv.classList.remove('hidden');
 	menuDiv.classList.remove('hidden');
 	finishScreenDiv.classList.add('hidden');
+	cycleMission(0);
 	startMenuMusic();
 };
 

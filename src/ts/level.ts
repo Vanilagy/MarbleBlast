@@ -104,6 +104,8 @@ export class Level extends Scheduler {
 	timeTravelSound: AudioSource;
 	music: AudioSource;
 	loadingState: LoadingState;
+	oobCameraPosition: THREE.Vector3;
+	lastVerticalTranslation = new THREE.Vector3();
 
 	constructor(missionGroup: MissionElementSimGroup, missionPath: string) {
 		super();
@@ -292,11 +294,11 @@ export class Level extends Scheduler {
 	}
 
 	async addInterior(element: MissionElementInteriorInstance) {
-		let path = element.interiorFile.slice(element.interiorFile.indexOf('data/'));
-		let difFile = await DifParser.loadFile('./assets/' + path);
+		let path = element.interiorFile.slice(element.interiorFile.indexOf('interiors/'));
+		let difFile = await DifParser.loadFile('./assets/data/' + path);
 		if (!difFile) return;
 
-		let interior = new Interior(difFile, this);
+		let interior = new Interior(difFile, path, this);
 		await interior.init();
 		interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
 
@@ -487,7 +489,6 @@ export class Level extends Scheduler {
 		}
 
 		if (!this.outOfBounds) {
-			camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z);
 			directionVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
 			directionVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
 			directionVector.applyQuaternion(orientationQuat);
@@ -496,30 +497,61 @@ export class Level extends Scheduler {
 			cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
 			cameraVerticalTranslation.applyQuaternion(orientationQuat);
 
-			let translationVec = directionVector.clone().multiplyScalar(-2.5).add(cameraVerticalTranslation);
-			let ogTranslationLength = translationVec.length();
-			translationVec.multiplyScalar(1 + 0.25 / translationVec.length());
-			let rayCastDest = camera.position.clone().add(translationVec);
-
-			let self = this;
-			let minDistance = Infinity;
-			this.physics.world.rayCast(marblePosition, Util.vecThreeToOimo(rayCastDest), {
-				process(shape, hit) {
-					if (shape === self.marble.shape) return;
-					minDistance = Math.min(minDistance, hit.fraction * translationVec.length());
-				}
-			});
-
-			let fac = Util.clamp(minDistance / ogTranslationLength - 0.25 / ogTranslationLength, 0.2, 1);
-
-			cameraVerticalTranslation.multiplyScalar(fac);
-			directionVector.multiplyScalar(2.5 * fac);
-			camera.position.sub(directionVector);
 			camera.up = up;
+			camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z).sub(directionVector.clone().multiplyScalar(2.5));
 			camera.lookAt(Util.vecOimoToThree(marblePosition));
 			camera.position.add(cameraVerticalTranslation);
+
+			const closeness = 0.1;
+			let processedShapes = new Set<OIMO.Shape>();
+			for (let i = 0; i < 3; i++) {
+				let rayCastDirection = Util.vecThreeToOimo(camera.position).sub(marblePosition);
+				rayCastDirection.addEq(rayCastDirection.clone().normalize().scale(2));
+
+				let firstHit: OIMO.RayCastHit = null;
+				let self = this;
+				this.physics.world.rayCast(marblePosition, marblePosition.add(rayCastDirection), {
+					process(shape, hit) {
+						if (shape !== self.marble.shape && !processedShapes.has(shape) && (!firstHit || hit.fraction < firstHit.fraction)) {
+							firstHit = Util.jsonClone(hit);
+							processedShapes.add(shape);
+						}
+					}
+				});
+
+				if (firstHit) {
+					let plane = new THREE.Plane();
+
+					let normal = Util.vecOimoToThree(firstHit.normal).multiplyScalar(-1);
+					let position = Util.vecOimoToThree(firstHit.position);
+
+					plane.setFromNormalAndCoplanarPoint(normal, position);
+					let target = new THREE.Vector3();
+					let projected = plane.projectPoint(camera.position, target);
+
+					let dist = plane.distanceToPoint(camera.position);
+					if (dist >= closeness) break;
+
+					camera.position.copy(projected.add(normal.multiplyScalar(closeness)));
+					camera.lookAt(Util.vecOimoToThree(marblePosition));
+
+					let rotationAxis = new THREE.Vector3(1, 0, 0);
+					rotationAxis.applyQuaternion(camera.quaternion);
+
+					let theta = Math.atan(0.3 / 2.5);
+
+					camera.rotateOnWorldAxis(rotationAxis, theta);
+					continue;
+				}
+				break;
+			}
+
+			this.lastVerticalTranslation = cameraVerticalTranslation;
 		} else {
+			camera.position.copy(this.oobCameraPosition);
+			camera.position.sub(this.lastVerticalTranslation)
 			camera.lookAt(Util.vecOimoToThree(marblePosition));
+			camera.position.add(this.lastVerticalTranslation);
 		}
 	}
 
@@ -734,9 +766,10 @@ export class Level extends Scheduler {
 
 	goOutOfBounds() {
 		if (this.outOfBounds) return;
-		this.outOfBounds = true;
 
 		this.updateCamera(this.timeState);
+		this.outOfBounds = true;
+		this.oobCameraPosition = camera.position.clone();
 		setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
 
@@ -786,6 +819,8 @@ export class Level extends Scheduler {
 		this.marble.helicopterSound?.stop();
 		this.marble.shockAbsorberSound?.stop();
 		this.marble.superBounceSound?.stop();
+
+		AudioManager.stopAllAudio();
 	}
 
 	getLoadingCompletion() {

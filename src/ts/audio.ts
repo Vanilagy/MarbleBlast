@@ -12,7 +12,7 @@ export abstract class AudioManager {
 	static musicGain: GainNode;
 
 	static audioBufferCache = new Map<string, Promise<AudioBuffer>>();
-	static positionalSources: AudioSource[] = [];
+	static audioSources: AudioSource[] = [];
 
 	static init() {
 		this.context = new AudioContext();
@@ -22,9 +22,11 @@ export abstract class AudioManager {
 		this.masterGain.connect(this.context.destination);
 
 		this.soundGain = this.context.createGain();
+		this.soundGain.gain.value = 0;
 		this.soundGain.connect(this.masterGain);
 
 		this.musicGain = this.context.createGain();
+		this.musicGain.gain.value = 0;
 		this.musicGain.connect(this.masterGain);
 
 		this.updateVolumes();
@@ -56,9 +58,9 @@ export abstract class AudioManager {
 
 		if (position) {
 			audioSource.gain.gain.value = 0;
-			this.positionalSources.push(audioSource);
 		}
 
+		this.audioSources.push(audioSource);
 		return audioSource;
 	}
 
@@ -72,7 +74,9 @@ export abstract class AudioManager {
 		let quat = state.currentLevel.getOrientationQuat(time);
 		quat.conjugate();
 
-		for (let source of this.positionalSources) {
+		for (let source of this.audioSources) {
+			if (!source.position) continue;
+
 			let relativePosition = source.position.clone().sub(listenerPos);
 			relativePosition.applyQuaternion(quat);
 			relativePosition.applyAxisAngle(new THREE.Vector3(0, 0, 1), -listenerYaw);
@@ -90,6 +94,12 @@ export abstract class AudioManager {
 	static updateVolumes() {
 		this.musicGain.gain.linearRampToValueAtTime(StorageManager.data.settings.musicVolume ** 2, this.context.currentTime + 0.01);
 		this.soundGain.gain.linearRampToValueAtTime(StorageManager.data.settings.soundVolume ** 2, this.context.currentTime + 0.01);
+	}
+
+	static stopAllAudio() {
+		for (let source of this.audioSources.slice()) {
+			source.stop();
+		}
 	}
 }
 
@@ -121,6 +131,6 @@ export class AudioSource {
 
 	stop() {
 		this.node.stop();
-		if (this.position) Util.removeFromArray(AudioManager.positionalSources, this);
+		Util.removeFromArray(AudioManager.audioSources, this);
 	}
 }

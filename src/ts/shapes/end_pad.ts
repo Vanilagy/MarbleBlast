@@ -4,7 +4,6 @@ import { state } from "../state";
 import { Util, Scheduler } from "../util";
 import { ParticleEmitter } from "../particles";
 import { TimeState } from "../level";
-import OIMO from "../declarations/oimo";
 import { AudioManager } from "../audio";
 
 export class EndPad extends Shape {
@@ -38,7 +37,8 @@ export class EndPad extends Shape {
 		AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
 	}
 
-	tick(time: TimeState) {
+	tick(time: TimeState, onlyVisual: boolean) {
+		if (onlyVisual) return;
 		super.tick(time);
 
 		for (let firework of this.fireworks.slice()) {

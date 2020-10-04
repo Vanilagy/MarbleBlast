@@ -92,7 +92,9 @@ export class LandMine extends Shape {
 		// Normally, we would add a light here, but that's too expensive for THREE, apparently.
 	}
 
-	tick(time: TimeState) {
+	tick(time: TimeState, onlyVisual: boolean) {
+		if (onlyVisual) return;
+		
 		let visible = time.timeSinceLoad >= this.disappearTime + 5000;
 		this.setCollisionEnabled(visible);
 	}

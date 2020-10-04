@@ -554,7 +554,7 @@ export class DifParser extends BinaryFileParser {
         let coordBinMode = this.readU32();
 
         let baseAmbientColor = this.readColorF(),
-            alarmAmbientColor = this.readColorF();
+			alarmAmbientColor = this.readColorF();
 
         let numStaticMeshes = this.readU32();
 		

@@ -4,7 +4,6 @@ import OIMO from "./declarations/oimo";
 import { ResourceManager } from "./resources";
 import { TimeState, Level } from "./level";
 import { Util } from "./util";
-import { state } from "./state";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 0.5;
@@ -25,14 +24,16 @@ const specialMaterials = new Set(Object.keys(specialFriction));
 export class Interior {
 	level: Level;
 	dif: DifFile;
+	difPath: string;
 	group: THREE.Group;
 	body: OIMO.RigidBody;
 	detailLevel: DifFile["detailLevels"][number];
 	worldMatrix = new THREE.Matrix4();
 
-	constructor(file: DifFile, level: Level, subObjectIndex?: number) {
+	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
 		this.group = new THREE.Group();
 		this.dif = file;
+		this.difPath = path;
 		this.level = level;
 		this.detailLevel = (subObjectIndex === undefined)? file.detailLevels[0] : file.subObjects[subObjectIndex];
 
@@ -54,12 +55,19 @@ export class Interior {
 			let mat = new THREE.MeshLambertMaterial();
 			materials.push(mat);
 
-			if (ResourceManager.getFullNameOf("interiors/" + this.detailLevel.materialList.materials[i]).length) {
-				let texture = await ResourceManager.getTexture("interiors/" + this.detailLevel.materialList.materials[i] + '.jpg');
-				texture.wrapS = THREE.RepeatWrapping;
-				texture.wrapT = THREE.RepeatWrapping;
-	
-				mat.map = texture;
+			let currentPath = this.difPath;	
+			while (true) {
+				currentPath = currentPath.slice(0, Math.max(0, currentPath.lastIndexOf('/')));
+				if (!currentPath) break;
+
+				if (ResourceManager.getFullNameOf(currentPath + '/' + this.detailLevel.materialList.materials[i]).length) {
+					let texture = await ResourceManager.getTexture(currentPath + '/' + this.detailLevel.materialList.materials[i] + '.jpg');
+					texture.wrapS = THREE.RepeatWrapping;
+					texture.wrapT = THREE.RepeatWrapping;
+					mat.map = texture;
+
+					break;
+				}
 			}
 		}
 

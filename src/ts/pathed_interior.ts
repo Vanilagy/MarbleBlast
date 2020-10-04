@@ -23,10 +23,10 @@ export class PathedInterior extends Interior {
 	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
 
-		let path = interiorElement.interiorResource.slice(interiorElement.interiorResource.indexOf('data/'));
-		let difFile = await DifParser.loadFile('./assets/' + path);
+		let path = interiorElement.interiorResource.slice(interiorElement.interiorResource.indexOf('interiors/'));
+		let difFile = await DifParser.loadFile('./assets/data/' + path);
 
-		let pathedInterior = new PathedInterior(difFile, level, Number(interiorElement.interiorIndex));
+		let pathedInterior = new PathedInterior(difFile, path, level, Number(interiorElement.interiorIndex));
 		await pathedInterior.init();
 		pathedInterior.element = interiorElement;
 		pathedInterior.path = simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;

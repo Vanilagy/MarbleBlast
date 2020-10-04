@@ -23,11 +23,11 @@ export class TrapDoor extends Shape {
 		if (element.timeout) this.timeout = Number(element.timeout);
 	}
 
-	tick(time: TimeState) {
+	tick(time: TimeState, onlyVisual: boolean) {
 		let currentCompletion = this.getCurrentCompletion(time);
 
 		this.sequenceKeyframeOverride.set(this.dts.sequences[0], currentCompletion * (this.dts.sequences[0].numKeyframes - 1));
-		super.tick(time);
+		super.tick(time, onlyVisual);
 
 		let direction = Math.sign(currentCompletion - this.lastCompletion);
 		if (direction !== 0 && direction !== this.lastDirection) {
