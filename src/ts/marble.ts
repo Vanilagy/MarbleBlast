@@ -10,7 +10,7 @@ import { AudioManager, AudioSource } from "./audio";
 
 const MARBLE_SIZE = 0.2;
 export const MARBLE_ROLL_FORCE = 40;
-const JUMP_IMPULSE = 7 || 7.5; // For now, seems to fit more.
+const JUMP_IMPULSE = 7.3 || 7.5; // For now, seems to fit more.
 
 const bounceParticleOptions = {
 	ejectionPeriod: 1,
@@ -54,6 +54,7 @@ export class Marble {
 	wallHitBoosterTimeout = 0;
 	collisionTimeout = 0;
 	lastVel = new OIMO.Vec3();
+	lastAngVel = new OIMO.Vec3();
 	rollingSound: AudioSource;
 	slidingSound: AudioSource;
 	helicopterSound: AudioSource = null;
@@ -169,6 +170,15 @@ export class Marble {
 				dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
 				let linearVelocity = this.body.getLinearVelocity();
 				this.body.addLinearVelocity(contactNormal.scale(-dot0 * linearVelocity.length()));
+			}
+
+			outer:
+			if (time.currentAttemptTime - this.shockAbsorberEnableTime < 5000) {
+				let dot = -this.lastVel.dot(contactNormal);
+				if (dot < 0) break outer;
+
+				let boost = this.lastAngVel.cross(contactNormal).scale(dot / 300);
+				this.body.addLinearVelocity(boost);
 			}
 
 			outer:
@@ -317,6 +327,7 @@ export class Marble {
 		}
 
 		this.lastVel = this.body.getLinearVelocity();
+		this.lastAngVel = this.body.getAngularVelocity();
 	}
 
 	setLinearVelocityInDirection(direction: OIMO.Vec3, magnitude: number, onlyIncrease: boolean, onIncrease: () => any = () => {}) {

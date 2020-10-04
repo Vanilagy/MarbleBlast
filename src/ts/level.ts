@@ -789,6 +789,8 @@ export class Level extends Scheduler {
 
 			let endPad = this.shapes.find((shape) => shape instanceof EndPad) as EndPad;
 			endPad.spawnFirework(this.timeState);
+
+			displayAlert("Congratulations! You've finished!");
 		}
 	}
 

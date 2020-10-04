@@ -276,6 +276,7 @@ export const showFinishScreen = () => {
 		nameEntryScreenDiv.classList.remove('hidden');
 		nameEntryText.textContent = `You got the ${['best', '2nd best', '3rd best'][place]} time!`;
 		nameEntryInput.value = StorageManager.data.lastUsedName;
+		nameEntryInput.select();
 	} else {
 		nameEntryScreenDiv.classList.add('hidden');
 	}
