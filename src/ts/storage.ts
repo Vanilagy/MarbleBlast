@@ -54,7 +54,7 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 			"cameraRight": "ArrowRight",
 			"freeLook": "RMB"
 		},
-		mouseSensitivity: 0.5,
+		mouseSensitivity: 0.2,
 		invertYAxis: false,
 		alwaysFreeLook: false
 	},

@@ -59,6 +59,9 @@ export const initOptions = () => {
 
 	refreshKeybindings();
 
+	if (StorageManager.data.settings.invertYAxis) invertY.click();
+	if (StorageManager.data.settings.alwaysFreeLook) alwaysFreeLook.click();
+
 	selectControlsTab('marble');
 	selectTab('graphics');
 };

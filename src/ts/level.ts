@@ -40,6 +40,7 @@ import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
 import { ParticleManager } from "./particles";
+import { StorageManager } from "./storage";
 
 export const PHYSICS_TICK_RATE = 120;
 const SHAPE_OVERLAY_OFFSETS = {
@@ -610,11 +611,17 @@ export class Level extends Scheduler {
 				}
 			}
 
+			if (gameButtons.cameraLeft) this.yaw += 1.5 / PHYSICS_TICK_RATE;
+			if (gameButtons.cameraRight) this.yaw -= 1.5 / PHYSICS_TICK_RATE;
+			if (gameButtons.cameraUp) this.pitch -= 1.5 / PHYSICS_TICK_RATE;
+			if (gameButtons.cameraDown) this.pitch += 1.5 / PHYSICS_TICK_RATE;
+
 			this.particles.tick();
 			tickDone = true;
 		}
 
 		AudioManager.updatePositionalAudio(this.timeState, camera.position, this.yaw);
+		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
 		if (tickDone) this.calculatePreemptiveTransforms();
 	}
 
@@ -663,9 +670,12 @@ export class Level extends Scheduler {
 	onMouseMove(e: MouseEvent) {
 		if (!document.pointerLockElement || this.finishTime || this.paused) return;
 
-		this.pitch += e.movementY / 1000;
-		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
-		this.yaw -= e.movementX / 1000;
+		let factor = Util.lerp(1 / 2500, 1 / 100, StorageManager.data.settings.mouseSensitivity);
+		let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;
+		let freeLook = StorageManager.data.settings.alwaysFreeLook || gameButtons.freeLook;
+
+		if (freeLook) this.pitch += e.movementY * factor * yFactor;
+		this.yaw -= e.movementX * factor;
 	}
 
 	pickUpPowerUp(powerUp: PowerUp) {
