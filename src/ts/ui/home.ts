@@ -1,5 +1,5 @@
 import { setupButton } from "./ui";
-import { levelSelectDiv } from "./level_select";
+import { levelSelectDiv, hiddenUnlocker } from "./level_select";
 import { helpDiv, showHelpPage } from "./help";
 import { optionsDiv } from "./options";
 
@@ -12,6 +12,7 @@ const exitButton = document.querySelector('#home-exit') as HTMLImageElement;
 setupButton(playButton, 'home/play', () => {
 	homeScreenDiv.classList.add('hidden');
 	levelSelectDiv.classList.remove('hidden');
+	hiddenUnlocker.classList.remove('hidden');
 });
 setupButton(helpButton, 'home/help', () => {
 	homeScreenDiv.classList.add('hidden');

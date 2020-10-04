@@ -187,3 +187,12 @@
 	margin-left: 8px;
 	float: right;
 }
+
+#hidden-level-unlocker {
+	display: block;
+	position: absolute;
+	width: 25px;
+	height: 25px;
+	bottom: 0;
+	right: 0;
+}

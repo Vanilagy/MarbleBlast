@@ -13,10 +13,10 @@ interface Mission {
 	simGroup: MissionElementSimGroup
 }
 
-const beginnerLevels: Mission[] = [];
-const intermediateLevels: Mission[] = [];
-const advancedLevels: Mission[] = [];
-const customLevels: Mission[] = [];
+export const beginnerLevels: Mission[] = [];
+export const intermediateLevels: Mission[] = [];
+export const advancedLevels: Mission[] = [];
+export const customLevels: Mission[] = [];
 
 export const levelSelectDiv = document.querySelector('#level-select') as HTMLDivElement;
 
@@ -37,6 +37,7 @@ const prevButton = document.querySelector('#level-select-prev') as HTMLImageElem
 const playButton = document.querySelector('#level-select-play') as HTMLImageElement;
 const nextButton = document.querySelector('#level-select-next') as HTMLImageElement;
 const homeButton = document.querySelector('#level-select-home-button') as HTMLImageElement;
+export const hiddenUnlocker = document.querySelector('#hidden-level-unlocker') as HTMLDivElement;
 
 let currentLevelArray: Mission[];
 let currentLevelIndex: number;
@@ -53,7 +54,7 @@ const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'custom') =
 
 	let levelArray = [beginnerLevels, intermediateLevels, advancedLevels, customLevels][['beginner', 'intermediate', 'advanced', 'custom'].indexOf(which)];
 	currentLevelArray = levelArray;
-	currentLevelIndex = currentLevelArray.length - 1;
+	currentLevelIndex = (StorageManager.data.unlockedLevels[['beginner', 'intermediate', 'advanced'].indexOf(which)] ?? 0) - 1;
 	displayMission();
 };
 
@@ -80,6 +81,7 @@ setupButton(playButton, 'play/play', () => {
 setupButton(nextButton, 'play/next', () => cycleMission(1));
 setupButton(homeButton, 'play/back', () => {
 	levelSelectDiv.classList.add('hidden');
+	hiddenUnlocker.classList.add('hidden');
 	homeScreenDiv.classList.remove('hidden');
 });
 
@@ -146,7 +148,18 @@ const displayMission = () => {
 		playButton.src = './assets/ui/play/play_n.png';
 		playButton.style.pointerEvents = '';
 
-		notQualifiedOverlay.style.display = 'none';
+		let unlockedLevels = StorageManager.data.unlockedLevels[[beginnerLevels, intermediateLevels, advancedLevels].indexOf(currentLevelArray)];
+
+		if (unlockedLevels <= currentLevelIndex) {
+			notQualifiedOverlay.style.display = 'block';
+			playButton.src = './assets/ui/play/play_i.png';
+			playButton.style.pointerEvents = 'none';
+		} else {
+			notQualifiedOverlay.style.display = 'none';
+			playButton.src = './assets/ui/play/play_n.png';
+			playButton.style.pointerEvents = '';
+		}
+
 		levelImage.style.display = '';
 	
 		let missionInfo = missionObj.simGroup.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
@@ -230,5 +243,16 @@ window.addEventListener('keyup', (e) => {
 		if (!nextButton.style.pointerEvents) nextButton.src = './assets/ui/play/next_n.png';
 	} else if (e.code === 'Escape') {
 		homeButton.click();
+	}
+});
+
+hiddenUnlocker.addEventListener('mousedown', () => {
+	let index = [beginnerLevels, intermediateLevels, advancedLevels].indexOf(currentLevelArray);
+	let unlockedLevels = StorageManager.data.unlockedLevels[index];
+	if (currentLevelIndex === unlockedLevels) {
+		StorageManager.data.unlockedLevels[index]++;
+		StorageManager.store();
+		displayMission();
+		AudioManager.play('buttonpress.wav');
 	}
 });

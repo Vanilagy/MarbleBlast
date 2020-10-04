@@ -1,7 +1,7 @@
 import { Util } from "../util";
 import { setupButton, menuDiv, startMenuMusic } from "./ui";
 import { state } from "../state";
-import { levelSelectDiv, cycleMission } from "./level_select";
+import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels } from "./level_select";
 import { MissionElementScriptObject, MissionElementType } from "../parsing/mis_parser";
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
@@ -223,7 +223,14 @@ setupButton(continueButton, 'endgame/continue', () => {
 	let failedToQualify = level.finishTime.gameplayClock > qualifyTime;
 
 	stopAndExit();
-	if (!failedToQualify) cycleMission(1);
+	if (!failedToQualify) {
+		let typeIndex = ['beginner', 'intermediate', 'advanced'].indexOf(missionInfo.type.toLowerCase());
+		let unlockedLevels = Math.min(Math.max(StorageManager.data.unlockedLevels[typeIndex], Number(missionInfo.level) + 1), [beginnerLevels, intermediateLevels, advancedLevels][typeIndex].length);
+		
+		StorageManager.data.unlockedLevels[typeIndex] = unlockedLevels;
+		StorageManager.store();
+		cycleMission(1);
+	}
 });
 
 export const showFinishScreen = () => {
