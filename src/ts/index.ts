@@ -5,10 +5,9 @@ import * as THREE from "three";
 import { AudioManager } from "./audio";
 import './ui/home';
 import { initLevelSelect } from "./ui/level_select";
-import { startUi } from "./ui/ui";
+import { startUi, initUi } from "./ui/ui";
 import { StorageManager } from './storage';
 import { Util } from './util';
-import { initHelpScenes } from './ui/help';
 import { initOptions } from './ui/options';
 
 OIMO.Setting.defaultGJKMargin = 0.005;
@@ -19,10 +18,9 @@ async function init() {
 	await Util.init();
 	await StorageManager.init();
 	await ResourceManager.init();
-	await AudioManager.init();
-	await initLevelSelect();
-	await initHelpScenes();
-	await initOptions();
+	AudioManager.init();
+	initOptions();
+	await Promise.all([initLevelSelect(), initUi()]);
 
 	let started = false;
 	window.addEventListener('mousedown', async () => {

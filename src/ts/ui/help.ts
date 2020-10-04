@@ -172,6 +172,8 @@ const sceneDescriptions: Record<string, {
 const shapes = new Map<string, Shape[]>();
 
 export const initHelpScenes = async () => {
+	if (scenes.size > 0) return;
+
 	let timeState = { timeSinceLoad: 0, currentAttemptTime: 0, gameplayClock: 0, physicsTickCompletion: 0 };
 
 	for (let key in sceneDescriptions) {

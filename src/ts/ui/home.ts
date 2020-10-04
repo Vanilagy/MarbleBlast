@@ -1,6 +1,6 @@
 import { setupButton } from "./ui";
 import { levelSelectDiv, hiddenUnlocker } from "./level_select";
-import { helpDiv, showHelpPage } from "./help";
+import { helpDiv, showHelpPage, initHelpScenes } from "./help";
 import { optionsDiv } from "./options";
 
 export const homeScreenDiv = document.querySelector('#home-screen') as HTMLDivElement;
@@ -17,6 +17,7 @@ setupButton(playButton, 'home/play', () => {
 setupButton(helpButton, 'home/help', () => {
 	homeScreenDiv.classList.add('hidden');
 	helpDiv.classList.remove('hidden');
+	initHelpScenes();
 	showHelpPage(0);
 });
 setupButton(optionsButton, 'home/options', () => {

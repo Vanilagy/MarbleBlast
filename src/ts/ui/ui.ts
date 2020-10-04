@@ -1,8 +1,10 @@
 import { AudioManager, AudioSource } from "../audio";
+import { ResourceManager } from "../resources";
 
 export const menuDiv = document.querySelector('#menu') as HTMLDivElement;
 
 export const setupButton = (element: HTMLImageElement, path: string, onclick: () => any) => {
+	let ogPath = path;
 	path = './assets/ui/' + path;
 	let normal = path + '_n.png';
 	let hover = path + '_h.png';
@@ -32,11 +34,21 @@ export const setupButton = (element: HTMLImageElement, path: string, onclick: ()
 		if (!element.hasAttribute('data-locked')) element.src = normal;
 	});
 	element.addEventListener('click', (e) => e.button === 0 && onclick());
+
+	if (ogPath) {
+		ResourceManager.loadImage(normal);
+		ResourceManager.loadImage(hover);
+		ResourceManager.loadImage(down);
+	}
 };
 
 let menuMusic: AudioSource;
 
-export const startUi = async () => {
+export const initUi = async () => {
+	await AudioManager.loadBuffers(['shell.ogg', 'buttonover.wav', 'buttonpress.wav']);
+};
+
+export const startUi = () => {
 	menuDiv.classList.remove('hidden');
 	startMenuMusic();
 };
