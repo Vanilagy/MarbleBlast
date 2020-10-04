@@ -18,7 +18,7 @@ const resize = () => {
 };
 window.addEventListener('resize', resize);
 
-export const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: true });
+export const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: false });
 renderer.shadowMap.enabled = true;
 
 export const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01);

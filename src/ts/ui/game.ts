@@ -59,16 +59,36 @@ document.addEventListener('pointerlockchange', () => {
 	if (!document.pointerLockElement) tryPause();
 });
 
-document.addEventListener('keydown', (e) => {
-	if (!gameUiDiv.classList.contains('hidden') && state.currentLevel?.paused && e.key === 'Escape') {
+window.addEventListener('keydown', (e) => {
+	if (gameUiDiv.classList.contains('hidden')) return;
+
+	if (state.currentLevel?.paused && e.key === 'Escape') {
 		pauseNoButton.src = './assets/ui/common/no_d.png';
+	}
+
+	if (e.key === 'Enter') {
+		if (!nameEntryScreenDiv.classList.contains('hidden')) {
+			nameEntryButton.src = './assets/ui/common/ok_d.png';
+		} else if (!finishScreenDiv.classList.contains('hidden')) {
+			continueButton.src = './assets/ui/endgame/continue_d.png';
+		}
 	}
 });
 
-document.addEventListener('keyup', (e) => {
-	if (!gameUiDiv.classList.contains('hidden') && state.currentLevel?.paused && e.key === 'Escape' && pauseNoButton.src.endsWith('/assets/ui/common/no_d.png')) {
+window.addEventListener('keyup', (e) => {
+	if (gameUiDiv.classList.contains('hidden')) return;
+
+	if (state.currentLevel?.paused && e.key === 'Escape' && pauseNoButton.src.endsWith('/assets/ui/common/no_d.png')) {
 		pauseNoButton.src = './assets/ui/common/no_n.png';
 		state.currentLevel.unpause();
+	}
+
+	if (e.key === 'Enter') {
+		if (!nameEntryScreenDiv.classList.contains('hidden')) {
+			nameEntryButton.click();
+		} else if (!finishScreenDiv.classList.contains('hidden')) {
+			continueButton.click();
+		}
 	}
 });
 
@@ -239,14 +259,50 @@ export const showFinishScreen = () => {
 	elapsedTimeElement.textContent = secondsToTimeString(elapsedTime / 1000);
 	bonusTimeElement.textContent = secondsToTimeString(bonusTime / 1000);
 
+	drawBestTimes();
+
+	let bestTimes = StorageManager.getBestTimesForMission(level.missionPath);
+	let place = bestTimes.filter((time) => time[1] <= level.finishTime.gameplayClock).length;
+
+	if (place <= 2 && !failedToQualify) {
+		nameEntryScreenDiv.classList.remove('hidden');
+		nameEntryText.textContent = `You got the ${['best', '2nd best', '3rd best'][place]} time!`;
+		nameEntryInput.value = StorageManager.data.lastUsedName;
+	} else {
+		nameEntryScreenDiv.classList.add('hidden');
+	}
+};
+
+const drawBestTimes = () => {
+	let level = state.currentLevel;
+	let missionInfo = level.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
+	let goldTime = Number(missionInfo.goldTime);
+
 	let bestTimes = StorageManager.getBestTimesForMission(level.missionPath);
 	bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
 	bestTime1.children[1].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
 	(bestTime1.children[1] as HTMLParagraphElement).style.color = (bestTimes[0][1] <= goldTime)? '#fff700' : '';
+	(bestTime1.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[0][1] <= goldTime)? '1px 1px 0px black' : '';
 	bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
 	bestTime2.children[1].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
 	(bestTime2.children[1] as HTMLParagraphElement).style.color = (bestTimes[1][1] <= goldTime)? '#fff700' : '';
+	(bestTime2.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[1][1] <= goldTime)? '1px 1px 0px black' : '';
 	bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
 	bestTime3.children[1].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
-	(bestTime2.children[1] as HTMLParagraphElement).style.color = (bestTimes[2][1] <= goldTime)? '#fff700' : '';
+	(bestTime3.children[1] as HTMLParagraphElement).style.color = (bestTimes[2][1] <= goldTime)? '#fff700' : '';
+	(bestTime3.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[2][1] <= goldTime)? '1px 1px 0px black' : '';
 };
+
+const nameEntryScreenDiv = document.querySelector('#name-entry-screen') as HTMLDivElement;
+const nameEntryText = document.querySelector('#name-entry-screen > p:nth-child(3)') as HTMLParagraphElement;
+const nameEntryInput = document.querySelector('#name-entry-input') as HTMLInputElement;
+const nameEntryButton = nameEntryScreenDiv.querySelector('#name-entry-confirm') as HTMLImageElement;
+
+setupButton(nameEntryButton, 'common/ok', () => {
+	let level = state.currentLevel;
+	StorageManager.data.lastUsedName = nameEntryInput.value.trim();
+	StorageManager.insertNewTime(level.missionPath, nameEntryInput.value.trim(), level.finishTime.gameplayClock);
+
+	nameEntryScreenDiv.classList.add('hidden');
+	drawBestTimes();
+});

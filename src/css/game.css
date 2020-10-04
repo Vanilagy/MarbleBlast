@@ -215,3 +215,74 @@
 	width: 120px;
 	image-rendering: pixelated;
 }
+
+#name-entry-screen {
+	position: absolute;
+    top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	margin: auto;
+    width: 500px;
+    height: 500px;
+}
+
+#name-entry-screen > img:first-child {
+	position: absolute;
+    display: block;
+    top: 117px;
+    left: 52px;
+    height: 250px;
+    width: 400px;
+}
+
+#name-entry-screen > p:nth-child(2) {
+	position: absolute;
+    display: block;
+    top: 145px;
+    left: 114px;
+    margin: 0;
+    font-family: Expo;
+    font-size: 32px;
+}
+
+#name-entry-screen > p:nth-child(3) {
+	position: absolute;
+    display: block;
+    top: 191px;
+    left: 60px;
+    margin: 0;
+    font-family: DomCasualRegular;
+    font-size: 24px;
+    text-align: center;
+    width: 400px;
+}
+
+#name-entry-input-background {
+	position: absolute;
+    display: block;
+    top: 235px;
+    left: 100px;
+}
+
+#name-entry-input {
+	position: absolute;
+    display: block;
+    top: 246px;
+    left: 131px;
+    border: none;
+    font-size: 26px;
+    font-family: DomCasualRegular;
+    background: none;
+}
+
+#name-entry-input:focus {
+	outline: none;
+}
+
+#name-entry-confirm {
+	position: absolute;
+    display: block;
+    top: 291px;
+    left: 209px;
+}

@@ -29,7 +29,8 @@ interface StorageData {
 		alwaysFreeLook: boolean
 	},
 	bestTimes: Record<string, BestTimes>,
-	unlockedLevels: [number, number, number]
+	unlockedLevels: [number, number, number],
+	lastUsedName: string
 }
 
 const DEFAULT_STORAGE_DATA: StorageData = {
@@ -59,7 +60,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		alwaysFreeLook: false
 	},
 	bestTimes: {},
-	unlockedLevels: [1, 1, 1]
+	unlockedLevels: [1, 1, 1],
+	lastUsedName: ''
 };
 
 export abstract class StorageManager {
@@ -72,6 +74,10 @@ export abstract class StorageManager {
 		} else {
 			this.data = DEFAULT_STORAGE_DATA;
 		}
+	}
+
+	static store() {
+		localStorage.setItem('mb-storage', JSON.stringify(this.data));
 	}
 
 	static getBestTimesForMission(path: string) {
@@ -90,7 +96,18 @@ export abstract class StorageManager {
 		return result;
 	}
 
-	static store() {
-		localStorage.setItem('mb-storage', JSON.stringify(this.data));
+	static insertNewTime(path: string, name: string, time: number) {
+		let stored = this.data.bestTimes[path] ?? [];
+
+		let index: number;
+		for (index = 0; index < stored.length; index++) {
+			if (stored[index][1] > time) break;
+		}
+		stored.splice(index, 0, [name, time]);
+
+		if (stored.length > 3) stored = stored.slice(0, 3);
+		this.data.bestTimes[path] = stored;
+
+		this.store();
 	}
 }

@@ -13,6 +13,7 @@ window.addEventListener('mousemove', (e) => {
 });
 
 window.addEventListener('mousedown', (e) => {
+	if (!StorageManager.data) return;
 	if (state.currentLevel && !state.currentLevel.paused && !state.currentLevel.finishTime) document.documentElement.requestPointerLock();
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
@@ -27,6 +28,8 @@ window.addEventListener('mousedown', (e) => {
 });
 
 window.addEventListener('mouseup', (e) => {
+	if (!StorageManager.data) return;
+
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName) {
 		for (let button in StorageManager.data.settings.gameButtonMapping) {
@@ -39,6 +42,8 @@ window.addEventListener('mouseup', (e) => {
 });
 
 window.addEventListener('keydown', (e) => {
+	if (!StorageManager.data) return;
+
 	for (let button in StorageManager.data.settings.gameButtonMapping) {
 		let key = button as keyof typeof StorageManager.data.settings.gameButtonMapping;
 		if (e.code !== StorageManager.data.settings.gameButtonMapping[key]) continue;
@@ -48,6 +53,8 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+	if (!StorageManager.data) return;
+
 	for (let button in StorageManager.data.settings.gameButtonMapping) {
 		let key = button as keyof typeof StorageManager.data.settings.gameButtonMapping;
 		if (e.code !== StorageManager.data.settings.gameButtonMapping[key]) continue;
