@@ -29,6 +29,11 @@ export class Interior {
 	body: OIMO.RigidBody;
 	detailLevel: DifFile["detailLevels"][number];
 	worldMatrix = new THREE.Matrix4();
+	materialGeometry: {
+		vertices: number[],
+		normals: number[],
+		uvs: number[]
+	}[] = [];
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
 		this.group = new THREE.Group();
@@ -43,13 +48,6 @@ export class Interior {
 	}
 
 	async init() {
-		let geometry = new THREE.Geometry();
-		geometry.vertices.push(...this.detailLevel.points.map((vert) => new THREE.Vector3(vert.x, vert.y, vert.z)));
-		for (let surface of this.detailLevel.surfaces) {
-			await this.addSurface(surface, geometry);
-		}
-		// No need to compute vertex normals here because interiors aren't shaded smoothly. Nevermind, they are, but eh.
-
 		let materials: THREE.Material[] = [];
 		for (let i = 0; i < this.detailLevel.materialList.materials.length; i++) {
 			let mat = new THREE.MeshLambertMaterial();
@@ -69,6 +67,26 @@ export class Interior {
 					break;
 				}
 			}
+
+			this.materialGeometry.push({
+				vertices: [],
+				normals: [],
+				uvs: []
+			});
+		}
+
+		let geometry = new THREE.BufferGeometry();
+		for (let surface of this.detailLevel.surfaces) this.addSurface(surface);
+		geometry.setAttribute('position', new THREE.Float32BufferAttribute(Util.concatArrays(this.materialGeometry.map((x) => x.vertices)), 3));
+		geometry.setAttribute('normal', new THREE.Float32BufferAttribute(Util.concatArrays(this.materialGeometry.map((x) => x.normals)), 3));
+		geometry.setAttribute('uv', new THREE.Float32BufferAttribute(Util.concatArrays(this.materialGeometry.map((x) => x.uvs)), 2));
+
+		let current = 0;
+		for (let i = 0; i < this.materialGeometry.length; i++) {
+			if (this.materialGeometry[i].vertices.length === 0) continue;
+			
+			geometry.addGroup(current, this.materialGeometry[i].vertices.length / 3, i);
+			current += this.materialGeometry[i].vertices.length / 3;
 		}
 
 		let mesh = new THREE.Mesh(geometry, materials);
@@ -80,13 +98,14 @@ export class Interior {
 		this.level.loadingState.loaded++;
 	}
 
-	async addSurface(surface: InteriorDetailLevel["surfaces"][number], geometry: THREE.Geometry) {
+	addSurface(surface: InteriorDetailLevel["surfaces"][number]) {
 		let detailLevel = this.detailLevel;
 		let texGenEqs = detailLevel.texGenEqs[surface.texGenIndex];
 		let texPlaneX = new THREE.Plane(new THREE.Vector3(texGenEqs.planeX.x, texGenEqs.planeX.y, texGenEqs.planeX.z), texGenEqs.planeX.d);
 		let texPlaneY = new THREE.Plane(new THREE.Vector3(texGenEqs.planeY.x, texGenEqs.planeY.y, texGenEqs.planeY.z), texGenEqs.planeY.d);
 		let planeData = detailLevel.planes[surface.planeIndex & ~0x8000];
 		let planeNormal = Util.jsonClone(detailLevel.normals[planeData.normalIndex]);
+		let geometryData = this.materialGeometry[surface.textureIndex];
 
 		let k = 0;
 		for (let i = surface.windingStart; i < surface.windingStart + surface.windingCount - 2; i++) {
@@ -100,21 +119,19 @@ export class Interior {
 				i3 = temp;
 			}
 
-			let face = new THREE.Face3(i1, i2, i3);
-			let uvs = [i1, i2, i3].map((index) => {
-				let point = this.detailLevel.points[index];
-				let u = texPlaneX.distanceToPoint(new THREE.Vector3(point.x, point.y, point.z));
-				let v = texPlaneY.distanceToPoint(new THREE.Vector3(point.x, point.y, point.z));
+			let normal = new THREE.Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
+			if (surface.planeIndex & 0x8000) normal.multiplyScalar(-1);
 
-				return new THREE.Vector2(u, v);
-			});
+			for (let index of [i1, i2, i3]) {
+				let vertex = this.detailLevel.points[index];
+				geometryData.vertices.push(vertex.x, vertex.y, vertex.z);
 
-			face.materialIndex = surface.textureIndex;
-			face.normal = new THREE.Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
-			if (surface.planeIndex & 0x8000) face.normal.multiplyScalar(-1);
+				let u = texPlaneX.distanceToPoint(new THREE.Vector3(vertex.x, vertex.y, vertex.z));
+				let v = texPlaneY.distanceToPoint(new THREE.Vector3(vertex.x, vertex.y, vertex.z));
+				geometryData.uvs.push(u, v);
 
-			geometry.faceVertexUvs[0].push(uvs);
-			geometry.faces.push(face);
+				geometryData.normals.push(normal.x, normal.y, normal.z);
+			}
 
 			k++;
 		}

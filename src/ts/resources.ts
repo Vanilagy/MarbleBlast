@@ -116,4 +116,8 @@ export abstract class ResourceManager {
 	static loadImages(paths: string[]) {
 		return Promise.all(paths.map((path) => this.loadImage(path)));
 	}
+
+	static getImageFromCache(path: string) {
+		return this.loadedImages.get(path) || null;
+	}
 }

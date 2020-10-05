@@ -70,7 +70,7 @@ export class Marble {
 
 		let textureMarble = await ResourceManager.getTexture("shapes/balls/base.marble.png");
 
-        let geometry = new THREE.SphereGeometry(MARBLE_SIZE, 32, 32);
+        let geometry = new THREE.SphereBufferGeometry(MARBLE_SIZE, 32, 32);
 		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({map: textureMarble, color: 0xffffff}));
 		sphere.castShadow = true;
 		this.sphere = sphere;

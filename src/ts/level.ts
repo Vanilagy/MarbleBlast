@@ -452,6 +452,8 @@ export class Level extends Scheduler {
 
 		renderer.render(this.scene, camera);
 
+		//console.log(renderer.info.render.calls)
+
 		for (let overlayShape of this.overlayShapes) {
 			overlayShape.group.position.x = 500;
 			overlayShape.render(this.timeState);

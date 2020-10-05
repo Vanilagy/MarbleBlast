@@ -130,7 +130,7 @@ export class AudioSource {
 	};
 
 	stop() {
-		this.node.stop();
+		try {this.node.stop()} catch (e) {}
 		Util.removeFromArray(AudioManager.audioSources, this);
 	}
 }

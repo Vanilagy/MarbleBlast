@@ -214,6 +214,10 @@ export abstract class Util {
 	static adjustedMod(a: number, n: number) {
 		return ((a % n) + n) % n;
 	}
+
+	static concatArrays<T>(arrays: T[][]) {
+		return arrays.reduce((prev, next) => prev.concat(next), []);
+	}
 }
 
 export abstract class Scheduler {

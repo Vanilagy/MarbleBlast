@@ -44,6 +44,17 @@ enum MaterialFlags {
 	ReflectanceMapOnly = 1 << 13
 }
 
+interface GraphNode {
+	index: number,
+	node: DtsFile["nodes"][number],
+	children: GraphNode[],
+	parent?: GraphNode,
+	bodies: OIMO.RigidBody[]
+}
+
+let GEOM = new THREE.SphereBufferGeometry(0.3);
+let MAT = new THREE.MeshLambertMaterial({color: 0xff0000});
+
 export class Shape {
 	id: number;
 	level: Level;
@@ -67,12 +78,14 @@ export class Shape {
 	worldMatrix = new THREE.Matrix4();
 	currentOpacity = 1;
 	showSequences = true;
+	hasNonVisualSequences = false;
 	colliders: ColliderInfo[] = [];
 	sequenceKeyframeOverride = new WeakMap<DtsFile["sequences"][number], number>();
 	lastSequenceKeyframes = new WeakMap<DtsFile["sequences"][number], number>();
 	restitution = INTERIOR_DEFAULT_RESTITUTION;
 	friction = INTERIOR_DEFAULT_FRICTION;
 	sounds: string[] = [];
+	rootGraphNodes: GraphNode[] = [];
 
 	async init(level?: Level) {
 		this.id = getUniqueId();
@@ -85,8 +98,10 @@ export class Shape {
 		this.materials = [];
 		this.materialInfo = new WeakMap();
 		this.bodiesLocalTranslation = new WeakMap();
+
+		console.log(this.dts);
 		
-		this.updateNodeTransforms();
+		for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
 
 		for (let i = 0; i < this.dts.matNames.length; i++) {
 			let matName = this.matNamesOverride[this.dts.matNames[i]] ||  this.dts.matNames[i];
@@ -122,7 +137,17 @@ export class Shape {
 			if (flags & MaterialFlags.Subtractive) material.blending = THREE.SubtractiveBlending;
 		}
 
+		let graphNodes: GraphNode[] = [];
 		for (let i = 0; i < this.dts.nodes.length; i++) {
+			let graphNode: GraphNode = {
+				index: i,
+				node: this.dts.nodes[i],
+				children: [],
+				parent: null,
+				bodies: []
+			};
+			graphNodes.push(graphNode);
+
 			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
 
 			for (let object of objects) {
@@ -134,6 +159,7 @@ export class Shape {
 					body.userData = { nodeIndex: i };
 
 					this.bodies.push(body);
+					graphNode.bodies.push(body);
 				}
 
 				if (!isCollisionObject || this.collideable) {
@@ -153,6 +179,16 @@ export class Shape {
 				}
 			}
 		}
+
+		for (let i = 0; i < this.dts.nodes.length; i++) {
+			let node = this.dts.nodes[i];
+			if (node.parentIndex !== -1) {
+				graphNodes[i].parent = graphNodes[node.parentIndex];
+				graphNodes[node.parentIndex].children.push(graphNodes[i]);
+			}
+		}
+		this.rootGraphNodes = graphNodes.filter((node) => !node.parent);
+		this.updateNodeTransforms();
 
 		for (let i = 0; i < this.dts.meshes.length; i++) {
 			let mesh = this.dts.meshes[i];
@@ -189,11 +225,19 @@ export class Shape {
 	}
 
 	addMeshGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[], group: THREE.Group, isCollisionMesh: boolean) {
-		let geometry = new THREE.Geometry();
-		geometry.vertices = vertices;
+		let geometry = new THREE.BufferGeometry();
+		let materialGeometry = this.dts.matNames.map(() => {
+			return {
+				vertices: [] as number[],
+				normals: [] as number[],
+				uvs: [] as number[]
+			};
+		});
 
 		for (let primitive of dtsMesh.primitives) {
 			let k = 0;
+			let geometryData = materialGeometry[primitive.matIndex];
+
 			for (let i = primitive.start; i < primitive.start + primitive.numElements - 2; i++) {
 				let i1 = dtsMesh.indices[i];
 				let i2 = dtsMesh.indices[i+1];
@@ -204,28 +248,39 @@ export class Shape {
 					i1 = i3;
 					i3 = temp;
 				}
-				let face = new THREE.Face3(i1, i2, i3);
-				face.materialIndex = primitive.matIndex;
-				geometry.faces.push(face);
 
-				let uvs = [i1, i2, i3].map((x) => new THREE.Vector2(dtsMesh.tverts[x].x, dtsMesh.tverts[x].y));
-				geometry.faceVertexUvs[0].push(uvs);
+				for (let index of [i1, i2, i3]) {
+					let vertex = vertices[index];
+					geometryData.vertices.push(vertex.x, vertex.y, vertex.z);
+	
+					let uv = dtsMesh.tverts[index];
+					geometryData.uvs.push(uv.x, uv.y);
 
-				face.vertexNormals = [vertexNormals[i1], vertexNormals[i2], vertexNormals[i3]];
+					let normal = vertexNormals[index];
+					geometryData.normals.push(normal.x, normal.y, normal.z);
+				}
 
 				k++;
 			}
+		}
 
-			// Don't do these for now, setting the vertex normals manually should be enough:
-			//geometry.computeFaceNormals();
-			//geometry.computeVertexNormals();	
+		geometry.setAttribute('position', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.vertices)), 3));
+		geometry.setAttribute('normal', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.normals)), 3));
+		geometry.setAttribute('uv', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.uvs)), 2));
+
+		let current = 0;
+		for (let i = 0; i < materialGeometry.length; i++) {
+			if (materialGeometry[i].vertices.length === 0) continue;
+
+			geometry.addGroup(current, materialGeometry[i].vertices.length / 3, i);
+			current += materialGeometry[i].vertices.length / 3;
 		}
 
 		let material: THREE.Material | THREE.Material[];
-		if (isCollisionMesh) material = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
+		if (isCollisionMesh)return // material = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
 		else material = this.materials;
 
-		let threeMesh = new THREE.Mesh(geometry, material);
+		let threeMesh = new THREE.Mesh(GEOM ?? geometry, new THREE.MeshLambertMaterial({color: 0xff0000}) ?? material);
 		if (isCollisionMesh) threeMesh.receiveShadow = true;
 
 		group.add(threeMesh);
@@ -291,49 +346,54 @@ export class Shape {
 		}
 	}
 
-	updateNodeTransforms(quaternions?: THREE.Quaternion[]) {
-		if (this.nodeTransforms.length === 0) {
-			for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
-		}
+	updateNodeTransforms(quaternions?: THREE.Quaternion[], bitfield = 0xffffffff) {
 		if (!quaternions) {
-			quaternions = this.dts.defaultRotations.map((rot) => {
-				let quaternion = new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w);
+			quaternions = this.dts.nodes.map((node, index) => {
+				let rotation = this.dts.defaultRotations[index];
+				let quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
 				quaternion.normalize();
 				quaternion.conjugate();
-
+	
 				return quaternion;
 			});
 		}
 
-		let queue = this.dts.nodes.slice();
 		let utilityMatrix = new THREE.Matrix4();
 
-		while (queue.length > 0) {
-			let node = queue.shift();
-			let mat = this.nodeTransforms[node.index];
+		const traverse = (node: GraphNode, needsUpdate: boolean) => {
+			if (((1 << node.index) & bitfield) !== 0) needsUpdate = true;
 
-			if (node.parentIndex === -1) {
-				mat.identity();
-			} else if (!queue.includes(this.dts.nodes[node.parentIndex])) {
-				mat.copy(this.nodeTransforms[node.parentIndex]);
-			} else {
-				queue.push(node);
-				continue;
-			}
-	
-			let translation = this.dts.defaultTranslations[node.index];
+			if (needsUpdate) {
+				let mat = this.nodeTransforms[node.index];
+
+				if (!node.parent) {
+					mat.identity();
+				} else {
+					mat.copy(this.nodeTransforms[node.parent.index]);
+				}
+
+				let translation = this.dts.defaultTranslations[node.index];
 			
-			utilityMatrix.identity();
-			utilityMatrix.compose(new THREE.Vector3(translation.x, translation.y, translation.z), quaternions[node.index], new THREE.Vector3(1, 1, 1));
+				utilityMatrix.compose(new THREE.Vector3(translation.x, translation.y, translation.z), quaternions[node.index], new THREE.Vector3(1, 1, 1));
+				mat.multiplyMatrices(mat, utilityMatrix);
+			}
 
-			mat.multiplyMatrices(mat, utilityMatrix);
+			for (let i = 0; i < node.children.length; i++) traverse(node.children[i], needsUpdate);
+		};
+
+		for (let i = 0; i < this.rootGraphNodes.length; i++) {
+			let rootNode = this.rootGraphNodes[i];
+			traverse(rootNode, false);
 		}
 	}
 
-	updateBodyTransforms() {
-		for (let body of this.bodies) {
+	updateBodyTransforms(bitfield: number) {
+		for (let i = 0; i < this.bodies.length; i++) {
+			let body = this.bodies[i];
 			let mat: THREE.Matrix4;
+
 			if (body.userData?.nodeIndex !== undefined) {
+				if (((1 << body.userData.nodeIndex) & bitfield) === 0) continue;
 				mat = this.nodeTransforms[body.userData.nodeIndex].clone();
 				mat.multiplyMatrices(this.worldMatrix, mat);
 			} else {
@@ -355,6 +415,7 @@ export class Shape {
 	tick(time: TimeState, onlyVisual = false) {
 		for (let sequence of this.dts.sequences) {
 			if (!this.showSequences) break;
+			if (!onlyVisual && !this.hasNonVisualSequences) break;
 
 			let rot = sequence.rotationMatters[0];
 			let affectedCount = 0;
@@ -398,13 +459,14 @@ export class Shape {
 					}
 				});
 
-				this.updateNodeTransforms(quaternions);
-				if (!onlyVisual) this.updateBodyTransforms();
+				this.updateNodeTransforms(quaternions, rot);
+				if (!onlyVisual) this.updateBodyTransforms(rot);
 			}
 		}
 	}
 
 	render(time: TimeState) {
+		return
 		this.tick(time, true);
 
 		for (let info of this.skinMeshInfo) {
@@ -516,7 +578,7 @@ export class Shape {
 		}
 
 		if (scaleUpdated) this.generateCollisionGeometry();
-		this.updateBodyTransforms();
+		this.updateBodyTransforms(0xffffffff);
 	}
 
 	setOpacity(opacity: number) {

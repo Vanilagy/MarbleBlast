@@ -40,14 +40,6 @@
 	display: inline-block;
 }
 
-#clock > img {
-	margin-right: -19px;
-}
-
-#clock > img:last-child {
-	margin-right: 0px;
-}
-
 #gem-count {
 	font-size: 0;
 	position: absolute;

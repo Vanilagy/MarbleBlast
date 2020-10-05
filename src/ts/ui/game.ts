@@ -5,10 +5,12 @@ import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advan
 import { MissionElementScriptObject, MissionElementType } from "../parsing/mis_parser";
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
+import { ResourceManager } from "../resources";
 
 export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
-const clockElement = document.querySelector('#clock') as HTMLDivElement;
+const clockCanvas = document.querySelector('#clock') as HTMLCanvasElement;
+const clockCtx = clockCanvas.getContext('2d');
 const helpElement = document.querySelector('#help-text') as HTMLDivElement;
 const alertElement = document.querySelector('#alert-text') as HTMLDivElement;
 const centerElement = document.querySelector('#center-text') as HTMLImageElement;
@@ -115,27 +117,23 @@ export const secondsToTimeString = (seconds: number) => {
 
 export const displayTime = (seconds: number) => {
 	let string = secondsToTimeString(seconds);
+	const defaultWidth = 43;
+	const defaultMarginRight = -19;
+	let totalWidth = (string.length - 1) * (defaultWidth + defaultMarginRight) - (2 * (defaultWidth + defaultMarginRight - 10)) + defaultWidth;
+	let baseOffset = Math.floor((clockCanvas.width - totalWidth) / 2);
+	let currentX = 0;
 
-	while (clockElement.children.length < string.length) {
-		let img = document.createElement('img');
-		clockElement.appendChild(img);
-	}
-	while (clockElement.children.length > string.length) {
-		clockElement.removeChild(clockElement.lastChild);
-	}
-
+	clockCtx.clearRect(0, 0, clockCanvas.width, clockCanvas.height);
+	
 	for (let i = 0; i < string.length; i++) {
 		let char = string[i];
-		let node = clockElement.children[i] as HTMLImageElement;
+		let path = "./assets/ui/game/numbers/" + numberSources[char as keyof typeof numberSources];
+		let image = ResourceManager.getImageFromCache(path);
 
-		node.src = "./assets/ui/game/numbers/" + numberSources[char as keyof typeof numberSources];
-		if (char === ':' || char === '.') {
-			node.style.marginLeft = '-3px';
-			node.style.marginRight = '-26px';
-		} else {
-			node.style.marginLeft = '';
-			node.style.marginRight = '';
-		}
+		if (char === ':' || char === '.') currentX -= 3;
+		clockCtx.drawImage(image, baseOffset + currentX, 0);
+		currentX += defaultWidth + defaultMarginRight;
+		if (char === ':' || char === '.') currentX -= 7;
 	}
 };
 
