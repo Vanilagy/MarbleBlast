@@ -260,8 +260,8 @@ export class Level extends Scheduler {
 	async initSounds() {
 		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
 		let musicProfile = this.mission.elements.find((element) => element._type === MissionElementType.AudioProfile && element.description === "AudioMusic") as MissionElementAudioProfile;
-		let musicFileName = musicProfile.fileName.slice(musicProfile.fileName.lastIndexOf('/') + 1);
-		if (musicFileName.includes('Shell')) musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][Number(missionInfo.level) % 3];
+		let musicFileName = musicProfile.fileName.slice(musicProfile.fileName.lastIndexOf('/') + 1).toLowerCase();
+		if (musicFileName.includes('shell')) musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][Number(missionInfo.level) % 3];
 
 		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
 		this.music = await AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);

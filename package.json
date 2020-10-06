@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "rollup -c -w",
     "watch-fast": "rollup -c -w --config rollup-fast.config.js",
-    "compile": "rollup -c"
+	"compile": "rollup -c",
+	"bundle": "node create_bundle.js"
   },
   "author": "Vanilagy",
   "license": "ISC",
@@ -19,6 +20,7 @@
     "rollup-plugin-external-globals": "^0.6.0",
     "rollup-plugin-typescript": "^1.0.1",
     "rollup-plugin-typescript2": "^0.27.2",
+    "sarcina": "^1.7.5",
     "three": "^0.120.1",
     "typescript": "^4.0.3"
   }

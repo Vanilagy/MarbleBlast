@@ -37,7 +37,7 @@ setupTab(tabAudio, 'audio');
 setupTab(tabControls, 'controls');
 
 const homeButton = document.querySelector('#options-home') as HTMLImageElement;
-setupButton(homeButton, 'Options/mainm', () => {
+setupButton(homeButton, 'options/mainm', () => {
 	optionsDiv.classList.add('hidden');
 	homeScreenDiv.classList.remove('hidden');
 });
@@ -70,9 +70,9 @@ const resolution640 = document.querySelector('#graphics-640') as HTMLImageElemen
 const resolution800 = document.querySelector('#graphics-800') as HTMLImageElement;
 const resolution1024 = document.querySelector('#graphics-1024') as HTMLImageElement;
 
-setupButton(resolution640, 'Options/graf640', () => selectResolutionButton(resolution640, 0));
-setupButton(resolution800, 'Options/graf800', () => selectResolutionButton(resolution800, 1));
-setupButton(resolution1024, 'Options/graf1024', () => selectResolutionButton(resolution1024, 2));
+setupButton(resolution640, 'options/graf640', () => selectResolutionButton(resolution640, 0));
+setupButton(resolution800, 'options/graf800', () => selectResolutionButton(resolution800, 1));
+setupButton(resolution1024, 'options/graf1024', () => selectResolutionButton(resolution1024, 2));
 
 const selectResolutionButton = (button: HTMLImageElement, index: number) => {
 	unlockResolutionButtons();
@@ -83,19 +83,19 @@ const selectResolutionButton = (button: HTMLImageElement, index: number) => {
 };
 
 const unlockResolutionButtons = () => {
-	resolution640.src = './assets/ui/Options/graf640_n.png';
+	resolution640.src = './assets/ui/options/graf640_n.png';
 	resolution640.removeAttribute('data-locked');
-	resolution800.src = './assets/ui/Options/graf800_n.png';
+	resolution800.src = './assets/ui/options/graf800_n.png';
 	resolution800.removeAttribute('data-locked');
-	resolution1024.src = './assets/ui/Options/graf1024_n.png';
+	resolution1024.src = './assets/ui/options/graf1024_n.png';
 	resolution1024.removeAttribute('data-locked');
 };
 
 const openGl = document.querySelector('#graphics-opengl') as HTMLImageElement;
 const direct3D = document.querySelector('#graphics-direct3d') as HTMLImageElement;
 
-setupButton(openGl, 'Options/grafopgl', () => selectVideoDriverButton(openGl, 0));
-setupButton(direct3D, 'Options/grafdir3d', () => selectVideoDriverButton(direct3D, 1));
+setupButton(openGl, 'options/grafopgl', () => selectVideoDriverButton(openGl, 0));
+setupButton(direct3D, 'options/grafdir3d', () => selectVideoDriverButton(direct3D, 1));
 
 const selectVideoDriverButton = (button: HTMLImageElement, index: number) => {
 	unlockVideoDriverButtons();
@@ -106,17 +106,17 @@ const selectVideoDriverButton = (button: HTMLImageElement, index: number) => {
 };
 
 const unlockVideoDriverButtons = () => {
-	openGl.src = './assets/ui/Options/grafopgl_n.png';
+	openGl.src = './assets/ui/options/grafopgl_n.png';
 	openGl.removeAttribute('data-locked');
-	direct3D.src = './assets/ui/Options/grafdir3d_n.png';
+	direct3D.src = './assets/ui/options/grafdir3d_n.png';
 	direct3D.removeAttribute('data-locked');
 };
 
 const windowedButton = document.querySelector('#graphics-windowed') as HTMLImageElement;
 const fullButton = document.querySelector('#graphics-full') as HTMLImageElement;
 
-setupButton(windowedButton, 'Options/grafwindo', () => selectScreenStyleButton(windowedButton, 0));
-setupButton(fullButton, 'Options/grafful', () => selectScreenStyleButton(fullButton, 1));
+setupButton(windowedButton, 'options/grafwindo', () => selectScreenStyleButton(windowedButton, 0));
+setupButton(fullButton, 'options/grafful', () => selectScreenStyleButton(fullButton, 1));
 
 const selectScreenStyleButton = (button: HTMLImageElement, index: number) => {
 	unlockScreenStyleButtons();
@@ -127,17 +127,17 @@ const selectScreenStyleButton = (button: HTMLImageElement, index: number) => {
 };
 
 const unlockScreenStyleButtons = () => {
-	windowedButton.src = './assets/ui/Options/grafwindo_n.png';
+	windowedButton.src = './assets/ui/options/grafwindo_n.png';
 	windowedButton.removeAttribute('data-locked');
-	fullButton.src = './assets/ui/Options/grafful_n.png';
+	fullButton.src = './assets/ui/options/grafful_n.png';
 	fullButton.removeAttribute('data-locked');
 };
 
 const depth16 = document.querySelector('#graphics-depth16') as HTMLImageElement;
 const depth32 = document.querySelector('#graphics-depth32') as HTMLImageElement;
 
-setupButton(depth16, 'Options/graf16bt', () => selectColorDepthButton(depth16, 0));
-setupButton(depth32, 'Options/graf32bt', () => selectColorDepthButton(depth32, 1));
+setupButton(depth16, 'options/graf16bt', () => selectColorDepthButton(depth16, 0));
+setupButton(depth32, 'options/graf32bt', () => selectColorDepthButton(depth32, 1));
 
 const selectColorDepthButton = (button: HTMLImageElement, index: number) => {
 	unlockColorDepthButtons();
@@ -148,9 +148,9 @@ const selectColorDepthButton = (button: HTMLImageElement, index: number) => {
 };
 
 const unlockColorDepthButtons = () => {
-	depth16.src = './assets/ui/Options/graf16bt_n.png';
+	depth16.src = './assets/ui/options/graf16bt_n.png';
 	depth16.removeAttribute('data-locked');
-	depth32.src = './assets/ui/Options/graf32bt_n.png';
+	depth32.src = './assets/ui/options/graf32bt_n.png';
 	depth32.removeAttribute('data-locked');
 };
 
@@ -163,10 +163,10 @@ setupButton(shadowsCheckbox, 'options/graf_chkbx', () => {
 
 	if (!shadowsCheckbox.hasAttribute('data-locked')) {
 		shadowsCheckbox.setAttribute('data-locked', '');
-		shadowsCheckbox.src = './assets/ui/Options/graf_chkbx_d.png';
+		shadowsCheckbox.src = './assets/ui/options/graf_chkbx_d.png';
 	} else {
 		shadowsCheckbox.removeAttribute('data-locked');
-		shadowsCheckbox.src = './assets/ui/Options/graf_chkbx_h.png';
+		shadowsCheckbox.src = './assets/ui/options/graf_chkbx_h.png';
 	}
 });
 setupButton(graphicsApply, 'options/grafapply', () => {});
@@ -259,7 +259,7 @@ const selectControlsTab = (which: 'marble' | 'camera' | 'mouse') => {
 	let elem = [marbleControlsDiv, cameraControlsDiv, mouseControlsDiv][index];
 	elem.classList.remove('hidden');
 	
-	controlsBackground.src = './assets/ui/Options/' + ['cntrl_marb_bse.png', 'cntrl_cam_bse.png', 'cntrl_mous_base.png'][index];
+	controlsBackground.src = './assets/ui/options/' + ['cntrl_marb_bse.png', 'cntrl_cam_bse.png', 'cntrl_mous_base.png'][index];
 
 	if (which === 'mouse') {
 		controlsBackground.style.left = '2px';
@@ -387,12 +387,12 @@ const buttonMarbleDown = document.querySelector('#button-marble-down') as HTMLIm
 const buttonMarbleUse = document.querySelector('#button-marble-use') as HTMLImageElement;
 const buttonMarbleJump = document.querySelector('#button-marble-jump') as HTMLImageElement;
 
-setupButton(buttonMarbleLeft, 'Options/cntr_mrb_lft', () => changeKeybinding('left'));
-setupButton(buttonMarbleRight, 'Options/cntr_mrb_rt', () => changeKeybinding('right'));
-setupButton(buttonMarbleUp, 'Options/cntr_mrb_fw', () => changeKeybinding('up'));
-setupButton(buttonMarbleDown, 'Options/cntr_mrb_bak', () => changeKeybinding('down'));
-setupButton(buttonMarbleUse, 'Options/cntr_mrb_pwr', () => changeKeybinding('use'));
-setupButton(buttonMarbleJump, 'Options/cntr_mrb_jmp', () => changeKeybinding('jump'));
+setupButton(buttonMarbleLeft, 'options/cntr_mrb_lft', () => changeKeybinding('left'));
+setupButton(buttonMarbleRight, 'options/cntr_mrb_rt', () => changeKeybinding('right'));
+setupButton(buttonMarbleUp, 'options/cntr_mrb_fw', () => changeKeybinding('up'));
+setupButton(buttonMarbleDown, 'options/cntr_mrb_bak', () => changeKeybinding('down'));
+setupButton(buttonMarbleUse, 'options/cntr_mrb_pwr', () => changeKeybinding('use'));
+setupButton(buttonMarbleJump, 'options/cntr_mrb_jmp', () => changeKeybinding('jump'));
 
 const buttonMarbleLeftContent = document.querySelector('#button-marble-left-content') as HTMLParagraphElement;
 const buttonMarbleRightContent = document.querySelector('#button-marble-right-content') as HTMLParagraphElement;
@@ -406,10 +406,10 @@ const buttonCameraRight = document.querySelector('#button-camera-right') as HTML
 const buttonCameraUp = document.querySelector('#button-camera-up') as HTMLImageElement;
 const buttonCameraDown = document.querySelector('#button-camera-down') as HTMLImageElement;
 
-setupButton(buttonCameraLeft, 'Options/cntr_cam_lft', () => changeKeybinding('cameraLeft'));
-setupButton(buttonCameraRight, 'Options/cntr_cam_rt', () => changeKeybinding('cameraRight'));
-setupButton(buttonCameraUp, 'Options/cntr_cam_up', () => changeKeybinding('cameraUp'));
-setupButton(buttonCameraDown, 'Options/cntr_cam_dwn', () => changeKeybinding('cameraDown'));
+setupButton(buttonCameraLeft, 'options/cntr_cam_lft', () => changeKeybinding('cameraLeft'));
+setupButton(buttonCameraRight, 'options/cntr_cam_rt', () => changeKeybinding('cameraRight'));
+setupButton(buttonCameraUp, 'options/cntr_cam_up', () => changeKeybinding('cameraUp'));
+setupButton(buttonCameraDown, 'options/cntr_cam_dwn', () => changeKeybinding('cameraDown'));
 
 const buttonCameraLeftContent = document.querySelector('#button-camera-left-content') as HTMLParagraphElement;
 const buttonCameraRightContent = document.querySelector('#button-camera-right-content') as HTMLParagraphElement;
@@ -426,10 +426,10 @@ setupButton(invertY, 'options/cntrl_mous_invrt', () => {
 
 	if (!invertY.hasAttribute('data-locked')) {
 		invertY.setAttribute('data-locked', '');
-		invertY.src = './assets/ui/Options/cntrl_mous_invrt_d.png';
+		invertY.src = './assets/ui/options/cntrl_mous_invrt_d.png';
 	} else {
 		invertY.removeAttribute('data-locked');
-		invertY.src = './assets/ui/Options/cntrl_mous_invrt_h.png';
+		invertY.src = './assets/ui/options/cntrl_mous_invrt_h.png';
 	}
 });
 
@@ -440,13 +440,13 @@ setupButton(alwaysFreeLook, 'options/cntrl_mous_freel', () => {
 
 	if (!alwaysFreeLook.hasAttribute('data-locked')) {
 		alwaysFreeLook.setAttribute('data-locked', '');
-		alwaysFreeLook.src = './assets/ui/Options/cntrl_mous_freel_d.png';
+		alwaysFreeLook.src = './assets/ui/options/cntrl_mous_freel_d.png';
 	} else {
 		alwaysFreeLook.removeAttribute('data-locked');
-		alwaysFreeLook.src = './assets/ui/Options/cntrl_mous_freel_h.png';
+		alwaysFreeLook.src = './assets/ui/options/cntrl_mous_freel_h.png';
 	}
 });
 
 const freeLookKey = document.querySelector('#free-look-key') as HTMLImageElement;
-setupButton(freeLookKey, 'Options/cntrl_mous_bttn', () => changeKeybinding('freeLook'));
+setupButton(freeLookKey, 'options/cntrl_mous_bttn', () => changeKeybinding('freeLook'));
 const freeLookKeyContent = document.querySelector('#free-look-key-content') as HTMLParagraphElement;
