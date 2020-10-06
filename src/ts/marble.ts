@@ -352,8 +352,7 @@ export class Marble {
 		this.sphere.quaternion.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
 
 		this.forcefield.render(time);
-		this.helicopter.tick(time);
-		this.helicopter.render(time);
+		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) this.helicopter.render(time);
 	}
 
 	enableSuperBounce(time: TimeState) {

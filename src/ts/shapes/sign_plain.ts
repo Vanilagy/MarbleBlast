@@ -3,6 +3,7 @@ import { MissionElementStaticShape } from "../parsing/mis_parser";
 
 export class SignPlain extends Shape {
 	dtsPath = "shapes/signs/plainsign.dts";
+	shareMaterials = false;
 
 	constructor(element: MissionElementStaticShape) {
 		super();

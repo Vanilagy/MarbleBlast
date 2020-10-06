@@ -7,6 +7,7 @@ export class Tornado extends ForceShape {
 	collideable = false;
 	sounds = ["tornado.wav"];
 	soundSource: AudioSource;
+	useInstancing = true;
 
 	constructor() {
 		super();

@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { renderer, camera, orthographicCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble } from "./marble";
-import { Shape } from "./shape";
+import { Shape, GraphNode, SharedShapeData } from "./shape";
 import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementAudioProfile } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
@@ -75,6 +75,7 @@ export class Level extends Scheduler {
 	marble: Marble;
 	interiors: Interior[] = [];
 	shapes: Shape[] = [];
+	sharedShapeData = new Map<string, Promise<SharedShapeData>>();
 	overlayShapes: Shape[] = [];
 	overlayScene: THREE.Scene;
 	sunlight: THREE.DirectionalLight;
@@ -233,9 +234,10 @@ export class Level extends Scheduler {
 			let shape = new Shape();
 			shape.dtsPath = path;
 			shape.ambientRotate = true;
-			await shape.init(this);
+			await shape.init();
 
 			this.overlayShapes.push(shape);
+			this.overlayScene.add(shape.group);
 			if (path.includes("gem")) shape.ambientSpinFactor /= -2;
 			else shape.ambientSpinFactor /= 2;
 		}
@@ -246,6 +248,12 @@ export class Level extends Scheduler {
 			this.overlayScene.add(gemOverlayShape.group);
 		} else {
 			gemCountElement.style.display = 'none';
+		}
+
+		renderer.render(this.overlayScene, orthographicCamera);
+
+		for (let shape of this.overlayShapes) {
+			this.overlayScene.remove(shape.group);
 		}
 	}
 
@@ -334,13 +342,15 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "oilslick") shape = new Oilslick();
 
 		if (!shape) return;
+
+		this.shapes.push(shape);
+		await Util.wait(10);
 		await shape.init(this);
 
 		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
 		this.scene.add(shape.group);
 		this.physics.addShape(shape);
-		this.shapes.push(shape);
 	}
 
 	addTrigger(element: MissionElementTrigger) {
@@ -418,7 +428,7 @@ export class Level extends Scheduler {
 			AudioManager.play('go.wav');
 		});
 		this.schedule(5500, () => {
-			setCenterText('none');
+			if (!this.outOfBounds) setCenterText('none');
 		});
 	}
 
@@ -451,8 +461,6 @@ export class Level extends Scheduler {
 		this.sunlight.target.position.copy(this.marble.group.position);
 
 		renderer.render(this.scene, camera);
-
-		//console.log(renderer.info.render.calls)
 
 		for (let overlayShape of this.overlayShapes) {
 			overlayShape.group.position.x = 500;

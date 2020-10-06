@@ -9,6 +9,7 @@ export abstract class PowerUp extends Shape {
 	autoUse = false;
 	ambientRotate = true;
 	collideable = false;
+	shareMaterials = false;
 	pickUpName: string;
 
 	onMarbleInside(time: TimeState) {

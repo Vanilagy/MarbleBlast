@@ -8,6 +8,13 @@ export interface RGBAColor {
 	a: number
 }
 
+export type MaterialGeometry = {
+	vertices: number[],
+	normals: number[],
+	uvs: number[],
+	indices: number[]
+}[];
+
 export abstract class Util {
 	static keyboardMap: Map<string, string>;
 
@@ -165,12 +172,14 @@ export abstract class Util {
 
 	/** Shamelessly copied from Torque's source code. */
 	static m_matF_x_vectorF(matrix: THREE.Matrix4, v: THREE.Vector3) {
-		let m = matrix.clone().transpose().elements;
+		let m = matrix.transpose().elements;
 
 		let v0 = v.x, v1 = v.y, v2 = v.z;
 		let m0 = m[0], m1 = m[1], m2 = m[2];
 		let m4 = m[4], m5 = m[5], m6 = m[6];
 		let m8 = m[8], m9 = m[9], m10 = m[10];
+
+		matrix.transpose();
 		
 		let vresult_0 = m0*v0 + m1*v1 + m2*v2;
 		let vresult_1 = m4*v0 + m5*v1 + m6*v2;
@@ -216,7 +225,47 @@ export abstract class Util {
 	}
 
 	static concatArrays<T>(arrays: T[][]) {
-		return arrays.reduce((prev, next) => prev.concat(next), []);
+		return arrays.reduce((prev, next) => (prev.push(...next), prev), []);
+	}
+
+	static createGeometryFromMaterialGeometry(materialGeometry: MaterialGeometry) {
+		let geometry = new THREE.BufferGeometry();
+
+		geometry.setAttribute('position', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.vertices)), 3));
+		geometry.setAttribute('normal', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.normals)), 3));
+		geometry.setAttribute('uv', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.uvs)), 2));
+
+		let current = 0;
+		for (let i = 0; i < materialGeometry.length; i++) {
+			if (materialGeometry[i].vertices.length === 0) continue;
+
+			geometry.addGroup(current, materialGeometry[i].vertices.length / 3, i);
+			current += materialGeometry[i].vertices.length / 3;
+		}
+
+		return geometry;
+	}
+
+	static mergeMaterialGeometries(materialGeometries: MaterialGeometry[]) {
+		let merged = materialGeometries[0].map(() => {
+			return {
+				vertices: [] as number[],
+				normals: [] as number[],
+				uvs: [] as number[],
+				indices: [] as number[]
+			};
+		});
+
+		for (let matGeom of materialGeometries) {
+			for (let i = 0; i < matGeom.length; i++) {
+				merged[i].vertices.push(...matGeom[i].vertices);
+				merged[i].normals.push(...matGeom[i].normals);
+				merged[i].uvs.push(...matGeom[i].uvs);
+				merged[i].indices.push(...matGeom[i].indices);
+			}
+		}
+
+		return merged;
 	}
 }
 

@@ -1,6 +1,5 @@
 import { Shape } from "../shape";
 import OIMO from "../declarations/oimo";
-import { state } from "../state";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
@@ -8,6 +7,7 @@ import { AudioManager } from "../audio";
 export abstract class AbstractBumper extends Shape {
 	wiggleAnimationStart = -Infinity;
 	soundEffect: string;
+	useInstancing = true;
 
 	onMarbleContact(contact: OIMO.Contact, time: TimeState) {
 		let contactNormal = contact.getManifold().getNormal();

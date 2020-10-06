@@ -3,11 +3,12 @@ import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
-import { getUniqueId, state } from "./state";
-import { Util } from "./util";
+import { getUniqueId } from "./state";
+import { Util, MaterialGeometry } from "./util";
 import { TimeState, Level } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 import { AudioManager } from "./audio";
+import { InstancedMesh } from "three";
 
 interface MaterialInfo {
 	keyframes: string[]
@@ -16,8 +17,9 @@ interface MaterialInfo {
 interface SkinMeshData {
 	meshIndex: number,
 	vertices: THREE.Vector3[],
-	vertexNormals: THREE.Vector3[],
-	group: THREE.Group
+	normals: THREE.Vector3[],
+	indices: number[],
+	geometry: THREE.BufferGeometry
 }
 
 interface ColliderInfo {
@@ -25,6 +27,18 @@ interface ColliderInfo {
 	id: number,
 	onInside: () => void,
 	transform: THREE.Matrix4
+}
+
+export interface SharedShapeData {
+	materials: (THREE.MeshBasicMaterial | THREE.MeshLambertMaterial)[],
+	staticGeometries: THREE.BufferGeometry[],
+	dynamicGeometries: THREE.BufferGeometry[],
+	dynamicGeometriesMatrixIndices: number[],
+	collisionGeometries: Set<THREE.BufferGeometry>,
+	nodeTransforms: THREE.Matrix4[],
+	rootGraphNodes: GraphNode[],
+	instancedMeshes: InstancedMesh[],
+	instanceIndex: number
 }
 
 enum MaterialFlags {
@@ -44,16 +58,12 @@ enum MaterialFlags {
 	ReflectanceMapOnly = 1 << 13
 }
 
-interface GraphNode {
+export interface GraphNode {
 	index: number,
 	node: DtsFile["nodes"][number],
 	children: GraphNode[],
-	parent?: GraphNode,
-	bodies: OIMO.RigidBody[]
+	parent?: GraphNode
 }
-
-let GEOM = new THREE.SphereBufferGeometry(0.3);
-let MAT = new THREE.MeshLambertMaterial({color: 0xff0000});
 
 export class Shape {
 	id: number;
@@ -63,6 +73,7 @@ export class Shape {
 	directoryPath: string;
 	group: THREE.Group;
 	bodies: OIMO.RigidBody[];
+	objects: THREE.Object3D[] = [];
 	bodiesLocalTranslation: WeakMap<OIMO.RigidBody, OIMO.Vec3>;
 	matNamesOverride: Record<string, string> = {};
 	materials: (THREE.MeshLambertMaterial | THREE.MeshBasicMaterial)[];
@@ -85,7 +96,15 @@ export class Shape {
 	restitution = INTERIOR_DEFAULT_RESTITUTION;
 	friction = INTERIOR_DEFAULT_FRICTION;
 	sounds: string[] = [];
+	graphNodes: GraphNode[];
 	rootGraphNodes: GraphNode[] = [];
+	sharedData: SharedShapeData;
+	shareNodeTransforms = true;
+	shareMaterials = true;
+	useInstancing = false;
+	instancedMeshes: InstancedMesh[] = [];
+	instanceIndex = 0;
+	shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
 
 	async init(level?: Level) {
 		this.id = getUniqueId();
@@ -99,10 +118,232 @@ export class Shape {
 		this.materialInfo = new WeakMap();
 		this.bodiesLocalTranslation = new WeakMap();
 
-		console.log(this.dts);
-		
-		for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
+		let staticGeometries: THREE.BufferGeometry[] = [];
+		let dynamicGeometries: THREE.BufferGeometry[] = [];
+		let dynamicGeometriesMatrices: THREE.Matrix4[] = [];
+		let collisionGeometries = new Set<THREE.BufferGeometry>();
 
+		let sharedDataPromise = this.level?.sharedShapeData.get(this.dtsPath);
+		if (sharedDataPromise) {
+			this.sharedData = await sharedDataPromise;
+
+			this.nodeTransforms = this.sharedData.nodeTransforms;
+			if (!this.shareNodeTransforms) this.nodeTransforms = this.nodeTransforms.map(x => x.clone());
+			if (this.shareMaterials) this.materials = this.sharedData.materials;
+			else await this.computeMaterials();
+			staticGeometries = this.sharedData.staticGeometries;
+			dynamicGeometries = this.sharedData.dynamicGeometries;
+			collisionGeometries = this.sharedData.collisionGeometries;
+			dynamicGeometriesMatrices = this.sharedData.dynamicGeometriesMatrixIndices.map(x => this.nodeTransforms[x]);
+			this.rootGraphNodes = this.sharedData.rootGraphNodes;
+			this.instancedMeshes = this.sharedData.instancedMeshes;
+			this.instanceIndex = ++this.sharedData.instanceIndex;
+		} else {
+			let resolveFunc: (data: SharedShapeData) => any;
+			if (this.level) {
+				let sharedDataPromise = new Promise<SharedShapeData>((resolve) => resolveFunc = resolve);
+				this.level.sharedShapeData.set(this.dtsPath, sharedDataPromise);
+			}
+
+			for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
+
+			await this.computeMaterials();
+	
+			let graphNodes: GraphNode[] = [];
+			for (let i = 0; i < this.dts.nodes.length; i++) {
+				let graphNode: GraphNode = {
+					index: i,
+					node: this.dts.nodes[i],
+					children: [],
+					parent: null
+				};
+				graphNodes.push(graphNode);
+			}
+			for (let i = 0; i < this.dts.nodes.length; i++) {
+				let node = this.dts.nodes[i];
+				if (node.parentIndex !== -1) {
+					graphNodes[i].parent = graphNodes[node.parentIndex];
+					graphNodes[node.parentIndex].children.push(graphNodes[i]);
+				}
+			}
+			this.graphNodes = graphNodes;
+			this.rootGraphNodes = graphNodes.filter((node) => !node.parent);
+			this.updateNodeTransforms();
+	
+			let affectedBySequences = this.dts.sequences[0]? this.dts.sequences[0].rotationMatters[0] : 0;
+			let staticMaterialGeometries: MaterialGeometry[] = [];
+			let dynamicMaterialGeometries: MaterialGeometry[] = [];
+			let collisionMaterialGeometries = new Set<MaterialGeometry>();
+			
+			for (let i = 0; i < this.dts.nodes.length; i++) {
+				let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
+				let sequenceAffected = ((1 << i) & affectedBySequences) !== 0;
+	
+				for (let object of objects) {
+					let isCollisionObject = this.dts.names[object.nameIndex].startsWith("Col");
+	
+					if (!isCollisionObject || this.collideable) {
+						let mat = this.nodeTransforms[i];
+		
+						for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
+							let mesh = this.dts.meshes[i];
+							if (!mesh) continue;
+		
+							let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+							let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+	
+							if (!sequenceAffected) vertices.forEach((vert) => vert.applyMatrix4(mat));
+							if (!sequenceAffected) vertexNormals.forEach((norm) => Util.m_matF_x_vectorF(mat, norm));
+	
+							let geometry = this.generateMaterialGeometry(mesh, vertices, vertexNormals);
+							if (!sequenceAffected) {
+								staticMaterialGeometries.push(geometry);
+							} else {
+								dynamicMaterialGeometries.push(geometry);
+								dynamicGeometriesMatrices.push(mat);
+							}
+
+							if (isCollisionObject) collisionMaterialGeometries.add(geometry);
+						}
+					}
+				}
+			}
+
+			let skinnedMeshIndex: number = null;
+			for (let i = 0; i < this.dts.meshes.length; i++) {
+				let dtsMesh = this.dts.meshes[i];
+				if (!dtsMesh || dtsMesh.type !== MeshType.Skin) continue;
+	
+				let vertices = new Array(dtsMesh.verts.length).fill(null).map(() => new THREE.Vector3());
+				let vertexNormals = new Array(dtsMesh.norms.length).fill(null).map(() => new THREE.Vector3());
+				let materialGeometry = this.generateMaterialGeometry(dtsMesh, vertices, vertexNormals);
+				staticMaterialGeometries.push(materialGeometry);
+
+				skinnedMeshIndex = i;
+			}
+
+			let staticNonCollision = staticMaterialGeometries.filter(x => !collisionMaterialGeometries.has(x));
+			let staticCollision = staticMaterialGeometries.filter(x => collisionMaterialGeometries.has(x));
+
+			if (staticNonCollision.length > 0) {
+				let merged = Util.mergeMaterialGeometries(staticNonCollision);
+				let geometry = Util.createGeometryFromMaterialGeometry(merged);
+				staticGeometries.push(geometry);
+
+				if (skinnedMeshIndex !== null) {
+					this.skinMeshInfo.push({
+						meshIndex: skinnedMeshIndex,
+						vertices: this.dts.meshes[skinnedMeshIndex].verts.map(x => new THREE.Vector3()),
+						normals: this.dts.meshes[skinnedMeshIndex].norms.map(x => new THREE.Vector3()),
+						indices: Util.concatArrays(merged.map(x => x.indices)),
+						geometry: geometry
+					});
+				}
+			}
+
+			if (staticCollision.length > 0) {
+				let geometry = Util.createGeometryFromMaterialGeometry(Util.mergeMaterialGeometries(staticCollision));
+				staticGeometries.push(geometry);
+				collisionGeometries.add(geometry);
+			}
+
+			for (let materialGeom of dynamicMaterialGeometries) {
+				let geometry = Util.createGeometryFromMaterialGeometry(materialGeom);
+				dynamicGeometries.push(geometry);
+				if (collisionMaterialGeometries.has(materialGeom)) collisionGeometries.add(geometry);
+			}
+
+			if (this.level && this.useInstancing) {
+				let instanceCount = this.level?.shapes.filter(x => x.constructor === this.constructor).length ?? 0;
+	
+				for (let geometry of staticGeometries.concat(dynamicGeometries)) {
+					let instancedMesh = new THREE.InstancedMesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials, instanceCount);
+					if (collisionGeometries.has(geometry)) instancedMesh.receiveShadow = true;
+					instancedMesh.matrixAutoUpdate = false;
+	
+					this.level.scene.add(instancedMesh);
+					this.instancedMeshes.push(instancedMesh);
+				}
+			}
+
+			if (resolveFunc) resolveFunc({
+				materials: this.materials,
+				staticGeometries: staticGeometries,
+				dynamicGeometries: dynamicGeometries,
+				dynamicGeometriesMatrixIndices: dynamicGeometriesMatrices.map(x => this.nodeTransforms.indexOf(x)),
+				collisionGeometries: collisionGeometries,
+				nodeTransforms: this.nodeTransforms,
+				rootGraphNodes: this.rootGraphNodes,
+				instancedMeshes: this.instancedMeshes,
+				instanceIndex: 0
+			});
+		}
+
+		for (let geometry of staticGeometries) {
+			let obj: THREE.Object3D;
+
+			if (this.instancedMeshes.length > 0) {
+				obj = new THREE.Object3D();
+			} else {
+				let mesh = new THREE.Mesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials);
+				if (collisionGeometries.has(geometry)) mesh.receiveShadow = true;
+				obj = mesh;
+			}
+
+			obj.matrixAutoUpdate = false;
+			this.group.add(obj);
+			this.objects.push(obj);
+		}
+
+		for (let i = 0; i < dynamicGeometries.length; i++) {
+			let obj: THREE.Object3D;
+
+			if (this.instancedMeshes.length > 0) {
+				obj = new THREE.Object3D();
+			} else {
+				let geometry = dynamicGeometries[i];
+				let mesh = new THREE.Mesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials);
+				if (collisionGeometries.has(geometry)) mesh.receiveShadow = true;
+				obj = mesh;
+			}
+			
+			obj.matrixAutoUpdate = false;
+			obj.matrix = dynamicGeometriesMatrices[i];
+			this.group.add(obj);
+			this.objects.push(obj);
+		}
+
+		for (let i = 0; i < this.dts.nodes.length; i++) {
+			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
+
+			for (let object of objects) {
+				let isCollisionObject = this.dts.names[object.nameIndex].startsWith("Col");
+				if (isCollisionObject) {
+					let config = new OIMO.RigidBodyConfig();
+					config.type = OIMO.RigidBodyType.STATIC;
+					let body = new OIMO.RigidBody(config);
+					body.userData = { nodeIndex: i };
+
+					this.bodies.push(body);
+				}
+			}
+		}
+
+		if (this.bodies.length === 0) {
+			let config = new OIMO.RigidBodyConfig();
+			config.type = OIMO.RigidBodyType.STATIC;
+			let body = new OIMO.RigidBody(config);
+			this.bodies.push(body);
+		}
+
+		for (let sound of this.sounds) {
+			await AudioManager.loadBuffer(sound);
+		}
+
+		if (this.level) this.level.loadingState.loaded++;
+	}
+
+	async computeMaterials() {
 		for (let i = 0; i < this.dts.matNames.length; i++) {
 			let matName = this.matNamesOverride[this.dts.matNames[i]] ||  this.dts.matNames[i];
 			let flags = this.dts.matFlags[i];
@@ -136,101 +377,15 @@ export class Shape {
 			if (flags & MaterialFlags.Additive) material.blending = THREE.AdditiveBlending;
 			if (flags & MaterialFlags.Subtractive) material.blending = THREE.SubtractiveBlending;
 		}
-
-		let graphNodes: GraphNode[] = [];
-		for (let i = 0; i < this.dts.nodes.length; i++) {
-			let graphNode: GraphNode = {
-				index: i,
-				node: this.dts.nodes[i],
-				children: [],
-				parent: null,
-				bodies: []
-			};
-			graphNodes.push(graphNode);
-
-			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
-
-			for (let object of objects) {
-				let isCollisionObject = this.dts.names[object.nameIndex].startsWith("Col");
-				if (isCollisionObject) {
-					let config = new OIMO.RigidBodyConfig();
-					config.type = OIMO.RigidBodyType.STATIC;
-					let body = new OIMO.RigidBody(config);
-					body.userData = { nodeIndex: i };
-
-					this.bodies.push(body);
-					graphNode.bodies.push(body);
-				}
-
-				if (!isCollisionObject || this.collideable) {
-					let nodeGroup = new THREE.Group();
-					this.group.add(nodeGroup);
-					nodeGroup.matrixAutoUpdate = false;
-					nodeGroup.matrix = this.nodeTransforms[i];
-	
-					for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
-						let mesh = this.dts.meshes[i];
-						if (!mesh) continue;
-	
-						let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-						let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-						this.addMeshGeometry(mesh, vertices, vertexNormals, nodeGroup, isCollisionObject);
-					}
-				}
-			}
-		}
-
-		for (let i = 0; i < this.dts.nodes.length; i++) {
-			let node = this.dts.nodes[i];
-			if (node.parentIndex !== -1) {
-				graphNodes[i].parent = graphNodes[node.parentIndex];
-				graphNodes[node.parentIndex].children.push(graphNodes[i]);
-			}
-		}
-		this.rootGraphNodes = graphNodes.filter((node) => !node.parent);
-		this.updateNodeTransforms();
-
-		for (let i = 0; i < this.dts.meshes.length; i++) {
-			let mesh = this.dts.meshes[i];
-			if (!mesh || mesh.type !== MeshType.Skin) continue;
-
-			let group = new THREE.Group();
-
-			let vertices = new Array(mesh.verts.length).fill(null).map(() => new THREE.Vector3());
-			let vertexNormals = new Array(mesh.norms.length).fill(null).map(() => new THREE.Vector3());
-			this.addMeshGeometry(mesh, vertices, vertexNormals, group, false);
-
-			this.group.add(group);
-
-			this.skinMeshInfo.push({
-				meshIndex: i,
-				vertices: vertices,
-				vertexNormals: vertexNormals,
-				group: group
-			});
-		}
-
-		if (this.bodies.length === 0) {
-			let config = new OIMO.RigidBodyConfig();
-			config.type = OIMO.RigidBodyType.STATIC;
-			let body = new OIMO.RigidBody(config);
-			this.bodies.push(body);
-		}
-
-		for (let sound of this.sounds) {
-			await AudioManager.loadBuffer(sound);
-		}
-
-		if (this.level) this.level.loadingState.loaded++;
 	}
 
-	addMeshGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[], group: THREE.Group, isCollisionMesh: boolean) {
-		let geometry = new THREE.BufferGeometry();
+	generateMaterialGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[]) {
 		let materialGeometry = this.dts.matNames.map(() => {
 			return {
 				vertices: [] as number[],
 				normals: [] as number[],
-				uvs: [] as number[]
+				uvs: [] as number[],
+				indices: [] as number[]
 			};
 		});
 
@@ -260,30 +415,13 @@ export class Shape {
 					geometryData.normals.push(normal.x, normal.y, normal.z);
 				}
 
+				geometryData.indices.push(i1, i2, i3);
+
 				k++;
 			}
 		}
 
-		geometry.setAttribute('position', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.vertices)), 3));
-		geometry.setAttribute('normal', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.normals)), 3));
-		geometry.setAttribute('uv', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.uvs)), 2));
-
-		let current = 0;
-		for (let i = 0; i < materialGeometry.length; i++) {
-			if (materialGeometry[i].vertices.length === 0) continue;
-
-			geometry.addGroup(current, materialGeometry[i].vertices.length / 3, i);
-			current += materialGeometry[i].vertices.length / 3;
-		}
-
-		let material: THREE.Material | THREE.Material[];
-		if (isCollisionMesh)return // material = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
-		else material = this.materials;
-
-		let threeMesh = new THREE.Mesh(GEOM ?? geometry, new THREE.MeshLambertMaterial({color: 0xff0000}) ?? material);
-		if (isCollisionMesh) threeMesh.receiveShadow = true;
-
-		group.add(threeMesh);
+		return materialGeometry;
 	}
 
 	generateCollisionGeometry() {
@@ -413,7 +551,7 @@ export class Shape {
 	}
 
 	tick(time: TimeState, onlyVisual = false) {
-		for (let sequence of this.dts.sequences) {
+		if (!this.sharedData || !this.shareNodeTransforms) for (let sequence of this.dts.sequences) {
 			if (!this.showSequences) break;
 			if (!onlyVisual && !this.hasNonVisualSequences) break;
 
@@ -466,15 +604,23 @@ export class Shape {
 	}
 
 	render(time: TimeState) {
-		return
 		this.tick(time, true);
 
-		for (let info of this.skinMeshInfo) {
+		if (this.instancedMeshes.length > 0) {
+			for (let i = 0; i < this.objects.length; i++) {
+				let obj = this.objects[i];
+				obj.updateMatrixWorld();
+				this.instancedMeshes[i].setMatrixAt(this.instanceIndex, obj.matrixWorld);
+				this.instancedMeshes[i].instanceMatrix.needsUpdate = true;
+			}
+		}
+
+		if (!this.sharedData) for (let info of this.skinMeshInfo) {
 			let mesh = this.dts.meshes[info.meshIndex];
 
 			for (let i = 0; i < info.vertices.length; i++) {
 				info.vertices[i].set(0, 0, 0);
-				info.vertexNormals[i].set(0, 0, 0);
+				info.normals[i].set(0, 0, 0);
 			}
 
 			let boneTransformations: THREE.Matrix4[] = [];
@@ -489,13 +635,15 @@ export class Shape {
 				boneTransformationsTransposed.push(mat.clone().transpose());
 			}
 
+			let vec = new THREE.Vector3();
+			let vec2 = new THREE.Vector3();
 			for (let i = 0; i < mesh.vertIndices.length; i++) {
 				let vIndex = mesh.vertIndices[i];
 				let vertex = mesh.verts[vIndex];
 				let normal = mesh.norms[vIndex];
 
-				let vec = new THREE.Vector3(vertex.x, vertex.y, vertex.z);
-				let vec2 = new THREE.Vector3(normal.x, normal.y, normal.z);
+				vec.set(vertex.x, vertex.y, vertex.z);
+				vec2.set(normal.x, normal.y, normal.z);
 				let mat = boneTransformations[mesh.boneIndices[i]];
 
 				vec.applyMatrix4(mat);
@@ -504,25 +652,34 @@ export class Shape {
 				vec2.multiplyScalar(mesh.weights[i]);
 
 				info.vertices[vIndex].add(vec);
-				info.vertexNormals[vIndex].add(vec2);
+				info.normals[vIndex].add(vec2);
 			}
 
-			for (let i = 0; i < info.vertexNormals.length; i++) {
-				let norm = info.vertexNormals[i];
+			for (let i = 0; i < info.normals.length; i++) {
+				let norm = info.normals[i];
 				let len2 = norm.dot(norm);
 
 				if (len2 > 0.01) norm.normalize();
 			}
 
-			for (let child of info.group.children) {
-				let mesh = child as THREE.Mesh;
-				let geometry = mesh.geometry as THREE.Geometry;
-				geometry.verticesNeedUpdate = true;
-				geometry.normalsNeedUpdate = true;
+			let positionAttribute = info.geometry.getAttribute('position');
+			let normalAttribute = info.geometry.getAttribute('normal');
+			let pos = 0;
+			for (let index of info.indices) {
+				let vertex = info.vertices[index];
+				let normal = info.normals[index];
+
+				positionAttribute.setXYZ(pos, vertex.x, vertex.y, vertex.z);
+				normalAttribute.setXYZ(pos, normal.x, normal.y, normal.z);
+
+				pos++;
 			}
+
+			positionAttribute.needsUpdate = true;
+			normalAttribute.needsUpdate = true;
 		}
 
-		for (let i = 0; i < this.materials.length; i++) {
+		if (!this.sharedData || !this.shareMaterials) for (let i = 0; i < this.materials.length; i++) {
 			let info = this.materialInfo.get(this.materials[i]);
 			if (!info) continue;
 

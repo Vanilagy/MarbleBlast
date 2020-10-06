@@ -10,6 +10,7 @@ export class Gem extends Shape {
 	ambientRotate = true;
 	collideable = false;
 	pickedUp = false;
+	shareMaterials = false;
 	sounds = ['gotgem.wav', 'gotallgems.wav', 'missinggems.wav'];
 
 	constructor(element: MissionElementItem) {

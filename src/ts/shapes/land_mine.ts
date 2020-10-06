@@ -1,5 +1,4 @@
 import { Shape } from "../shape";
-import { state } from "../state";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import OIMO from "../declarations/oimo";
@@ -77,6 +76,7 @@ export class LandMine extends Shape {
 	dtsPath = "shapes/hazards/landmine.dts";
 	disappearTime = -Infinity;
 	sounds = ['explode1.wav'];
+	shareMaterials = false;
 
 	onMarbleContact(contact: OIMO.Contact, time: TimeState) {
 		let marble = this.level.marble;
