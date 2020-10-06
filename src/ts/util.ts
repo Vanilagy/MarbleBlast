@@ -267,6 +267,10 @@ export abstract class Util {
 
 		return merged;
 	}
+
+	static isInFullscreen() {
+		return window.innerWidth === screen.width && window.innerHeight === screen.height;
+	}
 }
 
 export abstract class Scheduler {
