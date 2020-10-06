@@ -513,14 +513,16 @@ export class Level extends Scheduler {
 			camera.position.add(cameraVerticalTranslation);
 
 			const closeness = 0.1;
+			let rayCastOrigin = marblePosition.add(this.currentUp.scale(0.2));
+
 			let processedShapes = new Set<OIMO.Shape>();
 			for (let i = 0; i < 3; i++) {
-				let rayCastDirection = Util.vecThreeToOimo(camera.position).sub(marblePosition);
+				let rayCastDirection = Util.vecThreeToOimo(camera.position).sub(rayCastOrigin);
 				rayCastDirection.addEq(rayCastDirection.clone().normalize().scale(2));
 
 				let firstHit: OIMO.RayCastHit = null;
 				let self = this;
-				this.physics.world.rayCast(marblePosition, marblePosition.add(rayCastDirection), {
+				this.physics.world.rayCast(rayCastOrigin, rayCastOrigin.add(rayCastDirection), {
 					process(shape, hit) {
 						if (shape !== self.marble.shape && !processedShapes.has(shape) && (!firstHit || hit.fraction < firstHit.fraction)) {
 							firstHit = Util.jsonClone(hit);
