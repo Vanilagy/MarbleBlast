@@ -7,8 +7,16 @@ import { TimeState, PHYSICS_TICK_RATE, Level } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
 import OIMO from "./declarations/oimo";
 
+interface MarkerData {
+	msToNext: number,
+	smoothingType: string,
+	position: THREE.Vector3,
+	rotation: THREE.Quaternion
+}
+
 export class PathedInterior extends Interior {
 	path: MissionElementPath;
+	markerData: MarkerData[];
 	element: MissionElementPathedInterior;
 	duration: number;
 	timeStart: number = null;
@@ -31,6 +39,14 @@ export class PathedInterior extends Interior {
 		pathedInterior.element = interiorElement;
 		pathedInterior.path = simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 		pathedInterior.computeDuration();
+		pathedInterior.markerData = pathedInterior.path.markers.map(x => {
+			return {
+				msToNext: Number(x.msToNext),
+				smoothingType: x.smoothingType,
+				position: MisParser.parseVector3(x.position),
+				rotation: MisParser.parseRotation(x.rotation)
+			};
+		});
 
 		let triggers = simGroup.elements.filter((element) => element._type === MissionElementType.Trigger) as MissionElementTrigger[];
 		for (let triggerElement of triggers) {
@@ -100,19 +116,19 @@ export class PathedInterior extends Interior {
 	}
 
 	getTransformAtTime(time: number) {
-		let m1 = this.path.markers[0];
-		let m2 = this.path.markers[1];
+		let m1 = this.markerData[0];
+		let m2 = this.markerData[1];
 
 		let currentEndTime = Number(m1.msToNext);
 		let i = 2;
-		while (currentEndTime < time && i < this.path.markers.length) {
+		while (currentEndTime < time && i < this.markerData.length) {
 			m1 = m2;
-			m2 = this.path.markers[i++];
+			m2 = this.markerData[i++];
 			
-			currentEndTime += Number(m1.msToNext);
+			currentEndTime += m1.msToNext;
 		}
 
-		let m1Time = currentEndTime - Number(m1.msToNext);
+		let m1Time = currentEndTime - m1.msToNext;
 		let m2Time = currentEndTime;
 		let duration = m2Time - m1Time;
 		let position: THREE.Vector3;
@@ -126,10 +142,10 @@ export class PathedInterior extends Interior {
 			if (postEnd >= this.path.markers.length) postEnd = 0;
 			if (preStart < 0) preStart = this.path.markers.length - 1;
 
-			let p0 = MisParser.parseVector3(this.path.markers[preStart].position);
-			let p1 = MisParser.parseVector3(m1.position);
-			let p2 = MisParser.parseVector3(m2.position);
-			let p3 = MisParser.parseVector3(this.path.markers[postEnd].position);
+			let p0 = this.markerData[preStart].position;
+			let p1 = m1.position;
+			let p2 = m2.position;
+			let p3 = this.markerData[postEnd].position;
 
 			position = new THREE.Vector3();
 			position.x = Util.catmullRom(completion, p0.x, p1.x, p2.x, p3.x);
@@ -138,16 +154,16 @@ export class PathedInterior extends Interior {
 		}
 
 		if (!position) {
-			let p1 = MisParser.parseVector3(m1.position);
-			let p2 = MisParser.parseVector3(m2.position);
-			position = p1.multiplyScalar(1 - completion).add(p2.multiplyScalar(completion));
+			let p1 = m1.position;
+			let p2 = m2.position;
+			position = Util.lerpThreeVectors(p1, p2, completion);
 		}
 		
-		let r1 = MisParser.parseRotation(m1.rotation);
-		let r2 = MisParser.parseRotation(m2.rotation);
-		let rotation = r1.slerp(r2, completion);
+		let r1 = m1.rotation;
+		let r2 = m2.rotation;
+		let rotation = r1.clone().slerp(r2, completion);
 
-		let firstPosition = MisParser.parseVector3(this.path.markers[0].position);
+		let firstPosition = this.markerData[0].position;
 		position.sub(firstPosition);
 
 		let mat = new THREE.Matrix4();
