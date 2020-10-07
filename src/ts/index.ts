@@ -22,8 +22,7 @@ async function init() {
 	await StorageManager.init();
 	await ResourceManager.init();
 	AudioManager.init();
-	initOptions();
-	await Promise.all([initLevelSelect(), initUi()]);
+	await Promise.all([initOptions(), initLevelSelect(), initUi()]);
 
 	let started = false;
 	const start = () => {

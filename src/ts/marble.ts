@@ -277,11 +277,9 @@ export class Marble {
 			this.shape.setRestitution(0);
 
 			if (!this.shockAbsorberSound) {
-				AudioManager.createAudioSource('superbounceactive.wav').then((source) => {
-					this.shockAbsorberSound = source;
-					this.shockAbsorberSound.node.loop = true;
-					this.shockAbsorberSound.play();
-				});
+				this.shockAbsorberSound = AudioManager.createAudioSource('superbounceactive.wav');
+				this.shockAbsorberSound.node.loop = true;
+				this.shockAbsorberSound.play();
 			}
 		} else if (time.currentAttemptTime - this.superBounceEnableTime < 5000) {
 			this.forcefield.setOpacity(1);
@@ -299,11 +297,9 @@ export class Marble {
 			this.superBounceSound = null;
 		}
 		if (time.currentAttemptTime - this.superBounceEnableTime < 5000 && !this.superBounceSound) {
-			AudioManager.createAudioSource('forcefield.wav').then((source) => {
-				this.superBounceSound = source;
-				this.superBounceSound.node.loop = true;
-				this.superBounceSound.play();
-			});
+			this.superBounceSound = AudioManager.createAudioSource('forcefield.wav');
+			this.superBounceSound.node.loop = true;
+			this.superBounceSound.play();
 		}
 
 		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) {
@@ -312,11 +308,9 @@ export class Marble {
 			this.level.setGravityIntensity(5);
 			
 			if (!this.helicopterSound) {
-				AudioManager.createAudioSource('use_gyrocopter.wav').then((source) => {
-					this.helicopterSound = source;
-					this.helicopterSound.node.loop = true;
-					this.helicopterSound.play();
-				});
+				this.helicopterSound = AudioManager.createAudioSource('use_gyrocopter.wav');
+				this.helicopterSound.node.loop = true;
+				this.helicopterSound.play();
 			}
 		} else {
 			this.helicopter.setOpacity(0);

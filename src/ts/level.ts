@@ -628,11 +628,9 @@ export class Level extends Scheduler {
 					this.currentTimeTravelBonus -= 1000 / PHYSICS_TICK_RATE;
 
 					if (!this.timeTravelSound) {
-						AudioManager.createAudioSource('timetravelactive.wav').then((source) => {
-							this.timeTravelSound = source;
-							this.timeTravelSound.node.loop = true;
-							this.timeTravelSound.play();
-						});
+						this.timeTravelSound = AudioManager.createAudioSource('timetravelactive.wav');
+						this.timeTravelSound.node.loop = true;
+						this.timeTravelSound.play();
 					}
 				} else {
 					this.timeState.gameplayClock += 1000 / PHYSICS_TICK_RATE;

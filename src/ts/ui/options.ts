@@ -4,6 +4,7 @@ import { homeScreenDiv } from "./home";
 import { StorageManager } from "../storage";
 import { currentMousePosition } from "../input";
 import { Util } from "../util";
+import { ResourceManager } from "../resources";
 
 export const optionsDiv = document.querySelector('#options') as HTMLDivElement;
 const tabGraphics = document.querySelector('#tab-graphics') as HTMLImageElement;
@@ -46,7 +47,7 @@ const graphicsDiv = document.querySelector('#options-graphics') as HTMLDivElemen
 const audioDiv = document.querySelector('#options-audio') as HTMLDivElement;
 const controlsDiv = document.querySelector('#options-controls') as HTMLDivElement;
 
-export const initOptions = () => {
+export const initOptions = async () => {
 	[resolution640, resolution800, resolution1024][StorageManager.data.settings.resolution].click();
 	[openGl, direct3D][StorageManager.data.settings.videoDriver].click();
 	[windowedButton, fullButton][StorageManager.data.settings.screenStyle].click();
@@ -64,6 +65,8 @@ export const initOptions = () => {
 
 	selectControlsTab('marble');
 	selectTab('graphics');
+	
+	await ResourceManager.loadImages(['cntrl_marb_bse.png', 'cntrl_cam_bse.png', 'cntrl_mous_base.png'].map(x => './assets/ui/options/' + x));
 };
 
 const resolution640 = document.querySelector('#graphics-640') as HTMLImageElement;

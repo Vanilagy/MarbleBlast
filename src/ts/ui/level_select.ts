@@ -70,15 +70,15 @@ setupTab(tabIntermediate, 'intermediate');
 setupTab(tabAdvanced, 'advanced');
 setupTab(tabCustom, 'custom');
 
-setupButton(prevButton, 'play/prev', () => cycleMission(-1));
+setupButton(prevButton, 'play/prev', () => cycleMission(-1), true);
 setupButton(playButton, 'play/play', () => {
 	let currentMission = currentLevelArray[currentLevelIndex];
 	if (!currentMission) return;
 
 	levelSelectDiv.classList.add('hidden');
 	loadLevel(currentMission.simGroup, currentMission.path);
-});
-setupButton(nextButton, 'play/next', () => cycleMission(1));
+}, true);
+setupButton(nextButton, 'play/next', () => cycleMission(1), true);
 setupButton(homeButton, 'play/back', () => {
 	levelSelectDiv.classList.add('hidden');
 	hiddenUnlocker.classList.add('hidden');
@@ -128,6 +128,9 @@ export const initLevelSelect = async () => {
 		else customLevels.push(missionObj);
 	}
 
+	// Initiate loading some images like this
+	selectTab('advanced');
+	selectTab('intermediate');
 	selectTab('beginner');
 };
 
@@ -180,17 +183,8 @@ const displayMission = () => {
 		bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
 		(bestTime3.children[1] as HTMLImageElement).style.opacity = (bestTimes[2][1] <= goldTime)? '' : '0';
 		bestTime3.children[2].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
-	
-		let withoutExtension = "missions/" + missionObj.path.slice(0, -4);
-		let imagePaths = ResourceManager.getFullNameOf(withoutExtension);
-		let imagePath: string;
-		for (let path of imagePaths) {
-			if (!path.endsWith('.mis')) {
-				imagePath = path;
-				break;
-			}
-		}
-		levelImage.src = "./assets/data/missions/" + missionObj.path.slice(0, missionObj.path.lastIndexOf('/') + 1) + imagePath;
+
+		levelImage.src = getImagePath(missionObj);
 
 		levelNumberElement.textContent = `${Util.uppercaseFirstLetter(missionInfo.type)} Level ${currentLevelIndex + 1}`;
 	}
@@ -210,6 +204,30 @@ const displayMission = () => {
 		prevButton.src = './assets/ui/play/prev_n.png';
 		prevButton.style.pointerEvents = '';
 	}
+
+	for (let i = currentLevelIndex - 5; i <= currentLevelIndex + 5; i++) {
+		let mission = currentLevelArray[i];
+		if (!mission) continue;
+
+		let imagePath = getImagePath(mission);
+		if (ResourceManager.getImageFromCache(imagePath)) continue;
+
+		ResourceManager.loadImage(imagePath);
+	}
+};
+
+const getImagePath = (missionObj: Mission) => {
+	let withoutExtension = "missions/" + missionObj.path.slice(0, -4);
+	let imagePaths = ResourceManager.getFullNameOf(withoutExtension);
+	let imagePath: string;
+	for (let path of imagePaths) {
+		if (!path.endsWith('.mis')) {
+			imagePath = path;
+			break;
+		}
+	}
+
+	return "./assets/data/missions/" + missionObj.path.slice(0, missionObj.path.lastIndexOf('/') + 1) + imagePath;
 };
 
 export const cycleMission = (direction: number) => {

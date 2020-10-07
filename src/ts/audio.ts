@@ -57,10 +57,10 @@ export abstract class AudioManager {
 		return Promise.all(paths.map((path) => this.loadBuffer(path)));
 	}
 
-	static async createAudioSource(path: string | string[], destination = this.soundGain, position?: THREE.Vector3) {
+	static createAudioSource(path: string | string[], destination = this.soundGain, position?: THREE.Vector3) {
 		let chosenPath = (typeof path === "string")? path : Util.randomFromArray(path);
-		let buffer = await this.loadBuffer(chosenPath);
-		let audioSource = new AudioSource(buffer, destination, position);
+		let bufferPromise = this.loadBuffer(chosenPath);
+		let audioSource = new AudioSource(bufferPromise, destination, position);
 
 		if (position) {
 			audioSource.gain.gain.value = 0;
@@ -70,8 +70,8 @@ export abstract class AudioManager {
 		return audioSource;
 	}
 
-	static async play(path: string | string[], volume = 1, destination = this.soundGain, position?: THREE.Vector3) {
-		let audioSource = await this.createAudioSource(path, destination, position);
+	static play(path: string | string[], volume = 1, destination = this.soundGain, position?: THREE.Vector3) {
+		let audioSource = this.createAudioSource(path, destination, position);
 		audioSource.gain.gain.value = position? 0 : volume;
 		audioSource.play();
 	}
@@ -110,25 +110,40 @@ export abstract class AudioManager {
 }
 
 export class AudioSource {
+	promise: Promise<AudioBuffer>;
+	destination: AudioNode;
 	node: AudioBufferSourceNode;
 	gain: GainNode;
 	panner: StereoPannerNode;
 	position: THREE.Vector3;
+	stopped = false;
 
-	constructor(buffer: AudioBuffer, destination: AudioNode, position?: THREE.Vector3) {
-		this.node = AudioManager.context.createBufferSource();
-		this.node.buffer = buffer;
-
+	constructor(bufferPromise: Promise<AudioBuffer>, destination: AudioNode, position?: THREE.Vector3) {
+		this.promise = bufferPromise;
+		this.destination = destination;
+		this.position = position;
+		
 		this.gain = AudioManager.context.createGain();
 		this.panner = AudioManager.context.createStereoPanner();
-		this.node.connect(this.gain);
 		this.gain.connect(this.panner);
-		this.panner.connect(destination);
+		this.panner.connect(this.destination);
+		this.node = AudioManager.context.createBufferSource();
+		this.node.connect(this.gain);
 
-		this.position = position;
+		this.init();
 	}
 
-	play() {
+	async init() {
+		let buffer = await this.promise;
+		if (this.stopped) return;
+		
+		this.node.buffer = buffer;
+	}
+
+	async play() {
+		await this.promise;
+		if (this.stopped) return;
+
 		this.node.start();
 		this.node.onended = () => {
 			this.stop();
@@ -136,6 +151,7 @@ export class AudioSource {
 	};
 
 	stop() {
+		this.stopped = true;
 		try {this.node.stop()} catch (e) {}
 		Util.removeFromArray(AudioManager.audioSources, this);
 	}

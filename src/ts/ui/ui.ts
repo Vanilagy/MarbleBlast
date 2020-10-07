@@ -3,12 +3,13 @@ import { ResourceManager } from "../resources";
 
 export const menuDiv = document.querySelector('#menu') as HTMLDivElement;
 
-export const setupButton = (element: HTMLImageElement, path: string, onclick: () => any) => {
+export const setupButton = (element: HTMLImageElement, path: string, onclick: () => any, loadDisabledImage = false) => {
 	let ogPath = path;
 	path = './assets/ui/' + path;
 	let normal = path + '_n.png';
 	let hover = path + '_h.png';
 	let down = path + '_d.png';
+	let disabled = path + '_i.png';
 	let held = false;
 
 	element.src = normal;
@@ -39,6 +40,7 @@ export const setupButton = (element: HTMLImageElement, path: string, onclick: ()
 		ResourceManager.loadImage(normal);
 		ResourceManager.loadImage(hover);
 		ResourceManager.loadImage(down);
+		if (loadDisabledImage) ResourceManager.loadImage(disabled);
 	}
 };
 
