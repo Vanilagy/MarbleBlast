@@ -1,5 +1,7 @@
 import { oimo } from "oimophysics";
 
+// This file maps the types from the npm package so that they line up with those exported from the oimo.js file.
+
 declare namespace OIMO {
 	const RigidBody: typeof oimo.dynamics.rigidbody.RigidBody;
 	type RigidBody = oimo.dynamics.rigidbody.RigidBody;

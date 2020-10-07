@@ -1,5 +1,4 @@
 import { PowerUp } from "./power_up";
-import { state } from "../state";
 import * as THREE from "three";
 import { Util } from "../util";
 import OIMO from "../declarations/oimo";
@@ -28,6 +27,7 @@ const particleOptions = {
 	}
 };
 
+/** Accelerates the marble. */
 export class SuperSpeed extends PowerUp {
 	dtsPath = "shapes/items/superspeed.dts";
 	pickUpName = "Super Speed PowerUp";
@@ -43,12 +43,14 @@ export class SuperSpeed extends PowerUp {
 		let movementVector = new THREE.Vector3(1, 0, 0);
 		movementVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), level.yaw);
 
+		// Okay, so super speed directionality is a bit strange. In general, the direction is based on the normal vector of the last surface you had contact with.
+
 		let quat = level.newOrientationQuat;
 		movementVector.applyQuaternion(quat);
 
 		let quat2 = new OIMO.Quat();
-		quat2.setArc(this.level.currentUp, marble.lastContactNormal);
-		movementVector.applyQuaternion(new THREE.Quaternion(quat2.x, quat2.y, quat2.z, quat2.w));
+		quat2.setArc(this.level.currentUp, marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
+		movementVector.applyQuaternion(new THREE.Quaternion(quat2.x, quat2.y, quat2.z, quat2.w)); // ...then rotate the movement bonus vector by that amount.
 		
 		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirlgig's determined value
 

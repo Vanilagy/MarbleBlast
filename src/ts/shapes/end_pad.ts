@@ -6,6 +6,7 @@ import { ParticleEmitter } from "../particles";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
 
+/** The finish pad. */
 export class EndPad extends Shape {
 	dtsPath = "shapes/pads/endarea.dts";
 	fireworks: Firework[] = [];
@@ -15,6 +16,7 @@ export class EndPad extends Shape {
 	constructor() {
 		super();
 
+		// Create the finish area collision geometry
 		let height = 4.8;
 		let radius = 1.5;
 		let finishArea = Util.createCylinderConvexHull(radius, height/2); // Using this instead of CylinderGeometry because CylinderGeometry is apparently bugged!
@@ -22,6 +24,7 @@ export class EndPad extends Shape {
 		transform.compose(new THREE.Vector3(0, 0, height/2 + 0.2), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0)), new THREE.Vector3(1, 1, 1));
 
 		this.addCollider(finishArea, () => {
+			// These checks are to make sure touchFinish is only called once per contact with the collider. For it to be called again, the marble must leave the area again.
 			let exit = this.inArea > 0;
 			this.inArea = 2;
 			if (exit) return;
@@ -30,6 +33,7 @@ export class EndPad extends Shape {
 		}, transform);
 	}
 
+	/** Starts the finish celebration firework at a given time. */
 	spawnFirework(time: TimeState) {
 		let firework = new Firework(this.worldPosition, time.timeSinceLoad);
 		this.fireworks.push(firework);
@@ -40,7 +44,8 @@ export class EndPad extends Shape {
 	tick(time: TimeState, onlyVisual: boolean) {
 		if (onlyVisual) return;
 		super.tick(time);
-
+		
+		// Tick the firework
 		for (let firework of this.fireworks.slice()) {
 			firework.tick(time.timeSinceLoad);
 			if (time.timeSinceLoad - firework.spawnTime >= 10000) Util.removeFromArray(this.fireworks, firework); // We can safely remove the firework
@@ -50,6 +55,7 @@ export class EndPad extends Shape {
 	}
 }
 
+/** The ambient smoke coming up from the finish pad. */
 const fireworkSmoke = {
 	ejectionPeriod: 100,
 	ambientVelocity: new THREE.Vector3(0, 0, 1),
@@ -77,6 +83,7 @@ const fireworkSmoke = {
 	}
 };
 
+/** The trail of the red rockets. */
 const redTrail = {
 	ejectionPeriod: 30,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
@@ -100,6 +107,7 @@ const redTrail = {
 	}
 };
 
+/** The trail of the blue rockets. */
 const blueTrail = {
 	ejectionPeriod: 30,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
@@ -123,6 +131,7 @@ const blueTrail = {
 	}
 };
 
+/** The explosion effect of the red rockets. */
 const redSpark = {
 	ejectionPeriod: 1,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
@@ -146,6 +155,7 @@ const redSpark = {
 	}
 };
 
+/** The explosion effect of the blue rockets. */
 const blueSpark = {
 	ejectionPeriod: 1,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
@@ -177,10 +187,12 @@ interface Trail {
 	lifetime: number
 }
 
+/** Handles the firework animation that plays on the finish pad upon level completion. */
 class Firework extends Scheduler {
 	pos: THREE.Vector3;
 	spawnTime: number;
 	trails: Trail[] = [];
+	/** The fireworks are spawned in waves, this controls how many are left. */
 	wavesLeft = 4;
 
 	constructor(pos: THREE.Vector3, spawnTime: number) {
@@ -189,22 +201,25 @@ class Firework extends Scheduler {
 		this.pos = pos;
 		this.spawnTime = spawnTime;
 
-		state.currentLevel.particles.createEmitter(fireworkSmoke, this.pos);
-		this.doWave(this.spawnTime);
+		state.currentLevel.particles.createEmitter(fireworkSmoke, this.pos); // Start the smoke
+		this.doWave(this.spawnTime); // Start the first wave
 	}
 
 	tick(time: number) {
 		this.tickSchedule(time);
 
+		// Update the trails
 		for (let trail of this.trails.slice()) {
 			let completion = Util.clamp((time - trail.spawnTime) / trail.lifetime, 0, 1);
-			completion = 1 - (1 - completion)**2;
+			completion = 1 - (1 - completion)**2; // ease-out
 
+			// Make the trail travel along an arc (parabola, whatever)
 			let pos = this.pos.clone().multiplyScalar(1 - completion).add(trail.targetPos.clone().multiplyScalar(completion));
 			pos.sub(new THREE.Vector3(0, 0, 1).multiplyScalar(completion**2));
 			trail.smokeEmitter.setPos(pos, time);
 
 			if (completion === 1) {
+				// The trail has reached its end, remove the emitter and spawn the explosion.
 				state.currentLevel.particles.removeEmitter(trail.smokeEmitter);
 				Util.removeFromArray(this.trails, trail);
 
@@ -217,6 +232,7 @@ class Firework extends Scheduler {
 		}
 	}
 
+	/** Spawns a bunch of trails going in random directions. */
 	doWave(time: number) {
 		let count = Math.floor(17 + Math.random() * 10);
 		for (let i = 0; i < count; i++) this.spawnTrail(time);
@@ -228,11 +244,12 @@ class Firework extends Scheduler {
 		}
 	}
 
+	/** Spawns a red or blue trail going in a random direction with a random speed. */
 	spawnTrail(time: number) {
 		let type: 'red' | 'blue' = (Math.random() < 0.5)? 'red' : 'blue';
 
 		let lifetime = 250 + Math.random() * 2000;
-		let distanceFac = 0.5 + lifetime / 5000;
+		let distanceFac = 0.5 + lifetime / 5000; // Make sure the firework doesn't travel a great distance way too quickly
 		let emitter = state.currentLevel.particles.createEmitter((type === 'red')? redTrail : blueTrail, this.pos);
 		let randomPointInCircle = Util.randomPointInUnitCircle();
 		let targetPos = new THREE.Vector3(randomPointInCircle.x * 3, randomPointInCircle.y * 3, 1 + Math.sqrt(Math.random()) * 3).multiplyScalar(distanceFac).add(this.pos);

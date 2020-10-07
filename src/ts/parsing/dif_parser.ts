@@ -6,7 +6,9 @@ const NUM_COORD_BINS = 16;
 export interface DifFile {
 	version: number,
 	previewIncluded: boolean,
+	/** The detail levels of the main interior, usually just one. */
 	detailLevels: InteriorDetailLevel[],
+	/** All the sub objects, these will be pathed interiors and such. */
 	subObjects: InteriorDetailLevel[]
 }
 
@@ -31,6 +33,7 @@ export interface InteriorDetailLevel {
 	boundingSphere: SphereF,
 	hasAlarmState: boolean,
 	numLightStateEntries: number,
+	/** The normal vectors of the planes. */
 	normals: Point3F[],
 	planes: {
 		normalIndex: number,
@@ -38,6 +41,7 @@ export interface InteriorDetailLevel {
 	}[],
 	points: Point3F[],
 	pointVisibilities: number[],
+	/** Two planes used to determine uv texture coordinates. */
 	texGenEqs: {
 		planeX: PlaneF,
 		planeY: PlaneF
@@ -53,8 +57,10 @@ export interface InteriorDetailLevel {
 	}[],
 	materialList: {
 		version: number,
+		/** The names of the textures to use. */
 		materials: string[]
 	},
+	/** Indices into the points array that are used to draw triangle strips. */
 	windings: number[],
 	windingIndices: {
 		windingStart: number,
@@ -80,6 +86,7 @@ export interface InteriorDetailLevel {
         zoneFront: number,
         zoneBack: number
 	}[],
+	/** The list of surfaces to draw. */
 	surfaces: {
 		windingStart: number,
 		windingCount: number,
@@ -134,6 +141,7 @@ export interface InteriorDetailLevel {
 	subObjects: {
 		soKey: number
 	}[],
+	/** The convex hulls used for collision data. */
 	convexHulls: {
 		hullStart: number,
 		hullCount: number,
@@ -169,6 +177,7 @@ export interface InteriorDetailLevel {
 	alarmAmbientColor: ColorF
 }
 
+/** A parser for .dif files, used for interiors. The main resources used to create this parser were http://www.rustycode.com/projects/Docs/Torque%20DIF%20File%20(Interiors)%20-%20Format%2044.14.html and the Torque 3D source code. */
 export class DifParser extends BinaryFileParser {
 	parse(): DifFile {
 		let version = this.readU32();
@@ -292,9 +301,8 @@ export class DifParser extends BinaryFileParser {
         }
 
         let edges: unknown[] = [];
-        if (false) { // This interior version skips edges
+        if (false) { // This interior version skips edges anyway, so no need to run this code.
             let numEdges = this.readU32();
-            console.log(numEdges);
             for (let i = 0; i < numEdges; i++) {
                 let pointIndex0 = this.readS32(), // Only GOD knows why these are signed. THESE DOCS >.<
                     pointIndex1 = this.readS32(),
@@ -303,9 +311,7 @@ export class DifParser extends BinaryFileParser {
     
                 edges.push({ pointIndex0, pointIndex1, surfaceIndex0, surfaceIndex1 });
             }
-    
-            console.log(edges);
-        }        
+        }
 
         let numZones = this.readU32();
         let zones = [];
@@ -329,7 +335,7 @@ export class DifParser extends BinaryFileParser {
         }
 
         if (false) {
-            // Parse zone static meshes
+            // Parse zone static meshes, skipped in this version
         }
 
         let numZonePortalList = this.readU32();
@@ -401,7 +407,6 @@ export class DifParser extends BinaryFileParser {
         let lightmapKeep: unknown[] = [];
         for (let i = 0; i < numLightmaps; i++) {
             let lightmap = this.readPNG();
-
             lightmaps.push(lightmap);
         }
 
@@ -488,7 +493,6 @@ export class DifParser extends BinaryFileParser {
             convexHulls.push({ hullStart, hullCount, minX, maxX, minY, maxY, minZ, maxZ, surfaceStart, surfaceCount, planeStart, polyListPlaneStart, polyListPointStart, polyListStringStart, staticMesh });
         }
 
-        // Idk what the fuck this is
         let numConvexHullEmitStrings = this.readU32();
         let convexHullEmitStrings = [];
         for (let i = 0; i < numConvexHullEmitStrings; i++) {
@@ -556,13 +560,16 @@ export class DifParser extends BinaryFileParser {
         let baseAmbientColor = this.readColorF(),
 			alarmAmbientColor = this.readColorF();
 
+		// All the following values were 0 in the Marble Blast interiors and are therefore not used.
+
         let numStaticMeshes = this.readU32();
 		
 		numNormals = this.readU32();
 		let numTexMatrices = this.readU32();
 		let numTexMatIndices = this.readU32();
 
-		/* SIKE SIKE SIKE
+		// It didn't work with the following:
+		/*
 		let extendedLightMapData = this.readU32();
 
 		if (extendedLightMapData === 1) {
@@ -659,6 +666,7 @@ export class DifParser extends BinaryFileParser {
 
 	static cachedFiles = new Map<string, Promise<DifFile>>();
 	
+	/** Loads and parses a .dif file. Returns a cached version if already loaded. */
 	static loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 

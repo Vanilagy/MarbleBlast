@@ -2,6 +2,7 @@
 
 header("Content-Type: text/plain");
 
+// Get the directory structure of a directory at a certain path
 function scan_directory($path) {
 	$files = scandir($path);
 	$files = array_slice($files, 2);

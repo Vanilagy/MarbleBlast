@@ -5,6 +5,7 @@ import OIMO from "../declarations/oimo";
 import { AudioManager } from "../audio";
 import * as THREE from "three";
 
+/** The fire particle. */
 const landMineParticle = {
 	ejectionPeriod: 0.2,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
@@ -27,6 +28,7 @@ const landMineParticle = {
 		times: [0, 1]
 	}
 };
+/** The smoke particle. */
 const landMineSmokeParticle = {
 	ejectionPeriod: 0.5,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
@@ -49,6 +51,7 @@ const landMineSmokeParticle = {
 		times: [0, 0.5, 1]
 	}
 };
+/** The sparks exploding away. */
 const landMineSparksParticle = {
 	ejectionPeriod: 0.4,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
@@ -72,6 +75,7 @@ const landMineSparksParticle = {
 	}
 };
 
+/** Land mines explode on contact and knock the marble away. */
 export class LandMine extends Shape {
 	dtsPath = "shapes/hazards/landmine.dts";
 	disappearTime = -Infinity;
@@ -82,6 +86,7 @@ export class LandMine extends Shape {
 		let marble = this.level.marble;
 		let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition)).normalize();
 
+		// Add velocity to the marble
 		marble.body.addLinearVelocity(vec.scale(10));
 		this.disappearTime = time.timeSinceLoad;
 
@@ -95,6 +100,7 @@ export class LandMine extends Shape {
 	tick(time: TimeState, onlyVisual: boolean) {
 		if (onlyVisual) return;
 		
+		// Enable or disable the collision based on disappear time
 		let visible = time.timeSinceLoad >= this.disappearTime + 5000;
 		this.setCollisionEnabled(visible);
 	}

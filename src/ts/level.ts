@@ -4,8 +4,8 @@ import * as THREE from "three";
 import { renderer, camera, orthographicCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble } from "./marble";
-import { Shape, GraphNode, SharedShapeData } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementSky, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementAudioProfile } from "./parsing/mis_parser";
+import { Shape, SharedShapeData } from "./shape";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementAudioProfile } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
@@ -42,7 +42,9 @@ import { PhysicsHelper } from "./physics";
 import { ParticleManager } from "./particles";
 import { StorageManager } from "./storage";
 
+/** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
+/** The vertical offsets of overlay shapes to get them all visually centered. */
 const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/images/helicopter.dts": -67,
 	"shapes/items/superjump.dts": -70,
@@ -50,63 +52,85 @@ const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/items/superspeed.dts": -53,
 	"shapes/items/shockabsorber.dts": -53
 };
+/** The time in milliseconds when the marble is released from the start pad. */
 export const GO_TIME = 3500;
+/** Default camera pitch */
 const DEFAULT_PITCH = 0.45;
 
 export interface TimeState {
+	/** The time since the level was loaded, this ticks up continuously. */
 	timeSinceLoad: number,
+	/** The time of the current attempt, this also ticks up continuously but is reset to 0 on restart. */
 	currentAttemptTime: number,
+	/** The gameplay time, affected by time travels and what not. */
 	gameplayClock: number,
+	/** A value in [0, 1], representing how far in between two physics ticks we are. */
 	physicsTickCompletion: number
 }
 
 interface LoadingState {
+	/** How many things have loaded */
 	loaded: number,
+	/** How many things are going to be loaded */
 	total: number
 }
 
+/** The central control unit of gameplay. Handles loading, simulation and rendering. */
 export class Level extends Scheduler {
 	mission: MissionElementSimGroup;
 	missionPath: string;
+
+	loadingState: LoadingState;
+
 	scene: THREE.Scene;
-	physics: PhysicsHelper;
-	particles: ParticleManager;
-	
-	marble: Marble;
-	interiors: Interior[] = [];
-	shapes: Shape[] = [];
-	sharedShapeData = new Map<string, Promise<SharedShapeData>>();
-	overlayShapes: Shape[] = [];
-	overlayScene: THREE.Scene;
 	sunlight: THREE.DirectionalLight;
 	sunDirection: THREE.Vector3;
+	physics: PhysicsHelper;
+	particles: ParticleManager;
+	marble: Marble;
+	interiors: Interior[] = [];
 
+	shapes: Shape[] = [];
+	/** Holds data shared between multiple shapes of the same .dts path. */
+	sharedShapeData = new Map<string, Promise<SharedShapeData>>();
+	/** The shapes used for drawing HUD overlay (powerups in the corner) */
+	overlayShapes: Shape[] = [];
+	overlayScene: THREE.Scene;
+
+	/** Holds the setInterval id */
 	tickInterval: number;
 	timeState: TimeState;
+	/** The last performance.now() time the physics were ticked. */
 	lastPhysicsTick: number = null;
 	paused = false;
+	/** If the level is stopped, it shouldn't be used anymore. */
 	stopped = false;
-	
-	pitch = 0;
-	yaw = 0;
-	currentTimeTravelBonus = 0;
-	outOfBounds = false;
+	/** The timestate at the moment of finishing. */
 	finishTime: TimeState = null;
 	finishYaw: number;
 	finishPitch: number;
-
+	
+	pitch = 0;
+	yaw = 0;
+	/** Where the camera was when the marble went OOB. */
+	oobCameraPosition: THREE.Vector3;
+	lastVerticalTranslation = new THREE.Vector3();
 	currentUp = new OIMO.Vec3(0, 0, 1);
+	/** The last time the orientation was changed (by a gravity modifier) */
 	orientationChangeTime = -Infinity;
+	/** The old camera orientation quat */
 	oldOrientationQuat = new THREE.Quaternion();
+	/** The new target camera orientation quat  */
 	newOrientationQuat = new THREE.Quaternion();
+
+	currentTimeTravelBonus = 0;
 	heldPowerUp: PowerUp = null;
 	totalGems = 0;
 	gemCount = 0;
+	outOfBounds = false;
+	
 	timeTravelSound: AudioSource;
 	music: AudioSource;
-	loadingState: LoadingState;
-	oobCameraPosition: THREE.Vector3;
-	lastVerticalTranslation = new THREE.Vector3();
 
 	constructor(missionGroup: MissionElementSimGroup, missionPath: string) {
 		super();
@@ -115,7 +139,9 @@ export class Level extends Scheduler {
 		this.loadingState = { loaded: 0, total: 0};
 	}
 
+	/** Loads all necessary resources and builds the mission. */
 	async init() {
+		// Scan the mission for elements to determine required loading effort
 		const scanMission = (simGroup: MissionElementSimGroup) => {
 			for (let element of simGroup.elements) {
 				if ([MissionElementType.InteriorInstance, MissionElementType.Item, MissionElementType.PathedInterior, MissionElementType.StaticShape].includes(element._type)) {
@@ -155,8 +181,8 @@ export class Level extends Scheduler {
 		this.restart();
 		for (let shape of this.shapes) await shape.onLevelStart();
 
-		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick
-		this.render();
+		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick for correct positional audio playback
+		this.render(); // This will also do a tick
 		this.tickInterval = setInterval(() => this.tick());
 		this.music.play();
 	}
@@ -169,16 +195,18 @@ export class Level extends Scheduler {
 		let directionalColor = MisParser.parseVector4(sunElement.color);
 		let ambientColor = MisParser.parseVector4(sunElement.ambient);
 
+		// Create the ambient light
 		let ambientLight = new THREE.AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z), 1);
         ambientLight.position.z = 0;
         ambientLight.position.y = 5;
 		this.scene.add(ambientLight);
 		
+		// Create the sunlight and set up the shadow camera
         let sunlight = new THREE.DirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), 1);
         this.scene.add(sunlight);
 		sunlight.castShadow = true;
 		sunlight.shadow.camera.far = 10000;
-        sunlight.shadow.camera.left = -0.5;
+        sunlight.shadow.camera.left = -0.5; // The shadow area itself is very small 'cause it only needs to cover the marble
         sunlight.shadow.camera.right = 0.5;
         sunlight.shadow.camera.bottom = -0.5;
 		sunlight.shadow.camera.top = 0.5;
@@ -188,6 +216,7 @@ export class Level extends Scheduler {
 		this.scene.add(sunlight.target); // Necessary for it to update
 		this.sunlight = sunlight;
 
+		// Init the skybox
 		let skyboxImages = await ResourceManager.loadImages([
             './assets/data/skies/sky_lf.jpg',
             './assets/data/skies/sky_rt.jpg',
@@ -196,6 +225,7 @@ export class Level extends Scheduler {
             './assets/data/skies/sky_up.jpg',
             './assets/data/skies/sky_dn.jpg',
 		]) as (HTMLImageElement | HTMLCanvasElement)[];
+		// three.js skyboxes are aligned with respect to y-up, but everything here is z-up. Therefore we need to do some manual image transformation hackery.
 		skyboxImages[0] = Util.modifyImageWithCanvas(skyboxImages[0], -Math.PI/2, true);
 		skyboxImages[1] = Util.modifyImageWithCanvas(skyboxImages[1], Math.PI/2, true);
 		skyboxImages[2] = Util.modifyImageWithCanvas(skyboxImages[2], 0, true);
@@ -216,12 +246,16 @@ export class Level extends Scheduler {
 	}
 
 	async initUi() {
+		// Load all necessary UI image elements
 		await ResourceManager.loadImages(Object.values(numberSources).map(x => "./assets/ui/game/numbers/" + x));
 		await ResourceManager.loadImages(["ready.png", "set.png", "go.png", "outofbounds.png", "powerup.png"].map(x => "./assets/ui/game/" + x));
+
+		// Set up the HUD overlay
 
 		let hudOverlayShapePaths = new Set<string>();
 		for (let shape of this.shapes) {
 			if (shape instanceof PowerUp || shape instanceof Gem) {
+				// We need to display the gem and powerup shapes in the HUD
 				hudOverlayShapePaths.add(shape.dtsPath);
 			}
 		}
@@ -238,18 +272,21 @@ export class Level extends Scheduler {
 
 			this.overlayShapes.push(shape);
 			this.overlayScene.add(shape.group);
-			if (path.includes("gem")) shape.ambientSpinFactor /= -2;
+			if (path.includes("gem")) shape.ambientSpinFactor /= -2; // Gems spin the other way apparently
 			else shape.ambientSpinFactor /= 2;
 		}
 
 		if (this.totalGems > 0) {
+			// Add the gem overlay
 			gemCountElement.style.display = '';
 			let gemOverlayShape = this.overlayShapes.find((shape) => shape.dtsPath.includes("gem"));
 			this.overlayScene.add(gemOverlayShape.group);
 		} else {
+			// Hide the gem UI
 			gemCountElement.style.display = 'none';
 		}
 
+		// Render everything once to force a GPU upload
 		renderer.render(this.overlayScene, orthographicCamera);
 
 		for (let shape of this.overlayShapes) {
@@ -261,15 +298,20 @@ export class Level extends Scheduler {
 		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
 		let musicProfile = this.mission.elements.find((element) => element._type === MissionElementType.AudioProfile && element.description === "AudioMusic") as MissionElementAudioProfile;
 		let musicFileName = musicProfile.fileName.slice(musicProfile.fileName.lastIndexOf('/') + 1).toLowerCase();
+		// If the song is Shell, then choose the music based on the index of the level.
 		if (musicFileName.includes('shell')) musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][Number(missionInfo.level) % 3];
 
 		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
-		this.music = await AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
+		this.music = AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
 		this.music.node.loop = true;
+		await this.music.promise;
 	}
 
+	/** Adds all elements within a sim group. */
 	async addSimGroup(simGroup: MissionElementSimGroup) {
+		// Check if it's a pathed interior group
 		if (simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior)) {
+			// Create the pathed interior
 			let pathedInterior = await PathedInterior.createFromSimGroup(simGroup, this);
 
 			this.scene.add(pathedInterior.group);
@@ -318,6 +360,7 @@ export class Level extends Scheduler {
 	async addShape(element: MissionElementStaticShape | MissionElementItem) {
 		let shape: Shape;
 
+		// Add the correct shape based on type
 		let dataBlockLowerCase = element.dataBlock.toLowerCase();
 		if (dataBlockLowerCase === "startpad") shape = new StartPad();
 		else if (dataBlockLowerCase === "endpad") shape = new EndPad();
@@ -344,6 +387,7 @@ export class Level extends Scheduler {
 		if (!shape) return;
 
 		this.shapes.push(shape);
+		// This is a bit hacky, but wait a short amount so that all shapes will have been created by the time this codepath continues. This is necessary for correct sharing of data between shapes.
 		await Util.wait(10);
 		await shape.init(this);
 
@@ -356,6 +400,7 @@ export class Level extends Scheduler {
 	addTrigger(element: MissionElementTrigger) {
 		let trigger: Trigger;
 
+		// Create a trigger based on type
 		if (element.dataBlock === "OutOfBoundsTrigger") {
 			trigger = new OutOfBoundsTrigger(element, this);
 		} else if (element.dataBlock === "InBoundsTrigger") {
@@ -369,6 +414,7 @@ export class Level extends Scheduler {
 		this.physics.addTrigger(trigger);
 	}
 
+	/** Restarts and resets the level. */
 	restart() {
 		this.timeState.currentAttemptTime = 0;
 		this.timeState.gameplayClock = 0;
@@ -384,21 +430,24 @@ export class Level extends Scheduler {
 		this.finishTime = null;
 
 		let startPad = this.shapes.find((shape) => shape instanceof StartPad);
+		// Place the marble a bit above the start pad
 		this.marble.body.setPosition(new OIMO.Vec3(startPad.worldPosition.x, startPad.worldPosition.y, startPad.worldPosition.z + 3));
 		this.marble.group.position.copy(Util.vecOimoToThree(this.marble.body.getPosition()));
 		this.marble.reset();
 
+		// Determine starting camera orientation based on the start pad
 		let euler = new THREE.Euler();
 		euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
 		this.yaw = euler.z + Math.PI/2;
 		this.pitch = DEFAULT_PITCH;
 
 		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
-		if (missionInfo.startHelpText) displayHelp(missionInfo.startHelpText);
+		if (missionInfo.startHelpText) displayHelp(missionInfo.startHelpText); // Show the start help text
 
 		for (let shape of this.shapes) shape.reset();
 		for (let interior of this.interiors) interior.reset();
 
+		// Reset the physics
 		this.currentUp = new OIMO.Vec3(0, 0, 1);
 		this.orientationChangeTime = -Infinity;
 		this.oldOrientationQuat = new THREE.Quaternion();
@@ -411,6 +460,8 @@ export class Level extends Scheduler {
 
 		this.timeTravelSound?.stop();
 		this.timeTravelSound = null;
+
+		// Queue the ready-set-go events
 
 		AudioManager.play('spawn.wav');
 
@@ -440,6 +491,7 @@ export class Level extends Scheduler {
 
 		let physicsTickLength = 1000 / PHYSICS_TICK_RATE;
 		let completion = Util.clamp((time - this.lastPhysicsTick) / physicsTickLength, 0, 1);
+		// Set up an intermediate time state for smoother rendering
 		let tempTimeState: TimeState = {
 			timeSinceLoad: this.timeState.timeSinceLoad + completion * physicsTickLength,
 			currentAttemptTime: this.timeState.currentAttemptTime + completion * physicsTickLength,
@@ -454,6 +506,7 @@ export class Level extends Scheduler {
 
 		this.updateCamera(tempTimeState);
 
+		// Update the shadow camera
 		let shadowCameraPosition = this.marble.group.position.clone();
 		shadowCameraPosition.sub(this.sunDirection.clone().multiplyScalar(5));
 		this.sunlight.shadow.camera.position.copy(shadowCameraPosition);
@@ -462,6 +515,7 @@ export class Level extends Scheduler {
 
 		renderer.render(this.scene, camera);
 
+		// Update the overlay
 		for (let overlayShape of this.overlayShapes) {
 			overlayShape.group.position.x = 500;
 			overlayShape.render(this.timeState);
@@ -477,7 +531,7 @@ export class Level extends Scheduler {
 			}
 		}
 
-		renderer.autoClear = false;
+		renderer.autoClear = false; // Make sure not to clear the previous canvas
 		renderer.render(this.overlayScene, orthographicCamera);
 		renderer.autoClear = true;
 
@@ -486,14 +540,17 @@ export class Level extends Scheduler {
 		requestAnimationFrame(() => this.render());
 	}
 
+	/** Updates the position of the camera based on marble position and orientation. */
 	updateCamera(timeState: TimeState) {
 		let marblePosition = Util.vecThreeToOimo(this.marble.group.position);
 		let orientationQuat = this.getOrientationQuat(timeState);
 		let up = new THREE.Vector3(0, 0, 1).applyQuaternion(orientationQuat);
 		let directionVector = new THREE.Vector3(1, 0, 0);
+		// The camera is translated up a bit so it looks "over" the marble
 		let cameraVerticalTranslation = new THREE.Vector3(0, 0, 0.3);
 
 		if (this.finishTime) {
+			// Make the camera spin around slowly
 			this.pitch = Util.lerp(this.finishPitch, DEFAULT_PITCH, Util.clamp((timeState.timeSinceLoad - this.finishTime.timeSinceLoad) / 333, 0, 1));
 			this.yaw = this.finishYaw - (timeState.timeSinceLoad - this.finishTime.timeSinceLoad) / 1000 * 0.6;
 		}
@@ -512,11 +569,14 @@ export class Level extends Scheduler {
 			camera.lookAt(Util.vecOimoToThree(marblePosition));
 			camera.position.add(cameraVerticalTranslation);
 
+			// Handle wall intersections:
+
 			const closeness = 0.1;
 			let rayCastOrigin = marblePosition.add(this.currentUp.scale(0.2));
 
 			let processedShapes = new Set<OIMO.Shape>();
 			for (let i = 0; i < 3; i++) {
+				// Shoot rays from the marble to the postiion of the camera
 				let rayCastDirection = Util.vecThreeToOimo(camera.position).sub(rayCastOrigin);
 				rayCastDirection.addEq(rayCastDirection.clone().normalize().scale(2));
 
@@ -532,26 +592,30 @@ export class Level extends Scheduler {
 				});
 
 				if (firstHit) {
+					// Construct a plane at the point of ray impact based on the normal
 					let plane = new THREE.Plane();
-
 					let normal = Util.vecOimoToThree(firstHit.normal).multiplyScalar(-1);
 					let position = Util.vecOimoToThree(firstHit.position);
-
 					plane.setFromNormalAndCoplanarPoint(normal, position);
+
+					// Project the camera position onto the plane
 					let target = new THREE.Vector3();
 					let projected = plane.projectPoint(camera.position, target);
 
+					// If the camera is too far from the plane anyway, break
 					let dist = plane.distanceToPoint(camera.position);
 					if (dist >= closeness) break;
 
+					// Go the projected point and look at the marble
 					camera.position.copy(projected.add(normal.multiplyScalar(closeness)));
 					camera.lookAt(Util.vecOimoToThree(marblePosition));
 
 					let rotationAxis = new THREE.Vector3(1, 0, 0);
 					rotationAxis.applyQuaternion(camera.quaternion);
 
-					let theta = Math.atan(0.3 / 2.5);
+					let theta = Math.atan(0.3 / 2.5); // 0.3 is the vertical translation, 2.5 the distance away from the marble.
 
+					// Rotate the camera back upwards such that the marble is in the same visual location on screen as before
 					camera.rotateOnWorldAxis(rotationAxis, theta);
 					continue;
 				}
@@ -560,6 +624,7 @@ export class Level extends Scheduler {
 
 			this.lastVerticalTranslation = cameraVerticalTranslation;
 		} else {
+			// Simply look at the marble
 			camera.position.copy(this.oobCameraPosition);
 			camera.position.sub(this.lastVerticalTranslation)
 			camera.lookAt(Util.vecOimoToThree(marblePosition));
@@ -573,6 +638,7 @@ export class Level extends Scheduler {
 
 		if (gameButtons.use) {
 			if (this.outOfBounds) {
+				// Skip the out of bounce "animation" and restart immediately
 				this.clearSchedule();
 				this.restart();
 			} else if (this.heldPowerUp) {
@@ -582,9 +648,11 @@ export class Level extends Scheduler {
 		}
 
 		if (this.lastPhysicsTick === null) {
+			// If there hasn't been a physics tick yet, ensure there is one now
 			this.lastPhysicsTick = time - 1000 / PHYSICS_TICK_RATE * 1.1;
 		}
 
+		/** Time since the last physics tick */
 		let elapsed = time - this.lastPhysicsTick;
 		if (elapsed >= 1000) {
 			elapsed = 1000;
@@ -592,20 +660,25 @@ export class Level extends Scheduler {
 		}
 
 		let tickDone = false;
+		// Make sure to execute the correct amount of ticks
 		while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
+			// By ticking we advance time, so advance time.
 			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
 			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
 			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
 			elapsed -= 1000 / PHYSICS_TICK_RATE;
 
 			this.tickSchedule(this.timeState.currentAttemptTime);
-			this.physics.step();
+			this.physics.step(); // Step the physics
 
 			for (let shape of this.shapes) shape.tick(this.timeState);
+			// Update pathed interior positions after the physics tick because they will have changed position only after the physics tick was calculated, not during.
 			for (let interior of this.interiors) if (interior instanceof PathedInterior) interior.updatePosition();
 			this.marble.handleControl(this.timeState);
 
 			if (this.timeState.currentAttemptTime < GO_TIME) {
+				// Lock the marble to the space above the start pad
+
 				let startPad = this.shapes.find((element) => element instanceof StartPad);
 				let position = this.marble.body.getPosition().clone();
 				position.x = startPad.worldPosition.x;
@@ -617,6 +690,7 @@ export class Level extends Scheduler {
 				this.marble.body.setLinearVelocity(vel);
 
 				let angVel = this.marble.body.getAngularVelocity();
+				// Cap the angular velocity so it doesn't go haywire
 				if (angVel.length() > 70) angVel.normalize().scaleEq(70);
 				this.marble.body.setAngularVelocity(angVel);
 
@@ -625,6 +699,7 @@ export class Level extends Scheduler {
 				this.marble.shape.setFriction(1);
 
 				if (this.currentTimeTravelBonus > 0) {
+					// Subtract remaining time travel time
 					this.currentTimeTravelBonus -= 1000 / PHYSICS_TICK_RATE;
 
 					if (!this.timeTravelSound) {
@@ -633,6 +708,7 @@ export class Level extends Scheduler {
 						this.timeTravelSound.play();
 					}
 				} else {
+					// Increase the gameplay time
 					this.timeState.gameplayClock += 1000 / PHYSICS_TICK_RATE;
 
 					this.timeTravelSound?.stop();
@@ -640,6 +716,7 @@ export class Level extends Scheduler {
 				}
 
 				if (this.currentTimeTravelBonus < 0) {
+					// If we slightly undershot the zero mark of the remaining time travel bonus, add the "lost time" back onto the gameplay clock:
 					this.timeState.gameplayClock += -this.currentTimeTravelBonus;
 					this.currentTimeTravelBonus = 0;
 				}
@@ -648,6 +725,7 @@ export class Level extends Scheduler {
 			if (this.finishTime) {
 				let elapsed = this.timeState.currentAttemptTime - this.finishTime.currentAttemptTime;
 				if (elapsed >= 2000 && finishScreenDiv.classList.contains('hidden')) {
+					// Show the finish screen
 					document.exitPointerLock();
 					showFinishScreen();
 				}
@@ -667,8 +745,10 @@ export class Level extends Scheduler {
 		if (tickDone) this.calculatePreemptiveTransforms();
 	}
 
+	/** Predicts the position of the marble in the next physics tick to allow for smooth, interpolated rendering. */
 	calculatePreemptiveTransforms() {
 		let vel = this.marble.body.getLinearVelocity();
+		// Naive: Just assume the marble moves as if nothing was in its way and it continued with its current velocity.
 		let predictedPosition = this.marble.body.getPosition().add(vel.scale(1 / PHYSICS_TICK_RATE)).add(this.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
 
 		let angVel = this.marble.body.getAngularVelocity();
@@ -683,11 +763,13 @@ export class Level extends Scheduler {
 		this.marble.preemptiveOrientation = predictedOrientation;
 	}
 
+	/** Get the current interpolated orientation quaternion. */
 	getOrientationQuat(time: TimeState) {
 		let completion = Util.clamp((time.currentAttemptTime - this.orientationChangeTime) / 300, 0, 1);
 		return this.oldOrientationQuat.clone().slerp(this.newOrientationQuat, completion);
 	}
 
+	/** Sets the current up vector and gravity with it. */
 	setUp(vec: OIMO.Vec3, time: TimeState) {
 		this.currentUp = vec;
 		this.physics.world.setGravity(vec.scale(-1 * this.physics.world.getGravity().length()));
@@ -697,6 +779,7 @@ export class Level extends Scheduler {
 		oldUp.applyQuaternion(currentQuat);
 
 		let quatChange = new THREE.Quaternion();
+		// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
 		quatChange.setFromUnitVectors(oldUp, Util.vecOimoToThree(vec));
 
 		this.newOrientationQuat = currentQuat.clone().multiply(quatChange);
@@ -727,6 +810,7 @@ export class Level extends Scheduler {
 		for (let overlayShape of this.overlayShapes) {
 			if (overlayShape.dtsPath.includes("gem")) continue;
 
+			// Show the corresponding icon in the HUD
 			if (overlayShape.dtsPath === powerUp.dtsPath) this.overlayScene.add(overlayShape.group);
 			else this.overlayScene.remove(overlayShape.group);
 		}
@@ -750,6 +834,7 @@ export class Level extends Scheduler {
 		this.gemCount++;
 		let string: string;
 
+		// Show a notification (and sound) based on the gems remaining
 		if (this.gemCount === this.totalGems) {
 			string = "You have all the gems, head for the finish!";
 			AudioManager.play('gotallgems.wav');
@@ -774,10 +859,11 @@ export class Level extends Scheduler {
 		this.currentTimeTravelBonus += bonus;
 	}
 
+	/** Triggers the out-of-bounds state. */
 	goOutOfBounds() {
 		if (this.outOfBounds) return;
 
-		this.updateCamera(this.timeState);
+		this.updateCamera(this.timeState); // Update the camera at the point of OOB-ing
 		this.outOfBounds = true;
 		this.oobCameraPosition = camera.position.clone();
 		setCenterText('outofbounds');
@@ -793,6 +879,8 @@ export class Level extends Scheduler {
 			AudioManager.play('missinggems.wav');
 			displayAlert("You can't finish without all the gems!!");
 		} else {
+			// The level was completed! Store the time of finishing.
+
 			this.finishTime = Util.jsonClone(this.timeState);
 			this.finishYaw = this.yaw;
 			this.finishPitch = this.pitch;
@@ -804,12 +892,14 @@ export class Level extends Scheduler {
 		}
 	}
 
+	/** Pauses the level. */
 	pause() {
 		this.paused = true;
 		document.exitPointerLock();
 		showPauseScreen();
 	}
 
+	/** Unpauses the level. */
 	unpause() {
 		this.paused = false;
 		document.documentElement.requestPointerLock();
@@ -817,6 +907,7 @@ export class Level extends Scheduler {
 		this.lastPhysicsTick = performance.now();
 	}
 
+	/** Ends the level irreversibly. */
 	stop() {
 		this.stopped = true;
 		clearInterval(this.tickInterval);
@@ -835,6 +926,7 @@ export class Level extends Scheduler {
 		AudioManager.stopAllAudio();
 	}
 
+	/** Returns how much percent the level has finished loading. */
 	getLoadingCompletion() {
 		return this.loadingState.total? this.loadingState.loaded / this.loadingState.total : 0;
 	}

@@ -1,6 +1,7 @@
 import { Shape } from "../shape";
 import { MissionElementStaticShape } from "../parsing/mis_parser";
 
+/** A plain sign showing a direction. */
 export class SignPlain extends Shape {
 	dtsPath = "shapes/signs/plainsign.dts";
 	shareMaterials = false;
@@ -8,6 +9,7 @@ export class SignPlain extends Shape {
 	constructor(element: MissionElementStaticShape) {
 		super();
 
+		// Determine the direction to show
 		let direction = element.dataBlock.slice("SignPlain".length);
 		switch (direction) {
 			case "Right": this.matNamesOverride["base.plainsign"] = "right.plainsign"; break;

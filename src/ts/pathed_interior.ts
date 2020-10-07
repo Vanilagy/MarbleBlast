@@ -14,20 +14,23 @@ interface MarkerData {
 	rotation: THREE.Quaternion
 }
 
+/** Represents a Torque 3D Pathed Interior moving along a set path. */
 export class PathedInterior extends Interior {
 	path: MissionElementPath;
 	markerData: MarkerData[];
-	element: MissionElementPathedInterior;
+	element: MissionElementPathedInterior;triggers: MustChangeTrigger[] = [];
+
 	duration: number;
+	timeOffset: number = 0;
 	timeStart: number = null;
 	timeDest: number = null;
 	changeTime: number = null;
-	triggers: MustChangeTrigger[] = [];
-	timeOffset: number = 0;
+
 	prevVelocity = new OIMO.Vec3();
 	prevPosition = new THREE.Vector3();
 	currentPosition = new THREE.Vector3();
 
+	/** Creates a PathedInterior from a sim group containing it and its path (and possible triggers). */
 	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
 
@@ -39,6 +42,7 @@ export class PathedInterior extends Interior {
 		pathedInterior.element = interiorElement;
 		pathedInterior.path = simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 		pathedInterior.computeDuration();
+		// Parse the markers
 		pathedInterior.markerData = pathedInterior.path.markers.map(x => {
 			return {
 				msToNext: Number(x.msToNext),
@@ -48,6 +52,7 @@ export class PathedInterior extends Interior {
 			};
 		});
 
+		// Add MustChangeTriggers if necessary
 		let triggers = simGroup.elements.filter((element) => element._type === MissionElementType.Trigger) as MissionElementTrigger[];
 		for (let triggerElement of triggers) {
 			let trigger = new MustChangeTrigger(triggerElement, pathedInterior);
@@ -58,6 +63,7 @@ export class PathedInterior extends Interior {
 		return pathedInterior;
 	}
 
+	/** Computes the total duration of the path. */
 	computeDuration() {
 		let total = 0;
 
@@ -78,8 +84,10 @@ export class PathedInterior extends Interior {
 	}
 
 	getInternalTime(externalTime: number) {
+		// Simply loop
 		if (this.changeTime === null) return (externalTime + this.timeOffset) % this.duration;
 
+		// Interpolate from timeStart to timeDest
 		let dur = Math.abs(this.timeStart - this.timeDest);
 		let completion = Util.clamp((externalTime - this.changeTime) / dur, 0, 1);
 		return Util.clamp(Util.lerp(this.timeStart, this.timeDest, completion), 0, this.duration);
@@ -92,7 +100,7 @@ export class PathedInterior extends Interior {
 		mat.multiplyMatrices(transform, mat);
 
 		let position = new THREE.Vector3();
-		mat.decompose(position, new THREE.Quaternion(), new THREE.Vector3());
+		mat.decompose(position, new THREE.Quaternion(), new THREE.Vector3()); // The orientation doesn't really matter in any level afaik
 
 		if (!this.prevPosition) this.prevPosition.copy(position);
 		else this.prevPosition.copy(this.currentPosition);
@@ -100,12 +108,15 @@ export class PathedInterior extends Interior {
 		this.currentPosition = position;
 
 		this.prevVelocity = this.body.getLinearVelocity().clone();
+		// Calculate the velocity based on current and last position
 		let velocity = position.clone().sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
 
 		if (velocity.length() > 0) {
+			// If the interior is moving, make sure it's flagged as kinematic
 			this.body.setType(OIMO.RigidBodyType.KINEMATIC);
 			this.body.setLinearVelocity(Util.vecThreeToOimo(velocity));
 		} else if (this.body.getType() !== OIMO.RigidBodyType.STATIC) {
+			// If the interior is currently stationary, we can flag it as that for increased performance
 			this.body.setType(OIMO.RigidBodyType.STATIC);
 			this.body.setLinearVelocity(new OIMO.Vec3());
 		}
@@ -115,10 +126,12 @@ export class PathedInterior extends Interior {
 		this.body.setPosition(Util.vecThreeToOimo(this.currentPosition));
 	}
 
+	/** Computes the transform of the interior at a point in time along the path. */
 	getTransformAtTime(time: number) {
 		let m1 = this.markerData[0];
 		let m2 = this.markerData[1];
 
+		// Find the two markers in question
 		let currentEndTime = Number(m1.msToNext);
 		let i = 2;
 		while (currentEndTime < time && i < this.markerData.length) {
@@ -135,8 +148,10 @@ export class PathedInterior extends Interior {
 
 		let completion = Util.clamp(duration? (time - m1Time) / duration : 1, 0, 1);
 		if (m1.smoothingType === "Accelerate") {
+			// A simple easing function
 			completion = Math.sin(completion * Math.PI - (Math.PI / 2)) * 0.5 + 0.5;
 		} else if (m1.smoothingType === "Spline") {
+			// Smooth the path like it's a Catmull-Rom spline.
 			let preStart = (i - 2) - 1;
 			let postEnd = (i - 1) + 1;
 			if (postEnd >= this.path.markers.length) postEnd = 0;
@@ -187,6 +202,8 @@ export class PathedInterior extends Interior {
 	}
 
 	reset() {
+		// I wish I could explain what's happening here (and why) a bit more clearly, but it's just a big clusterfuck.
+		
 		if (this.triggers.length > 0) {
 			// Make sure the interior doesn't start moving on its own (the default)
 			this.timeStart = 0;
@@ -205,6 +222,7 @@ export class PathedInterior extends Interior {
 
 			this.changeTime = 0;
 		} else if (this.element.initialPosition) {
+			// Interpret the initial position as a time offset
 			this.timeOffset = Number(this.element.initialPosition);
 		}
 	}

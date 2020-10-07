@@ -1,7 +1,7 @@
 import { PowerUp } from "./power_up";
-import { state } from "../state";
 import { TimeState } from "../level";
 
+/** Temporarily reduces marble restitution. */
 export class ShockAbsorber extends PowerUp {
 	dtsPath = "shapes/items/shockabsorber.dts";
 	pickUpName = "Shock Absorber PowerUp";

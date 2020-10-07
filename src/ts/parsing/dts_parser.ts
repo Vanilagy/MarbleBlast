@@ -9,6 +9,7 @@ export enum MeshType {
 	Null = 4
 }
 
+/** A compacted representation of a quaternion. Can be converted to a regular quaternion by normalizing and then conjugating. */
 export interface Quat16 {
 	x: number,
 	y: number,
@@ -16,6 +17,7 @@ export interface Quat16 {
 	w: number
 }
 
+/** Basically a variable-size bitfield, each number in the array representing a 32-bit word in that bitfield. */
 type BitSet = number[];
 
 export interface DtsFile {
@@ -26,14 +28,15 @@ export interface DtsFile {
 	tubeRadius: number,
 	center: Point3F,
 	bounds: Box3F,
+	/** The nodes describing a node graph. Each node is assigned certain transforms and holds a list of objects to draw. */
 	nodes: {
-		index: number, // Not actually in the spec, but helpful
 		nameIndex: number,
 		parentIndex: number,
 		firstObject: number,
 		firstChild: number,
 		nextSibling: number
 	}[],
+	/** The objects, containing a list of meshses to draw. */
 	objects: {
 		nameIndex: number,
 		numMeshes: number,
@@ -75,6 +78,7 @@ export interface DtsFile {
 		maxError: number,
 		polyCount: number
 	}[],
+	/** A list of meshes to draw. */
 	meshes: {
 		type: number,
 		parentMesh: number,
@@ -96,7 +100,7 @@ export interface DtsFile {
 		mergeIndices: number[],
 		vertsPerFrame: number,
 		flags: number,
-		// SkinMesh stuff:
+		// Values used only for SkinMesh:
 		initialTransforms?: number[][],
 		vertIndices?: number[],
 		boneIndices?: number[],
@@ -109,8 +113,11 @@ export interface DtsFile {
 	subShapeNumNodes: number[],
 	subShapeNumObjects: number[],
 	subShapeNumDecals: number[],
+	/** The default node rotations. */
 	defaultRotations: Quat16[],
+	/** The default node translations. */
 	defaultTranslations: Point3F[],
+	/** Values used for sequence animations. */
 	nodeRotations: Quat16[],
 	nodeTranslations: Point3F[],
 	nodeUniformScales: number[],
@@ -121,7 +128,8 @@ export interface DtsFile {
 	groundRotations: Quat16[],
 	names: string[],
 	alphaIn: number[],
-	alphaOut: number[],
+	alphaOut: number[], 
+	/** A list of sequences, used for animation of transforms and/or materials. */
 	sequences: {
 		nameIndex: number,
 		flags: number,
@@ -156,6 +164,7 @@ export interface DtsFile {
 	matReflectance: number[]
 }
 
+/** A helper construct used by the DTS parser. It keeps 3 indices into one data buffer for reading a stream of 32-bit, 16-bit and 8-bit values, respectively. */
 class Alloc {
 	buf: ArrayBuffer;
 	view: DataView;
@@ -168,8 +177,8 @@ class Alloc {
 		this.buf = buf;
 		this.view = new DataView(this.buf);
 		this.index32 = start32;
-		this.index16 = start32 + start16*4;
-		this.index8 = start32 + start8*4;
+		this.index16 = start32 + start16 * 4;
+		this.index8 = start32 + start8 * 4;
 	}
 
 	readU32() {
@@ -243,6 +252,7 @@ class Alloc {
 		return new Array(16).fill(null).map(() => this.readF32());
 	}
 
+	/** Guards are sequentially increasing numbers in all three buffers which are used to check data integrity. */
 	guard() {
 		let guard32 = this.readU32();
 		let guard16 = this.readU16();
@@ -254,6 +264,7 @@ class Alloc {
 	}
 }
 
+/** A parser for .dts files, used for static shapes and items. Main resources are http://docs.garagegames.com/torque-3d/official/content/documentation/Artist%20Guide/Formats/dts_format.html#:~:text=DTS%20is%20the%20native%20binary,and%20(optionally)%20sequence%20data.&text=The%20DTS%20file%20format%20stores,loading%20on%20non%2DIntel%20platforms. and the Torque 3D source. */
 export class DtsParser extends BinaryFileParser {
     parse(): DtsFile {
 		let version = this.readU16();
@@ -276,7 +287,7 @@ export class DtsParser extends BinaryFileParser {
 			sequences.push(this.parseSequence());
 		}
 
-		let matStreamType = this.readS8(); // Should be 1
+		let matStreamType = this.readS8(); // Should be 1 always
 		let numMaterials = this.readS32();
 		let matNames = Array(numMaterials).fill(null).map(x => this.readString());
 		let matFlags = Array(numMaterials).fill(null).map(x => this.readU32());
@@ -299,7 +310,7 @@ export class DtsParser extends BinaryFileParser {
 			matDetailScales,
 			matReflectance
 		};
-		obj = Object.assign(obj, shape);
+		obj = Object.assign(obj, shape); // Merge the two objects for ease of use.
 
 		return obj as typeof obj & typeof shape;
 	}
@@ -321,7 +332,7 @@ export class DtsParser extends BinaryFileParser {
 		let numTriggers = alloc.readS32();
 		let numDetails = alloc.readS32();
 		let numMeshes = alloc.readS32();
-		let numSkins = 0;
+		let numSkins = 0; // Skins are apparently deprecated
 		let numNames = alloc.readS32();
 		let smallestVisibleSize = alloc.readF32();
 		let smallestVisibleDL = alloc.readS32();
@@ -464,6 +475,7 @@ export class DtsParser extends BinaryFileParser {
 			let type = alloc.readU32();
 			
 			if (type === MeshType.Null) {
+				// Null meshes are simply skipped
 				return null;
 			}
 			
@@ -487,7 +499,7 @@ export class DtsParser extends BinaryFileParser {
 				return {
 					start: alloc.readU16(),
 					numElements: alloc.readU16(),
-					matIndex: (alloc.readU32() & 0x00ffffff)
+					matIndex: (alloc.readU32() & 0x00ffffff) // Remove all the flags associated with the material index
 				};
 			});
 			let numIndices = alloc.readS32();
@@ -519,6 +531,8 @@ export class DtsParser extends BinaryFileParser {
 			};
 
 			if (type === MeshType.Skin) {
+				// A skinned mesh comes with additional properties describing the bones and skin of the mesh.
+
 				let numInitialVerts = alloc.readS32();
 				let initialVerts = Array(numInitialVerts).fill(null).map(() => alloc.readPoint3F());
 				let initialNorms = Array(numInitialVerts).fill(null).map(() => alloc.readPoint3F());
@@ -556,7 +570,7 @@ export class DtsParser extends BinaryFileParser {
 
 			while (true) {
 				let newCharCode = alloc.readU8();
-				if (newCharCode === 0) break;
+				if (newCharCode === 0) break; // Null-terminated string
 
 				str += String.fromCharCode(newCharCode);
 			}
@@ -683,6 +697,7 @@ export class DtsParser extends BinaryFileParser {
 
 	static cachedFiles = new Map<string, Promise<DtsFile>>();
 	
+	/** Loads and parses a .dts file. Returns a cached version if already loaded. */
 	static loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 

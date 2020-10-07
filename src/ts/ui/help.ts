@@ -12,11 +12,13 @@ const nextButton = document.querySelector('#help-next') as HTMLImageElement;
 
 setupButton(prevButton, 'play/prev', () => cyclePage(-1));
 setupButton(backButton, 'play/back', () => {
+	// Close help and go back to the main menu
 	helpDiv.classList.add('hidden');
 	homeScreenDiv.classList.remove('hidden');
 });
 setupButton(nextButton, 'play/next', () => cyclePage(1));
 
+// Retrieve a list all of pages from the HTML
 const pages = [...document.querySelectorAll('.help-page')] as HTMLDivElement[];
 let currentPage: HTMLDivElement;
 
@@ -33,10 +35,12 @@ export const showHelpPage = (index: number) => {
 	pages[index].classList.remove('hidden');
 	currentPage = pages[index];
 
+	// Scan the paragraph
 	let paragraph = currentPage.querySelector('.help-paragraph');
 	if (paragraph) {
 		for (let element of paragraph.children) {
-			let buttonAttribute = element.getAttribute('data-button');
+			let buttonAttribute = element.getAttribute('data-button'); // This element represents a keybinding, we need to replace its content based on what key the user has bound
+			// Automatically replace the content with the correct value for the button
 			if (buttonAttribute) {
 				let str = Util.getKeyForButtonCode(StorageManager.data.settings.gameButtonMapping[buttonAttribute as keyof typeof StorageManager.data.settings.gameButtonMapping]);
 				element.textContent = str;
@@ -49,23 +53,27 @@ showHelpPage(0);
 const update = () => {
 	requestAnimationFrame(update);
 	if (helpDiv.classList.contains('hidden')) return;
-
+	
 	let now = performance.now();
 	let canvasRows = currentPage.querySelectorAll('.help-canvas-row');
 
+	// Update all shapes in the currently page
 	for (let row of canvasRows) {
 		let canvas = row.children[0] as HTMLCanvasElement;
-		let sceneName = canvas.getAttribute('data-scene');
+		let sceneName = canvas.getAttribute('data-scene'); // The name of the scene to show is stored in this attribute
 		let scene = scenes.get(sceneName);
 		if (!scene) continue;
 
+		// Select the correct scene
 		let shapeArr = shapes.get(sceneName);
 		for (let shape of shapeArr) {
 			shape.group.rotation.z = now / 3000 * Math.PI;
 		}
 
+		// Render the scene
 		helpRenderer.render(scene, helpCamera);
 
+		// Copy it to the other canvas
 		let ctx = canvas.getContext('2d');
 		ctx.clearRect(0, 0, 80, 80);
 		ctx.drawImage(helpRenderer.domElement, 0, 0);
@@ -73,12 +81,14 @@ const update = () => {
 };
 requestAnimationFrame(update);
 
+// A renderer used to render small icons of shapes in the help screen.
 const helpRenderer = new THREE.WebGLRenderer({ alpha: true });
 helpRenderer.setSize(80, 80);
 const helpCamera = new THREE.PerspectiveCamera(40, 1);
 helpCamera.rotateX(1.1);
 const scenes = new Map<string, THREE.Scene>();
 
+/** A list describing all possible scenes that can be displayed in the help menu. */
 const sceneDescriptions: Record<string, {
 	dtsPath: string,
 	distance: number,
@@ -176,6 +186,7 @@ export const initHelpScenes = async () => {
 
 	let timeState = { timeSinceLoad: 0, currentAttemptTime: 0, gameplayClock: 0, physicsTickCompletion: 0 };
 
+	// Create all scenes and shapes
 	for (let key in sceneDescriptions) {
 		let scene = new THREE.Scene();
 		let description = sceneDescriptions[key as keyof typeof sceneDescriptions];
@@ -192,6 +203,7 @@ export const initHelpScenes = async () => {
 		shapes.set(key, arr);
 	}
 
+	// Init the shapes
 	let promises: Promise<any>[] = [];
 	for (let [, shapeArr] of shapes) {
 		for (let shape of shapeArr) promises.push(shape.init());
@@ -201,6 +213,7 @@ export const initHelpScenes = async () => {
 	let lookVector = new THREE.Vector3(0, 0, -1);
 	lookVector.applyQuaternion(helpCamera.quaternion);
 
+	// Construct the scenes and set transforms
 	for (let [key, scene] of scenes) {
 		let shapeArr = shapes.get(key);
 		for (let i = 0; i < shapeArr.length; i++) {
@@ -215,6 +228,7 @@ export const initHelpScenes = async () => {
 			scene.add(shape.group);
 		}
 
+		// A simple ambient light will do
 		let light = new THREE.AmbientLight(0xffffff, 1);
 		scene.add(light);
 	}

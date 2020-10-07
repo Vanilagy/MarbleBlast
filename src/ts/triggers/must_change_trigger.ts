@@ -3,6 +3,7 @@ import { Trigger } from "./trigger";
 import { PathedInterior } from "../pathed_interior";
 import { TimeState } from "../level";
 
+/** A must-change trigger controls the path of a pathed interior. */
 export class MustChangeTrigger extends Trigger {
 	interior: PathedInterior;
 

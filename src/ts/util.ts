@@ -8,6 +8,7 @@ export interface RGBAColor {
 	a: number
 }
 
+/** An array of objects, one object per material. Each object stores vertex, normal, uv and index data that will be put into a WebGL buffer. */
 export type MaterialGeometry = {
 	vertices: number[],
 	normals: number[],
@@ -19,6 +20,7 @@ export abstract class Util {
 	static keyboardMap: Map<string, string>;
 
 	static async init() {
+		// Fetch the keyboard map for instant access later
 		this.keyboardMap = await (navigator as any).keyboard?.getLayoutMap();
 	}
 
@@ -30,6 +32,7 @@ export abstract class Util {
 		return arr[Math.floor(Math.random() * arr.length)];
 	}
 
+	/** Rotates and/or flips an image with a canvas and returns the canvas. */
 	static modifyImageWithCanvas(image: HTMLImageElement | HTMLCanvasElement, rotate: number, flip = false) {
 		let canvas = document.createElement('canvas');
 		canvas.setAttribute('width', image.width.toString());
@@ -46,6 +49,7 @@ export abstract class Util {
 		return canvas;
 	}
 
+	/** Removes the alpha channel from an image (sets all alpha values to 1) */
 	static removeAlphaChannel(image: HTMLImageElement) {
 		let canvas = document.createElement('canvas');
 		canvas.setAttribute('width', image.width.toString());
@@ -89,6 +93,7 @@ export abstract class Util {
 		return v1.x === v2.x && v1.y === v2.y && v1.z === v2.z;
 	}
 
+	/** Add a vector to another vector while making sure not to exceed a certain magnitude. */
 	static addToVectorCapped(target: OIMO.Vec3, add: OIMO.Vec3, magnitudeCap: number) {
 		let direction = add.clone().normalize();
 		let dot = Math.max(0, target.dot(direction));
@@ -105,10 +110,12 @@ export abstract class Util {
 		return "000000000000000000".slice(0, Math.max(0, amount - str.length)) + str;
 	}
 
+	/** Forces an element's layout to be recalculated. */
 	static forceLayout(element: Element) {
-		element.clientWidth;
+		element.clientWidth; // It's hacky, but simply accessing this forces it.
 	}
 
+	/** Get the value of a key for the corresponding button code. For example, KeyA -> A. Respects the user's keyboard layout. */
 	static getKeyForButtonCode(code: string) {
 		outer:
 		if (this.keyboardMap) {
@@ -136,6 +143,7 @@ export abstract class Util {
 		return false;
 	}
 
+	/** Compute the value of a 1D Catmull-Rom spline. */
 	static catmullRom(t: number, p0: number, p1: number, p2: number, p3: number) {
 		let point = t*t*t*((-1) * p0 + 3 * p1 - 3 * p2 + p3) / 2;
 		point += t*t*(2*p0 - 5 * p1+ 4 * p2 - p3) / 2;
@@ -145,6 +153,7 @@ export abstract class Util {
 		return point;
 	}
 
+	/** Clones an object using JSON. */
 	static jsonClone<T>(obj: T) {
 		return JSON.parse(JSON.stringify(obj));
 	}
@@ -158,6 +167,7 @@ export abstract class Util {
 		} as RGBAColor;
 	}
 
+	/** Returns a random point within the unit circle, distributed uniformly. */
 	static randomPointInUnitCircle() {
 		let r = Math.sqrt(Math.random());
 		let theta = Math.random() * Math.PI * 2;
@@ -165,12 +175,13 @@ export abstract class Util {
 		return new THREE.Vector2(r * Math.cos(theta), r * Math.sin(theta));
 	}
 
+	/** Removes an item from an array, or does nothing if it isn't contained in it. */
 	static removeFromArray<T>(arr: T[], item: T) {
 		let index = arr.indexOf(item);
 		if (index !== -1) arr.splice(index, 1);
 	}
 
-	/** Shamelessly copied from Torque's source code. */
+	/** Used to transform normal vectors. Shamelessly copied from Torque's source code. */
 	static m_matF_x_vectorF(matrix: THREE.Matrix4, v: THREE.Vector3) {
 		let m = matrix.transpose().elements;
 
@@ -188,6 +199,7 @@ export abstract class Util {
 		v.set(vresult_0, vresult_1, vresult_2);
 	}
 
+	/** Creates a cylinder-shaped convex hull geometry, aligned with the y-axis. */
 	static createCylinderConvexHull(radius: number, halfHeight: number, radialSegments = 32) {
 		let vertices: OIMO.Vec3[] = [];
 
@@ -216,10 +228,12 @@ export abstract class Util {
 		return str[0].toUpperCase() + str.slice(1);
 	}
 
+	/** Returns a promise that resolves after ms seconds. */
 	static wait(ms: number) {
-		return new Promise((resolve) => setTimeout(resolve, ms));
+		return new Promise<void>((resolve) => setTimeout(resolve, ms));
 	}
 
+	/** Modulo, but works as expected for negative numbers too. */
 	static adjustedMod(a: number, n: number) {
 		return ((a % n) + n) % n;
 	}
@@ -228,6 +242,7 @@ export abstract class Util {
 		return arrays.reduce((prev, next) => (prev.push(...next), prev), []);
 	}
 
+	/** Creates a BufferGeometry from a MaterialGeometry by setting all the buffer attributes and group accordingly. */
 	static createGeometryFromMaterialGeometry(materialGeometry: MaterialGeometry) {
 		let geometry = new THREE.BufferGeometry();
 
@@ -246,6 +261,7 @@ export abstract class Util {
 		return geometry;
 	}
 
+	/** Merges multiple materialGeometries of the same material count into one. */
 	static mergeMaterialGeometries(materialGeometries: MaterialGeometry[]) {
 		let merged = materialGeometries[0].map(() => {
 			return {
@@ -273,6 +289,7 @@ export abstract class Util {
 	}
 }
 
+/** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */
 export abstract class Scheduler {
 	scheduled: {
 		time: number,

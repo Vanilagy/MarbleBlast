@@ -29,7 +29,9 @@ interface StorageData {
 		alwaysFreeLook: boolean
 	},
 	bestTimes: Record<string, BestTimes>,
+	/** Stores the amount of unlocked levels per category of level (beginner, intermediate, advanced) */
 	unlockedLevels: [number, number, number],
+	/** Used for the name entry in the post-game screen. */
 	lastUsedName: string
 }
 
@@ -64,10 +66,12 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	lastUsedName: ''
 };
 
+/** Manages storage and persistence. */
 export abstract class StorageManager {
 	static data: StorageData;
 
 	static async init() {
+		// Fetch the stored data froom localStorage
 		let stored = localStorage.getItem('mb-storage');
 		if (stored) {
 			this.data = JSON.parse(stored);
@@ -80,31 +84,36 @@ export abstract class StorageManager {
 		localStorage.setItem('mb-storage', JSON.stringify(this.data));
 	}
 
+	/** Get the three best times for a mission path. */
 	static getBestTimesForMission(path: string) {
 		let result: BestTimes = [];
 		let stored = this.data.bestTimes[path];
 		if (stored) {
 			result.push(...stored);
 		}
-		result.sort((a, b) => a[1] - b[1]);
+		result.sort((a, b) => a[1] - b[1]); // Make sure they're in ascending order
 
 		let remaining = 3 - result.length;
 		for (let i = 0; i < remaining; i++) {
+			// Fill the remaining slots with Nardo Polo scores
 			result.push(["Nardo Polo", MAX_SCORE_TIME]);
 		}
 
 		return result;
 	}
 
+	/** Register a new time for a mission. */
 	static insertNewTime(path: string, name: string, time: number) {
 		let stored = this.data.bestTimes[path] ?? [];
 
+		// Determine the correct index to insert the time at
 		let index: number;
 		for (index = 0; index < stored.length; index++) {
 			if (stored[index][1] > time) break;
 		}
 		stored.splice(index, 0, [name, time]);
 
+		// Shorten the array if needed
 		if (stored.length > 3) stored = stored.slice(0, 3);
 		this.data.bestTimes[path] = stored;
 

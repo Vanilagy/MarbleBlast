@@ -3,11 +3,15 @@ import { Util } from "./util";
 
 const imageCacheElement = document.querySelector('#image-cache');
 
+/** Holds a directory structure. If the value is null, then the key is a file, otherwise the key is a directory and the value is another directory structure. */
 export type DirectoryStructure = {[name: string]: null | DirectoryStructure};
 
+/** Manages loading and caching of resources. */
 export abstract class ResourceManager {
 	static textureCache = new Map<string, THREE.Texture>();
+	static loadTexturePromises = new Map<string, Promise<THREE.Texture>>();
 	static textureLoader = new THREE.TextureLoader();
+	/** The structure in the assets/data directory. Used mainly to look up file extensions. */
 	static dataDirectoryStructure: DirectoryStructure = {};
 	static loadResourcePromises = new Map<string, Promise<Blob>>();
 	static cachedResources = new Map<string, Blob>();
@@ -19,22 +23,31 @@ export abstract class ResourceManager {
 		this.dataDirectoryStructure = JSON.parse(await response.text());
 	}
 
-	static async getTexture(path: string, removeAlpha = false) {
+	/** Creates a three.js texture from the path, or returned the cached version. */
+	static getTexture(path: string, removeAlpha = false) {
 		let cached = this.textureCache.get(path);
-		if (cached) return cached;
+		if (cached) return Promise.resolve(cached);
 
-		let image = await this.loadImage("assets/data/" + path);
-		let texture = new THREE.Texture(image);
-		texture.flipY = false;
-		texture.anisotropy = 1;
-		texture.needsUpdate = true;
+		if (this.loadTexturePromises.get(path)) return this.loadTexturePromises.get(path);
 
-		if (removeAlpha) {
-			texture.image = Util.removeAlphaChannel(image);
-		}
+		let promise = new Promise<THREE.Texture>(async (resolve) => {
+			let image = await this.loadImage("assets/data/" + path);
+			let texture = new THREE.Texture(image);
+			texture.flipY = false; // Why is the default true?
+			texture.anisotropy = 1; // It looks crappy like this, but so does the original.
+			texture.needsUpdate = true;
+	
+			if (removeAlpha) {
+				// Remove the alpha channel entirely
+				texture.image = Util.removeAlphaChannel(image);
+			}
+	
+			this.textureCache.set(path, texture);
+			resolve(texture);
+		});
+		this.loadTexturePromises.set(path, promise);
 
-		this.textureCache.set(path, texture);
-		return texture;
+		return promise;
 	}
 
 	static getTextureFromCache(path: string) {
@@ -43,7 +56,8 @@ export abstract class ResourceManager {
 		return null;
 	}
 
-	static getFullNameOf(path: string) {
+	/** Gets the full filenames (with extension) of the file located at the given path (without extension). */
+	static getFullNamesOf(path: string) {
 		let parts = path.split('/');
 
 		let current: DirectoryStructure = this.dataDirectoryStructure;
@@ -64,6 +78,7 @@ export abstract class ResourceManager {
 		}
 	}
 
+	/** Loads a resource from a path. Retries until it worked. */
 	static loadResource(path: string) {
 		let cached = this.cachedResources.get(path);
 		if (cached) return cached;
@@ -79,6 +94,7 @@ export abstract class ResourceManager {
 						return;
 					}
 
+					// Retrieve the blob and store it
 					let blob = await response.blob();
 					this.cachedResources.set(path, blob);
 					resolve(blob);
@@ -94,6 +110,7 @@ export abstract class ResourceManager {
 		return promise;
 	}
 
+	/** Preloads an image at a given path. */
 	static loadImage(path: string) {
 		if (this.loadedImages.get(path)) return this.loadedImages.get(path);
 		if (this.loadImagePromises.get(path)) return this.loadImagePromises.get(path);

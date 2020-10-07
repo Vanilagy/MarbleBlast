@@ -1,5 +1,4 @@
 import { PowerUp } from "./power_up";
-import { state } from "../state";
 import { AudioManager } from "../audio";
 import * as THREE from "three";
 import { Util } from "../util";
@@ -27,6 +26,7 @@ const particleOptions = {
 	}
 };
 
+/** Gives the marble an upwards boost. */
 export class SuperJump extends PowerUp {
 	dtsPath = "shapes/items/superjump.dts";
 	pickUpName = "Super Jump PowerUp";
@@ -38,7 +38,7 @@ export class SuperJump extends PowerUp {
 
 	use() {
 		let marble = this.level.marble;
-		marble.body.addLinearVelocity(this.level.currentUp.scale(20));
+		marble.body.addLinearVelocity(this.level.currentUp.scale(20)); // Simply add to vertical velocity
 
 		AudioManager.play(this.sounds[1]);
 		this.level.particles.createEmitter(particleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));

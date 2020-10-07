@@ -26,9 +26,13 @@ export interface PlaneF {
 	d: number
 }
 
+/** An abstract class with common methods used to parse binary files. */
 export abstract class BinaryFileParser {
+	/** The buffer holding the data. */
 	buffer: ArrayBuffer;
+	/** The view into the buffer. */
 	view: DataView;
+	/** The current index of reading. */
 	index = 0;
 
 	constructor(arrayBuffer: ArrayBuffer) {
@@ -102,6 +106,7 @@ export abstract class BinaryFileParser {
     }
 
     readString() {
+		// The length of the string is given in the first byte
         let length = this.readU8();
         let result = "";
 

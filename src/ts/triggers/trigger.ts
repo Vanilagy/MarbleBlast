@@ -5,6 +5,7 @@ import { TimeState, Level } from "../level";
 import { Util } from "../util";
 import * as THREE from "three";
 
+/** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
 export class Trigger {
 	id: number;
 	body: OIMO.RigidBody;
@@ -16,12 +17,14 @@ export class Trigger {
 		this.element = element;
 		this.level = level;
 
+		// Parse the "polyhedron"
 		let coordinates = element.polyhedron.split(' ').map((part) => Number(part));
 		let origin = new OIMO.Vec3(coordinates[0], coordinates[1], coordinates[2]);
 		let d1 = new OIMO.Vec3(coordinates[3], coordinates[4], coordinates[5]);
 		let d2 = new OIMO.Vec3(coordinates[6], coordinates[7], coordinates[8]);
 		let d3 = new OIMO.Vec3(coordinates[9], coordinates[10], coordinates[11]);
 
+		// Create the 8 points of the cuboid
 		let p1 = origin.clone();
 		let p2 = origin.add(d1);
 		let p3 = origin.add(d2);
@@ -34,10 +37,12 @@ export class Trigger {
 		let mat = new THREE.Matrix4();
 		mat.compose(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
+		// Apply the transformation matrix to each vertex by temporarily going from Oimo to three and then back again
 		let vertices = [p1, p2, p3, p4, p5, p6, p7, p8]
 			.map((vert) => Util.vecOimoToThree(vert).applyMatrix4(mat))
 			.map((vert) => Util.vecThreeToOimo(vert));
 
+		// Create the collision geometry
 		let geometry = new OIMO.ConvexHullGeometry(vertices);
 		let shapeConfig = new OIMO.ShapeConfig();
 		shapeConfig.geometry = geometry;

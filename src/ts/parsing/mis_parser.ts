@@ -23,15 +23,19 @@ export enum MissionElementType {
 
 export interface MissionElementBase {
 	// Underscore prefix to avoid name clashes
+	/** The general type of the element. */
 	_type: MissionElementType,
+	/** The subtype, specified in the () of the "constructor". */
 	_subtype: string
 }
 
+/** A sim group simply holds a list of elements. */
 export interface MissionElementSimGroup extends MissionElementBase {
 	_type: MissionElementType.SimGroup,
 	elements: MissionElement[]
 }
 
+/** Stores metadata about the mission. */
 export interface MissionElementScriptObject extends MissionElementBase {
 	_type: MissionElementType.ScriptObject,
 	time: string,
@@ -79,6 +83,7 @@ export interface MissionElementSky extends MissionElementBase {
 	fogVolumeColor3: string
 }
 
+/** Stores information about the lighting direction and color. */
 export interface MissionElementSun extends MissionElementBase {
 	_type: MissionElementType.Sun,
 	direction: string,
@@ -86,6 +91,7 @@ export interface MissionElementSun extends MissionElementBase {
 	ambient: string
 }
 
+/** Represents a static (non-moving) interior instance. */
 export interface MissionElementInteriorInstance extends MissionElementBase {
 	_type: MissionElementType.InteriorInstance,
 	position: string,
@@ -95,6 +101,7 @@ export interface MissionElementInteriorInstance extends MissionElementBase {
 	showTerrainInside: string
 }
 
+/** Represents a static shape. */
 export interface MissionElementStaticShape extends MissionElementBase {
 	_type: MissionElementType.StaticShape,
 	position: string,
@@ -105,6 +112,7 @@ export interface MissionElementStaticShape extends MissionElementBase {
 	timeout?: string
 }
 
+/** Represents an item. */
 export interface MissionElementItem extends MissionElementBase {
 	_type: MissionElementType.Item,
 	position: string,
@@ -118,11 +126,13 @@ export interface MissionElementItem extends MissionElementBase {
 	timeBonus?: string
 }
 
+/** Holds the markers used for the path of a pathed interior. */
 export interface MissionElementPath extends MissionElementBase {
 	_type: MissionElementType.Path,
 	markers: MissionElementMarker[]
 }
 
+/** One keyframe in a pathed interior path. */
 export interface MissionElementMarker extends MissionElementBase {
 	_type: MissionElementType.Marker,
 	position: string,
@@ -130,9 +140,11 @@ export interface MissionElementMarker extends MissionElementBase {
 	scale: string,
 	seqNum: string,
 	msToNext: string,
+	/** Either Linear, Accelerate or Spline. */
 	smoothingType: string
 }
 
+/** Represents a moving interior. */
 export interface MissionElementPathedInterior extends MissionElementBase {
 	_type: MissionElementType.PathedInterior,
 	position: string,
@@ -144,21 +156,25 @@ export interface MissionElementPathedInterior extends MissionElementBase {
 	basePosition: string,
 	baseRotation: string,
 	baseScale: string,
+	// These two following values are a bit weird. See usage for more explanation.
 	initialTargetPosition: string,
 	initialPosition: string
 }
 
+/** Represents a trigger area used for out-of-bounds and help. */
 export interface MissionElementTrigger extends MissionElementBase {
 	_type: MissionElementType.Trigger,
 	position: string,
 	rotation: string,
 	scale: string,
 	dataBlock: string,
+	/** A list of 12 strings representing 4 vectors. The first vector corresponds to the origin point of the cuboid, the other three are the side vectors. */
 	polyhedron: string,
 	text?: string,
 	targetTime?: string
 }
 
+/** Represents the song choice. */
 export interface MissionElementAudioProfile extends MissionElementBase {
 	_type: MissionElementType.AudioProfile,
 	fileName: string,
@@ -172,9 +188,11 @@ export interface MissionElementMessageVector extends MissionElementBase {
 
 type MissionElement = MissionElementSimGroup | MissionElementScriptObject | MissionElementMissionArea | MissionElementSky | MissionElementSun | MissionElementInteriorInstance | MissionElementStaticShape | MissionElementItem | MissionElementPath | MissionElementMarker | MissionElementPathedInterior | MissionElementTrigger | MissionElementAudioProfile | MissionElementMessageVector;
 
+/** A parser for .mis files, which hold mission information. */
 export class MisParser {
 	text: string;
 	lines: string[];
+	/** The index of the current line being read. */
 	lineIndex: number;
 
 	constructor(text: string) {
@@ -182,6 +200,7 @@ export class MisParser {
 	}
 
 	parse() {
+		// Remove empty and commented-out lines
 		this.lines = this.text.split('\n').map((line) => line.trim()).filter((line) => line && !line.startsWith('//'));
 
 		let elements = [];
@@ -194,12 +213,14 @@ export class MisParser {
 		}
 
 		if (elements.length !== 1) {
+			// We expect there to be only one outer element; the MissionGroup SimGroup.
 			throw new Error("Mission file has more than 1 outer element!");
 		}
 
 		return elements[0] as MissionElementSimGroup;
 	}
 
+	/** Reads the head of an element, aka the "constructor". */
 	readElementHead() {
 		return elementHeadRegEx.exec(this.lines[this.lineIndex]);
 	}
@@ -230,12 +251,12 @@ export class MisParser {
 		let elements: MissionElement[] = [];
 
 		while (true) {
-			if (this.lines[this.lineIndex].startsWith('}')) break;
+			if (this.lines[this.lineIndex].startsWith('}')) break; // End of the group
 
 			let head = this.readElementHead();
 			if (!head) continue;
 
-			let element = this.readElement(head[1], head[2]);
+			let element = this.readElement(head[1], head[2]); // Read the next element
 			elements.push(element);
 			this.lineIndex++;
 		}
@@ -247,17 +268,20 @@ export class MisParser {
 		} as MissionElementSimGroup;
 	}
 
+	/** Reads the key/value pairs of an element. */
 	readValues() {
+		// Values are either strings or string arrays.
 		let obj: Record<string, string | string[]> = {};
 
 		while (true) {
-			if (this.lines[this.lineIndex].startsWith('}')) break;
+			if (this.lines[this.lineIndex].startsWith('}')) break; // Element is over
 
 			let parts = this.lines[this.lineIndex].split('=').map((part) => part.trim());
 			if (parts[0].endsWith(']')) {
+				// The key is specifying array data, so handle that case.
 				let openingIndex = parts[0].indexOf('[');
 				let arrayName = parts[0].slice(0, openingIndex);
-				let array = (obj[arrayName] ?? (obj[arrayName] = [])) as string[];
+				let array = (obj[arrayName] ?? (obj[arrayName] = [])) as string[]; // Create a new array or use the existing one
 
 				let index = Number(parts[0].slice(openingIndex + 1, -1));
 				array[index] = parts[1].slice(1, -2);
@@ -265,7 +289,7 @@ export class MisParser {
 				if (parts[1][0] === '"') {
 					obj[parts[0]] = parts[1].slice(1, -2); // Remove " " and final ;
 				} else {
-					obj[parts[0]] = parts[1].slice(0, -1); // Remove final ;
+					obj[parts[0]] = parts[1].slice(0, -1); // Remove only final ;
 				}
 			}
 
@@ -333,7 +357,7 @@ export class MisParser {
 			let head = this.readElementHead();
 			if (!head) continue;
 
-			let element = this.readElement(head[1], head[2]) as MissionElementMarker;
+			let element = this.readElement(head[1], head[2]) as MissionElementMarker; // We know all elements inside of the path are markers.
 			markers.push(element);
 			this.lineIndex++;
 		}
@@ -382,6 +406,7 @@ export class MisParser {
 
 	static cachedFiles = new Map<string, MissionElementSimGroup>();
 	
+	/** Loads and parses a .mis file. Returns a cached version if already loaded. */
 	static async loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
@@ -395,20 +420,24 @@ export class MisParser {
 		return result;
 	}
 
+	/** Parses a 3-component vector from a string of three numbers. */
 	static parseVector3(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
 		return new THREE.Vector3(parts[0], parts[1], parts[2]);
 	}
 
+	/** Parses a 4-component vector from a string of four numbers. */
 	static parseVector4(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
 		return new THREE.Vector4(parts[0], parts[1], parts[2], parts[3]);
 	}
 
+	/** Returns a quaternion based on a rotation specified from 4 numbers. */
 	static parseRotation(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
 
 		let quaternion = new THREE.Quaternion();
+		// The first 3 values represent the axis to rotate on, the last represents the negative angle in degrees.
 		quaternion.setFromAxisAngle(new THREE.Vector3(parts[0], parts[1], parts[2]), -Util.degToRad(parts[3]));
 
 		return quaternion;

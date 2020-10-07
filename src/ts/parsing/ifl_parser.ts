@@ -1,7 +1,9 @@
 import { ResourceManager } from "../resources";
 
+/** The file simply is an array of material names, each index corresponding to one keyframe of the animation. */
 export type IflFile = string[]; // lol
 
+/** A parser for .ifl files, used to describe an animated sequence of materials. */
 export class IflParser {
 	text: string;
 
@@ -19,9 +21,9 @@ export class IflParser {
 			if (!line) continue;
 
 			let parts = line.split(' ');
-			let repetitions = parts[1]? Number(parts[1]) : 1;
+			let count = parts[1]? Number(parts[1]) : 1; // If no count is listed, is appears for exactly one keyframe.
 
-			for (let i = 0; i < repetitions; i++) {
+			for (let i = 0; i < count; i++) {
 				keyframes.push(parts[0]);
 			}
 		}
@@ -31,6 +33,7 @@ export class IflParser {
 
 	static cachedFiles = new Map<string, IflFile>();
 	
+	/** Loads and parses an .ifl file. Returns a cached version if already loaded. */
 	static async loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 

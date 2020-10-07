@@ -1,11 +1,11 @@
 import { PowerUp } from "./power_up";
 import { MissionElementItem } from "../parsing/mis_parser";
-import { state } from "../state";
 import { AudioManager } from "../audio";
 
+/** Temporarily pauses the game clock. */
 export class TimeTravel extends PowerUp {
 	dtsPath = "shapes/items/timetravel.dts";
-	cooldownDuration = Infinity;
+	cooldownDuration = Infinity; // Won't respawn until the level is restarted
 	autoUse = true;
 	timeBonus = 5000;
 	sounds = ["putimetravelvoice.wav", "timetravelactive.wav"];

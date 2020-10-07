@@ -3,6 +3,7 @@ import { ResourceManager } from "../resources";
 
 export const menuDiv = document.querySelector('#menu') as HTMLDivElement;
 
+/** Sets up an image element to act like a button and change textures based on click and hover state. */
 export const setupButton = (element: HTMLImageElement, path: string, onclick: () => any, loadDisabledImage = false) => {
 	let ogPath = path;
 	path = './assets/ui/' + path;
@@ -37,6 +38,7 @@ export const setupButton = (element: HTMLImageElement, path: string, onclick: ()
 	element.addEventListener('click', (e) => e.button === 0 && onclick());
 
 	if (ogPath) {
+		// Preload the images
 		ResourceManager.loadImage(normal);
 		ResourceManager.loadImage(hover);
 		ResourceManager.loadImage(down);
@@ -56,9 +58,10 @@ export const startUi = () => {
 };
 
 export const startMenuMusic = async () => {
-	menuMusic = await AudioManager.createAudioSource('shell.ogg', AudioManager.musicGain);
+	menuMusic = AudioManager.createAudioSource('shell.ogg', AudioManager.musicGain);
 	menuMusic.node.loop = true;
 	menuMusic.play();
+	await menuMusic.promise;
 };
 
 export const stopMenuMusic = async () => {

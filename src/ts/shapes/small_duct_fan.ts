@@ -1,6 +1,7 @@
 import { ForceShape } from "./force_shape";
 import { AudioSource, AudioManager } from "../audio";
 
+/** Blows the marble away, but not much. */
 export class SmallDuctFan extends ForceShape {
 	dtsPath = "shapes/hazards/ductfan.dts";
 	sounds = ["fan_loop.wav"];
@@ -14,8 +15,9 @@ export class SmallDuctFan extends ForceShape {
 	}
 
 	async onLevelStart() {
-		this.soundSource = await AudioManager.createAudioSource(this.sounds[0], AudioManager.soundGain, this.worldPosition);
+		this.soundSource = AudioManager.createAudioSource(this.sounds[0], AudioManager.soundGain, this.worldPosition);
 		this.soundSource.node.loop = true;
 		this.soundSource.play();
+		await this.soundSource.promise;
 	}
 }

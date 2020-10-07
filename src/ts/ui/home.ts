@@ -10,18 +10,21 @@ const optionsButton = document.querySelector('#home-options') as HTMLImageElemen
 const exitButton = document.querySelector('#home-exit') as HTMLImageElement;
 
 setupButton(playButton, 'home/play', () => {
+	// Show the level select
 	homeScreenDiv.classList.add('hidden');
 	levelSelectDiv.classList.remove('hidden');
 	hiddenUnlocker.classList.remove('hidden');
 });
 setupButton(helpButton, 'home/help', () => {
+	// Show the help screen
 	homeScreenDiv.classList.add('hidden');
 	helpDiv.classList.remove('hidden');
 	initHelpScenes();
 	showHelpPage(0);
 });
 setupButton(optionsButton, 'home/options', () => {
+	// Show the options screen
 	homeScreenDiv.classList.add('hidden');
 	optionsDiv.classList.remove('hidden');
 });
-setupButton(exitButton, 'home/exit', () => {});
+setupButton(exitButton, 'home/exit', () => {}); // JavaScript can't close its own tab, so... don't do anything.

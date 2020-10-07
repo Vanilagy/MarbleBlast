@@ -3,13 +3,17 @@ import { Shape } from "../shape";
 import { TimeState } from "../level";
 import { displayAlert } from "../ui/game";
 
+/** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
 	lastPickUpTime: number = null;
+	/** Reappears after this time. */
 	cooldownDuration: number = 7000;
+	/** Whether or not to automatically use the powerup instantly on pickup. */
 	autoUse = false;
 	ambientRotate = true;
 	collideable = false;
 	shareMaterials = false;
+	/** The name of the powerup that is shown on pickup. */
 	pickUpName: string;
 
 	onMarbleInside(time: TimeState) {
@@ -40,6 +44,7 @@ export abstract class PowerUp extends Shape {
 		this.lastPickUpTime = null;
 	}
 
+	/** If this function returns true, the pickup was successful. */
 	abstract pickUp(): boolean;
 	abstract use(time: TimeState): void;
 }

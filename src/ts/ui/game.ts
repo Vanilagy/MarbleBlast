@@ -1,7 +1,7 @@
 import { Util } from "../util";
 import { setupButton, menuDiv, startMenuMusic } from "./ui";
 import { state } from "../state";
-import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels } from "./level_select";
+import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex } from "./level_select";
 import { MissionElementScriptObject, MissionElementType } from "../parsing/mis_parser";
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
@@ -36,6 +36,7 @@ export let numberSources = {
 	"-": "dash.png"
 };
 
+/** Stops and destroys the current level and returns back to the menu. */
 const stopAndExit = () => {
 	state.currentLevel.stop();
 	state.currentLevel = null;
@@ -44,7 +45,7 @@ const stopAndExit = () => {
 	levelSelectDiv.classList.remove('hidden');
 	menuDiv.classList.remove('hidden');
 	finishScreenDiv.classList.add('hidden');
-	cycleMission(0);
+	cycleMission(0); // Make sure to reload the current level to potentially update best times having changed
 	startMenuMusic();
 };
 
@@ -59,6 +60,7 @@ setupButton(pauseRestartButton, 'common/restart', () => {
 });
 
 document.addEventListener('pointerlockchange', () => {
+	// When pointer lock is left, we pause.
 	if (!document.pointerLockElement) tryPause();
 });
 
@@ -108,6 +110,7 @@ export const hidePauseScreen = () => {
 	pauseScreenDiv.classList.add('hidden');
 };
 
+/** Converts seconds into a time string as seen in the game clock at the top, for example. */
 export const secondsToTimeString = (seconds: number) => {
 	let minutes = Math.floor(seconds / 60);
 	let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(seconds % 60).toString(), 2) + '.' + (seconds % 1).toFixed(2).slice(2);
@@ -115,6 +118,7 @@ export const secondsToTimeString = (seconds: number) => {
 	return string;
 }
 
+/** Updates the game clock canvas. */
 export const displayTime = (seconds: number) => {
 	let string = secondsToTimeString(seconds);
 	const defaultWidth = 43;
@@ -125,6 +129,7 @@ export const displayTime = (seconds: number) => {
 
 	clockCtx.clearRect(0, 0, clockCanvas.width, clockCanvas.height);
 	
+	// Draw every symbol
 	for (let i = 0; i < string.length; i++) {
 		let char = string[i];
 		let path = "./assets/ui/game/numbers/" + numberSources[char as keyof typeof numberSources];
@@ -137,6 +142,7 @@ export const displayTime = (seconds: number) => {
 	}
 };
 
+/** Updates the gem count display. */
 export const displayGemCount = (count: number, total: number) => {
 	let string = Util.leftPadZeroes(count.toString(), 2) + '/' + Util.leftPadZeroes(total.toString(), 2);
 
@@ -149,10 +155,12 @@ export const displayGemCount = (count: number, total: number) => {
 };
 
 const keybindRegex = /<func:bind (\w+)>/g;
+/** Displays a help message in the middle of the screen. */
 export const displayHelp = async (message: string) => {
 	keybindRegex.lastIndex = 0;
 	let match: RegExpMatchArray;
 
+	// Search the string for possible keybind references. If found, replace them with the key bound to that keybind.
 	while ((match = keybindRegex.exec(message)) !== null) {
 		let gameButton = ({
 			"moveforward": "up",
@@ -179,6 +187,7 @@ export const displayHelp = async (message: string) => {
 	helpElement.style.animation = 'gameplay-text-popup 4s forwards ease-in';
 };
 
+/** Displays an alert at the bottom of the screen. */
 export const displayAlert = (message: string) => {
 	alertElement.textContent = message;
 
@@ -211,27 +220,14 @@ const replayButton = document.querySelector('#finish-replay') as HTMLImageElemen
 const continueButton = document.querySelector('#finish-continue') as HTMLImageElement;
 
 setupButton(replayButton, 'endgame/replay', () => {
+	// Restart the level
 	finishScreenDiv.classList.add('hidden');
 	state.currentLevel.restart();
 	document.documentElement.requestPointerLock();
 });
-setupButton(continueButton, 'endgame/continue', () => {
-	let level = state.currentLevel;
-	let missionInfo = level.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
-	let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
-	let failedToQualify = level.finishTime.gameplayClock > qualifyTime;
+setupButton(continueButton, 'endgame/continue', () => stopAndExit());
 
-	stopAndExit();
-	if (!failedToQualify) {
-		let typeIndex = ['beginner', 'intermediate', 'advanced'].indexOf(missionInfo.type.toLowerCase());
-		let unlockedLevels = Math.min(Math.max(StorageManager.data.unlockedLevels[typeIndex], Number(missionInfo.level) + 1), [beginnerLevels, intermediateLevels, advancedLevels][typeIndex].length);
-		
-		StorageManager.data.unlockedLevels[typeIndex] = unlockedLevels;
-		StorageManager.store();
-		cycleMission(1);
-	}
-});
-
+/** Shows the post-game finish screen. */
 export const showFinishScreen = () => {
 	let level = state.currentLevel;
 	finishScreenDiv.classList.remove('hidden');
@@ -242,6 +238,7 @@ export const showFinishScreen = () => {
 	let goldTime = Number(missionInfo.goldTime);
 	let failedToQualify = false;
 
+	// Change the message based on having achieve gold time, qualified time or not having qualified.
 	finishScreenMessage.style.color = '';
 	if (level.finishTime.gameplayClock <= goldTime) {
 		finishScreenMessage.innerHTML = 'You beat the <span style="color: #fff700;">GOLD</span> time!';
@@ -256,6 +253,7 @@ export const showFinishScreen = () => {
 		}
 	}
 
+	// Update the time elements
 	finishScreenTime.textContent = secondsToTimeString(level.finishTime.gameplayClock / 1000);
 	qualifyTimeElement.textContent = (missionInfo.time && missionInfo.time !== "0")? secondsToTimeString(Number(missionInfo.time) / 1000) : '99:59.99';
 	qualifyTimeElement.style.color = failedToQualify? 'red' : '';
@@ -268,9 +266,10 @@ export const showFinishScreen = () => {
 	drawBestTimes();
 
 	let bestTimes = StorageManager.getBestTimesForMission(level.missionPath);
-	let place = bestTimes.filter((time) => time[1] <= level.finishTime.gameplayClock).length;
+	let place = bestTimes.filter((time) => time[1] <= level.finishTime.gameplayClock).length; // The place is determined by seeing how many scores there currently are faster than the achieved time.
 
 	if (place <= 2 && !failedToQualify) {
+		// Prompt the user to enter their name
 		nameEntryScreenDiv.classList.remove('hidden');
 		nameEntryText.textContent = `You got the ${['best', '2nd best', '3rd best'][place]} time!`;
 		nameEntryInput.value = StorageManager.data.lastUsedName;
@@ -278,8 +277,20 @@ export const showFinishScreen = () => {
 	} else {
 		nameEntryScreenDiv.classList.add('hidden');
 	}
+
+	// Unlock the next level if qualified
+	if (!failedToQualify) {
+		let typeIndex = ['beginner', 'intermediate', 'advanced'].indexOf(missionInfo.type.toLowerCase());
+		let unlockedLevels = Math.min(Math.max(StorageManager.data.unlockedLevels[typeIndex], Number(missionInfo.level) + 1), [beginnerLevels, intermediateLevels, advancedLevels][typeIndex].length);
+		
+		StorageManager.data.unlockedLevels[typeIndex] = unlockedLevels;
+		StorageManager.store();
+
+		if (getCurrentLevelIndex() === Number(missionInfo.level) - 1) cycleMission(1); // Cycle to that next level, but only if it isn't already selected
+	}
 };
 
+/** Updates the best times. */
 const drawBestTimes = () => {
 	let level = state.currentLevel;
 	let missionInfo = level.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
@@ -306,6 +317,7 @@ const nameEntryInput = document.querySelector('#name-entry-input') as HTMLInputE
 const nameEntryButton = nameEntryScreenDiv.querySelector('#name-entry-confirm') as HTMLImageElement;
 
 setupButton(nameEntryButton, 'common/ok', () => {
+	// Store the time and close the dialog.
 	let level = state.currentLevel;
 	StorageManager.data.lastUsedName = nameEntryInput.value.trim();
 	StorageManager.insertNewTime(level.missionPath, nameEntryInput.value.trim(), level.finishTime.gameplayClock);

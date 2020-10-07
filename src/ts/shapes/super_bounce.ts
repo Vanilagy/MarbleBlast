@@ -1,7 +1,7 @@
 import { PowerUp } from "./power_up";
-import { state } from "../state";
 import { TimeState } from "../level";
 
+/** Temporarily increase marble restitution. */
 export class SuperBounce extends PowerUp {
 	dtsPath = "shapes/items/superbounce.dts";
 	pickUpName = "Super Bounce PowerUp";

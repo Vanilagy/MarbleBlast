@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { TimeState } from "./level";
 import { StorageManager } from "./storage";
 
+/** A class used as an utility for sound playback. */
 export abstract class AudioManager {
 	static context: AudioContext;
 	static masterGain: GainNode;
@@ -12,6 +13,7 @@ export abstract class AudioManager {
 	static musicGain: GainNode;
 
 	static audioBufferCache = new Map<string, Promise<AudioBuffer>>();
+	/** Stores a list of all currently playing audio sources. */
 	static audioSources: AudioSource[] = [];
 
 	static init() {
@@ -22,7 +24,7 @@ export abstract class AudioManager {
 		this.masterGain.connect(this.context.destination);
 
 		this.soundGain = this.context.createGain();
-		this.soundGain.gain.value = 0;
+		this.soundGain.gain.value = 0; // These values will be overwritten by the options anyway
 		this.soundGain.connect(this.masterGain);
 
 		this.musicGain = this.context.createGain();
@@ -32,6 +34,7 @@ export abstract class AudioManager {
 		this.updateVolumes();
 	}
 
+	/** Loads an audio buffer from a path. Returns the cached version whenever possible. */
 	static loadBuffer(path: string) {
 		if (this.audioBufferCache.has(path)) return this.audioBufferCache.get(path);
 
@@ -57,12 +60,19 @@ export abstract class AudioManager {
 		return Promise.all(paths.map((path) => this.loadBuffer(path)));
 	}
 
+	/**
+	 * Creates an audio source.
+	 * @param path The path of the audio resource. If it's an array, a random one will be selected.
+	 * @param destination The destination node of the audio.
+	 * @param position Optional: The position of the audio source in 3D space.
+	 */
 	static createAudioSource(path: string | string[], destination = this.soundGain, position?: THREE.Vector3) {
 		let chosenPath = (typeof path === "string")? path : Util.randomFromArray(path);
 		let bufferPromise = this.loadBuffer(chosenPath);
 		let audioSource = new AudioSource(bufferPromise, destination, position);
 
 		if (position) {
+			// Mute the sound by default to avoid any weird audible artifacts.
 			audioSource.gain.gain.value = 0;
 		}
 
@@ -70,12 +80,14 @@ export abstract class AudioManager {
 		return audioSource;
 	}
 
+	/** Utility method for creating an audio source and playing it immediately. */
 	static play(path: string | string[], volume = 1, destination = this.soundGain, position?: THREE.Vector3) {
 		let audioSource = this.createAudioSource(path, destination, position);
 		audioSource.gain.gain.value = position? 0 : volume;
 		audioSource.play();
 	}
 
+	/** Updates the pan and volume of positional audio sources based on the listener's location. */
 	static updatePositionalAudio(time: TimeState, listenerPos: THREE.Vector3, listenerYaw: number) {
 		let quat = state.currentLevel.getOrientationQuat(time);
 		quat.conjugate();
@@ -83,6 +95,7 @@ export abstract class AudioManager {
 		for (let source of this.audioSources) {
 			if (!source.position) continue;
 
+			// Get the relative position of the audio source from the listener's POV
 			let relativePosition = source.position.clone().sub(listenerPos);
 			relativePosition.applyQuaternion(quat);
 			relativePosition.applyAxisAngle(new THREE.Vector3(0, 0, 1), -listenerYaw);
@@ -90,7 +103,7 @@ export abstract class AudioManager {
 			relativePosition.z = 0;
 
 			let distance = source.position.distanceTo(listenerPos);
-			let panRemoval = Util.clamp(distance / 1, 0, 1)
+			let panRemoval = Util.clamp(distance / 1, 0, 1); // If the listener is very close to the center, start moving to the audio source to the center.
 			
 			source.panner.pan.value = -relativePosition.y * 0.8 * panRemoval;
 			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1);
@@ -98,6 +111,7 @@ export abstract class AudioManager {
 	}
 
 	static updateVolumes() {
+		// Quadratic because it feels better
 		this.musicGain.gain.linearRampToValueAtTime(StorageManager.data.settings.musicVolume ** 2, this.context.currentTime + 0.01);
 		this.soundGain.gain.linearRampToValueAtTime(StorageManager.data.settings.soundVolume ** 2, this.context.currentTime + 0.01);
 	}
@@ -109,6 +123,7 @@ export abstract class AudioManager {
 	}
 }
 
+/** A small wrapper around audio nodes that are used to play a sound. */
 export class AudioSource {
 	promise: Promise<AudioBuffer>;
 	destination: AudioNode;
@@ -135,18 +150,18 @@ export class AudioSource {
 
 	async init() {
 		let buffer = await this.promise;
-		if (this.stopped) return;
+		if (this.stopped) return; // The sound may have already been stopped, so don't continue.
 		
 		this.node.buffer = buffer;
 	}
 
 	async play() {
 		await this.promise;
-		if (this.stopped) return;
+		if (this.stopped) return; // The sound may have already been stopped, so don't continue.
 
 		this.node.start();
 		this.node.onended = () => {
-			this.stop();
+			this.stop(); // Call .stop for clean-up purposes
 		};
 	};
 

@@ -1,7 +1,7 @@
 import { PowerUp } from "./power_up";
-import { state } from "../state";
 import { TimeState } from "../level";
 
+/** Reduces gravity temporarily. */
 export class Helicopter extends PowerUp {
 	dtsPath = "shapes/images/helicopter.dts";
 	showSequences = false;

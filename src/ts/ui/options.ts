@@ -48,6 +48,7 @@ const audioDiv = document.querySelector('#options-audio') as HTMLDivElement;
 const controlsDiv = document.querySelector('#options-controls') as HTMLDivElement;
 
 export const initOptions = async () => {
+	// Init all buttons, sliders and keybinds
 	[resolution640, resolution800, resolution1024][StorageManager.data.settings.resolution].click();
 	[openGl, direct3D][StorageManager.data.settings.videoDriver].click();
 	[windowedButton, fullButton][StorageManager.data.settings.screenStyle].click();
@@ -63,6 +64,7 @@ export const initOptions = async () => {
 	if (StorageManager.data.settings.invertYAxis) invertY.click();
 	if (StorageManager.data.settings.alwaysFreeLook) alwaysFreeLook.click();
 
+	// Default selection
 	selectControlsTab('marble');
 	selectTab('graphics');
 	
@@ -86,6 +88,7 @@ const selectResolutionButton = (button: HTMLImageElement, index: number) => {
 };
 
 const unlockResolutionButtons = () => {
+	// Deselect all resolution buttons
 	resolution640.src = './assets/ui/options/graf640_n.png';
 	resolution640.removeAttribute('data-locked');
 	resolution800.src = './assets/ui/options/graf800_n.png';
@@ -109,6 +112,7 @@ const selectVideoDriverButton = (button: HTMLImageElement, index: number) => {
 };
 
 const unlockVideoDriverButtons = () => {
+	// Deselect all video driver buttons
 	openGl.src = './assets/ui/options/grafopgl_n.png';
 	openGl.removeAttribute('data-locked');
 	direct3D.src = './assets/ui/options/grafdir3d_n.png';
@@ -130,6 +134,7 @@ const selectScreenStyleButton = (button: HTMLImageElement, index: number) => {
 };
 
 const unlockScreenStyleButtons = () => {
+	// Deselect all screen style buttons
 	windowedButton.src = './assets/ui/options/grafwindo_n.png';
 	windowedButton.removeAttribute('data-locked');
 	fullButton.src = './assets/ui/options/grafful_n.png';
@@ -151,6 +156,7 @@ const selectColorDepthButton = (button: HTMLImageElement, index: number) => {
 };
 
 const unlockColorDepthButtons = () => {
+	// Deselect all color depth buttons
 	depth16.src = './assets/ui/options/graf16bt_n.png';
 	depth16.removeAttribute('data-locked');
 	depth32.src = './assets/ui/options/graf32bt_n.png';
@@ -164,6 +170,7 @@ setupButton(shadowsCheckbox, 'options/graf_chkbx', () => {
 	StorageManager.data.settings.shadows = !shadowsCheckbox.hasAttribute('data-locked');
 	StorageManager.store();
 
+	// Toggle the checkbox
 	if (!shadowsCheckbox.hasAttribute('data-locked')) {
 		shadowsCheckbox.setAttribute('data-locked', '');
 		shadowsCheckbox.src = './assets/ui/options/graf_chkbx_d.png';
@@ -178,8 +185,8 @@ const musicVolumeTrack = document.querySelector('#audio-music-track') as HTMLIma
 const musicVolumeKnob = document.querySelector('#audio-music-knob') as HTMLImageElement;
 const soundVolumeTrack = document.querySelector('#audio-sound-track') as HTMLImageElement;
 const soundVolumeKnob = document.querySelector('#audio-sound-knob') as HTMLImageElement;
-const trackLength = 235;
-const musicVolumeKnobLeft = 155;
+const trackLength = 235; // The total draggable length of the slider
+const musicVolumeKnobLeft = 155; // The left-most position of the knob
 const soundVolumeKnobLeft = 157;
 const mouseSensitivityKnobLeft = 148;
 let draggingMusicVolume = false;
@@ -190,10 +197,12 @@ let soundTestingSound: AudioSource = null;
 window.addEventListener('mouseup', () => {
 	if (!draggingMusicVolume && !draggingSoundVolume && !draggingMouseSensitivity) return;
 
+	// Release all dragging things
 	draggingMusicVolume = draggingSoundVolume = draggingMouseSensitivity = false;
 	StorageManager.store();
 
 	if (soundTestingSound) {
+		// Stop the sound
 		soundTestingSound.node.loop = false;
 		soundTestingSound = null;
 	}
@@ -203,9 +212,11 @@ musicVolumeKnob.addEventListener('mousedown', () => draggingMusicVolume = true);
 soundVolumeTrack.addEventListener('mousedown', () => draggingSoundVolume = true);
 soundVolumeKnob.addEventListener('mousedown', () => draggingSoundVolume = true);
 
-const updateVolumes = async () => {
-	requestAnimationFrame(updateVolumes);
+const updateSliders = async () => {
+	requestAnimationFrame(updateSliders);
 	if (optionsDiv.classList.contains('hidden')) return;
+
+	// Updates all sliders based on mouse position.
 
 	if (draggingMusicVolume) {
 		let leftStart = optionsDiv.getBoundingClientRect().left + musicVolumeKnobLeft;
@@ -225,7 +236,7 @@ const updateVolumes = async () => {
 		AudioManager.updateVolumes();
 
 		if (!soundTestingSound) {
-			soundTestingSound = await AudioManager.createAudioSource('testing.wav');
+			soundTestingSound = AudioManager.createAudioSource('testing.wav');
 			soundTestingSound.node.loop = true;
 			soundTestingSound.play();
 		}
@@ -239,7 +250,7 @@ const updateVolumes = async () => {
 		StorageManager.data.settings.mouseSensitivity = completion;
 	}
 };
-requestAnimationFrame(updateVolumes);
+requestAnimationFrame(updateSliders);
 
 const controlsBackground = document.querySelector('#controls-background') as HTMLImageElement;
 const marbleTab = document.querySelector('#tab-marble') as HTMLImageElement; // it's not
@@ -265,6 +276,7 @@ const selectControlsTab = (which: 'marble' | 'camera' | 'mouse') => {
 	controlsBackground.src = './assets/ui/options/' + ['cntrl_marb_bse.png', 'cntrl_cam_bse.png', 'cntrl_mous_base.png'][index];
 
 	if (which === 'mouse') {
+		// The mouse background is sized differently and requires its own transform
 		controlsBackground.style.left = '2px';
 		controlsBackground.style.top = '-1px';
 	} else {
@@ -273,12 +285,14 @@ const selectControlsTab = (which: 'marble' | 'camera' | 'mouse') => {
 	}
 };
 
+/** Stores the button that's currently being rebound. */
 let currentlyRebinding: keyof typeof StorageManager.data.settings.gameButtonMapping = null;
+/** Stores the value that we currently want to rebind to. */
+let rebindValue: string = null;
 const rebindDialog = document.querySelector('#rebind-dialog') as HTMLDivElement;
 const rebindConfirm = document.querySelector('#rebind-confirm') as HTMLDivElement;
 const rebindConfirmYes = document.querySelector('#rebind-confirm-yes') as HTMLImageElement;
 const rebindConfirmNo = document.querySelector('#rebind-confirm-no') as HTMLImageElement;
-let rebindValue: string = null;
 
 const buttonToDisplayName: Record<keyof typeof StorageManager.data.settings.gameButtonMapping, string> = {
 	up: 'Move Forward',
@@ -296,7 +310,7 @@ const buttonToDisplayName: Record<keyof typeof StorageManager.data.settings.game
 
 const formatKeybinding = (button: keyof typeof StorageManager.data.settings.gameButtonMapping) => {
 	let str = Util.getKeyForButtonCode(StorageManager.data.settings.gameButtonMapping[button as keyof typeof StorageManager.data.settings.gameButtonMapping]);
-	if (str.startsWith('the')) return str.slice(str.indexOf(' ') + 1, str.lastIndexOf(' '));
+	if (str.startsWith('the')) return str.slice(str.indexOf(' ') + 1, str.lastIndexOf(' ')); // If the string starts with 'the', then it's a mouse button, and we clean it up by only keeping the middle part (dropping 'the' and 'button')
 	else return str;
 };
 
@@ -321,11 +335,13 @@ const changeKeybinding = (button: keyof typeof StorageManager.data.settings.game
 };
 
 const setKeybinding = (button: keyof typeof StorageManager.data.settings.gameButtonMapping, value: string) => {
+	// Check for collisions with other bindings
 	for (let key in StorageManager.data.settings.gameButtonMapping) {
 		let typedKey = key as keyof typeof StorageManager.data.settings.gameButtonMapping;
 		let otherValue = StorageManager.data.settings.gameButtonMapping[typedKey];
 
 		if (otherValue === value && typedKey !== button) {
+			// We found another binding that binds to the same key, bring up the conflict dialog.
 			rebindDialog.classList.add('hidden');
 			rebindConfirm.classList.remove('hidden');
 			rebindConfirm.children[1].innerHTML = `"${formatKeybinding(typedKey)}" is already bound to "${buttonToDisplayName[typedKey]}"!<br>Do you want to undo this<br>mapping?`;
@@ -335,6 +351,7 @@ const setKeybinding = (button: keyof typeof StorageManager.data.settings.gameBut
 		}
 	}
 
+	// Simply store the keybind.
 	StorageManager.data.settings.gameButtonMapping[button] = value;
 	StorageManager.store();
 	currentlyRebinding = null;
@@ -346,6 +363,7 @@ window.addEventListener('keydown', (e) => {
 	if (!currentlyRebinding || rebindValue) return;
 
 	if (e.code === 'Escape') {
+		// Exits keybinding without changing anything
 		currentlyRebinding = null;
 		rebindDialog.classList.add('hidden');
 	} else {
@@ -363,6 +381,7 @@ window.addEventListener('mousedown', (e) => {
 });
 
 setupButton(rebindConfirmYes, 'common/yes', () => {
+	// Find the other value and nullify its binding value (empty string)
 	for (let key in StorageManager.data.settings.gameButtonMapping) {
 		let typedKey = key as keyof typeof StorageManager.data.settings.gameButtonMapping;
 		let otherValue = StorageManager.data.settings.gameButtonMapping[typedKey];
@@ -370,6 +389,7 @@ setupButton(rebindConfirmYes, 'common/yes', () => {
 		if (otherValue === rebindValue) StorageManager.data.settings.gameButtonMapping[typedKey] = '';
 	}
 	
+	// Bind the new value
 	StorageManager.data.settings.gameButtonMapping[currentlyRebinding] = rebindValue;
 	StorageManager.store();
 	currentlyRebinding = null;
@@ -378,10 +398,13 @@ setupButton(rebindConfirmYes, 'common/yes', () => {
 	refreshKeybindings();
 });
 setupButton(rebindConfirmNo, 'common/no', () => {
+	// Cancel the rebinding process.
 	currentlyRebinding = null;
 	rebindValue = null;
 	rebindConfirm.classList.add('hidden');
 });
+
+// Setup all buttons related to keybinding:
 
 const buttonMarbleLeft = document.querySelector('#button-marble-left') as HTMLImageElement;
 const buttonMarbleRight = document.querySelector('#button-marble-right') as HTMLImageElement;
@@ -427,6 +450,7 @@ setupButton(invertY, 'options/cntrl_mous_invrt', () => {
 	StorageManager.data.settings.invertYAxis = !invertY.hasAttribute('data-locked');
 	StorageManager.store();
 
+	// Toggle the checkbox
 	if (!invertY.hasAttribute('data-locked')) {
 		invertY.setAttribute('data-locked', '');
 		invertY.src = './assets/ui/options/cntrl_mous_invrt_d.png';
@@ -441,6 +465,7 @@ setupButton(alwaysFreeLook, 'options/cntrl_mous_freel', () => {
 	StorageManager.data.settings.alwaysFreeLook = !alwaysFreeLook.hasAttribute('data-locked');
 	StorageManager.store();
 
+	// Toggle the checkbox
 	if (!alwaysFreeLook.hasAttribute('data-locked')) {
 		alwaysFreeLook.setAttribute('data-locked', '');
 		alwaysFreeLook.src = './assets/ui/options/cntrl_mous_freel_d.png';

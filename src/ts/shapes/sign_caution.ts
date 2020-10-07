@@ -1,6 +1,7 @@
 import { Shape } from "../shape";
 import { MissionElementStaticShape } from "../parsing/mis_parser";
 
+/** A caution/danger sign. */
 export class SignCaution extends Shape {
 	dtsPath = "shapes/signs/cautionsign.dts";
 	shareMaterials = false;
@@ -8,6 +9,7 @@ export class SignCaution extends Shape {
 	constructor(element: MissionElementStaticShape) {
 		super();
 
+		// Determine the type of the sign
 		let type = element.dataBlock.slice("SignCaution".length);
 		switch (type) {
 			case "Caution": this.matNamesOverride["base.cautionsign"] = "caution.cautionsign"; break;

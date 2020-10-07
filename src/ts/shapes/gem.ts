@@ -1,10 +1,11 @@
 import { Shape } from "../shape";
 import { MissionElementItem } from "../parsing/mis_parser";
 import { Util } from "../util";
-import { state } from "../state";
 
+// List all of gem colors for randomly choosing one
 const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "orange", "black"];
 
+/** Gems need to be collected before being able to finish. */
 export class Gem extends Shape {
 	dtsPath = "shapes/items/gem.dts";
 	ambientRotate = true;
@@ -16,8 +17,9 @@ export class Gem extends Shape {
 	constructor(element: MissionElementItem) {
 		super();
 
+		// Determine the color of the gem:
 		let color = element.dataBlock.slice("GemItem".length);
-		if (color.length === 0) color = Util.randomFromArray(GEM_COLORS);
+		if (color.length === 0) color = Util.randomFromArray(GEM_COLORS); // Random if no color specified
 
 		this.matNamesOverride["base.gem"] = color + ".gem";
 	}
@@ -26,7 +28,7 @@ export class Gem extends Shape {
 		if (this.pickedUp) return;
 
 		this.pickedUp = true;
-		this.setOpacity(0);
+		this.setOpacity(0); // Hide the gem
 		this.level.pickUpGem();
 	}
 
