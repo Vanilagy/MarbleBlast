@@ -5,6 +5,7 @@ import { Util } from "./util";
 import { Interior } from "./interior";
 import { Shape } from "./shape";
 import { Trigger } from "./triggers/trigger";
+import { EndPad } from "./shapes/end_pad";
 
 interface CollisionCorrectionEvent {
 	fraction: number,
@@ -271,8 +272,8 @@ export class PhysicsHelper {
 		movementRot.setArc(new OIMO.Vec3(0, 1, 0), movementDiff.clone().normalize());
 
 		// Construct the capsule geometry in a way where it represents the swept volume of the marble during the last tick.
-		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._halfHeight = movementDist;
-		let marblePosition = this.level.marble.body.getPosition().add(movementDiff.scale(0.5));
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._halfHeight = movementDist/2;
+		let marblePosition = this.level.marble.body.getPosition().sub(movementDiff.scale(0.5));
 
 		this.auxMarbleBody.setPosition(marblePosition);
 		this.auxMarbleBody.setOrientation(movementRot);
@@ -321,5 +322,26 @@ export class PhysicsHelper {
 	reset() {
 		this.shapeImmunity.clear();
 		this.shapeOrTriggerInside.clear();
+	}
+
+	/** Computes the completion between the last and current tick that the marble touched the finish area. */
+	computeCompletionOfImpactWithFinish() {
+		let finishColliderShape = this.level.shapes.find(x => x instanceof EndPad).colliders[0].body.getShapeList();
+		let translation = this.level.marble.body.getPosition().sub(this.level.marble.lastPos);
+		let beginTransform = new OIMO.Transform();
+		// Extend the "ray" a bit to get a more accurate result
+		beginTransform.setPosition(this.level.marble.lastPos.sub(translation.scale(1)));
+		translation.scaleEq(3);
+
+		let fraction = 1;
+		this.auxWorld.convexCast(new OIMO.SphereGeometry(0.2 * 2), beginTransform, translation, {
+			process(shape, hit) {
+				// Only care if we actually overlapped the finish area
+				if (shape === finishColliderShape) fraction = hit.fraction * 3 - 1;
+			}
+		})
+
+		fraction = Util.clamp(fraction, 0, 1);
+		return fraction;
 	}
 }

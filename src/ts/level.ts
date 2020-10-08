@@ -535,7 +535,7 @@ export class Level extends Scheduler {
 		renderer.render(this.overlayScene, orthographicCamera);
 		renderer.autoClear = true;
 
-		displayTime((this.finishTime ?? this.timeState).gameplayClock / 1000);
+		displayTime((this.finishTime ?? tempTimeState).gameplayClock / 1000);
 
 		requestAnimationFrame(() => this.render());
 	}
@@ -674,7 +674,7 @@ export class Level extends Scheduler {
 			for (let shape of this.shapes) shape.tick(this.timeState);
 			// Update pathed interior positions after the physics tick because they will have changed position only after the physics tick was calculated, not during.
 			for (let interior of this.interiors) if (interior instanceof PathedInterior) interior.updatePosition();
-			this.marble.handleControl(this.timeState);
+			this.marble.tick(this.timeState);
 
 			if (this.timeState.currentAttemptTime < GO_TIME) {
 				// Lock the marble to the space above the start pad
@@ -880,8 +880,16 @@ export class Level extends Scheduler {
 			displayAlert("You can't finish without all the gems!!");
 		} else {
 			// The level was completed! Store the time of finishing.
+			let completionOfImpact = this.physics.computeCompletionOfImpactWithFinish();
+			let toSubtract = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 
 			this.finishTime = Util.jsonClone(this.timeState);
+			// Compute the precise finish time here
+			this.finishTime.timeSinceLoad -= toSubtract;
+			this.finishTime.currentAttemptTime -= toSubtract;
+			if (this.currentTimeTravelBonus === 0) this.finishTime.gameplayClock -= toSubtract;
+			this.finishTime.physicsTickCompletion = completionOfImpact;
+
 			this.finishYaw = this.yaw;
 			this.finishPitch = this.pitch;
 

@@ -113,7 +113,7 @@ export const hidePauseScreen = () => {
 /** Converts seconds into a time string as seen in the game clock at the top, for example. */
 export const secondsToTimeString = (seconds: number) => {
 	let minutes = Math.floor(seconds / 60);
-	let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(seconds % 60).toString(), 2) + '.' + (seconds % 1).toFixed(2).slice(2);
+	let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(seconds % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(seconds % 1 * 100).toString(), 2);
 
 	return string;
 }

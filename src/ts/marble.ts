@@ -57,6 +57,7 @@ export class Marble {
 	shockAbsorberSound: AudioSource = null;
 	superBounceSound: AudioSource = null;
 
+	lastPos = new OIMO.Vec3();
 	lastVel = new OIMO.Vec3();
 	lastAngVel = new OIMO.Vec3();
 	/** Necessary for super speed. */
@@ -126,7 +127,7 @@ export class Marble {
 		await Promise.all([this.rollingSound.promise, this.slidingSound.promise]);
 	}
 
-	handleControl(time: TimeState) {
+	tick(time: TimeState) {
 		// Construct the raw movement vector from inputs
 		let movementVec = new THREE.Vector3(0, 0, 0);
 		if (gameButtons.up) movementVec.add(new THREE.Vector3(1, 0, 0));
@@ -357,6 +358,7 @@ export class Marble {
 			this.helicopterSound = null;
 		}
 
+		this.lastPos = this.body.getPosition();
 		this.lastVel = this.body.getLinearVelocity();
 		this.lastAngVel = this.body.getAngularVelocity();
 	}
