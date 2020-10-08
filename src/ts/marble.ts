@@ -216,12 +216,10 @@ export class Marble {
 				collisionTimeoutNeeded = true;
 			}
 
-			let jumpSoundPlayed = false;
 			if (this.collisionTimeout <= 0 && gameButtons.jump && contactNormalUpDot > 1e-10) {
 				// Handle jumping
 				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
 					AudioManager.play(['jump.wav']);
-					jumpSoundPlayed = true;
 					collisionTimeoutNeeded = true;
 				});
 			}
@@ -231,14 +229,12 @@ export class Marble {
 				// Create bounce particles
 				if (impactVelocity > 6) this.level.particles.createEmitter(bounceParticleOptions, Util.vecOimoToThree(this.body.getPosition()));
 
-				if (!jumpSoundPlayed) {
-					let volume = Util.clamp(impactVelocity / 15, 0, 1);
+				let volume = Util.clamp((impactVelocity / 15)**2, 0, 1);
 
-					if (impactVelocity > 1) {
-						// Play a collision impact sound
-						AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'], volume);
-						collisionTimeoutNeeded = true;
-					}
+				if (impactVelocity > 1) {
+					// Play a collision impact sound
+					AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'], volume);
+					collisionTimeoutNeeded = true;
 				}
 			}
 

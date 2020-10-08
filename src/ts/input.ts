@@ -68,6 +68,14 @@ window.addEventListener('keyup', (e) => {
 
 window.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable right click context menu for good
 
+window.addEventListener('beforeunload', (e) => {
+	// Ask the user if they're sure about closing the tab if they're currently in game
+	if (state.currentLevel) {
+		e.preventDefault();
+		e.returnValue = '';
+	}
+});
+
 /** The current pressed state of all the game buttons. */
 export const gameButtons = {
 	up: false,
