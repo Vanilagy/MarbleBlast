@@ -271,16 +271,14 @@ export class Level extends Scheduler {
 			await shape.init();
 
 			this.overlayShapes.push(shape);
-			this.overlayScene.add(shape.group);
+			this.overlayScene.add(shape.group); // Add the shape temporarily (permanently if gem) for a GPU update
 			if (path.includes("gem")) shape.ambientSpinFactor /= -2; // Gems spin the other way apparently
 			else shape.ambientSpinFactor /= 2;
 		}
 
 		if (this.totalGems > 0) {
-			// Add the gem overlay
+			// Show the gem overlay
 			gemCountElement.style.display = '';
-			let gemOverlayShape = this.overlayShapes.find((shape) => shape.dtsPath.includes("gem"));
-			this.overlayScene.add(gemOverlayShape.group);
 		} else {
 			// Hide the gem UI
 			gemCountElement.style.display = 'none';
@@ -289,7 +287,9 @@ export class Level extends Scheduler {
 		// Render everything once to force a GPU upload
 		renderer.render(this.overlayScene, orthographicCamera);
 
+		// Remove everything but gems again
 		for (let shape of this.overlayShapes) {
+			if (shape.dtsPath.includes('gem')) continue;
 			this.overlayScene.remove(shape.group);
 		}
 	}
