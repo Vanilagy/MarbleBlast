@@ -110,7 +110,7 @@ export class Marble {
 		this.helicopter.setOpacity(0);
 		this.group.add(this.helicopter.group);
 
-		// Load the necessary rolliung sounds
+		// Load the necessary rolling sounds
 		await AudioManager.loadBuffers(["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"]);
 
 		this.rollingSound = AudioManager.createAudioSource('rolling_hard.wav');
