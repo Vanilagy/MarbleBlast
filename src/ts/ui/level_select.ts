@@ -44,6 +44,7 @@ let currentLevelArray: Mission[];
 /** The index of the currently selected level. */
 let currentLevelIndex: number;
 
+export const getCurrentLevelArray = () => currentLevelArray;
 export const getCurrentLevelIndex = () => currentLevelIndex;
 
 /** Selects a tab and shows the last-unlocked level in it. */
@@ -139,6 +140,9 @@ export const initLevelSelect = async () => {
 		else customLevels.push(missionObj);
 	}
 
+	// Strange case, but these two levels are in opposite order in the original game.
+	Util.swapInArray(intermediateLevels, 11, 12);
+
 	// Initiate loading some images like this
 	selectTab('advanced');
 	selectTab('intermediate');
@@ -149,6 +153,19 @@ export const initLevelSelect = async () => {
 const displayMission = () => {
 	let missionObj = currentLevelArray[currentLevelIndex];
 
+	const displayBestTimes = (goldTime: number) => {
+		let bestTimes = StorageManager.getBestTimesForMission(missionObj?.path);
+		bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
+		(bestTime1.children[1] as HTMLImageElement).style.opacity = (bestTimes[0][1] <= goldTime)? '' : '0';
+		bestTime1.children[2].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
+		bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
+		(bestTime2.children[1] as HTMLImageElement).style.opacity = (bestTimes[1][1] <= goldTime)? '' : '0';
+		bestTime2.children[2].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
+		bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
+		(bestTime3.children[1] as HTMLImageElement).style.opacity = (bestTimes[2][1] <= goldTime)? '' : '0';
+		bestTime3.children[2].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
+	};
+
 	if (!missionObj) {
 		// There is no mission (likely custom tab), so hide most information.
 
@@ -158,9 +175,9 @@ const displayMission = () => {
 		levelDescription.innerHTML = '<br>';
 		levelQualifyTime.innerHTML = '';
 		levelNumberElement.textContent = `Level ${currentLevelIndex + 1}`;
-
 		playButton.src = './assets/ui/play/play_i.png';
 		playButton.style.pointerEvents = 'none';
+		displayBestTimes(0);
 	} else {
 		// Reenable the play button if it was disabled
 		if (playButton.style.pointerEvents === 'none') {
@@ -190,7 +207,9 @@ const displayMission = () => {
 		levelDescription.textContent = missionInfo.desc.replace(/\\n/g, '\n').replace(/\\/g, '');
 		let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
 		levelQualifyTime.textContent = isFinite(qualifyTime)? "Time to Qualify: " + secondsToTimeString(qualifyTime / 1000) : '';
+
 		let goldTime = Number(missionInfo.goldTime);
+		displayBestTimes(goldTime);
 
 		// Display best times
 		let bestTimes = StorageManager.getBestTimesForMission(missionObj.path);

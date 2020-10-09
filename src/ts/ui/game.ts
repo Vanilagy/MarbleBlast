@@ -1,7 +1,7 @@
 import { Util } from "../util";
 import { setupButton, menuDiv, startMenuMusic } from "./ui";
 import { state } from "../state";
-import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex } from "./level_select";
+import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex, getCurrentLevelArray } from "./level_select";
 import { MissionElementScriptObject, MissionElementType } from "../parsing/mis_parser";
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
@@ -281,12 +281,13 @@ export const showFinishScreen = () => {
 	// Unlock the next level if qualified
 	if (!failedToQualify) {
 		let typeIndex = ['beginner', 'intermediate', 'advanced'].indexOf(missionInfo.type.toLowerCase());
-		let unlockedLevels = Math.min(Math.max(StorageManager.data.unlockedLevels[typeIndex], Number(missionInfo.level) + 1), [beginnerLevels, intermediateLevels, advancedLevels][typeIndex].length);
+		let levelIndex = getCurrentLevelArray().findIndex(x => x.simGroup === level.mission);
+		let unlockedLevels = Math.min(Math.max(StorageManager.data.unlockedLevels[typeIndex], levelIndex + 1 + 1), [beginnerLevels, intermediateLevels, advancedLevels][typeIndex].length);
 		
 		StorageManager.data.unlockedLevels[typeIndex] = unlockedLevels;
 		StorageManager.store();
 
-		if (getCurrentLevelIndex() === Number(missionInfo.level) - 1) cycleMission(1); // Cycle to that next level, but only if it isn't already selected
+		if (getCurrentLevelIndex() === levelIndex) cycleMission(1); // Cycle to that next level, but only if it isn't already selected
 	}
 };
 

@@ -287,6 +287,12 @@ export abstract class Util {
 	static isInFullscreen() {
 		return window.innerWidth === screen.width && window.innerHeight === screen.height;
 	}
+
+	static swapInArray<T>(arr: T[], i1: number, i2: number) {
+		let temp = arr[i1];
+		arr[i1] = arr[i2];
+		arr[i2] = temp;
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */
