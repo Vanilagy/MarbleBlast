@@ -232,7 +232,7 @@ export class Marble {
 				// Create bounce particles
 				if (impactVelocity > 6) this.level.particles.createEmitter(bounceParticleOptions, Util.vecOimoToThree(this.body.getPosition()));
 
-				let volume = Util.clamp((impactVelocity / 15)**2, 0, 1);
+				let volume = Util.clamp((impactVelocity / 12)**1.5, 0, 1);
 
 				if (impactVelocity > 1) {
 					// Play a collision impact sound
