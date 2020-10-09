@@ -8,7 +8,7 @@ import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
 
 const MARBLE_SIZE = 0.2;
-export const MARBLE_ROLL_FORCE = 40;
+export const MARBLE_ROLL_FORCE = 35 || 40;
 const JUMP_IMPULSE = 7.3 || 7.5; // For now, seems to fit more.
 
 const bounceParticleOptions = {
@@ -107,6 +107,7 @@ export class Marble {
 
 		this.helicopter = new Shape();
 		this.helicopter.dtsPath = "shapes/images/helicopter.dts";
+		this.helicopter.castShadow = true;
 		await this.helicopter.init(this.level);
 		this.helicopter.setOpacity(0);
 		this.group.add(this.helicopter.group);
@@ -146,12 +147,14 @@ export class Marble {
 
 		// Try to find a touching contact
 		let current = this.body.getContactLinkList();
+		let touching: OIMO.ContactLink;
 		while (current) {
 			let contact = current.getContact();
-			if (contact.isTouching()) break;
+			if (contact.isTouching()) touching = current;
 
 			current = current.getNext();
 		}
+		current = touching; // Take the last touching contact
 
 		// The axis of rotation (for angular velocity) is the cross product of the current up vector and the movement vector, since the axis of rotation is perpendicular to both.
 		let movementRotationAxis = this.level.currentUp.cross(Util.vecThreeToOimo(movementVec));
@@ -185,7 +188,7 @@ export class Marble {
 
 			// If we hit the surface at a shallow enough angle, make the marble stick to the surface.
 			let dot0 = contactNormal.dot(this.lastVel.clone().normalize());
-			if (dot0 > -0.45 && dot0 < -0.001) {
+			if (dot0 > -0.4 && dot0 < -0.001) {
 				dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
 				let linearVelocity = this.body.getLinearVelocity();
 				this.body.addLinearVelocity(contactNormal.scale(-dot0 * linearVelocity.length()));
@@ -216,7 +219,7 @@ export class Marble {
 				collisionTimeoutNeeded = true;
 			}
 
-			if (this.collisionTimeout <= 0 && gameButtons.jump && contactNormalUpDot > 1e-10) {
+			if (this.collisionTimeout <= 0 && (gameButtons.jump || this.level.jumpQueued) && contactNormalUpDot > 1e-10) {
 				// Handle jumping
 				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
 					AudioManager.play(['jump.wav']);

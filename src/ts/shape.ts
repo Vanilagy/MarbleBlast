@@ -100,6 +100,7 @@ export class Shape {
 	shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
 	/** Stores information used to animate materials. */
 	materialInfo: WeakMap<THREE.Material, MaterialInfo>;
+	castShadow = false;
 
 	/** Stores all nodes from the node tree. */
 	graphNodes: GraphNode[];
@@ -315,6 +316,7 @@ export class Shape {
 				for (let geometry of staticGeometries.concat(dynamicGeometries)) {
 					let instancedMesh = new THREE.InstancedMesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials, instanceCount);
 					if (collisionGeometries.has(geometry)) instancedMesh.receiveShadow = true;
+					if (this.castShadow) instancedMesh.castShadow = true;
 					instancedMesh.matrixAutoUpdate = false;
 	
 					this.level.scene.add(instancedMesh);
@@ -345,6 +347,7 @@ export class Shape {
 			} else {
 				let mesh = new THREE.Mesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials);
 				if (collisionGeometries.has(geometry)) mesh.receiveShadow = true;
+				if (this.castShadow) mesh.castShadow = true;
 				obj = mesh;
 			}
 
@@ -363,6 +366,7 @@ export class Shape {
 				let geometry = dynamicGeometries[i];
 				let mesh = new THREE.Mesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials);
 				if (collisionGeometries.has(geometry)) mesh.receiveShadow = true;
+				if (this.castShadow) mesh.castShadow = true;
 				obj = mesh;
 			}
 			
@@ -845,6 +849,14 @@ export class Shape {
 	/** Sets the opacity of the shape. Since there's no quick and easy way of doing this, this method recursively sets it for all materials. */
 	setOpacity(opacity: number) {
 		if (opacity === this.currentOpacity) return;
+		this.currentOpacity = opacity;
+
+		if (opacity === 0) {
+			this.group.visible = false;
+			return;
+		} else {
+			this.group.visible = true;
+		}
 
 		const updateMaterial = (material: THREE.Material) => {
 			material.transparent = true;
@@ -873,7 +885,6 @@ export class Shape {
 		};
 
 		setOpacityOfChildren(this.group);
-		this.currentOpacity = opacity;
 	}
 
 	/** Adds a collider geometry. Whenever the marble overlaps with the geometry, a callback is fired. */

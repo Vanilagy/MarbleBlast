@@ -25,6 +25,11 @@ window.addEventListener('mousedown', (e) => {
 			if (buttonName !== StorageManager.data.settings.gameButtonMapping[key]) continue;
 	
 			gameButtons[key] = true;
+			
+			if (state.currentLevel) {
+				if (key === 'jump') state.currentLevel.jumpQueued = true;
+				if (key === 'use') state.currentLevel.useQueued = true;
+			}
 		}
 	}
 });
@@ -52,6 +57,11 @@ window.addEventListener('keydown', (e) => {
 		if (e.code !== StorageManager.data.settings.gameButtonMapping[key]) continue;
 
 		gameButtons[key] = true;
+
+		if (state.currentLevel) {
+			if (key === 'jump') state.currentLevel.jumpQueued = true;
+			if (key === 'use') state.currentLevel.useQueued = true;
+		}
 	}
 });
 

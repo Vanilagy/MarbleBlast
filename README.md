@@ -4,7 +4,7 @@ This project is a complete web port of the 3D platformer game Marble Blast Gold 
 Play it here: https://marbleblast.vani.ga/ (Hoping the link will still work)
 
 ## Features
-In this game, the objective is to roll your marble to the finish pad in the fastest time possible, while avoiding hazards and collecting gems and power-ups. It includes all 100 levels of the original (24 beginner, 24 intermediate, 52 advanced), as well as all gameplay elements and mechanics, sounds, music and UI/menu elements.
+In this game, the objective is to roll your marble to the finish pad in the fastest time possible, while avoiding hazards and collecting gems and power-ups. It includes all 100 levels of the original (24 beginner, 24 intermediate, 52 advanced), as well as all gameplay elements, sounds, music and UI/menu elements.
 
 ## Screenshots
 <img src="./screenshots/natural_selection.png" width="640">
@@ -13,7 +13,7 @@ In this game, the objective is to roll your marble to the finish pad in the fast
 <img src="./screenshots/level_select.png" width="640">
 
 ## Technical overview
-The game is implemented in TypeScript and utilizes [three.js](https://github.com/mrdoob/three.js/) for rendering and [OimoPhysics](https://github.com/saharan/OimoPhysics) as its physics engine. Its levels and assets weren't rebuilt from scratch; instead, they are read and imported from .dif, .dts and .mis files used internally by the Torque 3D Engine, on which the original game runs. All the game's internal logic was implemented from scratch, however. The physics simulation runs at a rate of 120 Hz and utilizes continuous collision detection - it was tuned to feel as close to the original as possible, but obviously there are still small differences. Resources are lazily loaded over the network when required for levels, making the initial load time of the website relatively short (about 4 MB). The UIs are all implemented in plain HTML and CSS, and simple persistence is provided by localStorage.
+The game is implemented in TypeScript and utilizes [three.js](https://github.com/mrdoob/three.js/) for rendering and [OimoPhysics](https://github.com/saharan/OimoPhysics) as its physics engine. Its levels and assets weren't rebuilt from scratch; instead, they are read and imported from .dif, .dts and .mis files used internally by the Torque 3D Engine, on which the original game runs. All the game's internal logic was implemented from scratch, however. The physics simulation runs at a rate of 120 Hz and utilizes continuous collision detection - it was tuned to feel as close to the original as possible, but obviously there are still small differences, for example the lack of traplaunching. Resources are lazily loaded over the network when required for levels, making the initial load time of the website relatively short (about 4 MB). The UIs are all implemented in plain HTML and CSS, and simple persistence is provided by localStorage.
 
 ## Building
 If you wish to build the game yourself, simply clone the repository, then run `npm install` and `npm run compile`, which will compile the TypeScript code using [rollup](https://rollupjs.org/guide/en/). If you wish to bundle the project, run `npm run bundle`, which uses [Sarcina](https://github.com/Vanilagy/Sarcina).

@@ -128,6 +128,9 @@ export class Level extends Scheduler {
 	totalGems = 0;
 	gemCount = 0;
 	outOfBounds = false;
+	/** When the jump button was pressed, remember that it was pressed until the next tick to execute the jump. */
+	jumpQueued = false;
+	useQueued = false;
 	
 	timeTravelSound: AudioSource;
 	music: AudioSource;
@@ -206,12 +209,12 @@ export class Level extends Scheduler {
         this.scene.add(sunlight);
 		sunlight.castShadow = true;
 		sunlight.shadow.camera.far = 10000;
-        sunlight.shadow.camera.left = -0.5; // The shadow area itself is very small 'cause it only needs to cover the marble
-        sunlight.shadow.camera.right = 0.5;
-        sunlight.shadow.camera.bottom = -0.5;
-		sunlight.shadow.camera.top = 0.5;
-		sunlight.shadow.mapSize.width = 128;
-		sunlight.shadow.mapSize.height = 128;
+        sunlight.shadow.camera.left = -0.8; // The shadow area itself is very small 'cause it only needs to cover the marble and the gyrocopter
+        sunlight.shadow.camera.right = 0.8;
+        sunlight.shadow.camera.bottom = -0.8;
+		sunlight.shadow.camera.top = 0.8;
+		sunlight.shadow.mapSize.width = 200;
+		sunlight.shadow.mapSize.height = 200;
 		sunlight.shadow.radius = 2;
 		this.scene.add(sunlight.target); // Necessary for it to update
 		this.sunlight = sunlight;
@@ -636,16 +639,17 @@ export class Level extends Scheduler {
 		if (this.paused || this.stopped) return;
 		if (time === undefined) time = performance.now();
 
-		if (gameButtons.use) {
+		if (gameButtons.use || this.useQueued) {
 			if (this.outOfBounds) {
 				// Skip the out of bounce "animation" and restart immediately
 				this.clearSchedule();
 				this.restart();
-			} else if (this.heldPowerUp) {
+			} else if (this.heldPowerUp && document.pointerLockElement) {
 				this.heldPowerUp.use(this.timeState);
 				this.deselectPowerUp();
 			}
 		}
+		this.useQueued = false;
 
 		if (this.lastPhysicsTick === null) {
 			// If there hasn't been a physics tick yet, ensure there is one now
@@ -675,6 +679,8 @@ export class Level extends Scheduler {
 			// Update pathed interior positions after the physics tick because they will have changed position only after the physics tick was calculated, not during.
 			for (let interior of this.interiors) if (interior instanceof PathedInterior) interior.updatePosition();
 			this.marble.tick(this.timeState);
+
+			this.jumpQueued = false;
 
 			if (this.timeState.currentAttemptTime < GO_TIME) {
 				// Lock the marble to the space above the start pad

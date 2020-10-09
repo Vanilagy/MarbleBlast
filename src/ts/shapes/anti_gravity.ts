@@ -11,14 +11,16 @@ export class AntiGravity extends PowerUp {
 	pickUpName = "Gravity Modifier";
 	sounds = ["gravitychange.wav"];
 
-	pickUp() {return true;}
+	pickUp() {
+		let direction = new THREE.Vector3(0, 0, -1);
+		direction.applyQuaternion(this.worldOrientation);
+		return !Util.isSameVector(direction, this.level.currentUp);
+	}
 
 	use(time: TimeState) {
 		// Determine the new up vector
 		let direction = new THREE.Vector3(0, 0, -1);
 		direction.applyQuaternion(this.worldOrientation);
-
-		if (Util.isSameVector(direction, this.level.currentUp)) return;
 
 		this.level.setUp(Util.vecThreeToOimo(direction), time);
 		AudioManager.play(this.sounds[0]);
