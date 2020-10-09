@@ -8,7 +8,7 @@ import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
 
 const MARBLE_SIZE = 0.2;
-export const MARBLE_ROLL_FORCE = 35 || 40;
+export const MARBLE_ROLL_FORCE = 40 || 40;
 const JUMP_IMPULSE = 7.3 || 7.5; // For now, seems to fit more.
 
 const bounceParticleOptions = {
@@ -291,7 +291,7 @@ export class Marble {
 			movementRotationAxis = movementRotationAxis.scale(1/2);
 
 			let airMovementVector = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
-			let airVelocity = (time.currentAttemptTime - this.helicopterEnableTime) < 5000 ? 5 : 3; // Change air velocity for the helicopter
+			let airVelocity = (time.currentAttemptTime - this.helicopterEnableTime) < 5000 ? 5 : 3.2; // Change air velocity for the helicopter
 			if (this.level.finishTime) airVelocity = 0;
 			airMovementVector = airMovementVector.scale(airVelocity / PHYSICS_TICK_RATE);
 			this.body.addLinearVelocity(airMovementVector);
@@ -301,7 +301,7 @@ export class Marble {
 		}
 
 		// Apply angular acceleration, but make sure the angular velocity doesn't exceed some maximum
-		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 100));
+		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 120));
 
 		if (time.currentAttemptTime - this.shockAbsorberEnableTime < 5000) {
 			// Show the shock absorber (takes precedence over super bounce)

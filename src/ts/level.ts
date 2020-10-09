@@ -498,7 +498,7 @@ export class Level extends Scheduler {
 		let tempTimeState: TimeState = {
 			timeSinceLoad: this.timeState.timeSinceLoad + completion * physicsTickLength,
 			currentAttemptTime: this.timeState.currentAttemptTime + completion * physicsTickLength,
-			gameplayClock: this.timeState.gameplayClock + completion * physicsTickLength,
+			gameplayClock: this.currentTimeTravelBonus? this.timeState.gameplayClock : this.timeState.gameplayClock + completion * physicsTickLength,
 			physicsTickCompletion: completion
 		};
 
@@ -697,7 +697,7 @@ export class Level extends Scheduler {
 
 				let angVel = this.marble.body.getAngularVelocity();
 				// Cap the angular velocity so it doesn't go haywire
-				if (angVel.length() > 70) angVel.normalize().scaleEq(70);
+				if (angVel.length() > 60) angVel.normalize().scaleEq(60);
 				this.marble.body.setAngularVelocity(angVel);
 
 				this.marble.shape.setFriction(0);
