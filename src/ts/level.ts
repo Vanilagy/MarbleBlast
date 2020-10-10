@@ -155,10 +155,10 @@ export class Level extends Scheduler {
 			}
 		};
 		scanMission(this.mission);
-		this.loadingState.total += 5 + 1 + 3 + 6; // For the scene, marble, UI and sounds (includes music!)
+		this.loadingState.total += 6 + 1 + 3 + 6; // For the scene, marble, UI and sounds (includes music!)
 
 		this.physics = new PhysicsHelper(this);
-		await this.initScene(); this.loadingState.loaded += 5;
+		await this.initScene();
 		await this.initMarble(); this.loadingState.loaded += 1;
 		await this.addSimGroup(this.mission);
 		await this.initUi(); this.loadingState.loaded += 3;
@@ -220,14 +220,15 @@ export class Level extends Scheduler {
 		this.sunlight = sunlight;
 
 		// Init the skybox
-		let skyboxImages = await ResourceManager.loadImages([
-            './assets/data/skies/sky_lf.jpg',
-            './assets/data/skies/sky_rt.jpg',
-            './assets/data/skies/sky_bk.jpg',
-            './assets/data/skies/sky_fr.jpg',
-            './assets/data/skies/sky_up.jpg',
-            './assets/data/skies/sky_dn.jpg',
-		]) as (HTMLImageElement | HTMLCanvasElement)[];
+		// Split it up into steps manually for more granularity in the loading state
+		let skyboxImages: (HTMLImageElement | HTMLCanvasElement)[] = [];
+		skyboxImages[0] = await ResourceManager.loadImage('./assets/data/skies/sky_lf.jpg'); this.loadingState.loaded++;
+		skyboxImages[1] = await ResourceManager.loadImage('./assets/data/skies/sky_rt.jpg'); this.loadingState.loaded++;
+		skyboxImages[2] = await ResourceManager.loadImage('./assets/data/skies/sky_bk.jpg'); this.loadingState.loaded++;
+		skyboxImages[3] = await ResourceManager.loadImage('./assets/data/skies/sky_fr.jpg'); this.loadingState.loaded++;
+		skyboxImages[4] = await ResourceManager.loadImage('./assets/data/skies/sky_up.jpg'); this.loadingState.loaded++;
+		skyboxImages[5] = await ResourceManager.loadImage('./assets/data/skies/sky_dn.jpg'); this.loadingState.loaded++;
+
 		// three.js skyboxes are aligned with respect to y-up, but everything here is z-up. Therefore we need to do some manual image transformation hackery.
 		skyboxImages[0] = Util.modifyImageWithCanvas(skyboxImages[0], -Math.PI/2, true);
 		skyboxImages[1] = Util.modifyImageWithCanvas(skyboxImages[1], Math.PI/2, true);
