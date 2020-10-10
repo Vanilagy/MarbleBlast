@@ -801,6 +801,10 @@ export class Level extends Scheduler {
 	onMouseMove(e: MouseEvent) {
 		if (!document.pointerLockElement || this.finishTime || this.paused) return;
 
+		// temp
+		let totalDistance = Math.hypot(e.movementX, e.movementY);
+		if (totalDistance > 300 && location.search.includes('debug')) alert(totalDistance + ', ' + e.movementX + ' ' + e.movementY);
+
 		let factor = Util.lerp(1 / 2500, 1 / 100, StorageManager.data.settings.mouseSensitivity);
 		let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;
 		let freeLook = StorageManager.data.settings.alwaysFreeLook || gameButtons.freeLook;
