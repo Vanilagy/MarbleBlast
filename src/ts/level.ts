@@ -611,7 +611,7 @@ export class Level extends Scheduler {
 
 					// Go the projected point and look at the marble
 					camera.position.copy(projected.add(normal.multiplyScalar(closeness)));
-					camera.lookAt(Util.vecOimoToThree(marblePosition));
+					Util.cameraLookAtDirect(camera, Util.vecOimoToThree(marblePosition));
 
 					let rotationAxis = new THREE.Vector3(1, 0, 0);
 					rotationAxis.applyQuaternion(camera.quaternion);

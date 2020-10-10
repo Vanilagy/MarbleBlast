@@ -293,6 +293,17 @@ export abstract class Util {
 		arr[i1] = arr[i2];
 		arr[i2] = temp;
 	}
+
+	/** Makes the camera look at a point directly, meaning with the shortest rotation change possible and while ignoring the camera's up vector. */
+	static cameraLookAtDirect(camera: THREE.PerspectiveCamera, target: THREE.Vector3) {
+		let lookVector = new THREE.Vector3(0, 0, -1);
+		lookVector.applyQuaternion(camera.quaternion);
+
+		let quat = new THREE.Quaternion();
+		quat.setFromUnitVectors(lookVector, target.clone().sub(camera.position).normalize());
+
+		camera.quaternion.copy(quat.multiply(camera.quaternion));
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */
