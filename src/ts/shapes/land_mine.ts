@@ -84,11 +84,14 @@ export class LandMine extends Shape {
 
 	onMarbleContact(contact: OIMO.Contact, time: TimeState) {
 		let marble = this.level.marble;
-		let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition)).normalize();
+		let minePos = Util.vecThreeToOimo(this.worldPosition);
+		minePos.subEq(new OIMO.Vec3(0, 0, 0.05));
+		let vec = marble.lastPos.sub(Util.vecThreeToOimo(this.worldPosition)).normalize(); // Use the last pos so that it's a little less RNG
 
 		// Add velocity to the marble
 		marble.body.addLinearVelocity(vec.scale(10));
 		this.disappearTime = time.timeSinceLoad;
+		this.setCollisionEnabled(false);
 
 		AudioManager.play(this.sounds[0]);
 		this.level.particles.createEmitter(landMineParticle, this.worldPosition);

@@ -100,3 +100,7 @@ export const gameButtons = {
 	cameraRight: false,
 	freeLook: false
 };
+
+export const releaseAllButtons = () => {
+	for (let key in gameButtons) gameButtons[key as keyof typeof gameButtons] = false;
+};

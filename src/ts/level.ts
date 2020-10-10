@@ -28,7 +28,7 @@ import { TriangleBumper } from "./shapes/triangle_bumper";
 import { Oilslick } from "./shapes/oilslick";
 import { Util, Scheduler } from "./util";
 import { PowerUp } from "./shapes/power_up";
-import { gameButtons } from "./input";
+import { gameButtons, releaseAllButtons } from "./input";
 import { SmallDuctFan } from "./shapes/small_duct_fan";
 import { PathedInterior } from "./pathed_interior";
 import { Trigger } from "./triggers/trigger";
@@ -914,6 +914,7 @@ export class Level extends Scheduler {
 	pause() {
 		this.paused = true;
 		document.exitPointerLock();
+		releaseAllButtons(); // Safety measure to prevent keys from getting stuck
 		showPauseScreen();
 	}
 
