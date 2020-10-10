@@ -762,7 +762,7 @@ export class Level extends Scheduler {
 		let threeOrientation = new THREE.Quaternion(orientation.x, orientation.y, orientation.z, orientation.w);
 		let changeQuat = new THREE.Quaternion();
 		changeQuat.setFromAxisAngle(Util.vecOimoToThree(angVel).normalize(), angVel.length() / PHYSICS_TICK_RATE);
-		threeOrientation.multiply(changeQuat);
+		changeQuat.multiply(threeOrientation);
 		let predictedOrientation = new OIMO.Quat(threeOrientation.x, threeOrientation.y, threeOrientation.z, threeOrientation.w);
 
 		this.marble.preemptivePosition = predictedPosition;
@@ -788,7 +788,7 @@ export class Level extends Scheduler {
 		// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
 		quatChange.setFromUnitVectors(oldUp, Util.vecOimoToThree(vec));
 
-		this.newOrientationQuat = currentQuat.clone().multiply(quatChange);
+		this.newOrientationQuat = quatChange.multiply(currentQuat);
 		this.oldOrientationQuat = currentQuat;
 		this.orientationChangeTime = time.currentAttemptTime;
 	}
