@@ -40,7 +40,7 @@ export abstract class AudioManager {
 
 		let promise = new Promise<AudioBuffer>(async (resolve) => {
 			let blob = await ResourceManager.loadResource("./assets/data/sound/" + path);
-			let arrayBuffer = await blob.arrayBuffer();
+			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let audioBuffer: AudioBuffer;
 			try {
 				audioBuffer = await this.context.decodeAudioData(arrayBuffer);

@@ -677,7 +677,7 @@ export class DifParser extends BinaryFileParser {
 				return;
 			}
 
-			let arrayBuffer = await blob.arrayBuffer();
+			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let parser = new DifParser(arrayBuffer);
 	
 			let result = parser.parse();

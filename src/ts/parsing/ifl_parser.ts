@@ -38,8 +38,8 @@ export class IflParser {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
 		let blob = await ResourceManager.loadResource(path);
-		let arrayBuffer = await blob.text();
-		let parser = new IflParser(arrayBuffer);
+		let text = await ResourceManager.readBlobAsText(blob);
+		let parser = new IflParser(text);
 		
 		let result = parser.parse();
 		this.cachedFiles.set(path, result);

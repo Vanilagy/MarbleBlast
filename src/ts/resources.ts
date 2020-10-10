@@ -20,7 +20,7 @@ export abstract class ResourceManager {
 
 	static async init() {
 		let response = await this.loadResource('./php/get_directory_structure.php');
-		this.dataDirectoryStructure = JSON.parse(await response.text());
+		this.dataDirectoryStructure = JSON.parse(await this.readBlobAsText(response));
 	}
 
 	/** Creates a three.js texture from the path, or returned the cached version. */
@@ -136,5 +136,23 @@ export abstract class ResourceManager {
 
 	static getImageFromCache(path: string) {
 		return this.loadedImages.get(path) || null;
+	}
+
+	static readBlobAsText(blob: Blob) {
+		if (blob.text) return blob.text();
+		else return new Promise<string>((resolve) => {
+			let reader = new FileReader();
+			reader.onload = (e) => resolve(e.target.result as string);
+			reader.readAsText(blob);
+		});
+	}
+
+	static readBlobAsArrayBuffer(blob: Blob) {
+		if (blob.arrayBuffer) return blob.arrayBuffer();
+		else return new Promise<ArrayBuffer>((resolve) => {
+			let reader = new FileReader();
+			reader.onload = (e) => resolve(e.target.result as ArrayBuffer);
+			reader.readAsArrayBuffer(blob);
+		});
 	}
 }

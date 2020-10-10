@@ -703,7 +703,7 @@ export class DtsParser extends BinaryFileParser {
 
 		let promise = new Promise<DtsFile>(async (resolve) => {
 			let blob = await ResourceManager.loadResource(path);
-			let arrayBuffer = await blob.arrayBuffer();
+			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let parser = new DtsParser(arrayBuffer);
 	
 			let result = parser.parse();

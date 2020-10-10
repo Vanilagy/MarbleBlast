@@ -411,8 +411,8 @@ export class MisParser {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
 		let blob = await ResourceManager.loadResource(path);
-		let arrayBuffer = await blob.text();
-		let parser = new MisParser(arrayBuffer);
+		let text = await ResourceManager.readBlobAsText(blob);
+		let parser = new MisParser(text);
 		
 		let result = parser.parse();
 		this.cachedFiles.set(path, result);
