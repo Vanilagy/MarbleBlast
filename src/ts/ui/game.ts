@@ -1,7 +1,7 @@
 import { Util } from "../util";
 import { setupButton, menuDiv, startMenuMusic } from "./ui";
 import { state } from "../state";
-import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex, getCurrentLevelArray } from "./level_select";
+import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex, getCurrentLevelArray, updateOnlineLeaderboard } from "./level_select";
 import { MissionElementScriptObject, MissionElementType } from "../parsing/mis_parser";
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
@@ -273,7 +273,7 @@ export const showFinishScreen = () => {
 		nameEntryScreenDiv.classList.remove('hidden');
 		nameEntryText.textContent = `You got the ${['best', '2nd best', '3rd best'][place]} time!`;
 		nameEntryInput.value = StorageManager.data.lastUsedName;
-		nameEntryInput.select();
+		//nameEntryInput.select(); // Don't select, since we want to avoid renames for leaderboard consistency
 	} else {
 		nameEntryScreenDiv.classList.add('hidden');
 	}
@@ -318,10 +318,16 @@ const nameEntryInput = document.querySelector('#name-entry-input') as HTMLInputE
 const nameEntryButton = nameEntryScreenDiv.querySelector('#name-entry-confirm') as HTMLImageElement;
 
 setupButton(nameEntryButton, 'common/ok', () => {
+	if (!nameEntryInput.value.trim()) {
+		alert("Please enter your name for usage in the leaderboard.");
+		return;
+	}
+
 	// Store the time and close the dialog.
 	let level = state.currentLevel;
 	StorageManager.data.lastUsedName = nameEntryInput.value.trim();
 	StorageManager.insertNewTime(level.missionPath, nameEntryInput.value.trim(), level.finishTime.gameplayClock);
+	updateOnlineLeaderboard();
 
 	nameEntryScreenDiv.classList.add('hidden');
 	drawBestTimes();

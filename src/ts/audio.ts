@@ -17,6 +17,7 @@ export abstract class AudioManager {
 	static audioSources: AudioSource[] = [];
 
 	static init() {
+		let AudioContext = window.AudioContext ?? (window as any).webkitAudioContext; // Safari
 		this.context = new AudioContext();
 
 		this.masterGain = this.context.createGain();

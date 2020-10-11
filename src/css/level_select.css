@@ -47,6 +47,31 @@
 	z-index: 0;
 }
 
+#level-select-text-window-scrollable {
+	position: absolute;
+    height: 205px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	top: 10px;
+	padding-bottom: 10px;
+	box-sizing: border-box;
+	width: 253px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#level-select-text-window-scrollable::-webkit-scrollbar {
+	width: 5px;
+}
+
+#level-select-text-window-scrollable::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#level-select-text-window-scrollable::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
 #level-select-home-button {
 	display: block;
 	position: absolute;
@@ -132,7 +157,7 @@
 #level-title {
 	font-family: DomCasualRegular;
     margin: 0;
-    margin-top: 14px;
+    margin-top: 4px;
     margin-left: 30px;
 	font-size: 20px;
 	white-space: pre-line;
@@ -160,6 +185,15 @@
 	font-family: DomCasualRegular;
     margin: 0;
     margin-top: 14px;
+    margin-left: 30px;
+	font-size: 20px;
+	margin-bottom: 14px;
+}
+
+#online-leaderboard-heading {
+	font-family: DomCasualRegular;
+    margin: 0;
+    margin-top: 23px;
     margin-left: 30px;
 	font-size: 20px;
 	margin-bottom: 14px;

@@ -30,6 +30,7 @@ const levelQualifyTime = document.querySelector('#level-qualify-time') as HTMLPa
 const bestTime1 = document.querySelector('#level-select-best-time-1') as HTMLDivElement;
 const bestTime2 = document.querySelector('#level-select-best-time-2') as HTMLDivElement;
 const bestTime3 = document.querySelector('#level-select-best-time-3') as HTMLDivElement;
+const leaderboardScores = document.querySelector('#leaderboard-scores') as HTMLDivElement;
 const levelImage = document.querySelector('#level-image') as HTMLImageElement;
 const notQualifiedOverlay = document.querySelector('#not-qualified-overlay') as HTMLDivElement;
 const levelNumberElement = document.querySelector('#level-number') as HTMLParagraphElement;
@@ -147,24 +148,13 @@ export const initLevelSelect = async () => {
 	selectTab('advanced');
 	selectTab('intermediate');
 	selectTab('beginner');
+
+	updateOnlineLeaderboard();
 };
 
 /** Displays the currently-selected mission. */
 const displayMission = () => {
 	let missionObj = currentLevelArray[currentLevelIndex];
-
-	const displayBestTimes = (goldTime: number) => {
-		let bestTimes = StorageManager.getBestTimesForMission(missionObj?.path);
-		bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
-		(bestTime1.children[1] as HTMLImageElement).style.opacity = (bestTimes[0][1] <= goldTime)? '' : '0';
-		bestTime1.children[2].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
-		bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
-		(bestTime2.children[1] as HTMLImageElement).style.opacity = (bestTimes[1][1] <= goldTime)? '' : '0';
-		bestTime2.children[2].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
-		bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
-		(bestTime3.children[1] as HTMLImageElement).style.opacity = (bestTimes[2][1] <= goldTime)? '' : '0';
-		bestTime3.children[2].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
-	};
 
 	if (!missionObj) {
 		// There is no mission (likely custom tab), so hide most information.
@@ -177,7 +167,7 @@ const displayMission = () => {
 		levelNumberElement.textContent = `Level ${currentLevelIndex + 1}`;
 		playButton.src = './assets/ui/play/play_i.png';
 		playButton.style.pointerEvents = 'none';
-		displayBestTimes(0);
+		displayBestTimes();
 	} else {
 		// Reenable the play button if it was disabled
 		if (playButton.style.pointerEvents === 'none') {
@@ -208,20 +198,8 @@ const displayMission = () => {
 		let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
 		levelQualifyTime.textContent = isFinite(qualifyTime)? "Time to Qualify: " + secondsToTimeString(qualifyTime / 1000) : '';
 
-		let goldTime = Number(missionInfo.goldtime);
-		displayBestTimes(goldTime);
-
 		// Display best times
-		let bestTimes = StorageManager.getBestTimesForMission(missionObj.path);
-		bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
-		(bestTime1.children[1] as HTMLImageElement).style.opacity = (bestTimes[0][1] <= goldTime)? '' : '0';
-		bestTime1.children[2].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
-		bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
-		(bestTime2.children[1] as HTMLImageElement).style.opacity = (bestTimes[1][1] <= goldTime)? '' : '0';
-		bestTime2.children[2].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
-		bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
-		(bestTime3.children[1] as HTMLImageElement).style.opacity = (bestTimes[2][1] <= goldTime)? '' : '0';
-		bestTime3.children[2].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
+		displayBestTimes();
 
 		// Set the image
 		levelImage.src = getImagePath(missionObj);
@@ -256,6 +234,55 @@ const displayMission = () => {
 		if (ResourceManager.getImageFromCache(imagePath)) continue;
 
 		ResourceManager.loadImage(imagePath);
+	}
+};
+
+const displayBestTimes = () => {
+	let missionObj = currentLevelArray[currentLevelIndex];
+	let goldTime = 0;
+
+	if (missionObj) {
+		let missionInfo = missionObj.simGroup.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
+		goldTime = Number(missionInfo.goldtime);
+	}
+
+	let bestTimes = StorageManager.getBestTimesForMission(missionObj?.path);
+	bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
+	(bestTime1.children[1] as HTMLImageElement).style.opacity = (bestTimes[0][1] <= goldTime)? '' : '0';
+	bestTime1.children[2].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
+	bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
+	(bestTime2.children[1] as HTMLImageElement).style.opacity = (bestTimes[1][1] <= goldTime)? '' : '0';
+	bestTime2.children[2].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
+	bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
+	(bestTime3.children[1] as HTMLImageElement).style.opacity = (bestTimes[2][1] <= goldTime)? '' : '0';
+	bestTime3.children[2].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
+
+	leaderboardScores.innerHTML = '';
+	let onlineScores = onlineLeaderboard[missionObj?.path];
+	if (onlineScores) {
+		let i = 0;
+
+		for (let score of onlineScores) {
+			let element = document.createElement('div');
+			element.classList.add('level-select-best-time');
+
+			let name = document.createElement('div');
+			name.textContent = (i + 1) + '. ' + score[0];
+			element.appendChild(name);
+
+			let img = document.createElement('img');
+			img.src = "./assets/ui/play/goldscore.png";
+			img.style.opacity = (score[1] <= goldTime)? '' : '0';
+			element.appendChild(img);
+
+			let time = document.createElement('div');
+			time.textContent = secondsToTimeString(score[1] / 1000);
+			element.appendChild(time);
+
+			leaderboardScores.appendChild(element);
+
+			i++;
+		}
 	}
 };
 
@@ -320,3 +347,31 @@ hiddenUnlocker.addEventListener('mousedown', () => {
 		AudioManager.play('buttonpress.wav');
 	}
 });
+
+let onlineLeaderboard: Record<string, [string, number][]> = {};
+export const updateOnlineLeaderboard = async () => {
+	let postData = {
+		randomId: StorageManager.data.randomId,
+		bestTimes: {} as Record<string, [string, number]>
+	};
+
+	for (let path in StorageManager.data.bestTimes) {
+		let val = StorageManager.data.bestTimes[path as keyof typeof StorageManager.data.bestTimes];
+		if (val[0][0]) postData.bestTimes[path] = [val[0][0], val[0][1]];
+	}
+
+	try {
+		let response = await fetch('./php/update_leaderboard.php', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(postData)
+		});
+		if (response.ok) {
+			let json = await response.json();
+			onlineLeaderboard = json;
+			displayBestTimes();
+		}
+	} catch (e) {}
+};

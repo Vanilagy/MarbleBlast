@@ -1,5 +1,5 @@
 import { setupButton } from "./ui";
-import { levelSelectDiv, hiddenUnlocker } from "./level_select";
+import { levelSelectDiv, hiddenUnlocker, updateOnlineLeaderboard } from "./level_select";
 import { helpDiv, showHelpPage, initHelpScenes } from "./help";
 import { optionsDiv } from "./options";
 
@@ -14,6 +14,8 @@ setupButton(playButton, 'home/play', () => {
 	homeScreenDiv.classList.add('hidden');
 	levelSelectDiv.classList.remove('hidden');
 	hiddenUnlocker.classList.remove('hidden');
+
+	updateOnlineLeaderboard();
 });
 setupButton(helpButton, 'home/help', () => {
 	// Show the help screen

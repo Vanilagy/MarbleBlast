@@ -1,6 +1,6 @@
 type BestTimes = [string, number][];
 
-const MAX_SCORE_TIME = (99 * 60 + 59 + 0.99) * 1000; // The 99:59.99 thing
+const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999; // The 99:59.99 thing
 
 interface StorageData {
 	settings: {
@@ -32,7 +32,8 @@ interface StorageData {
 	/** Stores the amount of unlocked levels per category of level (beginner, intermediate, advanced) */
 	unlockedLevels: [number, number, number],
 	/** Used for the name entry in the post-game screen. */
-	lastUsedName: string
+	lastUsedName: string,
+	randomId: string
 }
 
 const DEFAULT_STORAGE_DATA: StorageData = {
@@ -63,7 +64,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	},
 	bestTimes: {},
 	unlockedLevels: [1, 1, 1],
-	lastUsedName: ''
+	lastUsedName: '',
+	randomId: Math.random().toString()
 };
 
 /** Manages storage and persistence. */
@@ -78,6 +80,8 @@ export abstract class StorageManager {
 		} else {
 			this.data = DEFAULT_STORAGE_DATA;
 		}
+
+		if (!this.data.randomId) this.data.randomId = Math.random().toString();
 	}
 
 	static store() {
