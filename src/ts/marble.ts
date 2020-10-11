@@ -186,12 +186,19 @@ export class Marble {
 			contactNormalRotation.setArc(this.level.currentUp, contactNormal);
 			movementRotationAxis.mulMat3Eq(contactNormalRotation.toMat3());
 
-			// If we hit the surface at a shallow enough angle, make the marble stick to the surface.
-			let dot0 = contactNormal.dot(this.lastVel.clone().normalize());
-			if (dot0 > -0.4 && dot0 < -0.001) {
+			// Implements sliding: If we hit the surface at an angle below 45°, and move in that approximate direction, we don't bounce.
+			let dot0 = -contactNormal.dot(this.lastVel.clone().normalize());
+			if (dot0 > 0.001 && Math.asin(dot0) <= Math.PI/4 && movementVec.length() > 0 && movementVec.dot(Util.vecOimoToThree(this.lastVel)) > 0) {
 				dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
 				let linearVelocity = this.body.getLinearVelocity();
 				this.body.addLinearVelocity(contactNormal.scale(-dot0 * linearVelocity.length()));
+
+				let newLength = this.body.getLinearVelocity().length();
+				let diff = linearVelocity.length() - newLength;
+				linearVelocity = this.body.getLinearVelocity();
+				linearVelocity.normalize().scaleEq(newLength + diff * 2); // Give a small speedboost
+
+				this.body.setLinearVelocity(linearVelocity);
 			}
 
 			// If we're using a shock absorber, give the marble a velocity boost on contact based on its angular velocity.

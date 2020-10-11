@@ -13,8 +13,8 @@ export class TimeTravel extends PowerUp {
 	constructor(element: MissionElementItem) {
 		super();
 
-		if (element.timeBonus) {
-			this.timeBonus = Number(element.timeBonus);
+		if (element.timebonus) {
+			this.timeBonus = Number(element.timebonus);
 		}
 
 		this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;

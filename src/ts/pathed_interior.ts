@@ -34,19 +34,20 @@ export class PathedInterior extends Interior {
 	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
 
-		let path = interiorElement.interiorResource.slice(interiorElement.interiorResource.indexOf('interiors/'));
+		let path = interiorElement.interiorresource.slice(interiorElement.interiorresource.indexOf('interiors/'));
 		let difFile = await DifParser.loadFile('./assets/data/' + path);
-		let pathedInterior = new PathedInterior(difFile, path, level, Number(interiorElement.interiorIndex));
+		let pathedInterior = new PathedInterior(difFile, path, level, Number(interiorElement.interiorindex));
 		
 		await pathedInterior.init();
+		pathedInterior.buildCollisionGeometry(new THREE.Vector3(1, 1, 1));
 		pathedInterior.element = interiorElement;
 		pathedInterior.path = simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 		pathedInterior.computeDuration();
 		// Parse the markers
 		pathedInterior.markerData = pathedInterior.path.markers.map(x => {
 			return {
-				msToNext: Number(x.msToNext),
-				smoothingType: x.smoothingType,
+				msToNext: Number(x.mstonext),
+				smoothingType: x.smoothingtype,
 				position: MisParser.parseVector3(x.position),
 				rotation: MisParser.parseRotation(x.rotation)
 			};
@@ -69,7 +70,7 @@ export class PathedInterior extends Interior {
 
 		// Don't count the last marker
 		for (let i = 0; i < this.path.markers.length-1; i++) {
-			total += Number(this.path.markers[i].msToNext);
+			total += Number(this.path.markers[i].mstonext);
 		}
 
 		this.duration = total;
@@ -211,9 +212,9 @@ export class PathedInterior extends Interior {
 			this.changeTime = -Infinity;
 		}
 
-		let initialTargetPosition = Number(this.element.initialTargetPosition ?? -1);
+		let initialTargetPosition = Number(this.element.initialtargetposition ?? -1);
 		if (initialTargetPosition >= 0) {
-			this.timeStart = Number(this.element.initialPosition);
+			this.timeStart = Number(this.element.initialposition);
 			if (isNaN(this.timeStart)) {
 				// Yeah I know, strange, and this only seems to happen on Money Tree.
 				this.timeStart = this.duration;
@@ -221,9 +222,9 @@ export class PathedInterior extends Interior {
 			}
 
 			this.changeTime = 0;
-		} else if (this.element.initialPosition) {
+		} else if (this.element.initialposition) {
 			// Interpret the initial position as a time offset
-			this.timeOffset = Number(this.element.initialPosition);
+			this.timeOffset = Number(this.element.initialposition);
 		}
 	}
 }

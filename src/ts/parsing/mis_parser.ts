@@ -42,17 +42,17 @@ export interface MissionElementScriptObject extends MissionElementBase {
 	name: string,
 	desc: string,
 	type: string,
-	startHelpText: string,
+	starthelptext: string,
 	level: string,
 	artist: string,
-	goldTime: string
+	goldtime: string
 }
 
 export interface MissionElementMissionArea extends MissionElementBase {
 	_type: MissionElementType.MissionArea,
 	area: string,
-	flightCeiling: string,
-	flightCeilingRange: string,
+	flightceiling: string,
+	flightceilingRange: string,
 	locked: string
 }
 
@@ -61,26 +61,26 @@ export interface MissionElementSky extends MissionElementBase {
 	position: string,
 	rotation: string,
 	scale: string,
-	cloudHeightPer: string[],
-	cloudSpeed1: string,
-	cloudSpeed2: string,
-	cloudSpeed3: string,
-	visibleDistance: string,
-	useSkyTextures: string,
-	renderBottomTexture: string,
-	SkySolidColor: string,
-	fogDistance: string,
-	fogColor: string,
-	fogVolume1: string,
-	fogVolume2: string,
-	fogVolume3: string,
-	materialList: string,
-	windVelocity: string,
-	windEffectPrecipitation: string,
-	noRenderBans: string,
-	fogVolumeColor1: string,
-	fogVolumeColor2: string,
-	fogVolumeColor3: string
+	cloudheightper: string[],
+	cloudspeed1: string,
+	cloudspeed2: string,
+	cloudspeed3: string,
+	visibledistance: string,
+	useskytextures: string,
+	renderbottomtexture: string,
+	skysolidcolor: string,
+	fogdistance: string,
+	fogcolor: string,
+	fogvolume1: string,
+	fogvolume2: string,
+	fogvolume3: string,
+	materiallist: string,
+	windvelocity: string,
+	windeffectprecipitation: string,
+	norenderbans: string,
+	fogvolumecolor1: string,
+	fogvolumecolor2: string,
+	fogvolumecolor3: string
 }
 
 /** Stores information about the lighting direction and color. */
@@ -97,8 +97,8 @@ export interface MissionElementInteriorInstance extends MissionElementBase {
 	position: string,
 	rotation: string,
 	scale: string,
-	interiorFile: string,
-	showTerrainInside: string
+	interiorfile: string,
+	showterraininside: string
 }
 
 /** Represents a static shape. */
@@ -107,8 +107,8 @@ export interface MissionElementStaticShape extends MissionElementBase {
 	position: string,
 	rotation: string,
 	scale: string,
-	dataBlock: string,
-	resetTime?: string,
+	datablock: string,
+	resettime?: string,
 	timeout?: string
 }
 
@@ -118,12 +118,12 @@ export interface MissionElementItem extends MissionElementBase {
 	position: string,
 	rotation: string,
 	scale: string,
-	dataBlock: string,
+	datablock: string,
 	collideable: string,
 	static: string,
 	rotate: string,
-	showHelpOnPickup: string,
-	timeBonus?: string
+	showhelponpickup: string,
+	timebonus?: string
 }
 
 /** Holds the markers used for the path of a pathed interior. */
@@ -138,10 +138,10 @@ export interface MissionElementMarker extends MissionElementBase {
 	position: string,
 	rotation: string,
 	scale: string,
-	seqNum: string,
-	msToNext: string,
+	seqnum: string,
+	mstonext: string,
 	/** Either Linear, Accelerate or Spline. */
-	smoothingType: string
+	smoothingtype: string
 }
 
 /** Represents a moving interior. */
@@ -150,15 +150,15 @@ export interface MissionElementPathedInterior extends MissionElementBase {
 	position: string,
 	rotation: string,
 	scale: string,
-	dataBlock: string,
-	interiorResource: string,
-	interiorIndex: string,
-	basePosition: string,
-	baseRotation: string,
-	baseScale: string,
+	datablock: string,
+	interiorresource: string,
+	interiorindex: string,
+	baseposition: string,
+	baserotation: string,
+	basescale: string,
 	// These two following values are a bit weird. See usage for more explanation.
-	initialTargetPosition: string,
-	initialPosition: string
+	initialtargetposition: string,
+	initialposition: string
 }
 
 /** Represents a trigger area used for out-of-bounds and help. */
@@ -167,17 +167,17 @@ export interface MissionElementTrigger extends MissionElementBase {
 	position: string,
 	rotation: string,
 	scale: string,
-	dataBlock: string,
+	datablock: string,
 	/** A list of 12 strings representing 4 vectors. The first vector corresponds to the origin point of the cuboid, the other three are the side vectors. */
 	polyhedron: string,
 	text?: string,
-	targetTime?: string
+	targettime?: string
 }
 
 /** Represents the song choice. */
 export interface MissionElementAudioProfile extends MissionElementBase {
 	_type: MissionElementType.AudioProfile,
-	fileName: string,
+	filename: string,
 	description: string,
 	preload: string
 }
@@ -277,19 +277,23 @@ export class MisParser {
 			if (this.lines[this.lineIndex].startsWith('}')) break; // Element is over
 
 			let parts = this.lines[this.lineIndex].split('=').map((part) => part.trim());
-			if (parts[0].endsWith(']')) {
+			let key = parts[0];
+
+			if (key.endsWith(']')) {
 				// The key is specifying array data, so handle that case.
-				let openingIndex = parts[0].indexOf('[');
-				let arrayName = parts[0].slice(0, openingIndex);
+				let openingIndex = key.indexOf('[');
+				let arrayName = key.slice(0, openingIndex);
 				let array = (obj[arrayName] ?? (obj[arrayName] = [])) as string[]; // Create a new array or use the existing one
 
-				let index = Number(parts[0].slice(openingIndex + 1, -1));
+				let index = Number(key.slice(openingIndex + 1, -1));
 				array[index] = parts[1].slice(1, -2);
 			} else {
+				key = key.toLowerCase(); // TorqueScript is case-insensitive here
+
 				if (parts[1][0] === '"') {
-					obj[parts[0]] = parts[1].slice(1, -2); // Remove " " and final ;
+					obj[key] = parts[1].slice(1, -2); // Remove " " and final ;
 				} else {
-					obj[parts[0]] = parts[1].slice(0, -1); // Remove only final ;
+					obj[key] = parts[1].slice(0, -1); // Remove only final ;
 				}
 			}
 
@@ -365,7 +369,7 @@ export class MisParser {
 		return {
 			_type: MissionElementType.Path,
 			_subtype: subtype,
-			markers: markers.sort((a, b) => Number(a.seqNum) - Number(b.seqNum)) // Make sure they're sorted sequentially
+			markers: markers.sort((a, b) => Number(a.seqnum) - Number(b.seqnum)) // Make sure they're sorted sequentially
 		} as MissionElementPath;
 	}
 

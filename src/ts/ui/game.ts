@@ -235,7 +235,7 @@ export const showFinishScreen = () => {
 	let missionInfo = level.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
 	let elapsedTime = level.finishTime.currentAttemptTime - GO_TIME;
 	let bonusTime = Math.max(0, elapsedTime - level.finishTime.gameplayClock);
-	let goldTime = Number(missionInfo.goldTime);
+	let goldTime = Number(missionInfo.goldtime);
 	let failedToQualify = false;
 
 	// Change the message based on having achieve gold time, qualified time or not having qualified.
@@ -295,7 +295,7 @@ export const showFinishScreen = () => {
 const drawBestTimes = () => {
 	let level = state.currentLevel;
 	let missionInfo = level.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
-	let goldTime = Number(missionInfo.goldTime);
+	let goldTime = Number(missionInfo.goldtime);
 
 	let bestTimes = StorageManager.getBestTimesForMission(level.missionPath);
 	bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];

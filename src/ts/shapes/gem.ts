@@ -18,7 +18,7 @@ export class Gem extends Shape {
 		super();
 
 		// Determine the color of the gem:
-		let color = element.dataBlock.slice("GemItem".length);
+		let color = element.datablock.slice("GemItem".length);
 		if (color.length === 0) color = Util.randomFromArray(GEM_COLORS); // Random if no color specified
 
 		this.matNamesOverride["base.gem"] = color + ".gem";

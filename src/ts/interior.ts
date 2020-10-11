@@ -84,8 +84,6 @@ export class Interior {
 		mesh.receiveShadow = true;
 		this.group.add(mesh);
 
-		this.buildCollisionGeometry();
-
 		this.level.loadingState.loaded++;
 	}
 
@@ -133,7 +131,7 @@ export class Interior {
 	}
 
 	/** Builds the collision geometry of this interior based on convex hull descriptions. */
-	buildCollisionGeometry() {
+	buildCollisionGeometry(scale: THREE.Vector3) {
 		/** Adds a convex hull collision shape. */
 		const addShape = (vertices: OIMO.Vec3[], material: string) => {
 			let geometry = new OIMO.ConvexHullGeometry(vertices);
@@ -152,7 +150,7 @@ export class Interior {
 			// Get the vertices
 			for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
 				let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
-				vertices.push(new OIMO.Vec3(point.x, point.y, point.z));
+				vertices.push(new OIMO.Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
 			}
 
 			let materials = new Set();
@@ -179,7 +177,7 @@ export class Interior {
 
 					for (let k = surface.windingStart; k < surface.windingStart + surface.windingCount; k++) {
 						let point = this.detailLevel.points[this.detailLevel.windings[k]];
-						vertices.push(new OIMO.Vec3(point.x, point.y, point.z));
+						vertices.push(new OIMO.Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
 					}
 
 					addShape(vertices, material);
@@ -191,10 +189,13 @@ export class Interior {
 		}
 	}
 
-	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion) {
+	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
 		this.group.position.copy(position);
 		this.group.quaternion.copy(orientation);
-		this.worldMatrix.compose(position, orientation, new THREE.Vector3(1, 1, 1));
+		this.group.scale.copy(scale);
+		this.worldMatrix.compose(position, orientation, scale);
+
+		this.buildCollisionGeometry(scale);
 
 		this.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
 		this.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));

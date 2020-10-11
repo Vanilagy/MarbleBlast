@@ -301,7 +301,7 @@ export class Level extends Scheduler {
 	async initSounds() {
 		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
 		let musicProfile = this.mission.elements.find((element) => element._type === MissionElementType.AudioProfile && element.description === "AudioMusic") as MissionElementAudioProfile;
-		let musicFileName = musicProfile.fileName.slice(musicProfile.fileName.lastIndexOf('/') + 1).toLowerCase();
+		let musicFileName = musicProfile.filename.slice(musicProfile.filename.lastIndexOf('/') + 1).toLowerCase();
 		// If the song is Shell, then choose the music based on the index of the level.
 		if (musicFileName.includes('shell')) musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][Number(missionInfo.level) % 3];
 
@@ -348,13 +348,13 @@ export class Level extends Scheduler {
 	}
 
 	async addInterior(element: MissionElementInteriorInstance) {
-		let path = element.interiorFile.slice(element.interiorFile.indexOf('interiors/'));
+		let path = element.interiorfile.slice(element.interiorfile.indexOf('interiors/'));
 		let difFile = await DifParser.loadFile('./assets/data/' + path);
 		if (!difFile) return;
 
 		let interior = new Interior(difFile, path, this);
 		await interior.init();
-		interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation));
+		interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
 		this.scene.add(interior.group);
 		this.physics.addInterior(interior);
@@ -365,7 +365,7 @@ export class Level extends Scheduler {
 		let shape: Shape;
 
 		// Add the correct shape based on type
-		let dataBlockLowerCase = element.dataBlock.toLowerCase();
+		let dataBlockLowerCase = element.datablock.toLowerCase();
 		if (dataBlockLowerCase === "startpad") shape = new StartPad();
 		else if (dataBlockLowerCase === "endpad") shape = new EndPad();
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
@@ -405,11 +405,11 @@ export class Level extends Scheduler {
 		let trigger: Trigger;
 
 		// Create a trigger based on type
-		if (element.dataBlock === "OutOfBoundsTrigger") {
+		if (element.datablock === "OutOfBoundsTrigger") {
 			trigger = new OutOfBoundsTrigger(element, this);
-		} else if (element.dataBlock === "InBoundsTrigger") {
+		} else if (element.datablock === "InBoundsTrigger") {
 			trigger = new InBoundsTrigger(element, this);
-		} else if (element.dataBlock === "HelpTrigger") {
+		} else if (element.datablock === "HelpTrigger") {
 			trigger = new HelpTrigger(element, this);
 		}
 
@@ -446,7 +446,7 @@ export class Level extends Scheduler {
 		this.pitch = DEFAULT_PITCH;
 
 		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
-		if (missionInfo.startHelpText) displayHelp(missionInfo.startHelpText); // Show the start help text
+		if (missionInfo.starthelptext) displayHelp(missionInfo.starthelptext); // Show the start help text
 
 		for (let shape of this.shapes) shape.reset();
 		for (let interior of this.interiors) interior.reset();
@@ -872,7 +872,7 @@ export class Level extends Scheduler {
 
 	/** Triggers the out-of-bounds state. */
 	goOutOfBounds() {
-		if (this.outOfBounds) return;
+		if (this.outOfBounds || this.finishTime) return;
 
 		this.updateCamera(this.timeState); // Update the camera at the point of OOB-ing
 		this.outOfBounds = true;

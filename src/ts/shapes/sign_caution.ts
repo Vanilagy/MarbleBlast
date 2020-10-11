@@ -10,7 +10,7 @@ export class SignCaution extends Shape {
 		super();
 
 		// Determine the type of the sign
-		let type = element.dataBlock.slice("SignCaution".length);
+		let type = element.datablock.slice("SignCaution".length);
 		switch (type) {
 			case "Caution": this.matNamesOverride["base.cautionsign"] = "caution.cautionsign"; break;
 			case "Danger": this.matNamesOverride["base.cautionsign"] = "danger.cautionsign"; break;

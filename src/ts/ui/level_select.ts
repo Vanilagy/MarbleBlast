@@ -208,7 +208,7 @@ const displayMission = () => {
 		let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
 		levelQualifyTime.textContent = isFinite(qualifyTime)? "Time to Qualify: " + secondsToTimeString(qualifyTime / 1000) : '';
 
-		let goldTime = Number(missionInfo.goldTime);
+		let goldTime = Number(missionInfo.goldtime);
 		displayBestTimes(goldTime);
 
 		// Display best times

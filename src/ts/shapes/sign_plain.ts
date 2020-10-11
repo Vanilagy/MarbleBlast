@@ -10,7 +10,7 @@ export class SignPlain extends Shape {
 		super();
 
 		// Determine the direction to show
-		let direction = element.dataBlock.slice("SignPlain".length);
+		let direction = element.datablock.slice("SignPlain".length);
 		switch (direction) {
 			case "Right": this.matNamesOverride["base.plainsign"] = "right.plainsign"; break;
 			case "Left": this.matNamesOverride["base.plainsign"] = "left.plainsign"; break;
