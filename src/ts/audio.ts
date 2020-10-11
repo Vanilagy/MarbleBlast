@@ -44,9 +44,19 @@ export abstract class AudioManager {
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let audioBuffer: AudioBuffer;
 			try {
-				audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+				if (window.AudioContext) {
+					audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+				} else {
+					audioBuffer = await new Promise((res, rej) => {
+						this.context.decodeAudioData(
+							arrayBuffer, 
+							buff => res(buff),
+							err => rej(err)
+						);
+					});
+				}
 			} catch (e) {
-				console.log(e);
+				console.log("Error with decoding Audio Data:", e);
 				console.log(path);
 			}
 
@@ -106,7 +116,7 @@ export abstract class AudioManager {
 			let distance = source.position.distanceTo(listenerPos);
 			let panRemoval = Util.clamp(distance / 1, 0, 1); // If the listener is very close to the center, start moving to the audio source to the center.
 			
-			source.panner.pan.value = -relativePosition.y * 0.8 * panRemoval;
+			source.setPannerValue(-relativePosition.y * 0.8 * panRemoval);
 			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1);
 		}
 	}
@@ -130,7 +140,7 @@ export class AudioSource {
 	destination: AudioNode;
 	node: AudioBufferSourceNode;
 	gain: GainNode;
-	panner: StereoPannerNode;
+	panner: StereoPannerNode | PannerNode;
 	position: THREE.Vector3;
 	stopped = false;
 
@@ -140,9 +150,14 @@ export class AudioSource {
 		this.position = position;
 		
 		this.gain = AudioManager.context.createGain();
-		this.panner = AudioManager.context.createStereoPanner();
+
+		if (AudioManager.context.createStereoPanner)
+			this.panner = AudioManager.context.createStereoPanner();
+		else
+			this.panner = AudioManager.context.createPanner();
 		this.gain.connect(this.panner);
 		this.panner.connect(this.destination);
+
 		this.node = AudioManager.context.createBufferSource();
 		this.node.connect(this.gain);
 
@@ -154,6 +169,16 @@ export class AudioSource {
 		if (this.stopped) return; // The sound may have already been stopped, so don't continue.
 		
 		this.node.buffer = buffer;
+	}
+
+	setPannerValue(val: number) {
+		if (AudioManager.context.createStereoPanner) {
+			(this.panner as StereoPannerNode).pan.value = val;
+		} else {
+			// https://stackoverflow.com/a/59545726
+			(this.panner as PannerNode).panningModel = 'equalpower';
+			(this.panner as PannerNode).setPosition(val, 0, 1 - Math.abs(val));
+		}
 	}
 
 	async play() {
