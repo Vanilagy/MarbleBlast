@@ -350,7 +350,8 @@ hiddenUnlocker.addEventListener('mousedown', () => {
 	}
 });
 
-let onlineLeaderboard: Record<string, [string, number][]> = {};
+// The second value in the tuple can be number or string - number for legacy reasons.
+let onlineLeaderboard: Record<string, [string, number | string][]> = {};
 export const updateOnlineLeaderboard = async () => {
 	let postData = {
 		randomId: StorageManager.data.randomId,
@@ -358,6 +359,7 @@ export const updateOnlineLeaderboard = async () => {
 		version: 1
 	};
 
+	// Add all personal best times to the payload
 	for (let path in StorageManager.data.bestTimes) {
 		let val = StorageManager.data.bestTimes[path as keyof typeof StorageManager.data.bestTimes];
 		if (val[0][0]) postData.bestTimes[path] = [val[0][0], val[0][1].toString()]; // Convert the time to string to avoid precision loss in transfer
@@ -374,7 +376,7 @@ export const updateOnlineLeaderboard = async () => {
 		if (response.ok) {
 			let json = await response.json();
 			onlineLeaderboard = json;
-			displayBestTimes();
+			displayBestTimes(); // Refresh best times
 		}
 	} catch (e) {}
 };

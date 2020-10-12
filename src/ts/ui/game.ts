@@ -47,6 +47,7 @@ const stopAndExit = () => {
 	finishScreenDiv.classList.add('hidden');
 	cycleMission(0); // Make sure to reload the current level to potentially update best times having changed
 	startMenuMusic();
+	updateOnlineLeaderboard();
 };
 
 setupButton(pauseYesButton, 'common/yes', () => {
@@ -255,7 +256,7 @@ export const showFinishScreen = () => {
 
 	// Update the time elements
 	finishScreenTime.textContent = secondsToTimeString(level.finishTime.gameplayClock / 1000);
-	qualifyTimeElement.textContent = (missionInfo.time && missionInfo.time !== "0")? secondsToTimeString(Number(missionInfo.time) / 1000) : '99:59.99';
+	qualifyTimeElement.textContent = (missionInfo.time && missionInfo.time !== "0")? secondsToTimeString(Number(missionInfo.time) / 1000) : '99:59.999';
 	qualifyTimeElement.style.color = failedToQualify? 'red' : '';
 	qualifyTimeElement.style.textShadow = failedToQualify? '1px 1px 0px black' : '';
 	
