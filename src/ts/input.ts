@@ -1,5 +1,6 @@
 import { state } from "./state";
 import { StorageManager } from "./storage";
+import { gameUiDiv } from "./ui/game";
 
 export const currentMousePosition = {
 	x: 0,
@@ -73,6 +74,11 @@ window.addEventListener('keyup', (e) => {
 		if (e.code !== StorageManager.data.settings.gameButtonMapping[key]) continue;
 
 		gameButtons[key] = false;
+	}
+
+	// Hardcoded: Restar the level upon pressing R.
+	if (e.code === 'KeyR' && !(!state.currentLevel || gameUiDiv.classList.contains('hidden') || !state.currentLevel || state.currentLevel.paused || state.currentLevel.finishTime)) {
+		state.currentLevel.restart();
 	}
 });
 

@@ -1,6 +1,6 @@
 type BestTimes = [string, number][];
 
-const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999; // The 99:59.99 thing
+const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999.99; // The 99:59.99 thing
 
 interface StorageData {
 	settings: {

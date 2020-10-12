@@ -7,9 +7,11 @@ if (!is_file($cwd . "/leaderboard.json")) file_put_contents($cwd . "/leaderboard
 
 $input = json_decode(file_get_contents("php://input"), true);
 $leaderboard = json_decode(file_get_contents($cwd . "/leaderboard.json"), true);
+$version = isset($input["version"])? intval($input["version"]) : 0;
 
 foreach ($input["bestTimes"] as $key => $value) {
 	$toInsert = array($value[0], $value[1], $input["randomId"]);
+	$time = (float) $value[1];
 
 	if (!isset($leaderboard[$key])) {
 		$leaderboard[$key] = array($toInsert);
@@ -19,7 +21,7 @@ foreach ($input["bestTimes"] as $key => $value) {
 		for ($i = 0; $i < count($leaderboard[$key]); $i++) {
 			$val = $leaderboard[$key][$i];
 			if ($val[2] === $toInsert[2] || $val[0] === $toInsert[0]) {
-				if ($val[1] <= $toInsert[1]) $needsInsert = false;
+				if (((float) $val[1]) <= $time) $needsInsert = false;
 				else {
 					array_splice($leaderboard[$key], $i, 1);
 					$i--;
@@ -30,7 +32,7 @@ foreach ($input["bestTimes"] as $key => $value) {
 		if ($needsInsert) {
 			$i = 0;
 			for ($i = 0; $i < count($leaderboard[$key]); $i++) {
-				if ($leaderboard[$key][$i][1] > $toInsert[1]) break;
+				if (((float) $leaderboard[$key][$i][1]) > $time) break;
 			}
 	
 			array_splice($leaderboard[$key], $i, 0, array($toInsert));
@@ -47,7 +49,8 @@ foreach ($leaderboard as $key => $value) {
 	$arr = array();
 
 	for ($i = 0; $i < count($value); $i++) {
-		$arr[] = array($value[$i][0], $value[$i][1]);
+		$secondValue = ($version >= 1)? strval($value[$i][1]) : ((float) $value[$i][1]);
+		$arr[] = array($value[$i][0], $secondValue);
 	}
 
 	$response[$key] = $arr;

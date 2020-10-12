@@ -499,7 +499,7 @@ export class Level extends Scheduler {
 		let tempTimeState: TimeState = {
 			timeSinceLoad: this.timeState.timeSinceLoad + completion * physicsTickLength,
 			currentAttemptTime: this.timeState.currentAttemptTime + completion * physicsTickLength,
-			gameplayClock: this.currentTimeTravelBonus? this.timeState.gameplayClock : this.timeState.gameplayClock + completion * physicsTickLength,
+			gameplayClock: (this.currentTimeTravelBonus || this.timeState.currentAttemptTime < GO_TIME)? this.timeState.gameplayClock : this.timeState.gameplayClock + completion * physicsTickLength,
 			physicsTickCompletion: completion
 		};
 
@@ -866,7 +866,12 @@ export class Level extends Scheduler {
 		displayGemCount(this.gemCount, this.totalGems);
 	}
 
-	addTimeTravelBonus(bonus: number) {
+	addTimeTravelBonus(bonus: number, timeToRevert: number) {
+		if (this.currentTimeTravelBonus === 0) {
+			this.timeState.gameplayClock -= timeToRevert;
+			bonus -= timeToRevert;
+		}
+
 		this.currentTimeTravelBonus += bonus;
 	}
 
@@ -891,7 +896,8 @@ export class Level extends Scheduler {
 			displayAlert("You can't finish without all the gems!!");
 		} else {
 			// The level was completed! Store the time of finishing.
-			let completionOfImpact = this.physics.computeCompletionOfImpactWithFinish();
+			let finishAreaShape = this.shapes.find((shape) => shape instanceof EndPad).colliders[0].body.getShapeList();
+			let completionOfImpact = this.physics.computeCompletionOfImpactWithShape(finishAreaShape);
 			let toSubtract = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 
 			this.finishTime = Util.jsonClone(this.timeState);

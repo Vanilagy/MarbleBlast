@@ -324,22 +324,48 @@ export class PhysicsHelper {
 		this.shapeOrTriggerInside.clear();
 	}
 
-	/** Computes the completion between the last and current tick that the marble touched the finish area. */
-	computeCompletionOfImpactWithFinish() {
-		let finishColliderShape = this.level.shapes.find(x => x instanceof EndPad).colliders[0].body.getShapeList();
+	/** Computes the completion between the last and current tick that the marble touched the given shape in the aux world. */
+	computeCompletionOfImpactWithShape(shape: OIMO.Shape) {
 		let translation = this.level.marble.body.getPosition().sub(this.level.marble.lastPos);
 		let beginTransform = new OIMO.Transform();
 		// Extend the "ray" a bit to get a more accurate result
-		beginTransform.setPosition(this.level.marble.lastPos.sub(translation.scale(1)));
-		translation.scaleEq(3);
+		beginTransform.setPosition(this.level.marble.lastPos.sub(translation.scale(5)));
+		translation.scaleEq(11);
 
 		let fraction = 1;
 		this.auxWorld.convexCast(new OIMO.SphereGeometry(0.2 * 2), beginTransform, translation, {
-			process(shape, hit) {
-				// Only care if we actually overlapped the finish area
-				if (shape === finishColliderShape) fraction = hit.fraction * 3 - 1;
+			process(s, hit) {
+				// Only care if we actually overlapped the shape in question
+				if (s === shape) fraction = hit.fraction * 11 - 5;
 			}
-		})
+		});
+
+		fraction = Util.clamp(fraction, 0, 1);
+		return fraction;
+	}
+
+	/** Computes the completion between the last and current tick that the marble touched the given rigid body in the aux world. */
+	computeCompletionOfImpactWithBody(body: OIMO.RigidBody) {
+		let shapes = new Set<OIMO.Shape>();
+		let current = body.getShapeList();
+		while (current) {
+			shapes.add(current);
+			current = current.getNext();
+		}
+
+		let translation = this.level.marble.body.getPosition().sub(this.level.marble.lastPos);
+		let beginTransform = new OIMO.Transform();
+		// Extend the "ray" a bit to get a more accurate result
+		beginTransform.setPosition(this.level.marble.lastPos.sub(translation.scale(5)));
+		translation.scaleEq(11);
+
+		let fraction = 1;
+		this.auxWorld.convexCast(new OIMO.SphereGeometry(0.2 * 2), beginTransform, translation, {
+			process(s, hit) {
+				// Only care if we actually overlapped a shape of the body in question
+				if (shapes.has(s)) fraction = Math.min(fraction, hit.fraction * 11 - 5);
+			}
+		});
 
 		fraction = Util.clamp(fraction, 0, 1);
 		return fraction;

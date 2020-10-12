@@ -1,6 +1,7 @@
 import { PowerUp } from "./power_up";
 import { MissionElementItem } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
+import { PHYSICS_TICK_RATE } from "../level";
 
 /** Temporarily pauses the game clock. */
 export class TimeTravel extends PowerUp {
@@ -26,6 +27,9 @@ export class TimeTravel extends PowerUp {
 	}
 
 	use() {
-		this.level.addTimeTravelBonus(this.timeBonus);
+		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(this.bodies[0]);
+		let timeToRevert = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
+
+		this.level.addTimeTravelBonus(this.timeBonus, timeToRevert);
 	}
 }

@@ -263,6 +263,8 @@ const displayBestTimes = () => {
 		let i = 0;
 
 		for (let score of onlineScores) {
+			let achievedTime = Number(score[1]);
+
 			let element = document.createElement('div');
 			element.classList.add('level-select-best-time');
 
@@ -272,11 +274,11 @@ const displayBestTimes = () => {
 
 			let img = document.createElement('img');
 			img.src = "./assets/ui/play/goldscore.png";
-			img.style.opacity = (score[1] <= goldTime)? '' : '0';
+			img.style.opacity = (achievedTime <= goldTime)? '' : '0';
 			element.appendChild(img);
 
 			let time = document.createElement('div');
-			time.textContent = secondsToTimeString(score[1] / 1000);
+			time.textContent = secondsToTimeString(achievedTime / 1000, 3);
 			element.appendChild(time);
 
 			leaderboardScores.appendChild(element);
@@ -352,12 +354,13 @@ let onlineLeaderboard: Record<string, [string, number][]> = {};
 export const updateOnlineLeaderboard = async () => {
 	let postData = {
 		randomId: StorageManager.data.randomId,
-		bestTimes: {} as Record<string, [string, number]>
+		bestTimes: {} as Record<string, [string, string]>,
+		version: 1
 	};
 
 	for (let path in StorageManager.data.bestTimes) {
 		let val = StorageManager.data.bestTimes[path as keyof typeof StorageManager.data.bestTimes];
-		if (val[0][0]) postData.bestTimes[path] = [val[0][0], val[0][1]];
+		if (val[0][0]) postData.bestTimes[path] = [val[0][0], val[0][1].toString()]; // Convert the time to string to avoid precision loss in transfer
 	}
 
 	try {
