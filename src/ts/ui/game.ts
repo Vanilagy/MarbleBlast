@@ -318,8 +318,8 @@ const nameEntryInput = document.querySelector('#name-entry-input') as HTMLInputE
 const nameEntryButton = nameEntryScreenDiv.querySelector('#name-entry-confirm') as HTMLImageElement;
 
 setupButton(nameEntryButton, 'common/ok', () => {
-	if (!nameEntryInput.value.trim()) {
-		alert("Please enter your name for usage in the leaderboard.");
+	if (nameEntryInput.value.trim().length < 2) {
+		alert("Please enter a proper name for usage in the online leaderboard.");
 		return;
 	}
 
