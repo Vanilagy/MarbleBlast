@@ -210,6 +210,10 @@
 
 .level-select-best-time > div:first-child {
 	float: left;
+    width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .level-select-best-time > div:last-child {
