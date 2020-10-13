@@ -114,6 +114,11 @@ export class Replay {
 			this.finishTime = null;
 			this.trapdoorStartValues.length = 0;
 			this.landmineStartValues.length = 0;
+			this.rollingSoundGain.length = 0;
+			this.rollingSoundPlaybackRate.length = 0;
+			this.slidingSoundGain.length = 0;
+			this.jumpSoundTimes.length = 0;
+			this.bounceTimes.length = 0;			
 
 			// Remember trapdoor and mine states
 			for (let shape of this.level.shapes) {
@@ -257,11 +262,11 @@ export class Replay {
 		this.level.pitch = this.cameraOrientations[i].pitch;
 
 		for (let i = this.currentJumpSoundTime; i < this.jumpSoundTimes.length; i++) {
-			if (!this.jumpSoundTimes[i] || this.jumpSoundTimes[i] > this.currentTickIndex) break;
+			if (this.jumpSoundTimes[i] > this.currentTickIndex) break;
 			if (this.jumpSoundTimes[i] === this.currentTickIndex) this.level.marble.playJumpSound();
 		}
 		for (let i = this.currentBounceTime; i < this.bounceTimes.length; i++) {
-			if (!this.bounceTimes[i] || this.bounceTimes[i].tickIndex > this.currentTickIndex) break;
+			if (this.bounceTimes[i].tickIndex > this.currentTickIndex) break;
 			if (this.bounceTimes[i].tickIndex === this.currentTickIndex) {
 				this.level.marble.playBounceSound(this.bounceTimes[i].volume);
 				if (this.bounceTimes[i].showParticles) this.level.marble.showBounceParticles();

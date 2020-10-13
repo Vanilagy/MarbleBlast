@@ -836,7 +836,10 @@ export class Level extends Scheduler {
 		if (totalDistance > 300 && location.search.includes('debug')) alert(totalDistance + ', ' + e.movementX + ' ' + e.movementY);
 
 		// Strangely enough, Chrome really bugs out sometimes and flings the mouse into a random direction quickly. We try to catch that here and ignore the mouse movement if we detect it.
-		if (totalDistance > 350 && this.previousMouseMovementDistance * 4 < totalDistance) return;
+		if (totalDistance > 350 && this.previousMouseMovementDistance * 4 < totalDistance) {
+			this.previousMouseMovementDistance *= 1.5; // Make the condition harder to hit the next time
+			return;
+		};
 		this.previousMouseMovementDistance = totalDistance;
 
 		let factor = Util.lerp(1 / 2500, 1 / 100, StorageManager.data.settings.mouseSensitivity);
