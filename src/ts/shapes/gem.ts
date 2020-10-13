@@ -30,6 +30,7 @@ export class Gem extends Shape {
 		this.pickedUp = true;
 		this.setOpacity(0); // Hide the gem
 		this.level.pickUpGem();
+		this.level.replay.recordMarbleInside(this);
 	}
 
 	reset() {

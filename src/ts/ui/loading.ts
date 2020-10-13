@@ -5,6 +5,7 @@ import { state } from "../state";
 import { Level } from "../level";
 import { gameUiDiv } from "./game";
 import { Util } from "../util";
+import { Replay } from "../replay";
 
 const loadingDiv = document.querySelector('#loading') as HTMLDivElement;
 const levelNameElement = document.querySelector('#loading-level-name') as HTMLParagraphElement;
@@ -21,7 +22,7 @@ setupButton(cancelButton, 'loading/cancel', () => {
 	loadingIndex++;
 });
 
-export const loadLevel = async (mission: MissionElementSimGroup, missionPath: string) => {
+export const loadLevel = async (mission: MissionElementSimGroup, missionPath: string, replayData?: ArrayBuffer) => {
 	loadingDiv.classList.remove('hidden');
 	let indexAtStart = loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
 
@@ -41,6 +42,12 @@ export const loadLevel = async (mission: MissionElementSimGroup, missionPath: st
 
 	let level = new Level(mission, missionPath);
 	level.init().then(async () => {
+		if (replayData) {
+			// Load the replay
+			level.replay = Replay.fromSerialized(replayData, level);
+			level.replay.mode = 'playback';
+		}
+
 		clearInterval(refresher);
 		if (loadingIndex !== indexAtStart) return;
 

@@ -229,22 +229,24 @@ export class Marble {
 			if (this.collisionTimeout <= 0 && (gameButtons.jump || this.level.jumpQueued) && contactNormalUpDot > 1e-10) {
 				// Handle jumping
 				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
-					AudioManager.play(['jump.wav']);
+					this.playJumpSound();
 					collisionTimeoutNeeded = true;
+					if (this.level.replay.canStore) this.level.replay.jumpSoundTimes.push(this.level.replay.currentTickIndex);
 				});
 			}
 
 			let impactVelocity = -contactNormal.dot(this.lastVel.sub(surfaceShape.getRigidBody().getLinearVelocity()));
 			if (this.collisionTimeout <= 0) {
 				// Create bounce particles
-				if (impactVelocity > 6) this.level.particles.createEmitter(bounceParticleOptions, Util.vecOimoToThree(this.body.getPosition()));
+				if (impactVelocity > 6) this.showBounceParticles();
 
 				let volume = Util.clamp((impactVelocity / 12)**1.5, 0, 1);
 
 				if (impactVelocity > 1) {
 					// Play a collision impact sound
-					AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'], volume);
+					this.playBounceSound(volume);
 					collisionTimeoutNeeded = true;
+					if (this.level.replay.canStore) this.level.replay.bounceTimes.push({ tickIndex: this.level.replay.currentTickIndex, volume: volume, showParticles: impactVelocity > 6 });
 				}
 			}
 
@@ -310,6 +312,20 @@ export class Marble {
 		// Apply angular acceleration, but make sure the angular velocity doesn't exceed some maximum
 		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 120));
 
+		this.lastPos = this.body.getPosition();
+		this.lastVel = this.body.getLinearVelocity();
+		this.lastAngVel = this.body.getAngularVelocity();
+
+		// Store sound state in the replay
+		let r = this.level.replay;
+		if (r.canStore) {
+			r.rollingSoundGain.push(this.rollingSound.gain.gain.value);
+			r.rollingSoundPlaybackRate.push(this.rollingSound.node.playbackRate.value);
+			r.slidingSoundGain.push(this.slidingSound.gain.gain.value);
+		}	
+	}
+
+	updatePowerUpStates(time: TimeState) {
 		if (time.currentAttemptTime - this.shockAbsorberEnableTime < 5000) {
 			// Show the shock absorber (takes precedence over super bounce)
 			this.forcefield.setOpacity(1);
@@ -363,10 +379,18 @@ export class Marble {
 			this.helicopterSound?.stop();
 			this.helicopterSound = null;
 		}
+	}
 
-		this.lastPos = this.body.getPosition();
-		this.lastVel = this.body.getLinearVelocity();
-		this.lastAngVel = this.body.getAngularVelocity();
+	playJumpSound() {
+		AudioManager.play(['jump.wav']);
+	}
+
+	playBounceSound(volume: number) {
+		AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'], volume);
+	}
+
+	showBounceParticles() {
+		this.level.particles.createEmitter(bounceParticleOptions, Util.vecOimoToThree(this.body.getPosition()));
 	}
 
 	/** Sets linear velocity in a specific direction, but capped. Used for things like jumping and bumpers. */

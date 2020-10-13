@@ -23,7 +23,14 @@ export class EndPad extends Shape {
 		let transform = new THREE.Matrix4();
 		transform.compose(new THREE.Vector3(0, 0, height/2 + 0.2), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0)), new THREE.Vector3(1, 1, 1));
 
-		this.addCollider(finishArea, () => {
+		this.addCollider((scale: THREE.Vector3) => {
+			// Create the finish area collision geometry
+			let height = 4.8;
+			let radius = 1.5;
+			let finishArea = Util.createCylinderConvexHull(radius * Math.max(scale.x, scale.y, scale.z), height/2); // Using this instead of CylinderGeometry because CylinderGeometry is apparently bugged!
+
+			return finishArea;
+		}, () => {
 			// These checks are to make sure touchFinish is only called once per contact with the collider. For it to be called again, the marble must leave the area again.
 			let exit = this.inArea > 0;
 			this.inArea = 2;

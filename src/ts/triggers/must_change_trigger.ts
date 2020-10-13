@@ -14,5 +14,6 @@ export class MustChangeTrigger extends Trigger {
 
 	onMarbleEnter(time: TimeState) {
 		this.interior.setDestinationTime(time, Number(this.element.targettime));
+		this.level.replay.recordMarbleEnter(this);
 	}
 }

@@ -258,7 +258,7 @@ export class PhysicsHelper {
 					// We found a valid collision with a shape
 					calledShapes.add(shape);
 					newImmunity.push(shape);
-					shape.onMarbleContact(contact, this.level.timeState);
+					shape.onMarbleContact(this.level.timeState, contact);
 				}
 			}
 

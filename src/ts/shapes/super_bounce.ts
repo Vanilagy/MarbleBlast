@@ -13,5 +13,6 @@ export class SuperBounce extends PowerUp {
 
 	use(time: TimeState) {
 		this.level.marble.enableSuperBounce(time);
+		this.level.deselectPowerUp();
 	}
 }

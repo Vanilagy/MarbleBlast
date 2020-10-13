@@ -6,6 +6,7 @@ import { MissionElementScriptObject, MissionElementType } from "../parsing/mis_p
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
 import { ResourceManager } from "../resources";
+import { AudioManager } from "../audio";
 
 export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
@@ -37,7 +38,7 @@ export let numberSources = {
 };
 
 /** Stops and destroys the current level and returns back to the menu. */
-const stopAndExit = () => {
+export const stopAndExit = () => {
 	state.currentLevel.stop();
 	state.currentLevel = null;
 	pauseScreenDiv.classList.add('hidden');
@@ -48,6 +49,7 @@ const stopAndExit = () => {
 	cycleMission(0); // Make sure to reload the current level to potentially update best times having changed
 	startMenuMusic();
 	updateOnlineLeaderboard();
+	document.exitPointerLock();
 };
 
 setupButton(pauseYesButton, 'common/yes', () => {
@@ -99,7 +101,7 @@ window.addEventListener('keyup', (e) => {
 });
 
 const tryPause = () => {
-	if (gameUiDiv.classList.contains('hidden') || !state.currentLevel || state.currentLevel.paused || state.currentLevel.finishTime) return;
+	if (gameUiDiv.classList.contains('hidden') || !state.currentLevel || state.currentLevel.paused || (state.currentLevel.finishTime && state.currentLevel.replay.mode === 'record')) return;
 	state.currentLevel.pause();
 };
 
@@ -219,6 +221,7 @@ const bestTime2 = document.querySelector('#best-time-2') as HTMLParagraphElement
 const bestTime3 = document.querySelector('#best-time-3') as HTMLParagraphElement;
 const replayButton = document.querySelector('#finish-replay') as HTMLImageElement;
 const continueButton = document.querySelector('#finish-continue') as HTMLImageElement;
+const viewReplayButton = document.querySelector('#finish-view-replay') as HTMLImageElement;
 
 setupButton(replayButton, 'endgame/replay', () => {
 	// Restart the level
@@ -227,6 +230,17 @@ setupButton(replayButton, 'endgame/replay', () => {
 	document.documentElement.requestPointerLock();
 });
 setupButton(continueButton, 'endgame/continue', () => stopAndExit());
+
+viewReplayButton.addEventListener('click', () => {
+	let confirmed = confirm("Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top 3 local scores.");
+	if (!confirmed) return;
+
+	let level = state.currentLevel;
+	level.replay.mode = 'playback';
+	replayButton.click();
+});
+viewReplayButton.addEventListener('mouseenter', () => AudioManager.play('buttonover.wav'));
+viewReplayButton.addEventListener('mousedown', () => AudioManager.play('buttonpress.wav'));
 
 /** Shows the post-game finish screen. */
 export const showFinishScreen = () => {
@@ -290,6 +304,9 @@ export const showFinishScreen = () => {
 
 		if (getCurrentLevelIndex() === levelIndex) cycleMission(1); // Cycle to that next level, but only if it isn't already selected
 	}
+
+	// Hide the replay button if the replay's invalid
+	viewReplayButton.style.display = level.replay.isInvalid? 'none' : '';
 };
 
 /** Updates the best times. */
@@ -327,9 +344,17 @@ setupButton(nameEntryButton, 'common/ok', () => {
 	// Store the time and close the dialog.
 	let level = state.currentLevel;
 	StorageManager.data.lastUsedName = nameEntryInput.value.trim();
-	StorageManager.insertNewTime(level.missionPath, nameEntryInput.value.trim(), level.finishTime.gameplayClock);
+	let newScoreId = StorageManager.insertNewTime(level.missionPath, nameEntryInput.value.trim(), level.finishTime.gameplayClock);
 	updateOnlineLeaderboard();
 
 	nameEntryScreenDiv.classList.add('hidden');
 	drawBestTimes();
+
+	// Store the replay
+	if (level.replay.mode === 'record' && !level.replay.isInvalid) {
+		level.replay.canStore = false;
+		level.replay.serialize().then(e => {
+			StorageManager.databasePut('replays', e, newScoreId);
+		});
+	}
 });

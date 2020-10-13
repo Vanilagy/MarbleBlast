@@ -26,7 +26,9 @@ export interface MissionElementBase {
 	/** The general type of the element. */
 	_type: MissionElementType,
 	/** The subtype, specified in the () of the "constructor". */
-	_subtype: string
+	_subtype: string,
+	/** Is unique for every element in the mission file. */
+	_id: number
 }
 
 /** A sim group simply holds a list of elements. */
@@ -194,6 +196,7 @@ export class MisParser {
 	lines: string[];
 	/** The index of the current line being read. */
 	lineIndex: number;
+	currentElementId = 0;
 
 	constructor(text: string) {
 		this.text = text;
@@ -225,26 +228,30 @@ export class MisParser {
 		return elementHeadRegEx.exec(this.lines[this.lineIndex]);
 	}
 
-	readElement(type: string, subtype: string): MissionElement {
+	readElement(type: string, subtype: string) {
 		this.lineIndex++;
+		let element: MissionElement = null;
 
 		switch (type) {
-			case "SimGroup": return this.readSimGroup(subtype);
-			case "ScriptObject": return this.readScriptObject(subtype);
-			case "MissionArea": return this.readMissionArea(subtype);
-			case "Sky": return this.readSky(subtype);
-			case "Sun": return this.readSun(subtype);
-			case "InteriorInstance": return this.readInteriorInstance(subtype);
-			case "StaticShape": return this.readStaticShape(subtype);
-			case "Item": return this.readItem(subtype);
-			case "Path": return this.readPath(subtype);
-			case "Marker": return this.readMarker(subtype);
-			case "PathedInterior": return this.readPathedInterior(subtype);
-			case "Trigger": return this.readTrigger(subtype);
-			case "AudioProfile": return this.readAudioProfile(subtype);
-			case "MessageVector": return this.readMessageVector(subtype);
+			case "SimGroup": element = this.readSimGroup(subtype); break;
+			case "ScriptObject": element = this.readScriptObject(subtype); break;
+			case "MissionArea": element = this.readMissionArea(subtype); break;
+			case "Sky": element = this.readSky(subtype); break;
+			case "Sun": element = this.readSun(subtype); break;
+			case "InteriorInstance": element = this.readInteriorInstance(subtype); break;
+			case "StaticShape": element = this.readStaticShape(subtype); break;
+			case "Item": element = this.readItem(subtype); break;
+			case "Path": element = this.readPath(subtype); break;
+			case "Marker": element = this.readMarker(subtype); break;
+			case "PathedInterior": element = this.readPathedInterior(subtype); break;
+			case "Trigger": element = this.readTrigger(subtype); break;
+			case "AudioProfile": element = this.readAudioProfile(subtype); break;
+			case "MessageVector": element = this.readMessageVector(subtype); break;
 			default: console.error("Unknown element type!");
 		}
+
+		if (element) element._id = this.currentElementId++;
+		return element;
 	}
 
 	readSimGroup(subtype: string) {

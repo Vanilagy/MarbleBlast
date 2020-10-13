@@ -7,6 +7,7 @@ import { homeScreenDiv } from "./home";
 import { loadLevel } from "./loading";
 import { secondsToTimeString } from "./game";
 import { StorageManager } from "../storage";
+import { Replay } from "../replay";
 
 interface Mission {
 	path: string,
@@ -78,13 +79,7 @@ setupTab(tabAdvanced, 'advanced');
 setupTab(tabCustom, 'custom');
 
 setupButton(prevButton, 'play/prev', () => cycleMission(-1), true);
-setupButton(playButton, 'play/play', () => {
-	let currentMission = currentLevelArray[currentLevelIndex];
-	if (!currentMission) return;
-
-	levelSelectDiv.classList.add('hidden');
-	loadLevel(currentMission.simGroup, currentMission.path); // Initiate level loading
-}, true);
+setupButton(playButton, 'play/play', () => playCurrentLevel(), true);
 setupButton(nextButton, 'play/next', () => cycleMission(1), true);
 setupButton(homeButton, 'play/back', () => {
 	// Close level select and return back to the home screen
@@ -92,6 +87,14 @@ setupButton(homeButton, 'play/back', () => {
 	hiddenUnlocker.classList.add('hidden');
 	homeScreenDiv.classList.remove('hidden');
 });
+
+const playCurrentLevel = (replayData?: ArrayBuffer) => {
+	let currentMission = currentLevelArray[currentLevelIndex];
+	if (!currentMission) return;
+
+	levelSelectDiv.classList.add('hidden');
+	loadLevel(currentMission.simGroup, currentMission.path, replayData); // Initiate level loading
+};
 
 /** Initiates level select by loading all missions.  */
 export const initLevelSelect = async () => {
@@ -150,6 +153,26 @@ export const initLevelSelect = async () => {
 	selectTab('beginner');
 
 	updateOnlineLeaderboard();
+
+	for (let elem of [bestTime1.children[3], bestTime2.children[3], bestTime3.children[3]]) {
+		let replayButton = elem as HTMLImageElement;
+		replayButton.addEventListener('click', async () => {
+			let attr = replayButton.getAttribute('data-score-id');
+			if (!attr) return;
+
+			let replayData = await StorageManager.databaseGet('replays', attr);
+			if (!replayData) return;
+
+			playCurrentLevel(replayData);
+		});
+
+		replayButton.addEventListener('mouseenter', () => {
+			AudioManager.play('buttonover.wav');
+		});
+		replayButton.addEventListener('mousedown', () => {
+			AudioManager.play('buttonpress.wav');
+		});
+	}
 };
 
 /** Displays the currently-selected mission. */
@@ -246,16 +269,33 @@ const displayBestTimes = () => {
 		goldTime = Number(missionInfo.goldtime);
 	}
 
+	const updateReplayButton = async (bestTimeIndex: number) => {
+		let bestTime = bestTimes[bestTimeIndex];
+		let element = [bestTime1, bestTime2, bestTime3][bestTimeIndex].children[3] as HTMLImageElement;
+		element.style.display = 'none';
+		element.removeAttribute('data-score-id');
+		if (!bestTime[2]) return;
+
+		let count = await StorageManager.databaseCount('replays', bestTime[2]);
+		if (count > 0) {
+			element.style.display = 'block';
+			element.setAttribute('data-score-id', bestTime[2]);
+		}
+	};
+
 	let bestTimes = StorageManager.getBestTimesForMission(missionObj?.path);
 	bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
 	(bestTime1.children[1] as HTMLImageElement).style.opacity = (bestTimes[0][1] <= goldTime)? '' : '0';
 	bestTime1.children[2].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
+	updateReplayButton(0);
 	bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
 	(bestTime2.children[1] as HTMLImageElement).style.opacity = (bestTimes[1][1] <= goldTime)? '' : '0';
 	bestTime2.children[2].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
+	updateReplayButton(1);
 	bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
 	(bestTime3.children[1] as HTMLImageElement).style.opacity = (bestTimes[2][1] <= goldTime)? '' : '0';
 	bestTime3.children[2].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
+	updateReplayButton(2);
 
 	leaderboardScores.innerHTML = '';
 	let onlineScores = onlineLeaderboard[missionObj?.path];

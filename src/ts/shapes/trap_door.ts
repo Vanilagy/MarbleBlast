@@ -1,6 +1,5 @@
 import { Shape } from "../shape";
 import { Util } from "../util";
-import OIMO from "../declarations/oimo";
 import { TimeState } from "../level";
 import { MissionElementStaticShape } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
@@ -53,12 +52,14 @@ export class TrapDoor extends Shape {
 		return completion;
 	}
 
-	onMarbleContact(contact: OIMO.Contact, time: TimeState) {
+	onMarbleContact(time: TimeState) {
 		if (time.timeSinceLoad - this.lastContactTime <= 0) return; // The trapdoor is queued to open, so don't do anything.
 		let currentCompletion = this.getCurrentCompletion(time);
 
 		// Set the last contact time accordingly so that the trapdoor starts closing (again)
 		this.lastContactTime = time.timeSinceLoad - currentCompletion * ANIMATION_DURATION;
 		if (currentCompletion === 0) this.lastContactTime += this.timeout;
+
+		this.level.replay.recordMarbleContact(this);
 	}
 }

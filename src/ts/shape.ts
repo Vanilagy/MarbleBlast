@@ -3,7 +3,7 @@ import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
-import { getUniqueId } from "./state";
+import { getRandomId } from "./state";
 import { Util, MaterialGeometry } from "./util";
 import { TimeState, Level } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
@@ -24,6 +24,7 @@ interface SkinMeshData {
 }
 
 interface ColliderInfo {
+	generateGeometry: (scale: THREE.Vector3) => OIMO.Geometry,
 	body: OIMO.RigidBody,
 	id: number,
 	onInside: () => void,
@@ -139,8 +140,8 @@ export class Shape {
 
 	sounds: string[] = [];
 
-	async init(level?: Level) {
-		this.id = getUniqueId();
+	async init(level?: Level, id = 0) {
+		this.id = id;
 		this.level = level;
 		this.dts = await DtsParser.loadFile('./assets/data/' + this.dtsPath);
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
@@ -829,14 +830,27 @@ export class Shape {
 		this.group.quaternion.copy(orientation);
 		this.group.scale.copy(scale);
 
+		let colliderMatrix = new THREE.Matrix4();
+		colliderMatrix.compose(this.worldPosition, this.worldOrientation, new THREE.Vector3(1, 1, 1));
+
 		// Update the colliders
 		for (let collider of this.colliders) {
 			let mat = collider.transform.clone();
-			mat.multiplyMatrices(this.worldMatrix, mat);
+			mat.multiplyMatrices(colliderMatrix, mat);
 
 			let position = new THREE.Vector3();
 			let orientation = new THREE.Quaternion();
 			mat.decompose(position, orientation, new THREE.Vector3());
+
+			while (collider.body.getShapeList()) collider.body.removeShape(collider.body.getShapeList()); // Remove all shapes
+
+			// Create the new shape
+			let shapeConfig = new OIMO.ShapeConfig();
+			shapeConfig.geometry = collider.generateGeometry(this.worldScale);
+			let shape = new OIMO.Shape(shapeConfig);
+			shape.userData = getRandomId();
+			collider.body.addShape(shape);
+			collider.id = shape.userData;
 
 			collider.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
 			collider.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
@@ -888,19 +902,15 @@ export class Shape {
 	}
 
 	/** Adds a collider geometry. Whenever the marble overlaps with the geometry, a callback is fired. */
-	addCollider(geometry: OIMO.Geometry, onInside: () => void, localTransform: THREE.Matrix4) {
-		let shapeConfig = new OIMO.ShapeConfig();
-		shapeConfig.geometry = geometry;
-		let shape = new OIMO.Shape(shapeConfig);
-		shape.userData = getUniqueId();
+	addCollider(generateGeometry: (scale: THREE.Vector3) => OIMO.Geometry, onInside: () => void, localTransform: THREE.Matrix4) {
 		let config = new OIMO.RigidBodyConfig();
 		config.type = OIMO.RigidBodyType.STATIC;
 		let body = new OIMO.RigidBody(config);
-		body.addShape(shape);
 
 		this.colliders.push({
+			generateGeometry: generateGeometry,
 			body: body,
-			id: shape.userData,
+			id: null,
 			onInside: onInside,
 			transform: localTransform
 		});
@@ -924,7 +934,7 @@ export class Shape {
 		}
 	}
 
-	onMarbleContact(contact: OIMO.Contact, time: TimeState) {}
+	onMarbleContact(time: TimeState, contact?: OIMO.Contact) {}
 	onMarbleInside(time: TimeState) {}
 	onMarbleEnter(time: TimeState) {}
 	onMarbleLeave(time: TimeState) {}

@@ -42,5 +42,7 @@ export class SuperJump extends PowerUp {
 
 		AudioManager.play(this.sounds[1]);
 		this.level.particles.createEmitter(particleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
+
+		this.level.deselectPowerUp();
 	}
 }

@@ -21,6 +21,8 @@ export abstract class PowerUp extends Shape {
 		if (!pickupable) return;
 		
 		if (this.pickUp()) {
+			this.level.replay.recordMarbleInside(this);
+
 			this.lastPickUpTime = time.currentAttemptTime;
 			if (this.autoUse) this.use(time);
 

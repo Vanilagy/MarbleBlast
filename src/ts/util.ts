@@ -304,6 +304,27 @@ export abstract class Util {
 
 		camera.quaternion.copy(quat.multiply(camera.quaternion));
 	}
+
+	static arrayBufferToString(buf: ArrayBuffer) {
+		let str = "";
+		let view = new Uint8Array(buf);
+
+		for (let i = 0; i < buf.byteLength; i++) {
+			str += String.fromCharCode(view[i]);
+		}
+
+		return str;
+	}
+
+	static stringToArrayBuffer(str: string) {
+		let view = new Uint8Array(str.length);
+
+		for (let i = 0; i < str.length; i++) {
+			view[i] = str.charCodeAt(i);
+		}
+
+		return view.buffer;
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

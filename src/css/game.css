@@ -213,6 +213,17 @@
 	image-rendering: pixelated;
 }
 
+#finish-view-replay {
+	position: absolute;
+    opacity: 0.333;
+    bottom: 36px;
+    left: 232px;
+}
+
+#finish-view-replay:hover {
+	opacity: 0.666;
+}
+
 #name-entry-screen {
 	position: absolute;
     top: 0;

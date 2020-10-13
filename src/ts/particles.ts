@@ -89,6 +89,11 @@ export class ParticleManager {
 		Util.removeFromArray(this.emitters, emitter);
 	}
 
+	removeEverything() {
+		for (let particle of this.particles.slice()) this.removeParticle(particle);
+		for (let emitter of this.emitters.slice()) this.removeEmitter(emitter);
+	}
+
 	tick() {
 		let time = this.getTime();
 

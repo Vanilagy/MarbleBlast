@@ -16,7 +16,7 @@ export abstract class ForceShape extends Shape {
 		transform.compose(new THREE.Vector3(0, 0, height/2), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0)), new THREE.Vector3(1, 1, 1));
 
 		// Create a cone-shaped collider
-		this.addCollider(new OIMO.ConeGeometry(radius, height/2), () => {
+		this.addCollider(() => new OIMO.ConeGeometry(radius, height/2), () => {
 			let marble = this.level.marble;
 			let threeMarblePosition = Util.vecOimoToThree(marble.body.getPosition());
 			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition)); // The vector to the tip of the cone
@@ -45,7 +45,7 @@ export abstract class ForceShape extends Shape {
 
 	/** Creates a spherical-shaped force whose force always acts in the direction away from the center. */
 	addSphericalForce(radius: number, strength: number) {
-		this.addCollider(new OIMO.SphereGeometry(radius), () => {
+		this.addCollider(() => new OIMO.SphereGeometry(radius), () => {
 			let marble = this.level.marble;
 			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition));
 			if (vec.length() === 0) return;
@@ -58,7 +58,7 @@ export abstract class ForceShape extends Shape {
 
 	/** Creates a spherical-shaped force whose force acts in the direction of the vector specified. */
 	addFieldForce(radius: number, forceVector: OIMO.Vec3) {
-		this.addCollider(new OIMO.SphereGeometry(radius), () => {
+		this.addCollider(() => new OIMO.SphereGeometry(radius), () => {
 			let marble = this.level.marble;
 			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition));
 			if (vec.length() >= radius) return;

@@ -1,6 +1,5 @@
 import { MissionElementTrigger, MisParser } from "../parsing/mis_parser";
 import OIMO from "../declarations/oimo";
-import { getUniqueId } from "../state";
 import { TimeState, Level } from "../level";
 import { Util } from "../util";
 import * as THREE from "three";
@@ -13,7 +12,7 @@ export class Trigger {
 	element: MissionElementTrigger;
 
 	constructor(element: MissionElementTrigger, level: Level) {
-		this.id = getUniqueId();
+		this.id = element._id;
 		this.element = element;
 		this.level = level;
 

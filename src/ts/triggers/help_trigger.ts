@@ -7,5 +7,6 @@ export class HelpTrigger extends Trigger {
 	onMarbleEnter() {
 		AudioManager.play('infotutorial.wav');
 		displayHelp(this.element.text);
+		this.level.replay.recordMarbleEnter(this);
 	}
 }

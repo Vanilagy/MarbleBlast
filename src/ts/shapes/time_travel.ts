@@ -30,6 +30,9 @@ export class TimeTravel extends PowerUp {
 		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(this.bodies[0]);
 		let timeToRevert = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 
+		if (this.level.replay.mode === 'playback') timeToRevert = this.level.replay.timeTravelTimeToRevert.get(this.id);
+		else this.level.replay.timeTravelTimeToRevert.set(this.id, timeToRevert);
+
 		this.level.addTimeTravelBonus(this.timeBonus, timeToRevert);
 	}
 }

@@ -13,5 +13,6 @@ export class ShockAbsorber extends PowerUp {
 
 	use(time: TimeState) {
 		this.level.marble.enableShockAbsorber(time);
+		this.level.deselectPowerUp();
 	}
 }

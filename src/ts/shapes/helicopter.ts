@@ -15,5 +15,6 @@ export class Helicopter extends PowerUp {
 
 	use(time: TimeState) {
 		this.level.marble.enableHelicopter(time);
+		this.level.deselectPowerUp();
 	}
 }

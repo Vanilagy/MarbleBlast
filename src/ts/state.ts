@@ -1,11 +1,12 @@
 import { Level } from "./level";
 
 export const state = {
-	currentLevel: null as Level,
-	incrementalId: 0
+	currentLevel: null as Level
 };
 
-/** Gets a unique id. Since there's no parallelism in the code, this is totally fine and safe. */
-export const getUniqueId = () => {
-	return state.incrementalId++;
+/** Gets a unique id. **/
+export const getRandomId = () => {
+	// This might seem cheap, but Math.random can return 2^52 different values, so the chance of collisions here is still ridiculously low.
+	// https://v8.dev/blog/math-random
+	return Math.random().toString();
 };

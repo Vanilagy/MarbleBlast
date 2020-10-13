@@ -205,7 +205,8 @@
     font-size: 11px;
     width: 189px;
     margin-left: 42px;
-    clear: both;
+	clear: both;
+	position: relative;
 }
 
 .level-select-best-time > div:first-child {
@@ -216,14 +217,26 @@
     text-overflow: ellipsis;
 }
 
-.level-select-best-time > div:last-child {
+.level-select-best-time > div:nth-child(3) {
 	float: right;
 }
 
-.level-select-best-time > img {
+.level-select-best-time > img:nth-child(2) {
 	vertical-align: top;
 	margin-left: 8px;
 	float: right;
+}
+
+.level-select-best-time > img:nth-child(4) {
+	position: absolute;
+    top: -3px;
+    left: -23px;
+	opacity: 0.333;
+	display: none;
+}
+
+.level-select-best-time > img:nth-child(4):hover {
+	opacity: 0.666;
 }
 
 #hidden-level-unlocker {

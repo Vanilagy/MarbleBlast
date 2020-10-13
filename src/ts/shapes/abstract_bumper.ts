@@ -9,7 +9,12 @@ export abstract class AbstractBumper extends Shape {
 	wiggleAnimationStart = -Infinity;
 	useInstancing = true;
 
-	onMarbleContact(contact: OIMO.Contact, time: TimeState) {
+	onMarbleContact(time: TimeState, contact?: OIMO.Contact) {
+		this.wiggleAnimationStart = time.timeSinceLoad;
+		AudioManager.play(this.sounds[0]);
+
+		if (!contact) return; // We're probably in a replay if this is the case
+
 		// Get the contact normal
 		let contactNormal = contact.getManifold().getNormal();
 		if (contact.getShape1().userData === this.id) contactNormal = contactNormal.scale(-1);
@@ -18,8 +23,8 @@ export abstract class AbstractBumper extends Shape {
 		
 		// Set the velocity along the contact normal, but make sure it's capped
 		marble.setLinearVelocityInDirection(contactNormal, 15, false);
-		this.wiggleAnimationStart = time.timeSinceLoad;
-		AudioManager.play(this.sounds[0]);
+
+		this.level.replay.recordMarbleContact(this);
 	}
 
 	render(time: TimeState) {

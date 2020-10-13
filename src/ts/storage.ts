@@ -1,4 +1,7 @@
-type BestTimes = [string, number][];
+import { getRandomId } from "./state";
+
+/** name, time, scoreId */
+export type BestTimes = [string, number, string][];
 
 const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999.99; // The 99:59.99 thing
 
@@ -65,12 +68,13 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	bestTimes: {},
 	unlockedLevels: [1, 1, 1],
 	lastUsedName: '',
-	randomId: Math.random().toString()
+	randomId: getRandomId()
 };
 
 /** Manages storage and persistence. */
 export abstract class StorageManager {
 	static data: StorageData;
+	static idbDatabase: Promise<IDBDatabase>;
 
 	static async init() {
 		// Fetch the stored data froom localStorage
@@ -81,7 +85,27 @@ export abstract class StorageManager {
 			this.data = DEFAULT_STORAGE_DATA;
 		}
 
-		if (!this.data.randomId) this.data.randomId = Math.random().toString();
+		if (!this.data.randomId) this.data.randomId = getRandomId();
+
+		// Setup the IndexedDB
+		this.idbDatabase = new Promise((resolve) => {
+			let request = indexedDB.open("mb-database", 2);
+			request.onsuccess = (e) => {
+				resolve((e.target as any).result);
+			};
+
+			request.onupgradeneeded = (e) => {
+				let db = (e.target as any).result as IDBDatabase;
+				let transaction = (e.target as any).transaction as IDBTransaction;
+
+				let objectStore: IDBObjectStore;
+				try {
+					objectStore = db.createObjectStore('replays', {});
+				} catch (error) {
+					objectStore = transaction.objectStore('replays');
+				}
+			};
+		});
 	}
 
 	static store() {
@@ -100,7 +124,7 @@ export abstract class StorageManager {
 		let remaining = 3 - result.length;
 		for (let i = 0; i < remaining; i++) {
 			// Fill the remaining slots with Nardo Polo scores
-			result.push(["Nardo Polo", MAX_SCORE_TIME]);
+			result.push(["Nardo Polo", MAX_SCORE_TIME, ""]);
 		}
 
 		return result;
@@ -109,18 +133,73 @@ export abstract class StorageManager {
 	/** Register a new time for a mission. */
 	static insertNewTime(path: string, name: string, time: number) {
 		let stored = this.data.bestTimes[path] ?? [];
+		let scoreId = getRandomId();
 
 		// Determine the correct index to insert the time at
 		let index: number;
 		for (index = 0; index < stored.length; index++) {
 			if (stored[index][1] > time) break;
 		}
-		stored.splice(index, 0, [name, time]);
+		stored.splice(index, 0, [name, time, scoreId]);
 
 		// Shorten the array if needed
-		if (stored.length > 3) stored = stored.slice(0, 3);
+		if (stored.length > 3) {
+			let lost = stored[3];
+			stored = stored.slice(0, 3);
+
+			if (lost[2]) {
+				this.databaseGet('replays', lost[2]).then(replayData => {
+					if (!replayData) return;
+					this.databaseDelete('replays', lost[2]); // Delete the replay
+				});
+			}
+		}
 		this.data.bestTimes[path] = stored;
 
 		this.store();
+
+		return scoreId;
+	}
+
+	/** Gets an entry from an IndexedDB store by key. */
+	static async databaseGet(storeName: string, key: string) {
+		let db = await this.idbDatabase;
+		let transaction = db.transaction(storeName, 'readonly');
+		let store = transaction.objectStore(storeName);
+		let request = store.get(key);
+
+		await new Promise(resolve => request.onsuccess = resolve);
+		return request.result ?? null;
+	}
+
+	/** Puts an entry into an IndexedDB store by key. */
+	static async databasePut(storeName: string, value: any, key?: string) {
+		let db = await this.idbDatabase;
+		let transaction = db.transaction(storeName, 'readwrite');
+		let store = transaction.objectStore(storeName);
+		store.put(value, key);
+
+		await new Promise(resolve => transaction.oncomplete = resolve);
+	}
+
+	/** Deletes an entry from an IndexedDB store by key. */
+	static async databaseDelete(storeName: string, key: string) {
+		let db = await this.idbDatabase;
+		let transaction = db.transaction(storeName, 'readwrite');
+		let store = transaction.objectStore(storeName);
+		store.delete(key);
+
+		await new Promise(resolve => transaction.oncomplete = resolve);
+	}
+
+	/** Counts all entries in an IndexedDB store with a specific key. */
+	static async databaseCount(storeName: string, key: string): Promise<number> {
+		let db = await this.idbDatabase;
+		let transaction = db.transaction(storeName, 'readwrite');
+		let store = transaction.objectStore(storeName);
+		let request = store.count(key);
+
+		await new Promise(resolve => request.onsuccess = resolve);
+		return request.result ?? null;
 	}
 }
