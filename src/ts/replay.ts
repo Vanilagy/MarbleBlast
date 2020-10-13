@@ -100,6 +100,8 @@ export class Replay {
 		if (this.mode === 'record') {
 			// Reset all values
 
+			this.canStore = true;
+			this.isInvalid = false;
 			this.marblePositions.length = 0;
 			this.marbleOrientations.length = 0;
 			this.marbleLinearVelocities.length = 0;
@@ -118,7 +120,7 @@ export class Replay {
 			this.rollingSoundPlaybackRate.length = 0;
 			this.slidingSoundGain.length = 0;
 			this.jumpSoundTimes.length = 0;
-			this.bounceTimes.length = 0;			
+			this.bounceTimes.length = 0;
 
 			// Remember trapdoor and mine states
 			for (let shape of this.level.shapes) {
