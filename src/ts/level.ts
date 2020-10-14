@@ -564,6 +564,15 @@ export class Level extends Scheduler {
 		// The camera is translated up a bit so it looks "over" the marble
 		let cameraVerticalTranslation = new THREE.Vector3(0, 0, 0.3);
 
+		if (this.replay.mode === 'playback') {
+			let indexLow = Math.max(0, this.replay.currentTickIndex - 1);
+			let indexHigh = this.replay.currentTickIndex;
+
+			// Smoothly interpolate pitch and yaw between the last two keyframes
+			this.pitch = Util.lerp(this.replay.cameraOrientations[indexLow].pitch, this.replay.cameraOrientations[indexHigh].pitch, timeState.physicsTickCompletion);
+			this.yaw = Util.lerp(this.replay.cameraOrientations[indexLow].yaw, this.replay.cameraOrientations[indexHigh].yaw, timeState.physicsTickCompletion);
+		}
+
 		if (this.finishTime) {
 			// Make the camera spin around slowly
 			this.pitch = Util.lerp(this.finishPitch, DEFAULT_PITCH, Util.clamp((timeState.currentAttemptTime - this.finishTime.currentAttemptTime) / 333, 0, 1));

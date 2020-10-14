@@ -129,6 +129,46 @@
     left: 198px;
 }
 
+#graphics-marble-texture-heading {
+	font-family: 'DomCasualRegular';
+	position: absolute;
+	top: 430px;
+	left: 48px;
+	font-size: 24px;
+	white-space: nowrap;
+}
+
+#graphics-marble-texture-choose {
+	position: absolute;
+	top: 461px;
+	left: 45px;
+	filter: hue-rotate(-50deg);
+}
+
+#graphics-marble-texture-choose-text {
+	position: absolute;
+	top: 466px;
+	left: 75px;
+	font-size: 20px;
+	font-family: 'DomCasualRegular';
+	pointer-events: none;
+}
+
+#graphics-marble-texture-reset {
+	position: absolute;
+	top: 459px;
+	left: 160px;
+}
+
+#graphics-marble-texture-reset-text {
+	position: absolute;
+	top: 465px;
+	left: 194px;
+	font-size: 20px;
+	font-family: 'DomCasualRegular';
+	pointer-events: none;
+}
+
 #audio-music-track {
 	display: block;
     position: absolute;

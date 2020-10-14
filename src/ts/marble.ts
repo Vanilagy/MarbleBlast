@@ -6,6 +6,7 @@ import { PHYSICS_TICK_RATE, TimeState, Level, GO_TIME } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
+import { StorageManager } from "./storage";
 
 const MARBLE_SIZE = 0.2;
 export const MARBLE_ROLL_FORCE = 40 || 40;
@@ -75,8 +76,17 @@ export class Marble {
 	async init() {
 		this.group = new THREE.Group();
 
+		// Get the correct texture
+		let marbleTexture: THREE.Texture;
+		let customTextureBlob = await StorageManager.databaseGet('keyvalue', 'marbleTexture');
+		if (customTextureBlob) {
+			let url = ResourceManager.getUrlToBlob(customTextureBlob);
+			marbleTexture = await ResourceManager.getTexture(url, false, '');
+		} else {
+			marbleTexture = await ResourceManager.getTexture("shapes/balls/base.marble.png");
+		}
+
 		// Create the 3D object
-		let marbleTexture = await ResourceManager.getTexture("shapes/balls/base.marble.png");
         let geometry = new THREE.SphereBufferGeometry(MARBLE_SIZE, 32, 32);
 		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({map: marbleTexture, color: 0xffffff}));
 		sphere.castShadow = true;

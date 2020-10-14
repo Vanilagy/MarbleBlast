@@ -69,6 +69,10 @@ export const initOptions = async () => {
 	selectTab('graphics');
 	
 	await ResourceManager.loadImages(['cntrl_marb_bse.png', 'cntrl_cam_bse.png', 'cntrl_mous_base.png'].map(x => './assets/ui/options/' + x));
+
+	if ((await StorageManager.databaseCount('keyvalue', 'marbleTexture')) === 0) {
+		setResetMarbleTextureState(false);
+	}
 };
 
 const resolution640 = document.querySelector('#graphics-640') as HTMLImageElement;
@@ -478,3 +482,38 @@ setupButton(alwaysFreeLook, 'options/cntrl_mous_freel', () => {
 const freeLookKey = document.querySelector('#free-look-key') as HTMLImageElement;
 setupButton(freeLookKey, 'options/cntrl_mous_bttn', () => changeKeybinding('freeLook'));
 const freeLookKeyContent = document.querySelector('#free-look-key-content') as HTMLParagraphElement;
+
+const chooseMarbleTexture = document.querySelector('#graphics-marble-texture-choose') as HTMLImageElement;
+const resetMarbleTexture = document.querySelector('#graphics-marble-texture-reset') as HTMLImageElement;
+
+setupButton(chooseMarbleTexture, 'options/cntr_cam_up', () => {
+	// Show an image picker
+	let fileInput = document.createElement('input');
+	fileInput.setAttribute('type', 'file');
+	fileInput.setAttribute('accept', "image/x-png,image/gif,image/jpeg");
+
+	fileInput.onchange = async (e) => {
+		let file = fileInput.files[0];
+		await StorageManager.databasePut('keyvalue', file, 'marbleTexture'); // Store the Blob in the IndexedDB
+		setResetMarbleTextureState(true);
+	};
+	fileInput.click();
+});
+setupButton(resetMarbleTexture, 'options/cntr_cam_dwn', () => {
+	StorageManager.databaseDelete('keyvalue', 'marbleTexture');
+	setResetMarbleTextureState(false);
+});
+
+const setResetMarbleTextureState = (enabled: boolean) => {
+	if (enabled) {
+		resetMarbleTexture.style.pointerEvents = '';
+		resetMarbleTexture.style.filter = '';
+		(document.querySelector('#graphics-marble-texture-reset-text') as HTMLDivElement).style.opacity = '';
+	} else {
+		// Make it all grayed out and things
+		resetMarbleTexture.style.pointerEvents = 'none';
+		resetMarbleTexture.style.filter = 'saturate(0)';
+		resetMarbleTexture.src = './assets/ui/options/cntr_cam_dwn_n.png';
+		(document.querySelector('#graphics-marble-texture-reset-text') as HTMLDivElement).style.opacity = '0.7';
+	}
+};

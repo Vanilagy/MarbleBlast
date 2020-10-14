@@ -89,7 +89,7 @@ export abstract class StorageManager {
 
 		// Setup the IndexedDB
 		this.idbDatabase = new Promise((resolve) => {
-			let request = indexedDB.open("mb-database", 2);
+			let request = indexedDB.open("mb-database", 3);
 			request.onsuccess = (e) => {
 				resolve((e.target as any).result);
 			};
@@ -99,10 +99,19 @@ export abstract class StorageManager {
 				let transaction = (e.target as any).transaction as IDBTransaction;
 
 				let objectStore: IDBObjectStore;
+
+				// For storing replays
 				try {
 					objectStore = db.createObjectStore('replays', {});
 				} catch (error) {
 					objectStore = transaction.objectStore('replays');
+				}
+
+				// A simple key-value store
+				try {
+					objectStore = db.createObjectStore('keyvalue', {});
+				} catch (error) {
+					objectStore = transaction.objectStore('keyvalue');
 				}
 			};
 		});

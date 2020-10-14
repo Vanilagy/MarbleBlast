@@ -17,6 +17,7 @@ export abstract class ResourceManager {
 	static cachedResources = new Map<string, Blob>();
 	static loadImagePromises = new Map<string, Promise<HTMLImageElement>>();
 	static loadedImages = new Map<string, HTMLImageElement>();
+	static urlCache = new Map<Blob, string>();
 
 	static async init() {
 		let response = await this.loadResource('./php/get_directory_structure.php');
@@ -24,14 +25,14 @@ export abstract class ResourceManager {
 	}
 
 	/** Creates a three.js texture from the path, or returned the cached version. */
-	static getTexture(path: string, removeAlpha = false) {
+	static getTexture(path: string, removeAlpha = false, prependPath = "assets/data/") {
 		let cached = this.textureCache.get(path);
 		if (cached) return Promise.resolve(cached);
 
 		if (this.loadTexturePromises.get(path)) return this.loadTexturePromises.get(path);
 
 		let promise = new Promise<THREE.Texture>(async (resolve) => {
-			let image = await this.loadImage("assets/data/" + path);
+			let image = await this.loadImage(prependPath + path);
 			let texture = new THREE.Texture(image);
 			texture.flipY = false; // Why is the default true?
 			texture.anisotropy = 1; // It looks crappy like this, but so does the original.
@@ -154,5 +155,14 @@ export abstract class ResourceManager {
 			reader.onload = (e) => resolve(e.target.result as ArrayBuffer);
 			reader.readAsArrayBuffer(blob);
 		});
+	}
+
+	/** Converts a blob to a temporary URL. Returns a cached URL whenever possible. */
+	static getUrlToBlob(blob: Blob) {
+		if (this.urlCache.get(blob)) return this.urlCache.get(blob);
+
+		let url = URL.createObjectURL(blob);
+		this.urlCache.set(blob, url);
+		return url;
 	}
 }
