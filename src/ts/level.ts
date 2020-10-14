@@ -42,6 +42,7 @@ import { PhysicsHelper } from "./physics";
 import { ParticleManager } from "./particles";
 import { StorageManager } from "./storage";
 import { Replay } from "./replay";
+import { getCurrentLevelArray } from "./ui/level_select";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -306,11 +307,8 @@ export class Level extends Scheduler {
 	}
 
 	async initSounds() {
-		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
-		let musicProfile = this.mission.elements.find((element) => element._type === MissionElementType.AudioProfile && element.description === "AudioMusic") as MissionElementAudioProfile;
-		let musicFileName = musicProfile.filename.slice(musicProfile.filename.lastIndexOf('/') + 1).toLowerCase();
-		// If the song is Shell, then choose the music based on the index of the level.
-		if (musicFileName.includes('shell')) musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][Number(missionInfo.level) % 3];
+		let levelIndex = getCurrentLevelArray().findIndex(x => x.simGroup === this.mission);
+		let musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The music choice is based off of level index
 
 		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
 		this.music = AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
