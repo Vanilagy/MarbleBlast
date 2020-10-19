@@ -35,7 +35,7 @@ export abstract class ResourceManager {
 			let image = await this.loadImage(prependPath + path);
 			let texture = new THREE.Texture(image);
 			texture.flipY = false; // Why is the default true?
-			texture.anisotropy = 1; // It looks crappy like this, but so does the original.
+			texture.anisotropy = 4; // Make it crispier
 			texture.needsUpdate = true;
 	
 			if (removeAlpha) {
@@ -69,12 +69,13 @@ export abstract class ResourceManager {
 				let results: string[] = [];
 
 				for (let name in current) {
-					if (name.toLowerCase().startsWith(part.toLowerCase())) results.push(name);
+					if (name.toLowerCase().startsWith(part.toLowerCase()) && (name.length === part.length || name[part.length] === '.')) results.push(name);
 				}
 
 				return results;
 			} else {
 				current = current[part];
+				if (!current) return [];
 			}	
 		}
 	}
@@ -82,7 +83,7 @@ export abstract class ResourceManager {
 	/** Loads a resource from a path. Retries until it worked. */
 	static loadResource(path: string) {
 		let cached = this.cachedResources.get(path);
-		if (cached) return cached;
+		if (cached) return Promise.resolve(cached);
 		if (this.loadResourcePromises.get(path)) return this.loadResourcePromises.get(path);
 
 		let promise = new Promise<Blob>((resolve) => {
@@ -113,7 +114,7 @@ export abstract class ResourceManager {
 
 	/** Preloads an image at a given path. */
 	static loadImage(path: string) {
-		if (this.loadedImages.get(path)) return this.loadedImages.get(path);
+		if (this.loadedImages.get(path)) return Promise.resolve(this.loadedImages.get(path));
 		if (this.loadImagePromises.get(path)) return this.loadImagePromises.get(path);
 
 		let promise = new Promise<HTMLImageElement>((resolve) => {
@@ -154,6 +155,14 @@ export abstract class ResourceManager {
 			let reader = new FileReader();
 			reader.onload = (e) => resolve(e.target.result as ArrayBuffer);
 			reader.readAsArrayBuffer(blob);
+		});
+	}
+
+	static readBlobAsDataUrl(blob: Blob) {
+		return new Promise<string>((resolve) => {
+			let reader = new FileReader();
+			reader.onload = (e) => resolve(e.target.result as string);
+			reader.readAsDataURL(blob);
 		});
 	}
 

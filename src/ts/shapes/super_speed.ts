@@ -4,7 +4,7 @@ import { Util } from "../util";
 import OIMO from "../declarations/oimo";
 import { AudioManager } from "../audio";
 
-const particleOptions = {
+export const superSpeedParticleOptions = {
 	ejectionPeriod: 5,
 	ambientVelocity: new THREE.Vector3(0, 0, 0.2),
 	ejectionVelocity: 1 * 0.5,
@@ -55,7 +55,7 @@ export class SuperSpeed extends PowerUp {
 		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirlgig's determined value
 
 		AudioManager.play(this.sounds[1]);
-		this.level.particles.createEmitter(particleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
+		this.level.particles.createEmitter(superSpeedParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
 
 		this.level.deselectPowerUp();
 	}

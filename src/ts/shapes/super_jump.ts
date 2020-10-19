@@ -3,7 +3,7 @@ import { AudioManager } from "../audio";
 import * as THREE from "three";
 import { Util } from "../util";
 
-const particleOptions = {
+export const superJumpParticleOptions = {
 	ejectionPeriod: 10,
 	ambientVelocity: new THREE.Vector3(0, 0, 0.05),
 	ejectionVelocity: 1 * 0.5,
@@ -41,7 +41,7 @@ export class SuperJump extends PowerUp {
 		marble.body.addLinearVelocity(this.level.currentUp.scale(20)); // Simply add to vertical velocity
 
 		AudioManager.play(this.sounds[1]);
-		this.level.particles.createEmitter(particleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
+		this.level.particles.createEmitter(superJumpParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
 
 		this.level.deselectPowerUp();
 	}

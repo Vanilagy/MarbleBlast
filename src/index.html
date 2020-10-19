@@ -31,13 +31,7 @@
 			<div style="font-family: DomCasualRegular;" id="alert-text"></div>
 			<img id="center-text" src=""></img>
 			<canvas id="clock" height="50" width="300"></canvas>
-			<div id="gem-count">
-				<img src="./assets/ui/game/numbers/0.png">
-				<img src="./assets/ui/game/numbers/0.png">
-				<img src="./assets/ui/game/numbers/slash.png">
-				<img src="./assets/ui/game/numbers/0.png">
-				<img src="./assets/ui/game/numbers/0.png">
-			</div>
+			<div id="gem-count"></div>
 			<div id="pause-screen" class="hidden">
 				<img src="./assets/ui/common/dialog.png">
 				<p>Exit from this Level?</p>
@@ -49,7 +43,7 @@
 				<img src="./assets/ui/play/playgui.png">
 				<div id="finish-screen-time">
 					<p>Final Time:</p>
-					<p id="finish-screen-time-time">00.00.92</p>
+					<p id="finish-screen-time-time"></p>
 				</div>
 				<div style="clear: both;"></div>
 				<p id="finish-message"></p>
@@ -102,6 +96,7 @@
 
 		<div id="menu" class="hidden">
 			<img src="./assets/ui/background.jpg" id="background-image">
+			<p id="version">MBGW v1.4.0</p>
 
 			<div id="home-screen">
 				<img src="./assets/ui/home/homegui.png">
@@ -122,6 +117,7 @@
 					<img src="./assets/ui/play/text_window.png" style="position: absolute; top: 0; left: 0; z-index: -1;">
 					<div id="level-select-text-window-scrollable">
 						<p id="level-title"></p>
+						<p id="level-artist"></p>
 						<p id="level-description"></p>
 						<p id="level-qualify-time"></p>
 						<p id="best-times-heading">Best Times:</p>
@@ -153,6 +149,8 @@
 					<img src="./assets/data/missions/advanced/3foldmaze.jpg" id="level-image">
 					<div id="not-qualified-overlay" style="display: none;">Not Qualified!</div>
 					<p id="level-number"></p>
+					<div id="search-bar"></div>
+					<input id="search-input" maxlength="40" placeholder="Search Levels..." autocomplete="off" autocorrect="off" spellcheck="false">
 				</div>
 				<img src="./assets/ui/play/prev_n.png" id="level-select-prev">
 				<img src="./assets/ui/play/play_n.png" id="level-select-play">
@@ -397,6 +395,10 @@
 						<img src="./assets/ui/options/cntrl_mous_bttn_n.png" id="free-look-key">
 						<p id="free-look-key-content"></p>
 					</div>
+
+					<div id="button-restart-level-label">Restart Key</div>
+					<img src="./assets/ui/options/cntr_cam_dwn_n.png" id="button-restart-level">
+					<p id="button-restart-level-content"></p>
 				</div>
 			</div>
 		</div>
@@ -409,6 +411,7 @@
 		<script src="./lib/three.js" defer></script>
 		<script src="./lib/oimo.js" defer></script>
 		<script src="./lib/pako.js" defer></script>
+		<script src="./lib/jszip.js" defer></script>
 		<div></div>
 		<script src="./js/bundle.js" defer></script>
 	</body>

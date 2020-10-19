@@ -386,7 +386,7 @@
 	top: 0;
 	left: 0;
 	width: 100%;
-	height: 100%;
+	height: 125%;
 	z-index: 1;
 }
 
@@ -415,7 +415,7 @@
 	top: 0;
 	left: 0;
 	width: 100%;
-	height: 100%;
+	height: 125%;
 	z-index: 1;
 }
 
@@ -562,6 +562,32 @@
     position: absolute;
     top: 240px;
     left: 173px;
+    text-align: center;
+    width: 200px;
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    pointer-events: none;
+}
+
+#button-restart-level-label {
+	position: absolute;
+    top: 424px;
+    left: 62px;
+    font-family: 'DomCasualRegular';
+    font-size: 22px;
+}
+
+#button-restart-level {
+	position: absolute;
+    top: 418px;
+    left: 165px;
+}
+
+#button-restart-level-content {
+	margin: 0;
+    position: absolute;
+    top: 432px;
+    left: 120px;
     text-align: center;
     width: 200px;
     font-family: Arial, sans-serif;

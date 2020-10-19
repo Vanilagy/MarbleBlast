@@ -1,18 +1,13 @@
 import { AudioManager } from "../audio";
 import { ResourceManager, DirectoryStructure } from "../resources";
-import { MissionElementSimGroup, MisParser, MissionElementType, MissionElementScriptObject } from "../parsing/mis_parser";
+import { MisParser, MissionElementType, MissionElementScriptObject, MisFile } from "../parsing/mis_parser";
 import { setupButton } from "./ui";
 import { Util } from "../util";
 import { homeScreenDiv } from "./home";
 import { loadLevel } from "./loading";
 import { secondsToTimeString } from "./game";
 import { StorageManager } from "../storage";
-import { Replay } from "../replay";
-
-interface Mission {
-	path: string,
-	simGroup: MissionElementSimGroup
-}
+import { Mission, CLAEntry } from "../mission";
 
 export const beginnerLevels: Mission[] = [];
 export const intermediateLevels: Mission[] = [];
@@ -26,6 +21,7 @@ const tabIntermediate = document.querySelector('#tab-intermediate') as HTMLImage
 const tabAdvanced = document.querySelector('#tab-advanced') as HTMLImageElement;
 const tabCustom = document.querySelector('#tab-custom') as HTMLImageElement;
 const levelTitle = document.querySelector('#level-title') as HTMLParagraphElement;
+const levelArtist = document.querySelector('#level-artist') as HTMLParagraphElement;
 const levelDescription = document.querySelector('#level-description') as HTMLParagraphElement;
 const levelQualifyTime = document.querySelector('#level-qualify-time') as HTMLParagraphElement;
 const bestTime1 = document.querySelector('#level-select-best-time-1') as HTMLDivElement;
@@ -40,6 +36,8 @@ const playButton = document.querySelector('#level-select-play') as HTMLImageElem
 const nextButton = document.querySelector('#level-select-next') as HTMLImageElement;
 const homeButton = document.querySelector('#level-select-home-button') as HTMLImageElement;
 export const hiddenUnlocker = document.querySelector('#hidden-level-unlocker') as HTMLDivElement;
+const searchBar = document.querySelector('#search-bar') as HTMLImageElement;
+const searchInput = document.querySelector('#search-input') as HTMLInputElement;
 
 /** The array of the current level group being shown. */
 let currentLevelArray: Mission[];
@@ -63,6 +61,9 @@ const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'custom') =
 	let levelArray = [beginnerLevels, intermediateLevels, advancedLevels, customLevels][['beginner', 'intermediate', 'advanced', 'custom'].indexOf(which)];
 	currentLevelArray = levelArray;
 	currentLevelIndex = (StorageManager.data.unlockedLevels[['beginner', 'intermediate', 'advanced'].indexOf(which)] ?? 0) - 1;
+	currentLevelIndex = Util.clamp(currentLevelIndex, 0, currentLevelArray.length - 1);
+	if (which === 'custom') currentLevelIndex = customLevels.length - 1; // Select the last custom level
+	selectBasedOnSearchQuery(false);
 	displayMission();
 };
 
@@ -93,7 +94,7 @@ const playCurrentLevel = (replayData?: ArrayBuffer) => {
 	if (!currentMission) return;
 
 	levelSelectDiv.classList.add('hidden');
-	loadLevel(currentMission.simGroup, currentMission.path, replayData); // Initiate level loading
+	loadLevel(currentMission, replayData); // Initiate level loading
 };
 
 /** Initiates level select by loading all missions.  */
@@ -112,42 +113,63 @@ export const initLevelSelect = async () => {
 	};
 	collectMissionFiles(missionDirectory, ''); // Find all mission files
 
-	let promises: Promise<MissionElementSimGroup>[] = [];
+	let promises: Promise<MisFile>[] = [];
 	for (let filename of missionFilenames) {
 		// Load and read all missions
 		promises.push(MisParser.loadFile("./assets/data/missions/" + filename));
 	}
 
-	let missions = await Promise.all(promises);
-	let missionToFilename = new Map<MissionElementSimGroup, string>();
+	// Get the list of all custom levels in the CLA
+	let customLevelListPromise = ResourceManager.loadResource('./assets/cla_list.json');
+
+	let misFiles = await Promise.all(promises);
+	let misFileToFilename = new Map<MisFile, string>();
 	for (let i = 0; i < missionFilenames.length; i++) {
-		missionToFilename.set(missions[i], missionFilenames[i]);
+		misFileToFilename.set(misFiles[i], missionFilenames[i]);
 	}
 
 	// Sort the missions by level index so they're in the right order
-	missions.sort((a, b) => {
-		let missionInfo1 = a.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
-		let missionInfo2 = b.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
+	misFiles.sort((a, b) => {
+		let missionInfo1 = a.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
+		let missionInfo2 = b.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
 
-		return Number(missionInfo1.level) - Number(missionInfo2.level);
+		return MisParser.parseNumber(missionInfo1.level) - MisParser.parseNumber(missionInfo2.level);
 	});
 
-	// Sort the missions into their correct array
-	for (let mission of missions) {
-		let filename = missionToFilename.get(mission);
-		let missionInfo = mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
-		let missionObj: Mission = { path: filename, simGroup: mission };
+	let missions: Mission[] = [];
 
-		if (missionInfo.type.toLowerCase() === 'beginner') beginnerLevels.push(missionObj);
-		else if (missionInfo.type.toLowerCase() === 'intermediate') intermediateLevels.push(missionObj);
-		else if (missionInfo.type.toLowerCase() === 'advanced') advancedLevels.push(missionObj);
-		else customLevels.push(missionObj);
+	// Create the regular missions
+	for (let misFile of misFiles) {
+		let mission = Mission.fromMisFile(misFileToFilename.get(misFile), misFile);
+		missions.push(mission);
+	}
+
+	// Read the custom level list and filter it
+	let customLevelList = JSON.parse(await ResourceManager.readBlobAsText(await customLevelListPromise)) as CLAEntry[];
+	customLevelList = customLevelList.filter(x => x.modification === 'gold' && x.gameType.toLowerCase() === 'single player');
+
+	// Create all custom missions
+	for (let custom of customLevelList) {
+		let mission = Mission.fromCLAEntry(custom);
+		missions.push(mission);
+	}
+
+	// Sort the missions into the correct array
+	for (let mission of missions) {
+		if (mission.type.toLowerCase() === 'beginner') beginnerLevels.push(mission);
+		else if (mission.type.toLowerCase() === 'intermediate') intermediateLevels.push(mission);
+		else if (mission.type.toLowerCase() === 'advanced') advancedLevels.push(mission);
+		else customLevels.push(mission);
 	}
 
 	// Strange case, but these two levels are in opposite order in the original game.
 	Util.swapInArray(intermediateLevels, 11, 12);
 
+	// Sort all custom levels alphabetically
+	customLevels.sort((a, b) => Util.normalizeString(a.title).localeCompare(Util.normalizeString(b.title), undefined, { numeric: true, sensitivity: 'base' }));
+
 	// Initiate loading some images like this
+	selectTab('custom');
 	selectTab('advanced');
 	selectTab('intermediate');
 	selectTab('beginner');
@@ -177,14 +199,15 @@ export const initLevelSelect = async () => {
 
 /** Displays the currently-selected mission. */
 const displayMission = () => {
-	let missionObj = currentLevelArray[currentLevelIndex];
+	let mission = currentLevelArray[currentLevelIndex];
 
-	if (!missionObj) {
+	if (!mission) {
 		// There is no mission (likely custom tab), so hide most information.
 
 		notQualifiedOverlay.style.display = 'block';
 		levelImage.style.display = 'none';
 		levelTitle.innerHTML = '<br>';
+		levelArtist.style.display = 'none';
 		levelDescription.innerHTML = '<br>';
 		levelQualifyTime.innerHTML = '';
 		levelNumberElement.textContent = `Level ${currentLevelIndex + 1}`;
@@ -199,6 +222,7 @@ const displayMission = () => {
 		}		
 
 		let unlockedLevels = StorageManager.data.unlockedLevels[[beginnerLevels, intermediateLevels, advancedLevels].indexOf(currentLevelArray)];
+		if (currentLevelArray === customLevels) unlockedLevels = Infinity;
 
 		// Show or hide the "Not Qualified!" notice depending on the level unlocked state.
 		if (unlockedLevels <= currentLevelIndex) {
@@ -213,25 +237,55 @@ const displayMission = () => {
 
 		levelImage.style.display = '';
 	
-		let missionInfo = missionObj.simGroup.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
-	
 		// Display metadata
-		levelTitle.textContent = missionInfo.name.replace(/\\n/g, '\n').replace(/\\/g, '');
-		levelDescription.textContent = missionInfo.desc.replace(/\\n/g, '\n').replace(/\\/g, '');
-		let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
+		levelTitle.textContent = mission.title;
+		levelArtist.textContent = 'by ' + mission.artist.trim();
+		levelArtist.style.display = (mission.type === 'custom')? 'block' : 'none'; // Only show the artist for custom levels
+		levelDescription.textContent = mission.description;
+		let qualifyTime = (mission.qualifyTime !== 0)? mission.qualifyTime : Infinity;
 		levelQualifyTime.textContent = isFinite(qualifyTime)? "Time to Qualify: " + secondsToTimeString(qualifyTime / 1000) : '';
 
 		// Display best times
 		displayBestTimes();
 
-		// Set the image
-		levelImage.src = getImagePath(missionObj);
+		clearImageTimeout = setTimeout(() => levelImage.src = '', 50) as any as number;
 
-		levelNumberElement.textContent = `${Util.uppercaseFirstLetter(missionInfo.type)} Level ${currentLevelIndex + 1}`;
+		levelNumberElement.textContent = `${Util.uppercaseFirstLetter(mission.type)} Level ${currentLevelIndex + 1}`;
 	}
 
-	// Enable or disable the next button based on level index
-	if (currentLevelIndex >= currentLevelArray.length-1) {
+	setImages();
+	updateNextPrevButtons();
+};
+
+/** Returns true if there is a next level to advance to. */
+const canGoNext = () => {
+	let canGoNext = false;
+	for (let i = currentLevelIndex + 1; i < currentLevelArray.length; i++) {
+		if (currentLevelArray[i].matchesSearch(currentQueryWords)) {
+			canGoNext = true;
+			break;
+		}
+	}
+
+	return canGoNext;
+};
+
+/** Returns true if there is a previous level to go back to. */
+const canGoPrev = () => {
+	let canGoPrev = false;
+	for (let i = currentLevelIndex - 1; i >= 0; i--) {
+		if (currentLevelArray[i].matchesSearch(currentQueryWords)) {
+			canGoPrev = true;
+			break;
+		}
+	}
+
+	return canGoPrev;
+};
+
+const updateNextPrevButtons = () => {
+	// Enable or disable the next button based on if there are still levels to come
+	if (!canGoNext()) {
 		nextButton.src = './assets/ui/play/next_i.png';
 		nextButton.style.pointerEvents = 'none';
 	} else {
@@ -239,35 +293,65 @@ const displayMission = () => {
 		nextButton.style.pointerEvents = '';
 	}
 
-	// Enable or disable the prev button based on level index
-	if (currentLevelIndex <= 0) {
+	// Enable or disable the prev button based on if there are still levels to come
+	if (!canGoPrev()) {
 		prevButton.src = './assets/ui/play/prev_i.png';
 		prevButton.style.pointerEvents = 'none';
 	} else {
 		prevButton.src = './assets/ui/play/prev_n.png';
 		prevButton.style.pointerEvents = '';
 	}
+};
+
+let setImagesTimeout: number = null;
+let clearImageTimeout: number = null;
+/** Handles retrieving level thumbnails intelligently and showing them. */
+const setImages = (fromTimeout = false) => {
+	if (fromTimeout) {
+		// We come from a timeout, so clear it
+		clearTimeout(setImagesTimeout);	
+		setImagesTimeout = null;
+	}
+
+	if (setImagesTimeout !== null) {
+		// There is currently a timeout ongoing; reset the timer and return.
+		clearTimeout(setImagesTimeout);
+		setImagesTimeout = setTimeout(() => setImages(true), 75) as any as number;
+		return;
+	}
 
 	// Preload the neighboring-level images for faster flicking between levels without having to wait for images to load.
-	for (let i = currentLevelIndex - 5; i <= currentLevelIndex + 5; i++) {
-		let mission = currentLevelArray[i];
+	for (let i = 0; i <= 10; i++) {
+		let index = currentLevelIndex + Math.ceil(i / 2) * ((i % 2)? 1 : -1); // Go in an outward spiral pattern
+		let mission = currentLevelArray[index];
 		if (!mission) continue;
 
-		let imagePath = getImagePath(mission);
-		if (ResourceManager.getImageFromCache(imagePath)) continue;
+		let imagePath = mission.getImagePath();
 
-		ResourceManager.loadImage(imagePath);
+		let start = performance.now();
+		ResourceManager.loadResource(imagePath).then(async blob => {
+			if (!blob) return;
+
+			if (index === currentLevelIndex) {
+				// Show the thumbnail
+				levelImage.src = await ResourceManager.readBlobAsDataUrl(blob);
+				clearTimeout(clearImageTimeout);
+			}
+
+			let elapsed = performance.now() - start;
+			if (elapsed > 75 && !setImagesTimeout) {
+				// If the image took too long to load, set a timeout to prevent spamming requests.
+				setImagesTimeout = setTimeout(() => setImages(true), 75) as any as number;
+			}
+		});
 	}
 };
 
 const displayBestTimes = () => {
-	let missionObj = currentLevelArray[currentLevelIndex];
+	let mission = currentLevelArray[currentLevelIndex];
 	let goldTime = 0;
 
-	if (missionObj) {
-		let missionInfo = missionObj.simGroup.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
-		goldTime = Number(missionInfo.goldtime);
-	}
+	if (mission) goldTime = mission.goldTime;
 
 	const updateReplayButton = async (bestTimeIndex: number) => {
 		let bestTime = bestTimes[bestTimeIndex];
@@ -283,7 +367,7 @@ const displayBestTimes = () => {
 		}
 	};
 
-	let bestTimes = StorageManager.getBestTimesForMission(missionObj?.path);
+	let bestTimes = StorageManager.getBestTimesForMission(mission?.path);
 	bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
 	(bestTime1.children[1] as HTMLImageElement).style.opacity = (bestTimes[0][1] <= goldTime)? '' : '0';
 	bestTime1.children[2].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
@@ -298,7 +382,7 @@ const displayBestTimes = () => {
 	updateReplayButton(2);
 
 	leaderboardScores.innerHTML = '';
-	let onlineScores = onlineLeaderboard[missionObj?.path];
+	let onlineScores = onlineLeaderboard[mission?.path];
 	if (onlineScores) {
 		let i = 0;
 
@@ -328,26 +412,19 @@ const displayBestTimes = () => {
 	}
 };
 
-/** Gets the path of the image of a mission. */
-const getImagePath = (missionObj: Mission) => {
-	let withoutExtension = "missions/" + missionObj.path.slice(0, -4);
-	let imagePaths = ResourceManager.getFullNamesOf(withoutExtension);
-	let imagePath: string;
-	for (let path of imagePaths) {
-		if (!path.endsWith('.mis')) {
-			imagePath = path;
-			break;
-		}
-	}
-
-	return "./assets/data/missions/" + missionObj.path.slice(0, missionObj.path.lastIndexOf('/') + 1) + imagePath;
-};
-
-/** Advanced the current level index by the specified count. That count can be negative. */
+/** Advance the current level index by the specified count while respecting the search query. That count can be negative. */
 export const cycleMission = (direction: number) => {
+	if (direction > 0 && !canGoNext()) return;
+	if (direction < 0 && !canGoPrev()) return;
+
 	currentLevelIndex += direction;
 	if (currentLevelIndex < 0) currentLevelIndex = 0;
 	if (currentLevelIndex >= currentLevelArray.length) currentLevelIndex = currentLevelArray.length - 1;
+
+	if (direction !== 0) for (let i = currentLevelIndex; i >= 0 && i < currentLevelArray.length; i += Math.sign(direction)) {
+		currentLevelIndex = i;
+		if (currentLevelArray[currentLevelIndex].matchesSearch(currentQueryWords)) break;
+	}
 
 	displayMission();
 };
@@ -381,6 +458,8 @@ window.addEventListener('keyup', (e) => {
 hiddenUnlocker.addEventListener('mousedown', () => {
 	// Unlock the current level if it is the first not-unlocked level in the selected level category
 	let index = [beginnerLevels, intermediateLevels, advancedLevels].indexOf(currentLevelArray);
+	if (index === -1) return;
+
 	let unlockedLevels = StorageManager.data.unlockedLevels[index];
 	if (currentLevelIndex === unlockedLevels) {
 		StorageManager.data.unlockedLevels[index]++;
@@ -419,4 +498,42 @@ export const updateOnlineLeaderboard = async () => {
 			displayBestTimes(); // Refresh best times
 		}
 	} catch (e) {}
+};
+
+/** The current words in the search query. Used for matching. */
+let currentQueryWords: string[] = [];
+
+searchInput.addEventListener('input', () => {
+	onSearchInputChange();
+});
+searchInput.addEventListener('focus', () => {
+	// Clear the search when focused
+	searchInput.value = '';
+	onSearchInputChange();
+});
+
+const onSearchInputChange = () => {
+	// Normalize the search string and split it into words
+	let str = Util.normalizeString(searchInput.value).toLowerCase();
+	currentQueryWords = str.split(' ');
+	if (!str) currentQueryWords.length = 0;
+
+	selectBasedOnSearchQuery();
+	updateNextPrevButtons();
+};
+
+/** Selects a valid level based on the current search query. */
+const selectBasedOnSearchQuery = (display = true) => {
+	// Check if the current level already matches the search. In that case, don't do anything.
+	if (currentLevelArray[currentLevelIndex]?.matchesSearch(currentQueryWords)) return;
+
+	// Find the first matching level
+	for (let i = 0; i < currentLevelArray.length; i++) {
+		let mis = currentLevelArray[i];
+		if (mis.matchesSearch(currentQueryWords)) {
+			currentLevelIndex = i;
+			if (display) displayMission();
+			break;
+		}
+	}
 };

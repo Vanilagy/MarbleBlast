@@ -1,11 +1,11 @@
 import { setupButton, menuDiv, stopMenuMusic } from "./ui";
-import { MissionElementSimGroup, MissionElementScriptObject, MissionElementType } from "../parsing/mis_parser";
 import { levelSelectDiv } from "./level_select";
 import { state } from "../state";
 import { Level } from "../level";
 import { gameUiDiv } from "./game";
 import { Util } from "../util";
 import { Replay } from "../replay";
+import { Mission } from "../mission";
 
 const loadingDiv = document.querySelector('#loading') as HTMLDivElement;
 const levelNameElement = document.querySelector('#loading-level-name') as HTMLParagraphElement;
@@ -22,17 +22,20 @@ setupButton(cancelButton, 'loading/cancel', () => {
 	loadingIndex++;
 });
 
-export const loadLevel = async (mission: MissionElementSimGroup, missionPath: string, replayData?: ArrayBuffer) => {
+export const loadLevel = async (mission: Mission, replayData?: ArrayBuffer) => {
 	loadingDiv.classList.remove('hidden');
 	let indexAtStart = loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
-
-	let missionInfo = mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
-	levelNameElement.textContent = missionInfo.name.replace(/\\n/g, '\n').replace(/\\/g, '');
+	
+	levelNameElement.textContent = mission.title;
 
 	progressBar.style.width = '0px';
 
 	// Give the UI a bit of time to breathe before we begin to load the level.
 	await Util.wait(50);
+
+	await mission.load();
+
+	if (loadingIndex !== indexAtStart) return;
 
 	let refresher = setInterval(() => {
 		// Constantly refresh the loading bar's width
@@ -40,8 +43,10 @@ export const loadLevel = async (mission: MissionElementSimGroup, missionPath: st
 		progressBar.style.width = (completion * maxProgressBarWidth) + 'px';
 	}) as unknown as number;
 
-	let level = new Level(mission, missionPath);
-	level.init().then(async () => {
+	let level = new Level(mission);
+	try {
+		await level.init();
+
 		if (replayData) {
 			// Load the replay
 			level.replay = Replay.fromSerialized(replayData, level);
@@ -72,5 +77,11 @@ export const loadLevel = async (mission: MissionElementSimGroup, missionPath: st
 		loadingDiv.classList.add('hidden');
 		menuDiv.classList.add('hidden');
 		gameUiDiv.classList.remove('hidden');
-	});
+	} catch(e) {
+		console.error(e);
+		cancelButton.click();
+		clearInterval(refresher);
+
+		setTimeout(() => alert("There was an error due to which the level couldn't be loaded."), 50);
+	}
 };

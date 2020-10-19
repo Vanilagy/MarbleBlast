@@ -5,7 +5,7 @@ import { Util } from "./util";
 import { Interior } from "./interior";
 import { Shape } from "./shape";
 import { Trigger } from "./triggers/trigger";
-import { EndPad } from "./shapes/end_pad";
+import { MARBLE_RADIUS } from "./marble";
 
 interface CollisionCorrectionEvent {
 	fraction: number,
@@ -22,7 +22,7 @@ export class PhysicsHelper {
 	/** A separate world used to compute collision with pathed interiors. */
 	pathedInteriorCollisionWorld: OIMO.World;
 	pathedInteriorBodies: Map<PathedInterior, OIMO.RigidBody>;
-	marbleGeometry = new OIMO.SphereGeometry(0.2);
+	marbleGeometry = new OIMO.SphereGeometry(MARBLE_RADIUS);
 
 	/** A separate world used to check collision with items and colliders. */
 	auxWorld: OIMO.World;
@@ -52,7 +52,7 @@ export class PhysicsHelper {
 		this.world.addRigidBody(this.level.marble.body);
 
 		// Use a capsule geometry to approximate the swept volume of the marble between two physics ticks
-		let auxMarbleGeometry = new OIMO.CapsuleGeometry(0.2 * 2, 0); // The normal game's hitbox can expand to up to sqrt(3)x the normal size, but since we're using a sphere, let's be generous and make it 2x
+		let auxMarbleGeometry = new OIMO.CapsuleGeometry(MARBLE_RADIUS * 2, 0); // Radius will be changed on the fly anyway
 		this.auxMarbleShape = new OIMO.Shape(new OIMO.ShapeConfig());
 		this.auxMarbleShape._geom = auxMarbleGeometry;
 		this.auxMarbleBody = new OIMO.RigidBody(new OIMO.RigidBodyConfig());
@@ -147,10 +147,10 @@ export class PhysicsHelper {
 					movementDot *= -1;
 				}
 
-				if (movementDot < 24) return; // The marble impacted the surface slow enough that discrete collision detection is enough to handle it. 24 is marble radius * physics tick rate.
+				if (movementDot < MARBLE_RADIUS * PHYSICS_TICK_RATE) return; // The marble impacted the surface slow enough that discrete collision detection is enough to handle it.
 				
 				// Nudge the position back a bit so that it *just* touches the surface.
-				let position = hit.position.clone().sub(hit.normal.scale(0.2 * 0.9));
+				let position = hit.position.clone().sub(hit.normal.scale(MARBLE_RADIUS * 0.9));
 				let fraction = position.sub(prevMarblePosition).length() / movementDist;
 				if (fraction < 0 || fraction > 1) return;
 
@@ -223,10 +223,10 @@ export class PhysicsHelper {
 						movementDot *= -1;
 					}
 
-					if (movementDot < 24) return; // Same as with static objects
+					if (movementDot < MARBLE_RADIUS * PHYSICS_TICK_RATE) return; // Same as with static objects
 
 					// Same as with static objects
-					let position = hit.position.clone().sub(hit.normal.scale(0.2 * 0.95));
+					let position = hit.position.clone().sub(hit.normal.scale(MARBLE_RADIUS * 0.95));
 
 					collisionCorrectionEvents.push({
 						interior: interior as PathedInterior,
@@ -273,6 +273,8 @@ export class PhysicsHelper {
 
 		// Construct the capsule geometry in a way where it represents the swept volume of the marble during the last tick.
 		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._halfHeight = movementDist/2;
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._radius = MARBLE_RADIUS * 2; // The normal game's hitbox can expand to up to sqrt(3)x the normal size, but since we're using a sphere, let's be generous and make it 2x
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._gjkMargin = MARBLE_RADIUS * 2; // We gotta update this value too
 		let marblePosition = this.level.marble.body.getPosition().sub(movementDiff.scale(0.5));
 
 		this.auxMarbleBody.setPosition(marblePosition);
@@ -280,26 +282,55 @@ export class PhysicsHelper {
 		this.auxWorld.getContactManager()._updateContacts(); // Update contacts
 
 		let inside = new Set<Shape | Trigger>();
+
 		let current = this.auxMarbleBody.getContactLinkList();
-		// Now check for collisions with triggers, colliders and shapes
+		// First check for collisions with shapes using the enlarged marble hitbox
 		while (current) {
 			let contact = current.getContact();
 			contact._updateManifold();
 			let contactShape = contact.getShape1();
 			if (contactShape === this.auxMarbleShape) contactShape = contact.getShape2();
 
-			let object = this.shapeLookup.get(contactShape.userData) ?? this.triggerLookup.get(contactShape.userData);
+			let object = this.shapeLookup.get(contactShape.userData);
+
+			if (object && contact.isTouching()) {
+				object.onMarbleInside(this.level.timeState);
+				if (!this.shapeOrTriggerInside.has(object)) {
+					// We've entered the shape
+					this.shapeOrTriggerInside.add(object);
+					object.onMarbleEnter(this.level.timeState);
+				}
+
+				inside.add(object);
+			}
+
+			current = current.getNext();
+		}
+
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._radius = MARBLE_RADIUS;
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._gjkMargin = MARBLE_RADIUS;
+
+		this.auxWorld.getContactManager()._updateContacts(); // Update contacts again
+		current = this.auxMarbleBody.getContactLinkList();
+		// Now check for collisions with triggers and colliders using the smaller hitbox
+		while (current) {
+			let contact = current.getContact();
+			contact._updateManifold();
+			let contactShape = contact.getShape1();
+			if (contactShape === this.auxMarbleShape) contactShape = contact.getShape2();
+
+			let object: Shape | Trigger = this.triggerLookup.get(contactShape.userData);
 
 			if (!object) {
 				if (contact.isTouching()) {
-					// We hit something and it wasn't a shape or a trigger, so it must've been a collider
+					// We hit something and it wasn't a trigger, so it could've been a collider
 					object = this.shapeColliderLookup.get(contactShape.userData);
-					object.onColliderInside(contactShape.userData);
+					object?.onColliderInside(contactShape.userData);
 				}
 			} else if (contact.isTouching()) {
 				object.onMarbleInside(this.level.timeState);
 				if (!this.shapeOrTriggerInside.has(object)) {
-					// We've entered the object
+					// We've entered the trigger
 					this.shapeOrTriggerInside.add(object);
 					object.onMarbleEnter(this.level.timeState);
 				}
@@ -324,28 +355,68 @@ export class PhysicsHelper {
 		this.shapeOrTriggerInside.clear();
 	}
 
-	/** Computes the completion between the last and current tick that the marble touched the given shape in the aux world. */
-	computeCompletionOfImpactWithShape(shape: OIMO.Shape) {
-		let translation = this.level.marble.body.getPosition().sub(this.level.marble.lastPos);
-		let beginTransform = new OIMO.Transform();
-		// Extend the "ray" a bit to get a more accurate result
-		beginTransform.setPosition(this.level.marble.lastPos.sub(translation.scale(5)));
-		translation.scaleEq(11);
+	/** Computes the completion between the last and current tick that the marble touched the given shapes in the aux world. */
+	computeCompletionOfImpactWithShapes(shapes: Set<OIMO.Shape>, radiusFactor: number) {
+		let movementDiff = this.level.marble.body.getPosition().sub(this.level.marble.lastPos);
+		let movementDist = movementDiff.length();
 
-		let fraction = 1;
-		this.auxWorld.convexCast(new OIMO.SphereGeometry(0.2 * 2), beginTransform, translation, {
-			process(s, hit) {
-				// Only care if we actually overlapped the shape in question
-				if (s === shape) fraction = hit.fraction * 11 - 5;
+		let movementRot = new OIMO.Quat();
+		movementRot.setArc(new OIMO.Vec3(0, 1, 0), movementDiff.clone().normalize());
+
+		// Initialize the capsule geometry
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._radius = MARBLE_RADIUS * radiusFactor;
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._gjkMargin = MARBLE_RADIUS * radiusFactor; // We gotta update this value too
+		this.auxMarbleBody.setOrientation(movementRot);
+
+		let iterations = 5; // These are more than enough iterations for sub-millisecond accuracy, the value of 5 results in a time granularity of ~0.27 ms.
+		let low = -1 / (2**iterations - 2); // Hack the binary search a bit to allow results of 0 and 1 as well
+		let high = 1 - low;
+		let mid: number;
+
+		// Perform a binary search on the length of the capsule to find the moment of impact.
+		for (let i = 0; i < iterations; i++) {
+			mid = low + (high - low) / 2;
+			let height = movementDist * mid;
+
+			// Construct the capsule geometry in a way where it represents the swept volume of the marble during the last tick.
+			(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._halfHeight = height/2;
+			
+			let marblePosition = this.level.marble.body.getPosition().sub(movementDiff.scale(1 - mid/2));
+
+			this.auxMarbleBody.setPosition(marblePosition);
+			this.auxWorld.getContactManager()._updateContacts(); // Update contacts
+
+			let current = this.auxMarbleBody.getContactLinkList();
+			let hit = false;
+			while (current) {
+				let contact = current.getContact();
+				contact._updateManifold();
+				let contactShape = contact.getShape1();
+				if (contactShape === this.auxMarbleShape) contactShape = contact.getShape2();
+
+				if (contact.isTouching() && shapes.has(contactShape)) {
+					// We've hit one of the shapes, we don't need to continue searching
+					hit = true;
+					break;
+				}
+
+				current = current.getNext();
 			}
-		});
 
-		fraction = Util.clamp(fraction, 0, 1);
-		return fraction;
+			if (hit) {
+				// Shorten the capsule
+				high = mid;
+			} else {
+				// Lengthen the capsule
+				low = mid;
+			}
+		}
+
+		return mid;
 	}
 
 	/** Computes the completion between the last and current tick that the marble touched the given rigid body in the aux world. */
-	computeCompletionOfImpactWithBody(body: OIMO.RigidBody) {
+	computeCompletionOfImpactWithBody(body: OIMO.RigidBody, radiusFactor: number) {
 		let shapes = new Set<OIMO.Shape>();
 		let current = body.getShapeList();
 		while (current) {
@@ -353,21 +424,6 @@ export class PhysicsHelper {
 			current = current.getNext();
 		}
 
-		let translation = this.level.marble.body.getPosition().sub(this.level.marble.lastPos);
-		let beginTransform = new OIMO.Transform();
-		// Extend the "ray" a bit to get a more accurate result
-		beginTransform.setPosition(this.level.marble.lastPos.sub(translation.scale(5)));
-		translation.scaleEq(11);
-
-		let fraction = 1;
-		this.auxWorld.convexCast(new OIMO.SphereGeometry(0.2 * 2), beginTransform, translation, {
-			process(s, hit) {
-				// Only care if we actually overlapped a shape of the body in question
-				if (shapes.has(s)) fraction = Math.min(fraction, hit.fraction * 11 - 5);
-			}
-		});
-
-		fraction = Util.clamp(fraction, 0, 1);
-		return fraction;
+		return this.computeCompletionOfImpactWithShapes(shapes, radiusFactor);
 	}
 }

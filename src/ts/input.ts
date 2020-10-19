@@ -75,11 +75,6 @@ window.addEventListener('keyup', (e) => {
 
 		gameButtons[key] = false;
 	}
-
-	// Hardcoded: Restar the level upon pressing R.
-	if (e.code === 'KeyR' && !(!state.currentLevel || gameUiDiv.classList.contains('hidden') || !state.currentLevel || state.currentLevel.paused || state.currentLevel.finishTime)) {
-		state.currentLevel.restart();
-	}
 });
 
 window.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable right click context menu for good
@@ -104,7 +99,8 @@ export const gameButtons = {
 	cameraDown: false,
 	cameraLeft: false,
 	cameraRight: false,
-	freeLook: false
+	freeLook: false,
+	restart: false
 };
 
 export const releaseAllButtons = () => {

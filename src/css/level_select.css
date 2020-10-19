@@ -163,6 +163,14 @@
 	white-space: pre-line;
 }
 
+#level-artist {
+	font-family: Arial, sans-serif;
+    margin: 0;
+    margin-left: 31px;
+    font-size: 9px;
+    white-space: pre-line;
+}
+
 #level-description {
 	font-family: Arial, sans-serif;
     margin: 0;
@@ -246,4 +254,32 @@
 	height: 25px;
 	bottom: 0;
 	right: 0;
+}
+
+#search-bar {
+	position: absolute;
+    top: -23px;
+    left: 0;
+    height: 22px;
+    width: 252px;
+    border-image: url(../assets/ui/common/window.png) stretch;
+    border-width: 11px;
+    border-style: solid;
+    border-image-slice: 29 fill;
+    box-sizing: border-box;
+}
+
+#search-input {
+	position: absolute;
+    top: -19px;
+    left: 16px;
+    font-size: 12px;
+    background: transparent;
+    border: none;
+    font-family: Arial, sans-serif;
+    width: 210px;
+}
+
+#search-input:focus {
+	outline: none;
 }

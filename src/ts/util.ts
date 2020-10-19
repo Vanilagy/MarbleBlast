@@ -200,7 +200,7 @@ export abstract class Util {
 	}
 
 	/** Creates a cylinder-shaped convex hull geometry, aligned with the y-axis. */
-	static createCylinderConvexHull(radius: number, halfHeight: number, radialSegments = 32) {
+	static createCylinderConvexHull(radius: number, halfHeight: number, radialSegments = 32, scale = new OIMO.Vec3(1, 1, 1)) {
 		let vertices: OIMO.Vec3[] = [];
 
 		for (let i = 0; i < 2; i++) {
@@ -209,7 +209,7 @@ export abstract class Util {
 				let x = Math.cos(angle);
 				let z = Math.sin(angle);
 
-				vertices.push(new OIMO.Vec3(x * radius, i? halfHeight : -halfHeight, z * radius));
+				vertices.push(new OIMO.Vec3(x * radius * scale.x, (i? halfHeight : -halfHeight) * scale.y, z * radius * scale.z));
 			}
 		}
 
@@ -324,6 +324,133 @@ export abstract class Util {
 		}
 
 		return view.buffer;
+	}
+
+	static stringIsOnlyWhitespace(str: string) {
+		return str.trim().length === 0;
+	}
+
+	/** Creates an axis-aligned bounding box around a point cloud. */
+	static createAabbFromVectors(vecs: THREE.Vector3[]) {
+		let min = new THREE.Vector3(Infinity, Infinity, Infinity);
+		let max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+
+		for (let vec of vecs) {
+			min.set(Math.min(min.x, vec.x), Math.min(min.y, vec.y), Math.min(min.z, vec.z));
+			max.set(Math.max(max.x, vec.x), Math.max(max.y, vec.y), Math.max(max.z, vec.z));
+		}
+
+		return { min, max };
+	}
+
+	/** Unescapes escaped (\) characters. */
+	static unescape(str: string) {
+		let regex = /\\([^\\])/g;
+		let match: RegExpExecArray = null;
+		let specialCases: Record<string, string> = {
+			't': '\t',
+			'v': '\v',
+			'0': '\0',
+			'f': '\f',
+			'n': '\n',
+			'r': '\r'
+		};
+
+		while ((match = regex.exec(str)) !== null) {
+			let replaceWith: string;
+
+			if (specialCases[match[1]]) replaceWith = specialCases[match[1]];
+			else replaceWith = match[1];
+
+			str = str.slice(0, match.index) + replaceWith + str.slice(match.index + match[0].length);
+			regex.lastIndex--;
+		}
+
+		return str;
+	}
+
+	/** Creates a downsampled version of a cube texture. */
+	static downsampleCubeTexture(renderer: THREE.WebGLRenderer, cubeTexture: THREE.CubeTexture) {
+		let scene = new THREE.Scene();
+		scene.background = cubeTexture;
+
+		let target = new THREE.WebGLCubeRenderTarget(128);
+		let camera = new THREE.CubeCamera(1, 100000, target);
+
+		camera.update(renderer, scene);
+	
+		return camera.renderTarget.texture;
+	}
+
+	/** Splits a string like String.prototype.split, but ignores the splitter if it appears inside string literal tokens. */
+	static splitIgnoreStringLiterals(str: string, splitter: string, strLiteralToken = '"') {
+		let indices: number[] = [];
+
+		let inString = false;
+		for (let i = 0; i < str.length; i++) {
+			let c = str[i];
+
+			if (inString) {
+				if (c === strLiteralToken && str[i-1] !== '\\') inString = false;
+				continue;
+			}
+
+			if (c === strLiteralToken) inString = true;
+			else if (c === splitter) indices.push(i);
+		}
+
+		let parts: string[] = [];
+		let remaining = str;
+
+		for (let i = 0; i < indices.length; i++) {
+			let index = indices[i] - (str.length - remaining.length);
+			let part = remaining.slice(0, index);
+			remaining = remaining.slice(index + 1);
+			parts.push(part);
+		}
+		parts.push(remaining);
+
+		return parts;
+	}
+
+	/** Gets the index of a substring like String.prototype.indexOf, but only if that index lies outside of string literals. */
+	static indexOfIgnoreStringLiterals(str: string, searchString: string, position = 0, strLiteralToken = '"') {
+		let inString = false;
+		for (let i = position; i < str.length; i++) {
+			let c = str[i];
+
+			if (inString) {
+				if (c === strLiteralToken && str[i-1] !== '\\') inString = false;
+				continue;
+			}
+
+			if (c === strLiteralToken) inString = true;
+			else if (str.startsWith(searchString, i)) return i;
+		}
+
+		return -1;
+	}
+
+	/** Reorders an array with the given index map. */
+	static remapIndices<T>(arr: T[], indices: number[]) {
+		return indices.map(i => arr[i]);
+	}
+
+	/** Finds the last element in an array that fulfills a predicate. */
+	static findLast<T>(arr: T[], predicate: (elem: T) => boolean) {
+		let candidate: T = undefined;
+
+		for (let item of arr) {
+			if (predicate(item)) candidate = item;
+		}
+
+		return candidate;
+	}
+
+	/** Removes diacritics from a string. */
+	static normalizeString(str: string) {
+		// https://stackoverflow.com/questions/990904/remove-accents-diacritics-in-a-string-in-javascript
+		return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 	}
 }
 

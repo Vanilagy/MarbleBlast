@@ -24,7 +24,7 @@ interface ParticleOptions {
 }
 
 /** The options for a particle emitter. */
-interface ParticleEmitterOptions {
+export interface ParticleEmitterOptions {
 	/** The time between particle ejections. */
 	ejectionPeriod: number,
 	/** A fixed velocity to add to each particle. */
@@ -136,6 +136,9 @@ export class ParticleEmitter {
 	}
 
 	tick(time: number) {
+		// Cap the amount of particles emitted in such a case to prevent lag
+		if (time - this.lastEmitTime >= 1000) this.lastEmitTime = time - 1000;
+
 		// Spawn as many particles as needed
 		while (this.lastEmitTime + this.currentWaitPeriod <= time) {
 			this.emit(this.lastEmitTime + this.currentWaitPeriod);
@@ -179,6 +182,14 @@ export class ParticleEmitter {
 		this.currPos = pos.clone();
 		this.currPosTime = time;
 		this.vel = this.currPos.clone().sub(this.lastPos).multiplyScalar(1000 / (this.currPosTime - this.lastPosTime));
+	}
+	
+	static cloneOptions(options: ParticleEmitterOptions) {
+		let clone = Util.jsonClone(options);
+		clone.ambientVelocity = new THREE.Vector3(options.ambientVelocity.x, options.ambientVelocity.y, options.ambientVelocity.z);
+		clone.spawnOffset = options.spawnOffset;
+
+		return clone;
 	}
 }
 
@@ -251,3 +262,50 @@ class Particle {
 		this.sprite.scale.setScalar(Util.lerp(this.o.sizes[indexLow], this.o.sizes[indexHigh], t));
 	}
 }
+
+export const particleNodeEmittersEmitterOptions = {
+	MarbleTrailEmitter: {
+		ejectionPeriod: 5,
+		ambientVelocity: new THREE.Vector3(0, 0, 0),
+		ejectionVelocity: 0,
+		velocityVariance: 0.25,
+		emitterLifetime: 10000,
+		inheritedVelFactor: 0,
+		particleOptions: {
+			texture: 'particles/smoke.png',
+			blending: THREE.NormalBlending,
+			spinSpeed: 0,
+			spinRandomMin: 0,
+			spinRandomMax: 0,
+			lifetime: 100,
+			lifetimeVariance: 10,
+			dragCoefficient: 0,
+			acceleration: 0,
+			colors: [{r: 1, g: 1, b: 0, a: 0}, {r: 1, g: 1, b: 0, a: 1}, {r: 1, g: 1, b: 1, a: 0}],
+			sizes: [0.4, 0.4, 0.4],
+			times: [0, 0.15, 1]
+		}
+	},
+	LandMineEmitter: {
+		ejectionPeriod: 10,
+		ambientVelocity: new THREE.Vector3(0, 0, 0),
+		ejectionVelocity: 0.5,
+		velocityVariance: 0.25,
+		emitterLifetime: Infinity,
+		inheritedVelFactor: 0.2,
+		particleOptions: {
+			texture: 'particles/smoke.png',
+			blending: THREE.AdditiveBlending,
+			spinSpeed: 40,
+			spinRandomMin: -90,
+			spinRandomMax: 90,
+			lifetime: 1000,
+			lifetimeVariance: 150,
+			dragCoefficient: 0.8,
+			acceleration: 0,
+			colors: [{r: 0.56, g: 0.36, b: 0.26, a: 1}, {r: 0.56, g: 0.36, b: 0.26, a: 0}],
+			sizes: [0.5, 1],
+			times: [0, 1]
+		}
+	}
+};

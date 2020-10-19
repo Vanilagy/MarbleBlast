@@ -10,6 +10,9 @@ import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./inter
 import { AudioManager } from "./audio";
 import { InstancedMesh } from "three";
 
+/** A hardcoded list of shapes that should only use envmaps as textures. */
+const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
+
 interface MaterialInfo {
 	keyframes: string[]
 }
@@ -54,11 +57,11 @@ enum MaterialFlags {
 	NeverEnvMap = 1 << 6,
 	NoMipMap = 1 << 7,
 	MipMap_ZeroBorder  = 1 << 8,
-	IflMaterial = 1 << 9,
-	IflFrame = 1 << 10,
-	DetailMapOnly = 1 << 11,
-	BumpMapOnly = 1 << 12,
-	ReflectanceMapOnly = 1 << 13
+	IflMaterial = 1 << 27,
+	IflFrame = 1 << 28,
+	DetailMapOnly = 1 << 29,
+	BumpMapOnly = 1 << 30,
+	ReflectanceMapOnly = 1 << 31
 }
 
 /** Used to model the graph of DTS nodes. */
@@ -77,6 +80,8 @@ export class Shape {
 	dtsPath: string;
 	dts: DtsFile;
 	directoryPath: string;
+	/** Whether or not this shape is being used as a TSStatic. TSStatic are static, non-moving shapes that basically can't do anything. */
+	isTSStatic = false;
 	
 	group: THREE.Group;
 	/** Either the meshes or dummy Object3D's used for instancing. */
@@ -84,7 +89,7 @@ export class Shape {
 	bodies: OIMO.RigidBody[];
 	/** Holds an optional body transformation. */
 	bodiesLocalTranslation: WeakMap<OIMO.RigidBody, OIMO.Vec3>;
-	/** Whether the marble can collide with this shape. */
+	/** Whether the marble can physically collide with this shape. */
 	collideable = true;
 	/** Not physical colliders, but a list bodies that overlap is checked with. This is used for things like force fields. */
 	colliders: ColliderInfo[] = [];
@@ -110,6 +115,8 @@ export class Shape {
 	/** One transformation matrix per DTS node */
 	nodeTransforms: THREE.Matrix4[] = [];
 	skinMeshInfo: SkinMeshData;
+	/** Whether or not to ignore the node rotations specified in the DTS file. */
+	ignoreNodeRotation = false;
 
 	showSequences = true;
 	/** If the element has non-visual sequences, then these should be updated every simulation tick as well. */
@@ -125,7 +132,11 @@ export class Shape {
 	/** Whether or not to continuously spin. */
 	ambientRotate = false;
 	ambientSpinFactor = -1 / 3000 * Math.PI * 2;
+	/** Whether or not collision meshes will receive shadows. */
+	receiveShadows = true;
 
+	/** Same shapes with the same shareId will share data. */
+	shareId: number = 0;
 	/** Data shared with other shapes of the same type. */
 	sharedData: SharedShapeData;
 	/** Whether or not to share the same node transforms with other shapes of the same type. */
@@ -158,7 +169,7 @@ export class Shape {
 		let collisionGeometries = new Set<THREE.BufferGeometry>();
 
 		// Check if there's already shared data from another shape of the same type
-		let sharedDataPromise = this.level?.sharedShapeData.get(this.dtsPath);
+		let sharedDataPromise = this.level?.sharedShapeData.get(this.dtsPath + this.shareId.toString());
 		if (sharedDataPromise) {
 			// If so, wait for that shape to complete initiation...
 			this.sharedData = await sharedDataPromise;
@@ -183,7 +194,7 @@ export class Shape {
 			let resolveFunc: (data: SharedShapeData) => any;
 			if (this.level) {
 				let sharedDataPromise = new Promise<SharedShapeData>((resolve) => resolveFunc = resolve);
-				this.level.sharedShapeData.set(this.dtsPath, sharedDataPromise);
+				this.level.sharedShapeData.set(this.dtsPath + this.shareId.toString(), sharedDataPromise);
 			}
 
 			for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
@@ -212,7 +223,7 @@ export class Shape {
 			this.rootGraphNodes = graphNodes.filter((node) => !node.parent);
 			this.updateNodeTransforms();
 	
-			let affectedBySequences = this.dts.sequences[0]? this.dts.sequences[0].rotationMatters[0] : 0;
+			let affectedBySequences = this.dts.sequences[0]? (this.dts.sequences[0].rotationMatters[0] ?? 0) | (this.dts.sequences[0].translationMatters[0] ?? 0) : 0;
 			/** Stores the material geometries of all static parts of this shape. These will be merged a single geometry for performance. */
 			let staticMaterialGeometries: MaterialGeometry[] = [];
 			/** Stores the material geometries of all dynamic (moving) parts. */
@@ -227,7 +238,7 @@ export class Shape {
 	
 				for (let object of objects) {
 					// Torque requires collision objects to start with "Col", so we use that here
-					let isCollisionObject = this.dts.names[object.nameIndex].startsWith("Col");
+					let isCollisionObject = this.dts.names[object.nameIndex].toLowerCase().startsWith("col");
 	
 					if (!isCollisionObject || this.collideable) {
 						let mat = this.nodeTransforms[i];
@@ -316,7 +327,7 @@ export class Shape {
 				// We know there will be one mesh per static geometry and dynamic geometry, so we create the appropriate amount of InstancedMeshes here.
 				for (let geometry of staticGeometries.concat(dynamicGeometries)) {
 					let instancedMesh = new THREE.InstancedMesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials, instanceCount);
-					if (collisionGeometries.has(geometry)) instancedMesh.receiveShadow = true;
+					if (collisionGeometries.has(geometry)) instancedMesh.receiveShadow = this.receiveShadows;
 					if (this.castShadow) instancedMesh.castShadow = true;
 					instancedMesh.matrixAutoUpdate = false;
 	
@@ -347,7 +358,7 @@ export class Shape {
 				obj = new THREE.Object3D();
 			} else {
 				let mesh = new THREE.Mesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials);
-				if (collisionGeometries.has(geometry)) mesh.receiveShadow = true;
+				if (collisionGeometries.has(geometry)) mesh.receiveShadow = this.receiveShadows;
 				if (this.castShadow) mesh.castShadow = true;
 				obj = mesh;
 			}
@@ -357,6 +368,7 @@ export class Shape {
 			this.objects.push(obj);
 		}
 
+		// Generate the dynamic meshes
 		for (let i = 0; i < dynamicGeometries.length; i++) {
 			let obj: THREE.Object3D;
 
@@ -366,7 +378,7 @@ export class Shape {
 			} else {
 				let geometry = dynamicGeometries[i];
 				let mesh = new THREE.Mesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials);
-				if (collisionGeometries.has(geometry)) mesh.receiveShadow = true;
+				if (collisionGeometries.has(geometry)) mesh.receiveShadow = this.receiveShadows;
 				if (this.castShadow) mesh.castShadow = true;
 				obj = mesh;
 			}
@@ -382,7 +394,7 @@ export class Shape {
 			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
 
 			for (let object of objects) {
-				let isCollisionObject = this.dts.names[object.nameIndex].startsWith("Col");
+				let isCollisionObject = this.dts.names[object.nameIndex].toLowerCase().startsWith("col");
 				if (isCollisionObject) {
 					let config = new OIMO.RigidBodyConfig();
 					config.type = OIMO.RigidBodyType.STATIC;
@@ -395,7 +407,7 @@ export class Shape {
 		}
 
 		// If there are no collision objects, add a single body which will later be filled with bounding box geometry.
-		if (this.bodies.length === 0) {
+		if (this.bodies.length === 0 && !this.isTSStatic) {
 			let config = new OIMO.RigidBodyConfig();
 			config.type = OIMO.RigidBodyType.STATIC;
 			let body = new OIMO.RigidBody(config);
@@ -412,17 +424,31 @@ export class Shape {
 
 	/** Creates the materials for this shape. */
 	async computeMaterials() {
+		let environmentMaterial: THREE.MeshBasicMaterial = null;
+
 		for (let i = 0; i < this.dts.matNames.length; i++) {
 			let matName = this.matNamesOverride[this.dts.matNames[i]] ||  this.dts.matNames[i]; // Check the override
 			let flags = this.dts.matFlags[i];
 			let fullName = ResourceManager.getFullNamesOf(this.directoryPath + '/' + matName).filter((x) => !x.endsWith('.dts'))[0];
 
+			if (this.isTSStatic && environmentMaterial && DROP_TEXTURE_FOR_ENV_MAP.has(this.dtsPath)) {
+				// Simply use the env material again
+				this.materials.push(environmentMaterial);
+				continue;
+			}
+
 			// If the material is self-illuminated, we can get away with a MeshBasicMaterial
-			let material = (flags & MaterialFlags.SelfIlluminating) ? new THREE.MeshBasicMaterial() : new THREE.MeshLambertMaterial();
+			let material = ((flags & MaterialFlags.SelfIlluminating) || environmentMaterial) ? new THREE.MeshBasicMaterial() : new THREE.MeshLambertMaterial();
 			this.materials.push(material);
 
-			if (!fullName) {
-				// Do nothing. It's an plain white material without a texture.
+			if (!fullName || (this.isTSStatic && (flags & MaterialFlags.ReflectanceMapOnly))) {
+				// Usually do nothing. It's an plain white material without a texture.
+				// Ah EXCEPT if we're a TSStatic.
+				if (this.isTSStatic) {
+					material = new THREE.MeshBasicMaterial({ envMap: this.level.envMap });
+					this.materials[this.materials.length - 1] = material;
+					if (flags & MaterialFlags.ReflectanceMapOnly) environmentMaterial = material;
+				}
 			} else if (fullName.endsWith('.ifl')) {
 				// Parse the .ifl file
 				let keyframes = await IflParser.loadFile('./assets/data/' + this.directoryPath + '/' + fullName);
@@ -448,12 +474,23 @@ export class Shape {
 			}
 			if (flags & MaterialFlags.Additive) material.blending = THREE.AdditiveBlending;
 			if (flags & MaterialFlags.Subtractive) material.blending = THREE.SubtractiveBlending;
+			if (this.isTSStatic && !(flags & MaterialFlags.NeverEnvMap)) {
+				material.combine = THREE.MixOperation;
+				material.reflectivity = this.dts.matNames.length === 1? 1 : environmentMaterial? 0.5 : 0.333;
+				material.envMap = this.level.envMap;
+			}
+		}
+
+		// If there are no materials, atleast add one environment one
+		if (this.materials.length === 0) {
+			let mat = new THREE.MeshBasicMaterial({ envMap: this.level.envMap });
+			this.materials.push(mat);
 		}
 	}
 
 	/** Generates material geometry info from a given DTS mesh. */
 	generateMaterialGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[]) {
-		let materialGeometry = this.dts.matNames.map(() => {
+		let materialGeometry = this.materials.map(() => {
 			return {
 				vertices: [] as number[],
 				normals: [] as number[],
@@ -506,7 +543,7 @@ export class Shape {
 			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
 
 			for (let object of objects) {
-				if (!this.dts.names[object.nameIndex].startsWith("Col")) continue;
+				if (!this.dts.names[object.nameIndex].toLowerCase().startsWith("col")) continue;
 
 				let body = this.bodies[bodyIndex++];
 				while (body.getNumShapes() > 0) body.removeShape(body.getShapeList()); // Remove all previous shapes
@@ -535,7 +572,7 @@ export class Shape {
 			}
 		}
 
-		if (bodyIndex === 0) {
+		if (bodyIndex === 0 && !this.isTSStatic) {
 			// Create collision geometry based on the bounding box
 
 			let body = this.bodies[0];
@@ -565,9 +602,10 @@ export class Shape {
 
 	/** Recursively updates node transformations in the node tree.
 	 * @param quaternions One quaternion for each node.
+	 * @param translations One translation for each node.
 	 * @param bitfield Specifies which nodes have changed.
 	 */
-	updateNodeTransforms(quaternions?: THREE.Quaternion[], bitfield = 0xffffffff) {
+	updateNodeTransforms(quaternions?: THREE.Quaternion[], translations?: THREE.Vector3[], bitfield = 0xffffffff) {
 		if (!quaternions) {
 			// Create the default array of quaternions
 			quaternions = this.dts.nodes.map((node, index) => {
@@ -577,6 +615,15 @@ export class Shape {
 				quaternion.conjugate();
 	
 				return quaternion;
+			});
+		}
+		if (this.ignoreNodeRotation) for (let quat of quaternions) quat.identity();
+
+		if (!translations) {
+			// Create the default array of translations
+			translations = this.dts.nodes.map((node, index) => {
+				let translation = this.dts.defaultTranslations[index];
+				return new THREE.Vector3(translation.x, translation.y, translation.z);
 			});
 		}
 
@@ -594,10 +641,8 @@ export class Shape {
 				} else {
 					mat.copy(this.nodeTransforms[node.parent.index]);
 				}
-
-				let translation = this.dts.defaultTranslations[node.index];
 			
-				utilityMatrix.compose(new THREE.Vector3(translation.x, translation.y, translation.z), quaternions[node.index], new THREE.Vector3(1, 1, 1));
+				utilityMatrix.compose(translations[node.index], quaternions[node.index], new THREE.Vector3(1, 1, 1));
 				mat.multiplyMatrices(mat, utilityMatrix);
 			}
 
@@ -645,54 +690,75 @@ export class Shape {
 			if (!this.showSequences) break;
 			if (!onlyVisual && !this.hasNonVisualSequences) break;
 
-			let rot = sequence.rotationMatters[0];
+			let rot = sequence.rotationMatters[0] ?? 0;
+			let trans = sequence.translationMatters[0] ?? 0;
 			let affectedCount = 0;
 			let completion = time.timeSinceLoad / (sequence.duration * 1000);
+			let quaternions: THREE.Quaternion[];
+			let translations: THREE.Vector3[];
 
-			// The only sequences besides from material sequences we need to handle are rotation-related, so this check is enough.
-			if (rot !== undefined && rot > 0) {
-				// Possible get the keyframe from the overrides
-				let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
-				if (this.lastSequenceKeyframes.get(sequence) === actualKeyframe) continue;
-				this.lastSequenceKeyframes.set(sequence, actualKeyframe);
+			// Possibly get the keyframe from the overrides
+			let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
+			if (this.lastSequenceKeyframes.get(sequence) === actualKeyframe) continue;
+			this.lastSequenceKeyframes.set(sequence, actualKeyframe);
 
-				let keyframeLow = Math.floor(actualKeyframe);
-				let keyframeHigh = Math.ceil(actualKeyframe) % sequence.numKeyframes;
-				let t = (actualKeyframe - keyframeLow) % 1; // The completion between two keyframes
+			let keyframeLow = Math.floor(actualKeyframe);
+			let keyframeHigh = Math.ceil(actualKeyframe) % sequence.numKeyframes;
+			let t = (actualKeyframe - keyframeLow) % 1; // The completion between two keyframes
 
-				let quaternions = this.dts.nodes.map((node, index) => {
-					let affected = ((1 << index) & rot) !== 0;
+			// Handle rotation sequences
+			if (rot > 0) quaternions = this.dts.nodes.map((node, index) => {
+				let affected = ((1 << index) & rot) !== 0;
 
-					if (affected) {
-						let rot1 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeLow];
-						let rot2 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeHigh];
-	
-						let quaternion1 = new THREE.Quaternion(rot1.x, rot1.y, rot1.z, rot1.w);
-						quaternion1.normalize();
-						quaternion1.conjugate();
-	
-						let quaternion2 = new THREE.Quaternion(rot2.x, rot2.y, rot2.z, rot2.w);
-						quaternion2.normalize();
-						quaternion2.conjugate();
-						
-						// Interpolate between the two quaternions
-						quaternion1.slerp(quaternion2, t);
+				if (affected) {
+					let rot1 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeLow];
+					let rot2 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeHigh];
 
-						affectedCount++;
-						return quaternion1;
-					} else {
-						// The rotation for this node is not animated and therefore we returns the default rotation.
-						let rotation = this.dts.defaultRotations[index];
-						let quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
-						quaternion.normalize();
-						quaternion.conjugate();
+					let quaternion1 = new THREE.Quaternion(rot1.x, rot1.y, rot1.z, rot1.w);
+					quaternion1.normalize();
+					quaternion1.conjugate();
 
-						return quaternion;
-					}
-				});
+					let quaternion2 = new THREE.Quaternion(rot2.x, rot2.y, rot2.z, rot2.w);
+					quaternion2.normalize();
+					quaternion2.conjugate();
+					
+					// Interpolate between the two quaternions
+					quaternion1.slerp(quaternion2, t);
 
-				this.updateNodeTransforms(quaternions, rot);
-				if (!onlyVisual) this.updateBodyTransforms(rot);
+					affectedCount++;
+					return quaternion1;
+				} else {
+					// The rotation for this node is not animated and therefore we returns the default rotation.
+					let rotation = this.dts.defaultRotations[index];
+					let quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+					quaternion.normalize();
+					quaternion.conjugate();
+
+					return quaternion;
+				}
+			});
+
+			// Handle translation sequences
+			affectedCount = 0;
+			if (trans > 0) translations = this.dts.nodes.map((node, index) => {
+				let affected = ((1 << index) & trans) !== 0;
+
+				if (affected) {
+					let trans1 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeLow];
+					let trans2 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeHigh];
+
+					// Interpolate between the two translations
+					return new THREE.Vector3(Util.lerp(trans1.x, trans2.x, t), Util.lerp(trans1.y, trans2.y, t), Util.lerp(trans1.z, trans2.z, t));
+				} else {
+					// The translation for this node is not animated and therefore we returns the default translation.
+					let translation = this.dts.defaultTranslations[index];
+					return new THREE.Vector3(translation.x, translation.y, translation.z);
+				}
+			});
+
+			if (rot || trans) {
+				this.updateNodeTransforms(quaternions, translations, rot | trans);
+				if (!onlyVisual) this.updateBodyTransforms(rot | trans);
 			}
 		}
 	}
@@ -802,6 +868,7 @@ export class Shape {
 			if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
 
 			this.materials[i].map = texture;
+			if (this.isTSStatic) this.materials[i].needsUpdate = true;
 		}
 
 		// Spin the shape round 'n' round
@@ -856,7 +923,7 @@ export class Shape {
 			collider.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
 		}
 
-		if (scaleUpdated) this.generateCollisionGeometry(); // We need to recompute the geometry if the scale changed, this will always be called at least once in the first call
+		if (scaleUpdated) this.generateCollisionGeometry(); // We need to recompute the geometry if the scale changed; this will always be called at least once in the first call
 		this.updateBodyTransforms(0xffffffff); // Update bodies
 	}
 

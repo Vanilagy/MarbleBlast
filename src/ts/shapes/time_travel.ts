@@ -1,5 +1,5 @@
 import { PowerUp } from "./power_up";
-import { MissionElementItem } from "../parsing/mis_parser";
+import { MissionElementItem, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
 import { PHYSICS_TICK_RATE } from "../level";
 
@@ -15,7 +15,7 @@ export class TimeTravel extends PowerUp {
 		super();
 
 		if (element.timebonus) {
-			this.timeBonus = Number(element.timebonus);
+			this.timeBonus = MisParser.parseNumber(element.timebonus);
 		}
 
 		this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;
@@ -27,7 +27,7 @@ export class TimeTravel extends PowerUp {
 	}
 
 	use() {
-		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(this.bodies[0]);
+		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(this.bodies[0], 2);
 		let timeToRevert = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 
 		if (this.level.replay.mode === 'playback') timeToRevert = this.level.replay.timeTravelTimeToRevert.get(this.id);

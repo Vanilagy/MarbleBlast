@@ -7,12 +7,12 @@ import { Shape } from "./shape";
 import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
+import { MisParser } from "./parsing/mis_parser";
 
-const MARBLE_SIZE = 0.2;
+export const MARBLE_RADIUS = 0.2;
 export const MARBLE_ROLL_FORCE = 40 || 40;
-const JUMP_IMPULSE = 7.3 || 7.5; // For now, seems to fit more.
 
-const bounceParticleOptions = {
+export const bounceParticleOptions = {
 	ejectionPeriod: 1,
 	ambientVelocity: new THREE.Vector3(0, 0, 0.0),
 	ejectionVelocity: 2.6,
@@ -47,6 +47,11 @@ export class Marble {
 	/** The predicted orientation of the marble in the next tick. */
 	preemptiveOrientation: OIMO.Quat;
 
+	/** The default jump impulse of the marble. */
+	jumpImpulse = 7.3; // For now, seems to fit more.
+	/** The default restitution of the marble. */
+	bounceRestitution = 0.5;
+
 	/** Forcefield around the player shown during super bounce and shock absorber usage. */
 	forcefield: Shape;
 	/** Helicopter shown above the marble shown during gyrocopter usage. */
@@ -76,18 +81,27 @@ export class Marble {
 	async init() {
 		this.group = new THREE.Group();
 
+		if (this.level.mission.misFile.marbleAttributes["jumpImpulse"] !== undefined) 
+			this.jumpImpulse = MisParser.parseNumber(this.level.mission.misFile.marbleAttributes["jumpImpulse"]);
+		if (this.level.mission.misFile.marbleAttributes["bounceRestitution"] !== undefined) 
+			this.bounceRestitution = MisParser.parseNumber(this.level.mission.misFile.marbleAttributes["bounceRestitution"]);
+
 		// Get the correct texture
 		let marbleTexture: THREE.Texture;
 		let customTextureBlob = await StorageManager.databaseGet('keyvalue', 'marbleTexture');
 		if (customTextureBlob) {
-			let url = ResourceManager.getUrlToBlob(customTextureBlob);
-			marbleTexture = await ResourceManager.getTexture(url, false, '');
+			try {
+				let url = ResourceManager.getUrlToBlob(customTextureBlob);
+				marbleTexture = await ResourceManager.getTexture(url, false, '');
+			} catch (e) {
+				console.error("Failed to load custom marble texture:", e);
+			}
 		} else {
 			marbleTexture = await ResourceManager.getTexture("shapes/balls/base.marble.png");
 		}
 
 		// Create the 3D object
-        let geometry = new THREE.SphereBufferGeometry(MARBLE_SIZE, 32, 32);
+        let geometry = new THREE.SphereBufferGeometry(MARBLE_RADIUS, 32, 32);
 		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({map: marbleTexture, color: 0xffffff}));
 		sphere.castShadow = true;
 		this.sphere = sphere;
@@ -95,9 +109,9 @@ export class Marble {
 
 		// Create the collision geometry
 		let shapeConfig = new OIMO.ShapeConfig();
-		shapeConfig.geometry = new OIMO.SphereGeometry(MARBLE_SIZE);
+		shapeConfig.geometry = new OIMO.SphereGeometry(MARBLE_RADIUS);
 		shapeConfig.friction = 1;
-		shapeConfig.restitution = 0.5;
+		shapeConfig.restitution = this.bounceRestitution;
 		let shape = new OIMO.Shape(shapeConfig);
 
 		let config = new OIMO.RigidBodyConfig();
@@ -224,7 +238,7 @@ export class Marble {
 			// Create a certain velocity boost on collisions with walls based on angular velocity. This assists in making wall-hits feel more natural.
 			outer:
 			if (this.collisionTimeout <= 0) {
-				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scale((1 - contactNormal.dot(this.level.currentUp)) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 20);
+				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scale((1 - contactNormal.dot(this.level.currentUp)) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 15);
 				if (angularBoost.length() < 0.01) break outer;
 
 				// Remove a bit of the current velocity so that the response isn't too extreme
@@ -238,7 +252,7 @@ export class Marble {
 
 			if (this.collisionTimeout <= 0 && (gameButtons.jump || this.level.jumpQueued) && contactNormalUpDot > 1e-10) {
 				// Handle jumping
-				this.setLinearVelocityInDirection(contactNormal, JUMP_IMPULSE + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
+				this.setLinearVelocityInDirection(contactNormal, this.jumpImpulse + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
 					this.playJumpSound();
 					collisionTimeoutNeeded = true;
 					if (this.level.replay.canStore) this.level.replay.jumpSoundTimes.push(this.level.replay.currentTickIndex);
@@ -356,7 +370,7 @@ export class Marble {
 		} else {
 			// Stop both shock absorber and super bounce
 			this.forcefield.setOpacity(0);
-			this.shape.setRestitution(0.5);
+			this.shape.setRestitution(this.bounceRestitution);
 
 			this.shockAbsorberSound?.stop();
 			this.shockAbsorberSound = null;
@@ -384,7 +398,7 @@ export class Marble {
 		} else {
 			// Stop the helicopter
 			this.helicopter.setOpacity(0);
-			this.level.setGravityIntensity(20);
+			this.level.setGravityIntensity(this.level.defaultGravity);
 
 			this.helicopterSound?.stop();
 			this.helicopterSound = null;

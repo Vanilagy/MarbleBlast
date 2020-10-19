@@ -1,7 +1,7 @@
 import { Shape } from "../shape";
 import { Util } from "../util";
 import { TimeState } from "../level";
-import { MissionElementStaticShape } from "../parsing/mis_parser";
+import { MissionElementStaticShape, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
 
 const ANIMATION_DURATION = 1666.6676998138428;
@@ -23,7 +23,7 @@ export class TrapDoor extends Shape {
 	constructor(element: MissionElementStaticShape) {
 		super();
 
-		if (element.timeout) this.timeout = Number(element.timeout);
+		if (element.timeout) this.timeout = MisParser.parseNumber(element.timeout);
 	}
 
 	tick(time: TimeState, onlyVisual: boolean) {

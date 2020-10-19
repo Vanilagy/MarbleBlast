@@ -23,7 +23,7 @@ export class Trigger {
 		let d2 = new OIMO.Vec3(coordinates[6], coordinates[7], coordinates[8]);
 		let d3 = new OIMO.Vec3(coordinates[9], coordinates[10], coordinates[11]);
 
-		// Create the 8 points of the cuboid
+		// Create the 8 points of the parallelepiped
 		let p1 = origin.clone();
 		let p2 = origin.add(d1);
 		let p3 = origin.add(d2);
@@ -36,13 +36,15 @@ export class Trigger {
 		let mat = new THREE.Matrix4();
 		mat.compose(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
-		// Apply the transformation matrix to each vertex by temporarily going from Oimo to three and then back again
+		// Apply the transformation matrix to each vertex
 		let vertices = [p1, p2, p3, p4, p5, p6, p7, p8]
-			.map((vert) => Util.vecOimoToThree(vert).applyMatrix4(mat))
-			.map((vert) => Util.vecThreeToOimo(vert));
+			.map((vert) => Util.vecOimoToThree(vert).applyMatrix4(mat));
+
+		// Triggers ignore the actual shape of the polyhedron and simply use its AABB.
+		let aabb = Util.createAabbFromVectors(vertices);
 
 		// Create the collision geometry
-		let geometry = new OIMO.ConvexHullGeometry(vertices);
+		let geometry = new OIMO.BoxGeometry(new OIMO.Vec3((aabb.max.x - aabb.min.x) / 2, (aabb.max.y - aabb.min.y) / 2, (aabb.max.z - aabb.min.z) / 2));
 		let shapeConfig = new OIMO.ShapeConfig();
 		shapeConfig.geometry = geometry;
 		let shape = new OIMO.Shape(shapeConfig);
@@ -51,6 +53,7 @@ export class Trigger {
 		bodyConfig.type = OIMO.RigidBodyType.STATIC;
 		let body = new OIMO.RigidBody(bodyConfig);
 		body.addShape(shape);
+		body.setPosition(new OIMO.Vec3(Util.avg(aabb.max.x, aabb.min.x), Util.avg(aabb.max.y, aabb.min.y), Util.avg(aabb.max.z, aabb.min.z)));
 
 		this.body = body;
 	}

@@ -37,6 +37,6 @@ export abstract class AbstractBumper extends Shape {
 		let wiggleX = 1 + 0.4 * sine;
 		let wiggleY = 1 - 0.4 * sine;
 
-		this.group.scale.set(wiggleX, wiggleY, 1);
+		this.group.scale.set(this.worldScale.x * wiggleX, this.worldScale.y * wiggleY, this.worldScale.z);
 	}
 }

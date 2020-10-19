@@ -29,7 +29,7 @@ const landMineParticle = {
 	}
 };
 /** The smoke particle. */
-const landMineSmokeParticle = {
+export const landMineSmokeParticle = {
 	ejectionPeriod: 0.5,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
 	ejectionVelocity: 0.8,
@@ -52,7 +52,7 @@ const landMineSmokeParticle = {
 	}
 };
 /** The sparks exploding away. */
-const landMineSparksParticle = {
+export const landMineSparksParticle = {
 	ejectionPeriod: 0.4,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
 	ejectionVelocity: 13 / 4,
@@ -85,11 +85,11 @@ export class LandMine extends Shape {
 	onMarbleContact(time: TimeState) {
 		let marble = this.level.marble;
 		let minePos = Util.vecThreeToOimo(this.worldPosition);
-		minePos.subEq(new OIMO.Vec3(0, 0, 0.05));
 		let vec = marble.lastPos.sub(Util.vecThreeToOimo(this.worldPosition)).normalize(); // Use the last pos so that it's a little less RNG
 
 		// Add velocity to the marble
-		marble.body.addLinearVelocity(vec.scale(10));
+		let explosionStrength = this.computeExplosionStrength(this.level.marble.body.getPosition().sub(minePos).length());
+		marble.body.addLinearVelocity(vec.scale(explosionStrength));
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
 
@@ -100,6 +100,19 @@ export class LandMine extends Shape {
 		// Normally, we would add a light here, but that's too expensive for THREE, apparently.
 
 		this.level.replay.recordMarbleContact(this);
+	}
+
+	/** Computes the strength of the explosion (force) based on distance from it. */
+	computeExplosionStrength(r: number) {
+		// Figured out through testing by RandomityGuy
+		if (r >= 10.25) return 0;
+		if (r >= 10) return Util.lerp(30.0087, 30.7555, r - 10);
+
+		// The explosion first becomes stronger the further you are away from it, then becomes weaker again (parabolic).
+		let a = 0.071436222;
+		let v = ((r - 5) ** 2) / (-4 * a) + 87.5;
+
+		return v;
 	}
 
 	tick(time: TimeState, onlyVisual: boolean) {

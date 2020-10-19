@@ -1,5 +1,6 @@
 **/node_modules
 src/js/bundle.js
+src/storage
 dist
 todo.txt
 .rpt2_cache

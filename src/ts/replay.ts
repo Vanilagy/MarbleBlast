@@ -7,15 +7,19 @@ import { Util } from "./util";
 import { TrapDoor } from "./shapes/trap_door";
 import { LandMine } from "./shapes/land_mine";
 import { executeOnWorker } from "./worker";
+import { PushButton } from "./shapes/push_button";
 
 /** Stores everything necessary for a correct replay of a playthrough. Instead of relying on replaying player inputs, the replay simply stores all necessary state. */
 export class Replay {
 	level: Level;
+	missionPath: string;
 	mode: 'record' | 'playback' = 'record';
 	/** If writing to the replay is still permitted. */
 	canStore = true;
 	/** Replays get invalidated if they don't end in a successful finish. */
 	isInvalid = false;
+	/** The timestamp at the moment of saving (serializing) the replay. */
+	timestamp: number;
 
 	/** The position of the marble at each physics tick. */
 	marblePositions: OIMO.Vec3[] = [];
@@ -67,6 +71,11 @@ export class Replay {
 		id: number,
 		disappearTime: number
 	}[] = [];
+	/** In order to replay push buttons correctly, their completion state upon attempt start must be reconstructed properly. */
+	pushButtonStartValues: {
+		id: number,
+		lastContactTime: number
+	}[] = [];
 	/** The timeSinceLoad at the start of the play. */
 	timeSinceLoad: number;
 	/** The gain of the rolling sound for each physics tick. */
@@ -91,6 +100,7 @@ export class Replay {
 
 	constructor(level: Level) {
 		this.level = level;
+		this.missionPath = level.mission.path;
 	}
 
 	/** Inits the replay's values. */
@@ -116,13 +126,14 @@ export class Replay {
 			this.finishTime = null;
 			this.trapdoorStartValues.length = 0;
 			this.landmineStartValues.length = 0;
+			this.pushButtonStartValues.length = 0;
 			this.rollingSoundGain.length = 0;
 			this.rollingSoundPlaybackRate.length = 0;
 			this.slidingSoundGain.length = 0;
 			this.jumpSoundTimes.length = 0;
 			this.bounceTimes.length = 0;
 
-			// Remember trapdoor and mine states
+			// Remember trapdoor, mine and push button states
 			for (let shape of this.level.shapes) {
 				if (shape instanceof TrapDoor) {
 					this.trapdoorStartValues.push({
@@ -136,12 +147,17 @@ export class Replay {
 						id: shape.id,
 						disappearTime: shape.disappearTime
 					});
+				} else if (shape instanceof PushButton) {
+					this.pushButtonStartValues.push({
+						id: shape.id,
+						lastContactTime: shape.lastContactTime
+					});
 				}
 			}
 
 			this.timeSinceLoad = this.level.timeState.timeSinceLoad;
 		} else {
-			// Reconstruct trapdoor and mine states
+			// Reconstruct trapdoor, mine and push button states
 			for (let shape of this.level.shapes) {
 				if (shape instanceof TrapDoor) {
 					let startValues = this.trapdoorStartValues.find(x => x.id === shape.id);
@@ -155,6 +171,11 @@ export class Replay {
 					if (!startValues) continue;
 
 					shape.disappearTime = startValues.disappearTime - this.timeSinceLoad + this.level.timeState.timeSinceLoad;
+				} else if (shape instanceof PushButton) {
+					let startValues = this.pushButtonStartValues.find(x => x.id === shape.id);
+					if (!startValues) continue;
+
+					shape.lastContactTime = startValues.lastContactTime - this.timeSinceLoad + this.level.timeState.timeSinceLoad;
 				}
 			}
 		}
@@ -174,7 +195,7 @@ export class Replay {
 
 		this.currentTickIndex++;
 
-		// Check if the replay is excessively long. If it is, stop it so prevent a memory error.
+		// Check if the replay is excessively long. If it is, stop it to prevent a memory error.
 		if (this.marblePositions.length >= PHYSICS_TICK_RATE * 60 * 30) {
 			this.canStore = false;
 			this.isInvalid = this.level.finishTime === null; // If the playthrough was finished, we don't consider the replay invalid.
@@ -295,6 +316,9 @@ export class Replay {
 
 		// First, create a more compact object by utilizing typed arrays.
 		let serialized: SerializedReplay = {
+			version: 1,
+			timestamp: Date.now(),
+			missionPath: this.missionPath,
 			marblePositions: Util.arrayBufferToString(Replay.vec3sToBuffer(this.marblePositions).buffer),
 			marbleOrientations: Util.arrayBufferToString(Replay.quatsToBuffer(this.marbleOrientations).buffer),
 			marbleLinearVelocities: Util.arrayBufferToString(Replay.vec3sToBuffer(this.marbleLinearVelocities).buffer),
@@ -309,6 +333,7 @@ export class Replay {
 			finishTime: this.finishTime,
 			trapdoorStartValues: this.trapdoorStartValues,
 			landmineStartValues: this.landmineStartValues,
+			pushButtonStartValues: this.pushButtonStartValues,
 			timeSinceLoad: this.timeSinceLoad,
 			rollingSoundGain: Util.arrayBufferToString(new Float32Array(this.rollingSoundGain).buffer),
 			rollingSoundPlaybackRate: Util.arrayBufferToString(new Float32Array(this.rollingSoundPlaybackRate).buffer),
@@ -326,6 +351,10 @@ export class Replay {
 	static fromSerialized(buf: ArrayBuffer, level: Level) {
 		let replay = new Replay(level);
 		let serialized = JSON.parse(pako.inflate(new Uint8Array(buf), { to: 'string' })) as SerializedReplay;
+		let version = serialized.version ?? 0;
+		
+		replay.missionPath = (version >= 1)? serialized.missionPath : null;
+		replay.timestamp = (version >= 1)? serialized.timestamp : 0;
 
 		replay.marblePositions = Replay.bufferToVec3s(new Float32Array(Util.stringToArrayBuffer(serialized.marblePositions)));
 		replay.marbleOrientations = Replay.bufferToQuats(new Float32Array(Util.stringToArrayBuffer(serialized.marbleOrientations)));
@@ -354,6 +383,7 @@ export class Replay {
 		replay.finishTime = serialized.finishTime;
 		replay.trapdoorStartValues = serialized.trapdoorStartValues;
 		replay.landmineStartValues = serialized.landmineStartValues;
+		replay.pushButtonStartValues = serialized.pushButtonStartValues ?? []; // Might not be there in older versions
 		replay.timeSinceLoad = serialized.timeSinceLoad;
 		replay.rollingSoundGain = [...new Float32Array(Util.stringToArrayBuffer(serialized.rollingSoundGain))];
 		replay.rollingSoundPlaybackRate = [...new Float32Array(Util.stringToArrayBuffer(serialized.rollingSoundPlaybackRate))];
@@ -411,6 +441,11 @@ export class Replay {
 }
 
 export interface SerializedReplay {
+	/** The version of the replay, used for compatibility. */
+	version: number,
+	missionPath: string,
+	timestamp: number,
+
 	marblePositions: string;
 	marbleOrientations: string;
 	marbleLinearVelocities: string;
@@ -444,6 +479,10 @@ export interface SerializedReplay {
 	landmineStartValues: {
 		id: number,
 		disappearTime: number
+	}[];
+	pushButtonStartValues: {
+		id: number,
+		lastContactTime: number
 	}[];
 	timeSinceLoad: number;
 	rollingSoundGain: string;

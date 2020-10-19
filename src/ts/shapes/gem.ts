@@ -12,6 +12,7 @@ export class Gem extends Shape {
 	collideable = false;
 	pickedUp = false;
 	shareMaterials = false;
+	showSequences = false; // Gems actually have an animation for the little shiny thing, but the actual game ignores that. I get it, it was annoying as hell.
 	sounds = ['gotgem.wav', 'gotallgems.wav', 'missinggems.wav'];
 
 	constructor(element: MissionElementItem) {

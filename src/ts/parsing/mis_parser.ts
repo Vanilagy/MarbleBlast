@@ -2,7 +2,11 @@ import * as THREE from "three";
 import { Util } from "../util";
 import { ResourceManager } from "../resources";
 
-const elementHeadRegEx = /^new (\w+)\((\w*)\) *{$/;
+export interface MisFile {
+	root: MissionElementSimGroup,
+	/** The custom marble attributes overrides specified in the file. */
+	marbleAttributes: Record<string, string>
+}
 
 export enum MissionElementType {
 	SimGroup,
@@ -18,15 +22,17 @@ export enum MissionElementType {
 	PathedInterior,
 	Trigger,
 	AudioProfile,
-	MessageVector
+	MessageVector,
+	TSStatic,
+	ParticleEmitterNode
 }
 
 export interface MissionElementBase {
 	// Underscore prefix to avoid name clashes
 	/** The general type of the element. */
 	_type: MissionElementType,
-	/** The subtype, specified in the () of the "constructor". */
-	_subtype: string,
+	/** The object name, specified in the () of the "constructor". */
+	_name: string,
 	/** Is unique for every element in the mission file. */
 	_id: number
 }
@@ -173,7 +179,9 @@ export interface MissionElementTrigger extends MissionElementBase {
 	/** A list of 12 strings representing 4 vectors. The first vector corresponds to the origin point of the cuboid, the other three are the side vectors. */
 	polyhedron: string,
 	text?: string,
-	targettime?: string
+	targettime?: string,
+	instant?: string,
+	icontinuetottime?: string,
 }
 
 /** Represents the song choice. */
@@ -188,89 +196,183 @@ export interface MissionElementMessageVector extends MissionElementBase {
 	_type: MissionElementType.MessageVector
 }
 
-type MissionElement = MissionElementSimGroup | MissionElementScriptObject | MissionElementMissionArea | MissionElementSky | MissionElementSun | MissionElementInteriorInstance | MissionElementStaticShape | MissionElementItem | MissionElementPath | MissionElementMarker | MissionElementPathedInterior | MissionElementTrigger | MissionElementAudioProfile | MissionElementMessageVector;
+/** Represents a static, unmoving, unanimated DTS shape. They're pretty dumb, tbh. */
+export interface MissionElementTSStatic extends MissionElementBase {
+	_type: MissionElementType.TSStatic,
+	position: string,
+	rotation: string,
+	scale: string,
+	shapename: string
+}
+
+/** Represents a particle emitter. Currently unused by this port (these are really niche). */
+export interface MissionElementParticleEmitterNode extends MissionElementBase {
+	_type: MissionElementType.ParticleEmitterNode,
+	position: string,
+	rotation: string,
+	scale: string,
+	datablock: string,
+	emitter: string,
+	velocity: string
+}
+
+type MissionElement = MissionElementSimGroup | MissionElementScriptObject | MissionElementMissionArea | MissionElementSky | MissionElementSun | MissionElementInteriorInstance | MissionElementStaticShape | MissionElementItem | MissionElementPath | MissionElementMarker | MissionElementPathedInterior | MissionElementTrigger | MissionElementAudioProfile | MissionElementMessageVector | MissionElementTSStatic | MissionElementParticleEmitterNode;
+
+const elementHeadRegEx = /new (\w+)\((\w*)\) *{/g;
+const blockCommentRegEx = /\/\*(.|\n)*?\*\//g;
+const lineCommentRegEx = /\/\/.*/g;
+const assignmentRegEx = /(\$(?:\w|\d)+)\s*=\s*(.+?);/g;
+const marbleAttributesRegEx = /setMarbleAttributes\("(\w+)",\s*(.+?)\);/g;
 
 /** A parser for .mis files, which hold mission information. */
 export class MisParser {
 	text: string;
-	lines: string[];
-	/** The index of the current line being read. */
-	lineIndex: number;
+	index = 0;
 	currentElementId = 0;
+	variables: Record<string, string>;
+	marbleAttributes: Record<string, string>;
 
 	constructor(text: string) {
 		this.text = text;
 	}
 
 	parse() {
-		// Remove empty and commented-out lines
-		this.lines = this.text.split('\n').map((line) => line.trim()).filter((line) => line && !line.startsWith('//'));
+		let objectWriteBeginIndex = this.text.indexOf("//--- OBJECT WRITE BEGIN ---");
+		let objectWriteEndIndex = this.text.lastIndexOf("//--- OBJECT WRITE END ---");
 
+		// Find all specified variables
+		this.variables = { "$usermods": '""' }; // Just make $usermods point to nothing
+		let preamble = this.text.slice(0, objectWriteBeginIndex);
+		assignmentRegEx.lastIndex = 0;
+		let match: RegExpMatchArray = null;
+		while ((match = assignmentRegEx.exec(preamble)) !== null) {
+			// Only use the first variable found. This is because the variable is likely to be modified later on with conditional statements and that's too complex to parse right now.
+			if (!this.variables[match[1]]) this.variables[match[1]] = match[2];
+		}
+
+		// Parse any custom marble attributes specified at the top of the file
+		this.marbleAttributes = {};
+		match = null;
+		marbleAttributesRegEx.lastIndex = 0;
+		while ((match = marbleAttributesRegEx.exec(preamble)) !== null) {
+			this.marbleAttributes[match[1]] = this.resolveExpression(match[2]);
+		}
+
+		// Trim away the preamble
+		if (objectWriteBeginIndex !== -1 && objectWriteEndIndex !== -1) {
+			this.text = this.text.slice(objectWriteBeginIndex, objectWriteEndIndex);
+		}
+
+		// Remove all block and line comments to make parsing easier
+		let currentIndex = 0;
+		while (true) {
+			blockCommentRegEx.lastIndex = currentIndex;
+			lineCommentRegEx.lastIndex = currentIndex;
+
+			let blockMatch = blockCommentRegEx.exec(this.text);
+			let lineMatch = lineCommentRegEx.exec(this.text);
+
+			if (!blockMatch && !lineMatch) break;
+			else if (!lineMatch || (blockMatch && lineMatch && blockMatch.index < lineMatch.index)) {
+				this.text = this.text.slice(0, blockMatch.index) + this.text.slice(blockMatch.index + blockMatch[0].length);
+				currentIndex += blockMatch.index;
+			} else {
+				this.text = this.text.slice(0, lineMatch.index) + this.text.slice(lineMatch.index + lineMatch[0].length);
+				currentIndex += lineMatch.index;
+			}
+		}
+
+		// Read out all elements (we're expecting exactly one!)
 		let elements = [];
-		for (this.lineIndex = 0; this.lineIndex < this.lines.length; this.lineIndex++) {
-			let head = this.readElementHead();
-			if (!head) continue;
-
-			let element = this.readElement(head[1], head[2]);
+		while (this.hasNextElement()) {
+			let element = this.readElement();
+			if (!element) continue;
 			elements.push(element);
 		}
 
 		if (elements.length !== 1) {
 			// We expect there to be only one outer element; the MissionGroup SimGroup.
-			throw new Error("Mission file has more than 1 outer element!");
+			throw new Error("Mission file doesn't have exactly 1 outer element!");
+			console.log(elements);
 		}
 
-		return elements[0] as MissionElementSimGroup;
+		return {
+			root: elements[0] as MissionElementSimGroup,
+			marbleAttributes: this.marbleAttributes
+		};
 	}
 
-	/** Reads the head of an element, aka the "constructor". */
-	readElementHead() {
-		return elementHeadRegEx.exec(this.lines[this.lineIndex]);
-	}
+	readElement() {
+		// Get information about the head
+		elementHeadRegEx.lastIndex = this.index;
+		let head = elementHeadRegEx.exec(this.text);
+		this.index = head.index + head[0].length;
 
-	readElement(type: string, subtype: string) {
-		this.lineIndex++;
+		let type = head[1];
+		let name = head[2];
+
+		this.index = head.index + head[0].length;
 		let element: MissionElement = null;
 
 		switch (type) {
-			case "SimGroup": element = this.readSimGroup(subtype); break;
-			case "ScriptObject": element = this.readScriptObject(subtype); break;
-			case "MissionArea": element = this.readMissionArea(subtype); break;
-			case "Sky": element = this.readSky(subtype); break;
-			case "Sun": element = this.readSun(subtype); break;
-			case "InteriorInstance": element = this.readInteriorInstance(subtype); break;
-			case "StaticShape": element = this.readStaticShape(subtype); break;
-			case "Item": element = this.readItem(subtype); break;
-			case "Path": element = this.readPath(subtype); break;
-			case "Marker": element = this.readMarker(subtype); break;
-			case "PathedInterior": element = this.readPathedInterior(subtype); break;
-			case "Trigger": element = this.readTrigger(subtype); break;
-			case "AudioProfile": element = this.readAudioProfile(subtype); break;
-			case "MessageVector": element = this.readMessageVector(subtype); break;
-			default: console.error("Unknown element type!");
+			case "SimGroup": element = this.readSimGroup(name); break;
+			case "ScriptObject": element = this.readScriptObject(name); break;
+			case "MissionArea": element = this.readMissionArea(name); break;
+			case "Sky": element = this.readSky(name); break;
+			case "Sun": element = this.readSun(name); break;
+			case "InteriorInstance": element = this.readInteriorInstance(name); break;
+			case "StaticShape": element = this.readStaticShape(name); break;
+			case "Item": element = this.readItem(name); break;
+			case "Path": element = this.readPath(name); break;
+			case "Marker": element = this.readMarker(name); break;
+			case "PathedInterior": element = this.readPathedInterior(name); break;
+			case "Trigger": element = this.readTrigger(name); break;
+			case "AudioProfile": element = this.readAudioProfile(name); break;
+			case "MessageVector": element = this.readMessageVector(name); break;
+			case "TSStatic": element = this.readTSStatic(name); break;
+			case "ParticleEmitterNode": element = this.readParticleEmitterNode(name); break;
+			default: {
+				console.warn("Unknown element type! " + type);
+				// Still advance the index
+				let endingBraceIndex = Util.indexOfIgnoreStringLiterals(this.text, '};', this.index);
+				if (endingBraceIndex === -1) endingBraceIndex = this.text.length;
+				this.index = endingBraceIndex + 2;
+			}
 		}
 
 		if (element) element._id = this.currentElementId++;
 		return element;
 	}
 
-	readSimGroup(subtype: string) {
+	/** Checks if there's another element coming in the current scope. */
+	hasNextElement() {
+		elementHeadRegEx.lastIndex = this.index;
+		let head = elementHeadRegEx.exec(this.text);
+
+		if (!head) return false;
+		if (Util.indexOfIgnoreStringLiterals(this.text.slice(this.index, head.index), '}') !== -1) return false;
+		return true;
+	}
+
+	readSimGroup(name: string) {
 		let elements: MissionElement[] = [];
 
-		while (true) {
-			if (this.lines[this.lineIndex].startsWith('}')) break; // End of the group
-
-			let head = this.readElementHead();
-			if (!head) continue;
-
-			let element = this.readElement(head[1], head[2]); // Read the next element
+		// Read in all elements
+		while (this.hasNextElement()) {
+			let element = this.readElement();
+			if (!element) continue;
 			elements.push(element);
-			this.lineIndex++;
 		}
+
+		let endingBraceIndex = Util.indexOfIgnoreStringLiterals(this.text, '};', this.index);
+		if (endingBraceIndex === -1) endingBraceIndex = this.text.length;
+		this.index = endingBraceIndex + 2;
+
+		if (!elements) return null;
 
 		return {
 			_type: MissionElementType.SimGroup,
-			_subtype: subtype,
+			_name: name,
 			elements: elements
 		} as MissionElementSimGroup;
 	}
@@ -279,12 +381,19 @@ export class MisParser {
 	readValues() {
 		// Values are either strings or string arrays.
 		let obj: Record<string, string | string[]> = {};
+		let endingBraceIndex = Util.indexOfIgnoreStringLiterals(this.text, '};', this.index);
+		if (endingBraceIndex === -1) endingBraceIndex = this.text.length;
+		let section = this.text.slice(this.index, endingBraceIndex).trim();
+		let statements = Util.splitIgnoreStringLiterals(section, ';').map(x => x.trim()); // Get a list of all statements
 
-		while (true) {
-			if (this.lines[this.lineIndex].startsWith('}')) break; // Element is over
-
-			let parts = this.lines[this.lineIndex].split('=').map((part) => part.trim());
+		for (let statement of statements) {
+			if (!statement) continue;
+			let splitIndex = statement.indexOf('=');
+			if (splitIndex === -1) continue;
+			let parts = [statement.slice(0, splitIndex), statement.slice(splitIndex + 1)].map((part) => part.trim());
+			if (parts.length !== 2) continue;
 			let key = parts[0];
+			key = key.toLowerCase(); // TorqueScript is case-insensitive here
 
 			if (key.endsWith(']')) {
 				// The key is specifying array data, so handle that case.
@@ -293,129 +402,143 @@ export class MisParser {
 				let array = (obj[arrayName] ?? (obj[arrayName] = [])) as string[]; // Create a new array or use the existing one
 
 				let index = Number(key.slice(openingIndex + 1, -1));
-				array[index] = parts[1].slice(1, -2);
+				array[index] = this.resolveExpression(parts[1]);
 			} else {
-				key = key.toLowerCase(); // TorqueScript is case-insensitive here
-
-				if (parts[1][0] === '"') {
-					obj[key] = parts[1].slice(1, -2); // Remove " " and final ;
-				} else {
-					obj[key] = parts[1].slice(0, -1); // Remove only final ;
-				}
+				obj[key] = this.resolveExpression(parts[1]);
 			}
-
-			this.lineIndex++;
 		}
 
+		this.index = endingBraceIndex + 2;
 		return obj;
 	}
 
-	readScriptObject(subtype: string) {
+	/** Resolves a TorqueScript rvalue expression. Currently only supports the concatenation @ operator. */
+	resolveExpression(expr: string) {
+		let parts = Util.splitIgnoreStringLiterals(expr, '@').map(x => {
+			x = x.trim();
+
+			if (x.startsWith('$') && this.variables[x] !== undefined) {
+				// Replace the variable with its value
+				x = this.resolveExpression(this.variables[x]);
+			} else if (x.startsWith('"') && x.endsWith('"')) {
+				x = Util.unescape(x.slice(1, -1)); // It's a string literal, so remove " "
+			}
+
+			return x;
+		});
+
+		return parts.join('');
+	}
+
+	readScriptObject(name: string) {
 		return Object.assign({
 			_type: MissionElementType.ScriptObject,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementScriptObject;
 	}
 
-	readMissionArea(subtype: string) {
+	readMissionArea(name: string) {
 		return Object.assign({
 			_type: MissionElementType.MissionArea,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementMissionArea;
 	}
 
-	readSky(subtype: string) {
+	readSky(name: string) {
 		return Object.assign({
 			_type: MissionElementType.Sky,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementSky;
 	}
 
-	readSun(subtype: string) {
+	readSun(name: string) {
 		return Object.assign({
 			_type: MissionElementType.Sun,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementSun;
 	}
 
-	readInteriorInstance(subtype: string) {
+	readInteriorInstance(name: string) {
 		return Object.assign({
 			_type: MissionElementType.InteriorInstance,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementInteriorInstance;
 	}
 
-	readStaticShape(subtype: string) {
+	readStaticShape(name: string) {
 		return Object.assign({
 			_type: MissionElementType.StaticShape,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementStaticShape;
 	}
 
-	readItem(subtype: string) {
+	readItem(name: string) {
 		return Object.assign({
 			_type: MissionElementType.Item,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementItem;
 	}
 
-	readPath(subtype: string) {
-		let markers: MissionElementMarker[] = [];
-
-		while (true) {
-			if (this.lines[this.lineIndex].startsWith('}')) break;
-
-			let head = this.readElementHead();
-			if (!head) continue;
-
-			let element = this.readElement(head[1], head[2]) as MissionElementMarker; // We know all elements inside of the path are markers.
-			markers.push(element);
-			this.lineIndex++;
-		}
+	readPath(name: string) {
+		let simGroup = this.readSimGroup(name);
 
 		return {
 			_type: MissionElementType.Path,
-			_subtype: subtype,
-			markers: markers.sort((a, b) => Number(a.seqnum) - Number(b.seqnum)) // Make sure they're sorted sequentially
+			_name: name,
+			markers: (simGroup.elements as MissionElementMarker[]).sort((a, b) => MisParser.parseNumber(a.seqnum) - MisParser.parseNumber(b.seqnum)) // Make sure they're sorted sequentially
 		} as MissionElementPath;
 	}
 
-	readMarker(subtype: string) {
+	readMarker(name: string) {
 		return Object.assign({
 			_type: MissionElementType.Marker,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementMarker;
 	}
 
-	readPathedInterior(subtype: string) {
+	readPathedInterior(name: string) {
 		return Object.assign({
 			_type: MissionElementType.PathedInterior,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementPathedInterior;
 	}
 
-	readTrigger(subtype: string) {
+	readTrigger(name: string) {
 		return Object.assign({
 			_type: MissionElementType.Trigger,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementTrigger;
 	}
 
-	readAudioProfile(subtype: string) {
+	readAudioProfile(name: string) {
 		return Object.assign({
 			_type: MissionElementType.AudioProfile,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementAudioProfile;
 	}
 
-	readMessageVector(subtype: string) {
+	readMessageVector(name: string) {
 		return Object.assign({
 			_type: MissionElementType.MessageVector,
-			_subtype: subtype
+			_name: name
 		}, this.readValues()) as unknown as MissionElementMessageVector;
 	}
 
-	static cachedFiles = new Map<string, MissionElementSimGroup>();
+	readTSStatic(name: string) {
+		return Object.assign({
+			_type: MissionElementType.TSStatic,
+			_name: name
+		}, this.readValues()) as unknown as MissionElementTSStatic;
+	}
+
+	readParticleEmitterNode(name: string) {
+		return Object.assign({
+			_type: MissionElementType.ParticleEmitterNode,
+			_name: name
+		}, this.readValues()) as unknown as MissionElementParticleEmitterNode;
+	}
+
+	static cachedFiles = new Map<string, MisFile>();
 	
 	/** Loads and parses a .mis file. Returns a cached version if already loaded. */
 	static async loadFile(path: string) {
@@ -452,5 +575,13 @@ export class MisParser {
 		quaternion.setFromAxisAngle(new THREE.Vector3(parts[0], parts[1], parts[2]), -Util.degToRad(parts[3]));
 
 		return quaternion;
+	}
+
+	/** Parses a numeric value. */
+	static parseNumber(string: string) {
+		// Strange thing here, apparently you can supply lists of numbers. In this case tho, we just take the first value.
+		let val = Number(string.split(',')[0]);
+		if (isNaN(val)) return 0;
+		return val;
 	}
 }

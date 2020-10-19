@@ -25,7 +25,8 @@ interface StorageData {
 			"cameraDown": string,
 			"cameraLeft": string,
 			"cameraRight": string,
-			"freeLook": string
+			"freeLook": string,
+			"restart": string
 		},
 		mouseSensitivity: number,
 		invertYAxis: boolean,
@@ -59,7 +60,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 			"cameraDown": "ArrowDown",
 			"cameraLeft": "ArrowLeft",
 			"cameraRight": "ArrowRight",
-			"freeLook": "RMB"
+			"freeLook": "RMB",
+			"restart": "KeyR"
 		},
 		mouseSensitivity: 0.2,
 		invertYAxis: false,
@@ -85,6 +87,7 @@ export abstract class StorageManager {
 			this.data = DEFAULT_STORAGE_DATA;
 		}
 
+		if (!this.data.settings.gameButtonMapping.restart) this.data.settings.gameButtonMapping.restart = 'KeyR';
 		if (!this.data.randomId) this.data.randomId = getRandomId();
 
 		// Setup the IndexedDB

@@ -1,7 +1,6 @@
 import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
 import * as THREE from "three";
 import OIMO from "./declarations/oimo";
-import { ResourceManager } from "./resources";
 import { TimeState, Level } from "./level";
 import { Util, MaterialGeometry } from "./util";
 
@@ -33,13 +32,17 @@ export class Interior {
 	detailLevel: DifFile["detailLevels"][number];
 	worldMatrix = new THREE.Matrix4();
 	materialGeometry: MaterialGeometry = [];
+	/** Simply contains the file names of the materials without the path to them. */
+	materialNames: string[] = [];
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
 		this.group = new THREE.Group();
+		this.group.matrixAutoUpdate = false;
 		this.dif = file;
 		this.difPath = path;
 		this.level = level;
 		this.detailLevel = (subObjectIndex === undefined)? file.detailLevels[0] : file.subObjects[subObjectIndex];
+		this.materialNames = this.detailLevel.materialList.materials.map(x => x.split('/').pop().toLowerCase());
 
 		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
 		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
@@ -48,20 +51,31 @@ export class Interior {
 
 	async init() {
 		let materials: THREE.Material[] = [];
+
 		for (let i = 0; i < this.detailLevel.materialList.materials.length; i++) {
+			let texName = this.detailLevel.materialList.materials[i].toLowerCase();
+			let fileName = texName.split('/').pop();
 			let mat = new THREE.MeshLambertMaterial();
 			materials.push(mat);
+			
+			let currentPath = this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length);
+			// Clean up the path
+			if (texName.includes('mbptextures/') || texName.includes('interiors_mbp/') || texName.includes('mbp/'))
+				currentPath = currentPath.replace('interiors/', 'interiors_mbp/');
 
-			let currentPath = this.difPath;	
 			while (true) {
 				// Search for the texture file inside-out, first looking in the closest directory and then searching in parent directories until it is found.
 
 				currentPath = currentPath.slice(0, Math.max(0, currentPath.lastIndexOf('/')));
 				if (!currentPath) break; // Nothing found
 
-				if (ResourceManager.getFullNamesOf(currentPath + '/' + this.detailLevel.materialList.materials[i]).length) {
+				let fullNames = this.level.mission.getFullNamesOf(currentPath + '/' + fileName);
+				if (fullNames.length > 0) {
+					let name = fullNames.find(x => !x.endsWith('.dif'));
+					if (!name) break;
+
 					// We found the texture file; create the texture.
-					let texture = await ResourceManager.getTexture(currentPath + '/' + this.detailLevel.materialList.materials[i] + '.jpg');
+					let texture = await this.level.mission.getTexture(currentPath + '/' + name);
 					texture.wrapS = THREE.RepeatWrapping;
 					texture.wrapT = THREE.RepeatWrapping;
 					mat.map = texture;
@@ -161,7 +175,7 @@ export class Interior {
 				let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
 				if (!surface) continue;
 				
-				let material = this.detailLevel.materialList.materials[surface.textureIndex];
+				let material = this.materialNames[surface.textureIndex];
 				materials.add(material);
 				firstMaterial = material;
 			}
@@ -172,7 +186,7 @@ export class Interior {
 					let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
 					if (!surface) continue;
 
-					let material = this.detailLevel.materialList.materials[surface.textureIndex];
+					let material = this.materialNames[surface.textureIndex];
 					let vertices: OIMO.Vec3[] = [];
 
 					for (let k = surface.windingStart; k < surface.windingStart + surface.windingCount; k++) {
@@ -193,6 +207,7 @@ export class Interior {
 		this.group.position.copy(position);
 		this.group.quaternion.copy(orientation);
 		this.group.scale.copy(scale);
+		this.group.updateMatrix();
 		this.worldMatrix.compose(position, orientation, scale);
 
 		this.buildCollisionGeometry(scale);

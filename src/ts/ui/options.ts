@@ -309,7 +309,8 @@ const buttonToDisplayName: Record<keyof typeof StorageManager.data.settings.game
 	cameraDown: 'Rotate Camera Down',
 	cameraLeft: 'Rotate Camera Left',
 	cameraRight: 'Rotate Camera Right',
-	freeLook: 'Free Look'
+	freeLook: 'Free Look',
+	restart: 'Restart'
 };
 
 const formatKeybinding = (button: keyof typeof StorageManager.data.settings.gameButtonMapping) => {
@@ -330,6 +331,7 @@ const refreshKeybindings = () => {
 	buttonCameraUpContent.textContent = formatKeybinding('cameraUp');
 	buttonCameraDownContent.textContent = formatKeybinding('cameraDown');
 	freeLookKeyContent.textContent = formatKeybinding('freeLook');
+	buttonRestartLevelContent.textContent = formatKeybinding('restart');
 };
 
 const changeKeybinding = (button: keyof typeof StorageManager.data.settings.gameButtonMapping) => {
@@ -517,3 +519,7 @@ const setResetMarbleTextureState = (enabled: boolean) => {
 		(document.querySelector('#graphics-marble-texture-reset-text') as HTMLDivElement).style.opacity = '0.7';
 	}
 };
+
+const buttonRestartLevel = document.querySelector('#button-restart-level') as HTMLImageElement;
+setupButton(buttonRestartLevel, 'options/cntr_cam_dwn', () => changeKeybinding('restart'));
+const buttonRestartLevelContent = document.querySelector('#button-restart-level-content') as HTMLParagraphElement;

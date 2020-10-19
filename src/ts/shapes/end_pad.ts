@@ -5,29 +5,33 @@ import { Util, Scheduler } from "../util";
 import { ParticleEmitter } from "../particles";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
+import OIMO from "../declarations/oimo";
 
 /** The finish pad. */
 export class EndPad extends Shape {
 	dtsPath = "shapes/pads/endarea.dts";
+	useInstancing = true;
 	fireworks: Firework[] = [];
 	sounds = ['firewrks.wav'];
 	inArea = 0; // Used to only trigger the event once
 
-	constructor() {
+	/** @param isMain Whether or not this pad is the main pad, meaning it has to be touched for the level to end. All other pads are purely cosmetic. */
+	constructor(isMain: boolean) {
 		super();
+
+		if (!isMain) return;
 
 		// Create the finish area collision geometry
 		let height = 4.8;
-		let radius = 1.5;
-		let finishArea = Util.createCylinderConvexHull(radius, height/2); // Using this instead of CylinderGeometry because CylinderGeometry is apparently bugged!
+		let radius = 1.7;
 		let transform = new THREE.Matrix4();
 		transform.compose(new THREE.Vector3(0, 0, height/2 + 0.2), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0)), new THREE.Vector3(1, 1, 1));
 
 		this.addCollider((scale: THREE.Vector3) => {
 			// Create the finish area collision geometry
-			let height = 4.8;
-			let radius = 1.5;
-			let finishArea = Util.createCylinderConvexHull(radius * Math.max(scale.x, scale.y, scale.z), height/2); // Using this instead of CylinderGeometry because CylinderGeometry is apparently bugged!
+			// Using this instead of CylinderGeometry because CylinderGeometry is apparently bugged!
+			// Scaling note: The actual height of the cylinder (here: the y scaling) doesn't change, it's always the same.
+			let finishArea = Util.createCylinderConvexHull(radius, height/2, 64, new OIMO.Vec3(scale.x, 1, scale.y)); 
 
 			return finishArea;
 		}, () => {
@@ -63,7 +67,7 @@ export class EndPad extends Shape {
 }
 
 /** The ambient smoke coming up from the finish pad. */
-const fireworkSmoke = {
+export const fireworkSmoke = {
 	ejectionPeriod: 100,
 	ambientVelocity: new THREE.Vector3(0, 0, 1),
 	ejectionVelocity: 0,
@@ -91,7 +95,7 @@ const fireworkSmoke = {
 };
 
 /** The trail of the red rockets. */
-const redTrail = {
+export const redTrail = {
 	ejectionPeriod: 30,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
 	ejectionVelocity: 0,
@@ -115,7 +119,7 @@ const redTrail = {
 };
 
 /** The trail of the blue rockets. */
-const blueTrail = {
+export const blueTrail = {
 	ejectionPeriod: 30,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
 	ejectionVelocity: 0,
@@ -139,7 +143,7 @@ const blueTrail = {
 };
 
 /** The explosion effect of the red rockets. */
-const redSpark = {
+export const redSpark = {
 	ejectionPeriod: 1,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
 	ejectionVelocity: 0.8,
@@ -163,7 +167,7 @@ const redSpark = {
 };
 
 /** The explosion effect of the blue rockets. */
-const blueSpark = {
+export const blueSpark = {
 	ejectionPeriod: 1,
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
 	ejectionVelocity: 0.5,

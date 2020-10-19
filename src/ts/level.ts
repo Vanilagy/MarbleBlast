@@ -1,26 +1,25 @@
-import { DifParser } from "./parsing/dif_parser";
 import { Interior } from "./interior";
 import * as THREE from "three";
 import { renderer, camera, orthographicCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
-import { Marble } from "./marble";
+import { Marble, MARBLE_RADIUS, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementAudioProfile } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
-import { EndPad } from "./shapes/end_pad";
+import { EndPad, fireworkSmoke, redSpark, redTrail, blueSpark, blueTrail } from "./shapes/end_pad";
 import { Gem } from "./shapes/gem";
-import { SuperJump } from "./shapes/super_jump";
+import { SuperJump, superJumpParticleOptions } from "./shapes/super_jump";
 import { SignCaution } from "./shapes/sign_caution";
 import { SuperBounce } from "./shapes/super_bounce";
 import { RoundBumper } from "./shapes/round_bumper";
 import { Helicopter } from "./shapes/helicopter";
 import { DuctFan } from "./shapes/duct_fan";
 import { AntiGravity } from "./shapes/anti_gravity";
-import { LandMine } from "./shapes/land_mine";
+import { LandMine, landMineSmokeParticle, landMineSparksParticle } from "./shapes/land_mine";
 import { ShockAbsorber } from "./shapes/shock_absorber";
-import { SuperSpeed } from "./shapes/super_speed";
+import { SuperSpeed, superSpeedParticleOptions } from "./shapes/super_speed";
 import { TimeTravel } from "./shapes/time_travel";
 import { Tornado } from "./shapes/tornado";
 import { TrapDoor } from "./shapes/trap_door";
@@ -39,10 +38,12 @@ import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSour
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
-import { ParticleManager } from "./particles";
+import { ParticleManager, ParticleEmitterOptions, particleNodeEmittersEmitterOptions, ParticleEmitter } from "./particles";
 import { StorageManager } from "./storage";
 import { Replay } from "./replay";
 import { getCurrentLevelArray } from "./ui/level_select";
+import { Mission } from "./mission";
+import { PushButton } from "./shapes/push_button";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -58,6 +59,28 @@ const SHAPE_OVERLAY_OFFSETS = {
 export const GO_TIME = 3500;
 /** Default camera pitch */
 const DEFAULT_PITCH = 0.45;
+
+/** The map used to get particle emitter options for a ParticleEmitterNode. */
+const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
+	MarbleBounceEmitter: bounceParticleOptions,
+	MarbleTrailEmitter: particleNodeEmittersEmitterOptions.MarbleTrailEmitter,
+	MarbleSuperJumpEmitter: Object.assign(ParticleEmitter.cloneOptions(superJumpParticleOptions), {
+		emitterLifetime: 5000,
+		ambientVelocity: new THREE.Vector3(-0.3, 0, -0.5)
+	}),
+	MarbleSuperSpeedEmitter: Object.assign(ParticleEmitter.cloneOptions(superSpeedParticleOptions), {
+		emitterLifetime: 5000,
+		ambientVelocity: new THREE.Vector3(-0.5, 0, -0.5)
+	}),
+	LandMineEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter,
+	LandMineSmokeEmitter: landMineSmokeParticle,
+	LandMineSparkEmitter: landMineSparksParticle,
+	FireWorkSmokeEmitter: fireworkSmoke,
+	RedFireWorkSparkEmitter: redSpark,
+	RedFireWorkTrailEmitter: redTrail,
+	BlueFireWorkSparkEmitter: blueSpark,
+	BlueFireWorkTrailEmitter: blueTrail
+};
 
 export interface TimeState {
 	/** The time since the level was loaded, this ticks up continuously. */
@@ -79,14 +102,14 @@ interface LoadingState {
 
 /** The central control unit of gameplay. Handles loading, simulation and rendering. */
 export class Level extends Scheduler {
-	mission: MissionElementSimGroup;
-	missionPath: string;
+	mission: Mission;
 
 	loadingState: LoadingState;
 
 	scene: THREE.Scene;
 	sunlight: THREE.DirectionalLight;
 	sunDirection: THREE.Vector3;
+	envMap: THREE.Texture;
 	physics: PhysicsHelper;
 	particles: ParticleManager;
 	marble: Marble;
@@ -99,6 +122,8 @@ export class Level extends Scheduler {
 	/** The shapes used for drawing HUD overlay (powerups in the corner) */
 	overlayShapes: Shape[] = [];
 	overlayScene: THREE.Scene;
+	/** The last end pad element in the mission file. */
+	endPadElement: MissionElementStaticShape;
 
 	/** Holds the setInterval id */
 	tickInterval: number;
@@ -128,6 +153,7 @@ export class Level extends Scheduler {
 	/** See usage. */
 	previousMouseMovementDistance = 0;
 
+	defaultGravity = 20;
 	currentTimeTravelBonus = 0;
 	heldPowerUp: PowerUp = null;
 	totalGems = 0;
@@ -136,15 +162,16 @@ export class Level extends Scheduler {
 	/** When the jump button was pressed, remember that it was pressed until the next tick to execute the jump. */
 	jumpQueued = false;
 	useQueued = false;
+	/** Whether or not the player is currently pressing the restart button. */
+	pressingRestart = false;
 	
 	timeTravelSound: AudioSource;
 	music: AudioSource;
 	replay: Replay;
 
-	constructor(missionGroup: MissionElementSimGroup, missionPath: string) {
+	constructor(mission: Mission) {
 		super();
-		this.mission = missionGroup;
-		this.missionPath = missionPath;
+		this.mission = mission;
 		this.loadingState = { loaded: 0, total: 0};
 	}
 
@@ -153,31 +180,18 @@ export class Level extends Scheduler {
 		// Scan the mission for elements to determine required loading effort
 		const scanMission = (simGroup: MissionElementSimGroup) => {
 			for (let element of simGroup.elements) {
-				if ([MissionElementType.InteriorInstance, MissionElementType.Item, MissionElementType.PathedInterior, MissionElementType.StaticShape].includes(element._type)) {
+				if ([MissionElementType.InteriorInstance, MissionElementType.Item, MissionElementType.PathedInterior, MissionElementType.StaticShape, MissionElementType.TSStatic].includes(element._type)) {
 					this.loadingState.total++;
+
+					// Override the end pad element. We do this because only the last finish pad element will actually do anything.
+					if (element._type === MissionElementType.StaticShape && element.datablock.toLowerCase() === 'endpad') this.endPadElement = element;
 				} else if (element._type === MissionElementType.SimGroup) {
 					scanMission(element);
 				}
 			}
 		};
-		scanMission(this.mission);
+		scanMission(this.mission.root);
 		this.loadingState.total += 6 + 1 + 3 + 6; // For the scene, marble, UI and sounds (includes music!)
-
-		this.physics = new PhysicsHelper(this);
-		await this.initScene();
-		await this.initMarble(); this.loadingState.loaded += 1;
-		await this.addSimGroup(this.mission);
-		await this.initUi(); this.loadingState.loaded += 3;
-		await this.initSounds(); this.loadingState.loaded += 6;
-
-		this.particles = new ParticleManager(this);
-		await this.particles.init();
-
-		this.replay = new Replay(this);
-	}
-
-	async start() {
-		if (this.stopped) return;
 
 		this.timeState = {
 			timeSinceLoad: 0,
@@ -185,6 +199,26 @@ export class Level extends Scheduler {
 			gameplayClock: 0,
 			physicsTickCompletion: 0
 		};
+
+		// Apply overridden gravity
+		if (this.mission.misFile.marbleAttributes["gravity"] !== undefined) {
+			this.defaultGravity = MisParser.parseNumber(this.mission.misFile.marbleAttributes["gravity"]);
+		}
+
+		this.physics = new PhysicsHelper(this);
+		await this.initScene();
+		await this.initMarble(); this.loadingState.loaded += 1;
+		this.particles = new ParticleManager(this);
+		await this.particles.init();
+		await this.addSimGroup(this.mission.root);
+		await this.initUi(); this.loadingState.loaded += 3;
+		await this.initSounds(); this.loadingState.loaded += 6;
+
+		this.replay = new Replay(this);
+	}
+
+	async start() {
+		if (this.stopped) return;
 
 		displayHelp('');
 		displayAlert('');
@@ -196,57 +230,121 @@ export class Level extends Scheduler {
 		this.render(); // This will also do a tick
 		this.tickInterval = setInterval(() => this.tick());
 		this.music.play();
+
+		// Render them once
+		for (let shape of this.shapes) if (shape.isTSStatic) shape.render(this.timeState);
 	}
 
 	async initScene() {
 		this.scene = new THREE.Scene();
 
-		let sunElement = this.mission.elements.find((element) => element._type === MissionElementType.Sun) as MissionElementSun;
-		this.sunDirection = MisParser.parseVector3(sunElement.direction);
-		let directionalColor = MisParser.parseVector4(sunElement.color);
-		let ambientColor = MisParser.parseVector4(sunElement.ambient);
+		let addedShadow = false;
+		// There could be multiple suns, so do it for all of them
+		for (let element of this.mission.root.elements) {
+			if (element._type !== MissionElementType.Sun) continue;
 
-		// Create the ambient light
-		let ambientLight = new THREE.AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z), 1);
-        ambientLight.position.z = 0;
-        ambientLight.position.y = 5;
-		this.scene.add(ambientLight);
-		
-		// Create the sunlight and set up the shadow camera
-        let sunlight = new THREE.DirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), 1);
-        this.scene.add(sunlight);
-		sunlight.castShadow = true;
-		sunlight.shadow.camera.far = 10000;
-        sunlight.shadow.camera.left = -0.8; // The shadow area itself is very small 'cause it only needs to cover the marble and the gyrocopter
-        sunlight.shadow.camera.right = 0.8;
-        sunlight.shadow.camera.bottom = -0.8;
-		sunlight.shadow.camera.top = 0.8;
-		sunlight.shadow.mapSize.width = 200;
-		sunlight.shadow.mapSize.height = 200;
-		sunlight.shadow.radius = 2;
-		this.scene.add(sunlight.target); // Necessary for it to update
-		this.sunlight = sunlight;
+			let directionalColor = MisParser.parseVector4(element.color);
+			let ambientColor = MisParser.parseVector4(element.ambient);
+			let sunDirection = MisParser.parseVector3(element.direction);
 
-		// Init the skybox
-		// Split it up into steps manually for more granularity in the loading state
-		let skyboxImages: (HTMLImageElement | HTMLCanvasElement)[] = [];
-		skyboxImages[0] = await ResourceManager.loadImage('./assets/data/skies/sky_lf.jpg'); this.loadingState.loaded++;
-		skyboxImages[1] = await ResourceManager.loadImage('./assets/data/skies/sky_rt.jpg'); this.loadingState.loaded++;
-		skyboxImages[2] = await ResourceManager.loadImage('./assets/data/skies/sky_bk.jpg'); this.loadingState.loaded++;
-		skyboxImages[3] = await ResourceManager.loadImage('./assets/data/skies/sky_fr.jpg'); this.loadingState.loaded++;
-		skyboxImages[4] = await ResourceManager.loadImage('./assets/data/skies/sky_up.jpg'); this.loadingState.loaded++;
-		skyboxImages[5] = await ResourceManager.loadImage('./assets/data/skies/sky_dn.jpg'); this.loadingState.loaded++;
+			// Create the ambient light
+			let ambientLight = new THREE.AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z), 1);
+			ambientLight.position.z = 0;
+			ambientLight.position.y = 5;
+			this.scene.add(ambientLight);
 
-		// three.js skyboxes are aligned with respect to y-up, but everything here is z-up. Therefore we need to do some manual image transformation hackery.
-		skyboxImages[0] = Util.modifyImageWithCanvas(skyboxImages[0], -Math.PI/2, true);
-		skyboxImages[1] = Util.modifyImageWithCanvas(skyboxImages[1], Math.PI/2, true);
-		skyboxImages[2] = Util.modifyImageWithCanvas(skyboxImages[2], 0, true);
-		skyboxImages[3] = Util.modifyImageWithCanvas(skyboxImages[3], Math.PI, true);
-		skyboxImages[4] = Util.modifyImageWithCanvas(skyboxImages[4], Math.PI, true);
-		skyboxImages[5] = Util.modifyImageWithCanvas(skyboxImages[5], 0, true);
-		let skyboxTexture = new THREE.CubeTexture(skyboxImages);
-		skyboxTexture.needsUpdate = true;
-		this.scene.background = skyboxTexture;
+			// Create the sunlight and set up the shadow camera
+			let sunlight = new THREE.DirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), 1);
+			this.scene.add(sunlight);
+
+			// The first sun will be the "shadow sun"
+			if (!addedShadow) {
+				addedShadow = true;
+
+				sunlight.castShadow = true;
+				sunlight.shadow.camera.far = 10000;
+				sunlight.shadow.camera.left = -0.8; // The shadow area itself is very small 'cause it only needs to cover the marble and the gyrocopter
+				sunlight.shadow.camera.right = 0.8;
+				sunlight.shadow.camera.bottom = -0.8;
+				sunlight.shadow.camera.top = 0.8;
+				sunlight.shadow.mapSize.width = 200;
+				sunlight.shadow.mapSize.height = 200;
+				sunlight.shadow.radius = 2;
+				this.scene.add(sunlight.target); // Necessary for it to update
+
+				this.sunlight = sunlight;
+				this.sunDirection = sunDirection;
+			} else {
+				sunlight.position.copy(sunDirection.multiplyScalar(-1));
+			}
+		}
+
+		let skyElement = this.mission.root.elements.find((element) => element._type === MissionElementType.Sky) as MissionElementSky;
+
+		let fogColor = MisParser.parseVector4(skyElement.fogcolor);
+		let skySolidColor = MisParser.parseVector4(skyElement.skysolidcolor);
+		// This is kind of a weird situation here. It seems as if when the skysolidcolor isn't the default value, it's used as the skycolor; otherwise, fog color is used. Strange.
+		if (skySolidColor.x !== 0.6 || skySolidColor.y !== 0.6 || skySolidColor.z !== 0.6) fogColor = skySolidColor;
+		// Uber strange way Torque maps these values:
+		if (fogColor.x > 1) fogColor.x = 1 - (fogColor.x - 1) % 256 / 256;
+		if (fogColor.y > 1) fogColor.y = 1 - (fogColor.y - 1) % 256 / 256;
+		if (fogColor.z > 1) fogColor.z = 1 - (fogColor.z - 1) % 256 / 256;
+		renderer.setClearColor(new THREE.Color(fogColor.x, fogColor.y, fogColor.z), 1);
+
+		camera.far = MisParser.parseNumber(skyElement.visibledistance);
+		camera.updateProjectionMatrix();
+
+		if (skyElement.useskytextures === "1") {
+			// Create the skybox
+			let skyboxCubeTexture = await this.createSkyboxCubeTexture(skyElement.materiallist.slice(skyElement.materiallist.indexOf('data/') + 'data/'.length), true);
+			if (skyboxCubeTexture) this.scene.background = skyboxCubeTexture;
+		}
+
+		let envmapCubeTexture = await this.createSkyboxCubeTexture('skies/sky_day.dml', false); // Always the default MBG skybox
+		// Create the environment map from the skybox. Don't use the actual envmap image file because its projection requires like three PhDs in mathematics.
+		this.envMap = Util.downsampleCubeTexture(renderer, envmapCubeTexture as any);
+	}
+
+	async createSkyboxCubeTexture(dmlPath: string, increaseLoading: boolean) {
+		let dmlDirectoryPath = dmlPath.slice(0, dmlPath.lastIndexOf('/'));
+		let dmlFile = await this.mission.getResource(dmlPath);
+		if (dmlFile) {
+			// Get all skybox images
+			let lines = (await ResourceManager.readBlobAsText(dmlFile)).split('\n').map(x => x.trim().toLowerCase());
+			let skyboxImages: (HTMLImageElement | HTMLCanvasElement)[] = [];
+
+			for (let i = 0; i < 6; i++) {
+				let line = lines[i];
+				let filename = this.mission.getFullNamesOf(dmlDirectoryPath + '/' + line)[0];
+
+				if (!filename) {
+					skyboxImages.push(new Image());
+				} else {
+					let image = await this.mission.getImage(dmlDirectoryPath + '/' + filename);
+					skyboxImages.push(image);
+				}
+
+				if (increaseLoading) this.loadingState.loaded++;
+			}
+
+			// Reorder them to three.js order
+			skyboxImages = Util.remapIndices(skyboxImages, [3, 1, 2, 0, 4, 5]);
+
+			// three.js skyboxes are aligned with respect to y-up, but everything here is z-up. Therefore we need to do some manual image transformation hackery.
+			skyboxImages[0] = Util.modifyImageWithCanvas(skyboxImages[0], -Math.PI/2, true);
+			skyboxImages[1] = Util.modifyImageWithCanvas(skyboxImages[1], Math.PI/2, true);
+			skyboxImages[2] = Util.modifyImageWithCanvas(skyboxImages[2], 0, true);
+			skyboxImages[3] = Util.modifyImageWithCanvas(skyboxImages[3], Math.PI, true);
+			skyboxImages[4] = Util.modifyImageWithCanvas(skyboxImages[4], Math.PI, true);
+			skyboxImages[5] = Util.modifyImageWithCanvas(skyboxImages[5], 0, true);
+			let skyboxTexture = new THREE.CubeTexture(skyboxImages);
+			skyboxTexture.needsUpdate = true;
+
+			return skyboxTexture;
+		} else {
+			if (increaseLoading) this.loadingState.loaded += 6;
+			return null;
+		}
 	}
 
 	async initMarble() {
@@ -284,7 +382,10 @@ export class Level extends Scheduler {
 
 			this.overlayShapes.push(shape);
 			this.overlayScene.add(shape.group); // Add the shape temporarily (permanently if gem) for a GPU update
-			if (path.includes("gem")) shape.ambientSpinFactor /= -2; // Gems spin the other way apparently
+			if (path.includes("gem")) {
+				shape.ambientSpinFactor /= -2; // Gems spin the other way apparently
+				shape.showSequences = false; // Hide this stupid gem shine animation
+			}
 			else shape.ambientSpinFactor /= 2;
 		}
 
@@ -307,7 +408,7 @@ export class Level extends Scheduler {
 	}
 
 	async initSounds() {
-		let levelIndex = getCurrentLevelArray().findIndex(x => x.simGroup === this.mission);
+		let levelIndex = getCurrentLevelArray().indexOf(this.mission);
 		let musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The music choice is based off of level index
 
 		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
@@ -322,6 +423,7 @@ export class Level extends Scheduler {
 		if (simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior)) {
 			// Create the pathed interior
 			let pathedInterior = await PathedInterior.createFromSimGroup(simGroup, this);
+			if (!pathedInterior) return;
 
 			this.scene.add(pathedInterior.group);
 			this.physics.addInterior(pathedInterior);
@@ -347,6 +449,12 @@ export class Level extends Scheduler {
 				case MissionElementType.Trigger: {
 					this.addTrigger(element);
 				}; break;
+				case MissionElementType.TSStatic: {
+					promises.push(this.addTSStatic(element));
+				}; break;
+				case MissionElementType.ParticleEmitterNode: {
+					this.addParticleEmitterNode(element);
+				}; break;
 			}
 		}
 
@@ -354,8 +462,7 @@ export class Level extends Scheduler {
 	}
 
 	async addInterior(element: MissionElementInteriorInstance) {
-		let path = element.interiorfile.slice(element.interiorfile.indexOf('interiors/'));
-		let difFile = await DifParser.loadFile('./assets/data/' + path);
+		let { dif: difFile, path } = await this.mission.getDif(element.interiorfile);
 		if (!difFile) return;
 
 		let interior = new Interior(difFile, path, this);
@@ -373,7 +480,7 @@ export class Level extends Scheduler {
 		// Add the correct shape based on type
 		let dataBlockLowerCase = element.datablock.toLowerCase();
 		if (dataBlockLowerCase === "startpad") shape = new StartPad();
-		else if (dataBlockLowerCase === "endpad") shape = new EndPad();
+		else if (dataBlockLowerCase === "endpad") shape = new EndPad(element === this.endPadElement);
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
 		else if (dataBlockLowerCase.startsWith("signplain")) shape = new SignPlain(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase.startsWith("gemitem")) shape = new Gem(element as MissionElementItem), this.totalGems++;
@@ -393,6 +500,7 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "tornado") shape = new Tornado();
 		else if (dataBlockLowerCase === "trapdoor") shape = new TrapDoor(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "oilslick") shape = new Oilslick();
+		else if (dataBlockLowerCase === "pushbutton") shape = new PushButton();
 
 		if (!shape) return;
 
@@ -425,6 +533,44 @@ export class Level extends Scheduler {
 		this.physics.addTrigger(trigger);
 	}
 
+	/** Adds a TSStatic (totally static shape) to the world. */
+	async addTSStatic(element: MissionElementTSStatic) {
+		let shape = new Shape();
+		let shapeName = element.shapename.toLowerCase();
+		shape.dtsPath = shapeName.slice(shapeName.indexOf('shapes/'));
+		shape.isTSStatic = true;
+		shape.shareId = 1;
+		shape.useInstancing = true; // We can safely instance all TSStatics
+		if (shapeName.includes('colmesh')) {
+			// Special cases for colmesh
+			shape.ignoreNodeRotation = true; // A bit hacky but does it for now
+			shape.receiveShadows = false;
+		}
+
+		this.shapes.push(shape);
+		await Util.wait(10); // Same hack as for regular shapes
+		try {
+			await shape.init(this);
+		} catch (e) {
+			console.error("Error in creating TSStatic, skipping it for now.", e);
+			Util.removeFromArray(this.shapes, shape);
+			return;
+		}
+
+		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
+
+		this.scene.add(shape.group);
+		this.physics.addShape(shape);
+	}
+
+	/** Adds a ParticleEmitterNode to the world. */
+	addParticleEmitterNode(element: MissionElementParticleEmitterNode) {
+		let emitterOptions = particleEmitterMap[element.emitter];
+		if (!emitterOptions) return;
+
+		this.particles.createEmitter(emitterOptions, MisParser.parseVector3(element.position));
+	}
+
 	/** Restarts and resets the level. */
 	restart() {
 		this.timeState.currentAttemptTime = 0;
@@ -440,19 +586,18 @@ export class Level extends Scheduler {
 
 		this.finishTime = null;
 
-		let startPad = this.shapes.find((shape) => shape instanceof StartPad);
-		// Place the marble a bit above the start pad
-		this.marble.body.setPosition(new OIMO.Vec3(startPad.worldPosition.x, startPad.worldPosition.y, startPad.worldPosition.z + 3));
+		let { position: startPosition, euler } = this.getStartPositionAndOrientation();
+
+		// Place the marble a bit above the start pad position
+		this.marble.body.setPosition(new OIMO.Vec3(startPosition.x, startPosition.y, startPosition.z + 3));
 		this.marble.group.position.copy(Util.vecOimoToThree(this.marble.body.getPosition()));
 		this.marble.reset();
 
 		// Determine starting camera orientation based on the start pad
-		let euler = new THREE.Euler();
-		euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
 		this.yaw = euler.z + Math.PI/2;
 		this.pitch = DEFAULT_PITCH;
 
-		let missionInfo = this.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === "MissionInfo") as MissionElementScriptObject;
+		let missionInfo = this.mission.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === "MissionInfo") as MissionElementScriptObject;
 		if (missionInfo.starthelptext) displayHelp(missionInfo.starthelptext); // Show the start help text
 
 		for (let shape of this.shapes) shape.reset();
@@ -463,7 +608,7 @@ export class Level extends Scheduler {
 		this.orientationChangeTime = -Infinity;
 		this.oldOrientationQuat = new THREE.Quaternion();
 		this.newOrientationQuat = new THREE.Quaternion();
-		this.setGravityIntensity(20);
+		this.setGravityIntensity(this.defaultGravity);
 		this.physics.reset();
 		
 		this.deselectPowerUp();
@@ -514,7 +659,7 @@ export class Level extends Scheduler {
 
 		this.marble.render(tempTimeState);
 		for (let interior of this.interiors) interior.render(tempTimeState);
-		for (let shape of this.shapes) shape.render(tempTimeState);
+		for (let shape of this.shapes) if (!shape.isTSStatic) shape.render(tempTimeState);
 		this.particles.render(tempTimeState.timeSinceLoad);
 
 		this.updateCamera(tempTimeState);
@@ -568,6 +713,7 @@ export class Level extends Scheduler {
 
 			// Smoothly interpolate pitch and yaw between the last two keyframes
 			this.pitch = Util.lerp(this.replay.cameraOrientations[indexLow].pitch, this.replay.cameraOrientations[indexHigh].pitch, timeState.physicsTickCompletion);
+			this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // This bounds thing might have gotten inaccurate in the conversion from float64 to float32, so do it here again
 			this.yaw = Util.lerp(this.replay.cameraOrientations[indexLow].yaw, this.replay.cameraOrientations[indexHigh].yaw, timeState.physicsTickCompletion);
 		}
 
@@ -594,7 +740,7 @@ export class Level extends Scheduler {
 			// Handle wall intersections:
 
 			const closeness = 0.1;
-			let rayCastOrigin = marblePosition.add(this.currentUp.scale(0.2));
+			let rayCastOrigin = marblePosition.add(this.currentUp.scale(MARBLE_RADIUS));
 
 			let processedShapes = new Set<OIMO.Shape>();
 			for (let i = 0; i < 3; i++) {
@@ -664,12 +810,22 @@ export class Level extends Scheduler {
 				// Skip the out of bounce "animation" and restart immediately
 				this.clearSchedule();
 				this.restart();
+				return;
 			} else if (this.heldPowerUp && document.pointerLockElement) {
 				this.replay.recordUsePowerUp(this.heldPowerUp);
 				this.heldPowerUp.use(this.timeState);
 			}
 		}
 		this.useQueued = false;
+
+		// Handle pressing of the restart button
+		if (!this.finishTime && gameButtons.restart && !this.pressingRestart) {
+			this.restart();
+			this.pressingRestart = true;
+			return;
+		} else if (!gameButtons.restart) {
+			this.pressingRestart = false;
+		}
 
 		if (this.lastPhysicsTick === null) {
 			// If there hasn't been a physics tick yet, ensure there is one now
@@ -695,7 +851,7 @@ export class Level extends Scheduler {
 			this.tickSchedule(this.timeState.currentAttemptTime);
 			if (!playReplay) this.physics.step(); // Step the physics
 
-			for (let shape of this.shapes) shape.tick(this.timeState);
+			for (let shape of this.shapes) if (!shape.isTSStatic) shape.tick(this.timeState);
 
 			if (!playReplay) {
 				// Update pathed interior positions after the physics tick because they will have changed position only after the physics tick was calculated, not during.
@@ -709,10 +865,10 @@ export class Level extends Scheduler {
 			if (this.timeState.currentAttemptTime < GO_TIME && !playReplay) {
 				// Lock the marble to the space above the start pad
 
-				let startPad = this.shapes.find((element) => element instanceof StartPad);
+				let { position: startPosition } = this.getStartPositionAndOrientation();
 				let position = this.marble.body.getPosition().clone();
-				position.x = startPad.worldPosition.x;
-				position.y = startPad.worldPosition.y;
+				position.x = startPosition.x;
+				position.y = startPosition.y;
 				this.marble.body.setPosition(position);
 
 				let vel = this.marble.body.getLinearVelocity();
@@ -830,6 +986,32 @@ export class Level extends Scheduler {
 		this.orientationChangeTime = time.currentAttemptTime;
 	}
 
+	/** Gets the position and orientation of the player spawn point. */
+	getStartPositionAndOrientation() {
+		// The player is spawned at the last start pad in the mission file.
+		let startPad = Util.findLast(this.shapes, (shape) => shape instanceof StartPad);
+		let position: THREE.Vector3;
+		let euler: THREE.Euler = new THREE.Euler();
+
+		if (startPad) {
+			// If there's a start pad, start there
+			position = startPad.worldPosition;
+			euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
+		} else {
+			// Search for spawn points used for multiplayer
+			let spawnPoints = this.mission.root.elements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
+			if (spawnPoints) {
+				let first = spawnPoints.elements[0] as MissionElementTrigger;
+				position = MisParser.parseVector3(first.position);
+			} else {
+				// If there isn't anything, start at the origin
+				position = new THREE.Vector3();
+			}
+		}
+
+		return { position, euler };
+	}
+
 	setGravityIntensity(intensity: number) {
 		let gravityVector = this.currentUp.scale(-1 * intensity);
 		this.physics.world.setGravity(gravityVector);
@@ -940,9 +1122,9 @@ export class Level extends Scheduler {
 			AudioManager.play('missinggems.wav');
 			displayAlert("You can't finish without all the gems!!");
 		} else {
-			// The level was completed! Store the time of finishing.
-			let finishAreaShape = this.shapes.find((shape) => shape instanceof EndPad).colliders[0].body.getShapeList();
-			let completionOfImpact = this.physics.computeCompletionOfImpactWithShape(finishAreaShape);
+			// The level was completed! Store the time of finishing. Like with start pads, use the last end pad.
+			let finishAreaShape = Util.findLast(this.shapes, (shape) => shape instanceof EndPad).colliders[0].body.getShapeList();
+			let completionOfImpact = this.physics.computeCompletionOfImpactWithShapes(new Set([finishAreaShape]), 1);
 			let toSubtract = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 
 			this.finishTime = Util.jsonClone(this.timeState);

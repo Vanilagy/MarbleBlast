@@ -2,7 +2,6 @@ import { Util } from "../util";
 import { setupButton, menuDiv, startMenuMusic } from "./ui";
 import { state } from "../state";
 import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex, getCurrentLevelArray, updateOnlineLeaderboard } from "./level_select";
-import { MissionElementScriptObject, MissionElementType } from "../parsing/mis_parser";
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
 import { ResourceManager } from "../resources";
@@ -149,6 +148,15 @@ export const displayTime = (seconds: number) => {
 export const displayGemCount = (count: number, total: number) => {
 	let string = Util.leftPadZeroes(count.toString(), 2) + '/' + Util.leftPadZeroes(total.toString(), 2);
 
+	// Generate the appropriate number of image elements
+	while (string.length > gemCountElement.children.length) {
+		let newChild = document.createElement('img');
+		gemCountElement.appendChild(newChild);
+	}
+	while (string.length < gemCountElement.children.length) {
+		gemCountElement.removeChild(gemCountElement.lastChild);
+	}
+
 	for (let i = 0; i < string.length; i++) {
 		let char = string[i];
 		let node = gemCountElement.children[i] as HTMLImageElement;
@@ -178,10 +186,9 @@ export const displayHelp = async (message: string) => {
 		message = message.slice(0, match.index) + keyName + message.slice(match.index + match[0].length);
 	}
 
-	// Replace newlines with... newlines
-	message = message.replace(/\\n/g, '\n');
-	// Remove all backslashes
-	message = message.replace(/\\/g, '');
+	// A few hardcoded messages from Marble Blast Mobile
+	if (message === 'MSG_FINDALLTHEGEMS') message = "Find all the gems!";
+	if (message === 'MSG_RACETOTHEFINISH') message = "Race to the finish!";
 
 	helpElement.textContent = message;
 
@@ -247,10 +254,9 @@ export const showFinishScreen = () => {
 	let level = state.currentLevel;
 	finishScreenDiv.classList.remove('hidden');
 
-	let missionInfo = level.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
 	let elapsedTime = level.finishTime.currentAttemptTime - GO_TIME;
 	let bonusTime = Math.max(0, elapsedTime - level.finishTime.gameplayClock);
-	let goldTime = Number(missionInfo.goldtime);
+	let goldTime = level.mission.goldTime;
 	let failedToQualify = false;
 
 	// Change the message based on having achieve gold time, qualified time or not having qualified.
@@ -258,8 +264,7 @@ export const showFinishScreen = () => {
 	if (level.finishTime.gameplayClock <= goldTime) {
 		finishScreenMessage.innerHTML = 'You beat the <span style="color: #fff700;">GOLD</span> time!';
 	} else {
-		let qualifyTime = (missionInfo.time && missionInfo.time !== "0")? Number(missionInfo.time) : Infinity;
-		if (level.finishTime.gameplayClock <= qualifyTime) {
+		if (level.finishTime.gameplayClock <= level.mission.qualifyTime) {
 			finishScreenMessage.innerHTML = "You've qualified!";
 		} else {
 			finishScreenMessage.innerHTML = "You failed to qualify!";
@@ -270,17 +275,18 @@ export const showFinishScreen = () => {
 
 	// Update the time elements
 	finishScreenTime.textContent = secondsToTimeString(level.finishTime.gameplayClock / 1000);
-	qualifyTimeElement.textContent = (missionInfo.time && missionInfo.time !== "0")? secondsToTimeString(Number(missionInfo.time) / 1000) : '99:59.999';
+	qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? secondsToTimeString(level.mission.qualifyTime / 1000) : '99:59.999';
 	qualifyTimeElement.style.color = failedToQualify? 'red' : '';
 	qualifyTimeElement.style.textShadow = failedToQualify? '1px 1px 0px black' : '';
 	
 	goldTimeElement.textContent = secondsToTimeString(goldTime / 1000);
+	goldTimeElement.parentElement.style.display = level.mission.hasGoldTime? '' : 'none';
 	elapsedTimeElement.textContent = secondsToTimeString(elapsedTime / 1000);
 	bonusTimeElement.textContent = secondsToTimeString(bonusTime / 1000);
 
 	drawBestTimes();
 
-	let bestTimes = StorageManager.getBestTimesForMission(level.missionPath);
+	let bestTimes = StorageManager.getBestTimesForMission(level.mission.path);
 	let place = bestTimes.filter((time) => time[1] <= level.finishTime.gameplayClock).length; // The place is determined by seeing how many scores there currently are faster than the achieved time.
 
 	if (place <= 2 && !failedToQualify) {
@@ -294,9 +300,9 @@ export const showFinishScreen = () => {
 	}
 
 	// Unlock the next level if qualified
-	if (!failedToQualify) {
-		let typeIndex = ['beginner', 'intermediate', 'advanced'].indexOf(missionInfo.type.toLowerCase());
-		let levelIndex = getCurrentLevelArray().findIndex(x => x.simGroup === level.mission);
+	if (!failedToQualify && level.mission.type !== 'custom') {
+		let typeIndex = ['beginner', 'intermediate', 'advanced'].indexOf(level.mission.type);
+		let levelIndex = getCurrentLevelArray().indexOf(level.mission);
 		let unlockedLevels = Math.min(Math.max(StorageManager.data.unlockedLevels[typeIndex], levelIndex + 1 + 1), [beginnerLevels, intermediateLevels, advancedLevels][typeIndex].length);
 		
 		StorageManager.data.unlockedLevels[typeIndex] = unlockedLevels;
@@ -312,10 +318,9 @@ export const showFinishScreen = () => {
 /** Updates the best times. */
 const drawBestTimes = () => {
 	let level = state.currentLevel;
-	let missionInfo = level.mission.elements.find((element) => element._type === MissionElementType.ScriptObject && element._subtype === 'MissionInfo') as MissionElementScriptObject;
-	let goldTime = Number(missionInfo.goldtime);
+	let goldTime = level.mission.goldTime;
 
-	let bestTimes = StorageManager.getBestTimesForMission(level.missionPath);
+	let bestTimes = StorageManager.getBestTimesForMission(level.mission.path);
 	bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
 	bestTime1.children[1].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
 	(bestTime1.children[1] as HTMLParagraphElement).style.color = (bestTimes[0][1] <= goldTime)? '#fff700' : '';
@@ -344,7 +349,7 @@ setupButton(nameEntryButton, 'common/ok', () => {
 	// Store the time and close the dialog.
 	let level = state.currentLevel;
 	StorageManager.data.lastUsedName = nameEntryInput.value.trim();
-	let newScoreId = StorageManager.insertNewTime(level.missionPath, nameEntryInput.value.trim(), level.finishTime.gameplayClock);
+	let newScoreId = StorageManager.insertNewTime(level.mission.path, nameEntryInput.value.trim(), level.finishTime.gameplayClock);
 	updateOnlineLeaderboard();
 
 	nameEntryScreenDiv.classList.add('hidden');
