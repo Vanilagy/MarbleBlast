@@ -265,7 +265,7 @@
     border-image: url(../assets/ui/common/window.png) stretch;
     border-width: 11px;
     border-style: solid;
-    border-image-slice: 29 fill;
+    border-image-slice: 27 fill;
     box-sizing: border-box;
 }
 
