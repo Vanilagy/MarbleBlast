@@ -3,6 +3,7 @@ import * as THREE from "three";
 import OIMO from "./declarations/oimo";
 import { TimeState, Level } from "./level";
 import { Util, MaterialGeometry } from "./util";
+import { Point3F } from "./parsing/binary_file_parser";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 0.5;
@@ -19,6 +20,19 @@ const specialResistutionFactor: Record<string, number> = {
 	"friction_none": 0.5
 };
 const specialMaterials = new Set(Object.keys(specialFriction));
+
+/** Stores a list of all vertices with similar face normal. */
+interface VertexBucket {
+	referenceNormal: THREE.Vector3,
+	/** The index of the material used for each vertex. */
+	materialIndices: number[],
+	/** The index at which to write the normal vector. */
+	normalIndices: number[],
+	/** The face normal per vertex. */
+	normals: THREE.Vector3[]
+}
+
+const SMOOTH_SHADING_ANGLE_THRESHOLD = Math.cos(Util.degToRad(15));
 
 /** Represents a Torque 3D Interior, used for the main surfaces and geometry of levels. */
 export class Interior {
@@ -92,7 +106,33 @@ export class Interior {
 			});
 		}
 
-		for (let surface of this.detailLevel.surfaces) this.addSurface(surface); // Add every surface
+		let vertexBuckets = new Map<Point3F, VertexBucket[]>(); // Used for computing vertex normals by averaging face normals
+
+		// Add every surface
+		for (let surface of this.detailLevel.surfaces) this.addSurface(surface, vertexBuckets);
+
+		// In order to achieve smooth shading, compute vertex normals by average face normals of faces with similar angles
+		for (let [, buckets] of vertexBuckets) {
+			for (let i = 0; i < buckets.length; i++) {
+				let bucket = buckets[i];
+				let avgNormal = new THREE.Vector3();
+
+				// Average all vertex normals of this bucket
+				for (let j = 0; j < bucket.normals.length; j++) avgNormal.add(bucket.normals[j]);
+				avgNormal.multiplyScalar(1 / bucket.normals.length);
+
+				// Write the normal vector into the buffers
+				for (let j = 0; j < bucket.materialIndices.length; j++) {
+					let index = bucket.materialIndices[j];
+					let arr = this.materialGeometry[index].normals;
+					let start = bucket.normalIndices[j];
+					arr[start + 0] = avgNormal.x;
+					arr[start + 1] = avgNormal.y;
+					arr[start + 2] = avgNormal.z;
+				}
+			}
+		}
+
 		let geometry = Util.createGeometryFromMaterialGeometry(this.materialGeometry);
 		let mesh = new THREE.Mesh(geometry, materials);
 		mesh.receiveShadow = true;
@@ -102,7 +142,7 @@ export class Interior {
 	}
 
 	/** Adds one surface worth of geometry. */
-	addSurface(surface: InteriorDetailLevel["surfaces"][number]) {
+	addSurface(surface: InteriorDetailLevel["surfaces"][number], vertexBuckets: Map<Point3F, VertexBucket[]>) {
 		let detailLevel = this.detailLevel;
 		let texGenEqs = detailLevel.texGenEqs[surface.texGenIndex];
 		// These are needed for UVs
@@ -125,8 +165,8 @@ export class Interior {
 				i3 = temp;
 			}
 
-			let normal = new THREE.Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
-			if (surface.planeIndex & 0x8000) normal.multiplyScalar(-1); // Invert the plane if so specified
+			let faceNormal = new THREE.Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
+			if (surface.planeIndex & 0x8000) faceNormal.multiplyScalar(-1); // Invert the plane if so specified
 
 			for (let index of [i1, i2, i3]) {
 				let vertex = this.detailLevel.points[index];
@@ -137,7 +177,38 @@ export class Interior {
 				let v = texPlaneY.distanceToPoint(new THREE.Vector3(vertex.x, vertex.y, vertex.z));
 				geometryData.uvs.push(u, v);
 
-				geometryData.normals.push(normal.x, normal.y, normal.z);
+				geometryData.normals.push(0, 0, 0); // Push a placeholder, we'll compute a proper normal later
+
+				// Find the buckets for this vertex
+				let buckets = vertexBuckets.get(vertex);
+				if (!buckets) {
+					// Create a new list of buckets if necessary
+					buckets = [];
+					vertexBuckets.set(vertex, buckets);
+				}
+				// Find the bucket for this vertex
+				let bucket: VertexBucket;
+				for (let j = 0; j < buckets.length; j++) {
+					bucket = buckets[j];
+					// Check if the reference normal and current face normal point in roughly the same direction; in that case, use that bucket.
+					if (faceNormal.dot(bucket.referenceNormal) > SMOOTH_SHADING_ANGLE_THRESHOLD) break;
+					bucket = null;
+				}
+				if (!bucket) {
+					// Create a new bucket if necessary
+					bucket = {
+						referenceNormal: faceNormal,
+						materialIndices: [],
+						normalIndices: [],
+						normals: []
+					};
+					buckets.push(bucket);
+				}
+
+				// Add data
+				bucket.materialIndices.push(surface.textureIndex);
+				bucket.normalIndices.push(geometryData.normals.length - 3);
+				bucket.normals.push(faceNormal);
 			}
 
 			k++;

@@ -159,6 +159,7 @@ export class Level extends Scheduler {
 	totalGems = 0;
 	gemCount = 0;
 	outOfBounds = false;
+	outOfBoundsTime: TimeState;
 	/** When the jump button was pressed, remember that it was pressed until the next tick to execute the jump. */
 	jumpQueued = false;
 	useQueued = false;
@@ -172,7 +173,7 @@ export class Level extends Scheduler {
 	constructor(mission: Mission) {
 		super();
 		this.mission = mission;
-		this.loadingState = { loaded: 0, total: 0};
+		this.loadingState = { loaded: 0, total: 0 };
 	}
 
 	/** Loads all necessary resources and builds the mission. */
@@ -806,7 +807,7 @@ export class Level extends Scheduler {
 		let playReplay = this.replay.mode === 'playback';
 
 		if (!playReplay && (gameButtons.use || this.useQueued)) {
-			if (this.outOfBounds) {
+			if (this.outOfBounds && !this.finishTime) {
 				// Skip the out of bounce "animation" and restart immediately
 				this.clearSchedule();
 				this.restart();
@@ -883,15 +884,6 @@ export class Level extends Scheduler {
 				this.marble.shape.setFriction(0);
 			} else {
 				this.marble.shape.setFriction(1);
-			}
-
-			if (this.finishTime) {
-				let elapsed = this.timeState.currentAttemptTime - this.finishTime.currentAttemptTime;
-				if (elapsed >= 2000 && finishScreenDiv.classList.contains('hidden') && this.replay.mode !== 'playback') {
-					// Show the finish screen
-					document.exitPointerLock();
-					showFinishScreen();
-				}
 			}
 
 			if (gameButtons.cameraLeft) this.yaw += 1.5 / PHYSICS_TICK_RATE;
@@ -1106,6 +1098,7 @@ export class Level extends Scheduler {
 
 		this.updateCamera(this.timeState); // Update the camera at the point of OOB-ing
 		this.outOfBounds = true;
+		this.outOfBoundsTime = Util.jsonClone(this.timeState);
 		this.oobCameraPosition = camera.position.clone();
 		setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
@@ -1114,7 +1107,8 @@ export class Level extends Scheduler {
 	}
 
 	touchFinish() {
-		if (this.finishTime !== null || this.outOfBounds) return;
+		// Allow finishing with less than half a second of having been OOB
+		if (this.finishTime !== null || (this.outOfBounds && this.timeState.currentAttemptTime - this.outOfBoundsTime.currentAttemptTime >= 500)) return;
 
 		this.replay.recordTouchFinish();
 
@@ -1142,6 +1136,12 @@ export class Level extends Scheduler {
 			let endPad = this.shapes.find((shape) => shape instanceof EndPad) as EndPad;
 			endPad.spawnFirework(this.timeState);
 
+			this.clearSchedule();
+			if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => {
+				// Show the finish screen
+				document.exitPointerLock();
+				showFinishScreen();
+			});
 			displayAlert("Congratulations! You've finished!");
 		}
 	}

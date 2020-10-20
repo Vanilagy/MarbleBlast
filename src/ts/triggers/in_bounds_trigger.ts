@@ -4,5 +4,6 @@ import { Trigger } from "./trigger";
 export class InBoundsTrigger extends Trigger {
 	onMarbleLeave() {
 		this.level.goOutOfBounds();
+		this.level.replay.recordMarbleLeave(this);
 	}
 }

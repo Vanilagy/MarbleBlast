@@ -39,6 +39,11 @@ export class Replay {
 		tickIndex: number,
 		id: number
 	}[] = [];
+	/** Stores the times the marble left a shape/trigger. */
+	marbleLeave: {
+		tickIndex: number,
+		id: number
+	}[] = [];
 	/** Stores the times the marble collidede with a shape. */
 	marbleContact: {
 		tickIndex: number,
@@ -118,6 +123,7 @@ export class Replay {
 			this.marbleAngularVelocities.length = 0;
 			this.marbleInside.length = 0;
 			this.marbleEnter.length = 0;
+			this.marbleLeave.length = 0;
 			this.marbleContact.length = 0;
 			this.uses.length = 0;
 			this.cameraOrientations.length = 0;
@@ -220,6 +226,15 @@ export class Replay {
 		});
 	}
 
+	recordMarbleLeave(object: Shape | Trigger) {
+		if (this.mode === 'playback' || !this.canStore) return;
+
+		this.marbleLeave.push({
+			tickIndex: this.currentTickIndex,
+			id: object.id
+		});
+	}
+
 	recordMarbleContact(shape: Shape) {
 		if (this.mode === 'playback' || !this.canStore) return;
 
@@ -259,6 +274,13 @@ export class Replay {
 
 			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.triggers.find(x => x.id === obj.id);
 			object.onMarbleEnter(this.level.timeState);
+		}
+
+		for (let obj of this.marbleLeave) {
+			if (obj.tickIndex !== i) continue;
+
+			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.triggers.find(x => x.id === obj.id);
+			object.onMarbleLeave(this.level.timeState);
 		}
 
 		for (let obj of this.marbleContact) {
@@ -316,7 +338,7 @@ export class Replay {
 
 		// First, create a more compact object by utilizing typed arrays.
 		let serialized: SerializedReplay = {
-			version: 1,
+			version: 2,
 			timestamp: Date.now(),
 			missionPath: this.missionPath,
 			marblePositions: Util.arrayBufferToString(Replay.vec3sToBuffer(this.marblePositions).buffer),
@@ -325,6 +347,7 @@ export class Replay {
 			marbleAngularVelocities: Util.arrayBufferToString(Replay.vec3sToBuffer(this.marbleAngularVelocities).buffer),
 			marbleInside: this.marbleInside,
 			marbleEnter: this.marbleEnter,
+			marbleLeave: this.marbleLeave,
 			marbleContact: this.marbleContact,
 			uses: this.uses,
 			cameraOrientations: Util.arrayBufferToString(cameraOrientations.buffer),
@@ -362,6 +385,7 @@ export class Replay {
 		replay.marbleAngularVelocities = Replay.bufferToVec3s(new Float32Array(Util.stringToArrayBuffer(serialized.marbleAngularVelocities)));
 		replay.marbleInside = serialized.marbleInside;
 		replay.marbleEnter = serialized.marbleEnter;
+		replay.marbleLeave = serialized.marbleLeave ?? []; // Might not be there in older versions
 		replay.marbleContact = serialized.marbleContact;
 		replay.uses = serialized.uses;
 		
@@ -455,6 +479,10 @@ export interface SerializedReplay {
 		id: number
 	}[];
 	marbleEnter: {
+		tickIndex: number,
+		id: number
+	}[];
+	marbleLeave: {
 		tickIndex: number,
 		id: number
 	}[];

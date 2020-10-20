@@ -322,7 +322,7 @@ const setImages = (fromTimeout = false) => {
 
 	// Preload the neighboring-level images for faster flicking between levels without having to wait for images to load.
 	for (let i = 0; i <= 10; i++) {
-		let index = currentLevelIndex + Math.ceil(i / 2) * ((i % 2)? 1 : -1); // Go in an outward spiral pattern
+		let index = getCycleMissionIndex(Math.ceil(i / 2) * ((i % 2)? 1 : -1)); // Go in an outward spiral pattern, but only visit the levels that match the current search
 		let mission = currentLevelArray[index];
 		if (!mission) continue;
 
@@ -414,19 +414,23 @@ const displayBestTimes = () => {
 
 /** Advance the current level index by the specified count while respecting the search query. That count can be negative. */
 export const cycleMission = (direction: number) => {
-	if (direction > 0 && !canGoNext()) return;
-	if (direction < 0 && !canGoPrev()) return;
+	let index = getCycleMissionIndex(direction);
+	if (index === currentLevelIndex) return;
 
-	currentLevelIndex += direction;
-	if (currentLevelIndex < 0) currentLevelIndex = 0;
-	if (currentLevelIndex >= currentLevelArray.length) currentLevelIndex = currentLevelArray.length - 1;
+	currentLevelIndex = index;
+	displayMission();
+};
 
-	if (direction !== 0) for (let i = currentLevelIndex; i >= 0 && i < currentLevelArray.length; i += Math.sign(direction)) {
-		currentLevelIndex = i;
-		if (currentLevelArray[currentLevelIndex].matchesSearch(currentQueryWords)) break;
+/** Gets the levels index you would get by skipping a certain amount forwards/backwards while respecting the search query. */
+const getCycleMissionIndex = (direction: number) => {
+	if (direction === 0) return currentLevelIndex;
+
+	for (let i = currentLevelIndex + Math.sign(direction); i >= 0 && i < currentLevelArray.length; i += Math.sign(direction)) {
+		if (currentLevelArray[i].matchesSearch(currentQueryWords)) direction = Math.sign(direction) * (Math.abs(direction) - 1);
+		if (direction === 0) return i;
 	}
 
-	displayMission();
+	return currentLevelIndex;
 };
 
 window.addEventListener('keydown', (e) => {

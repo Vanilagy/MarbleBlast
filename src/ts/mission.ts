@@ -54,8 +54,8 @@ export class Mission {
 		let missionInfo = mission.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
 
 		mission.title = missionInfo.name;
-		mission.artist = missionInfo.artist;
-		mission.description = missionInfo.desc;
+		mission.artist = missionInfo.artist ?? '';
+		mission.description = missionInfo.desc ?? '';
 		if (missionInfo.time && missionInfo.time !== "0") mission.qualifyTime = MisParser.parseNumber(missionInfo.time);
 		if (missionInfo.goldtime) mission.goldTime = MisParser.parseNumber(missionInfo.goldtime), mission.hasGoldTime = true;
 		mission.type = missionInfo.type.toLowerCase() as any;
@@ -69,8 +69,8 @@ export class Mission {
 		let path = 'custom/' + entry.id;
 		let mission = new Mission(path);
 		mission.title = entry.name.trim();
-		mission.artist = entry.artist;
-		mission.description = entry.desc;
+		mission.artist = entry.artist ?? '';
+		mission.description = entry.desc ?? '';
 		mission.id = entry.id;
 		mission.initSearchString();
 
