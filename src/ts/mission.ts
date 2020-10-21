@@ -111,8 +111,6 @@ export class Mission {
 		let parser = new MisParser(text);
 		let misFile = parser.parse();
 
-		console.log(text, zip.files, misFile);
-
 		this.misFile = misFile;
 		this.root = misFile.root;
 

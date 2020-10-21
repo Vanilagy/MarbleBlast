@@ -72,30 +72,37 @@ export class Interior {
 			let mat = new THREE.MeshLambertMaterial();
 			materials.push(mat);
 			
-			let currentPath = this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length);
-			// Clean up the path
-			if (texName.includes('mbptextures/') || texName.includes('interiors_mbp/') || texName.includes('mbp/'))
-				currentPath = currentPath.replace('interiors/', 'interiors_mbp/');
+			let fullPath = this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length);
+			const lookForTexture = async () => {
+				let currentPath = fullPath;
 
-			while (true) {
-				// Search for the texture file inside-out, first looking in the closest directory and then searching in parent directories until it is found.
-
-				currentPath = currentPath.slice(0, Math.max(0, currentPath.lastIndexOf('/')));
-				if (!currentPath) break; // Nothing found
-
-				let fullNames = this.level.mission.getFullNamesOf(currentPath + '/' + fileName);
-				if (fullNames.length > 0) {
-					let name = fullNames.find(x => !x.endsWith('.dif'));
-					if (!name) break;
-
-					// We found the texture file; create the texture.
-					let texture = await this.level.mission.getTexture(currentPath + '/' + name);
-					texture.wrapS = THREE.RepeatWrapping;
-					texture.wrapT = THREE.RepeatWrapping;
-					mat.map = texture;
-
-					break;
+				while (true) {
+					// Search for the texture file inside-out, first looking in the closest directory and then searching in parent directories until it is found.
+	
+					currentPath = currentPath.slice(0, Math.max(0, currentPath.lastIndexOf('/')));
+					if (!currentPath) break; // Nothing found
+	
+					let fullNames = this.level.mission.getFullNamesOf(currentPath + '/' + fileName);
+					if (fullNames.length > 0) {
+						let name = fullNames.find(x => !x.endsWith('.dif'));
+						if (!name) break;
+	
+						// We found the texture file; create the texture.
+						let texture = await this.level.mission.getTexture(currentPath + '/' + name);
+						texture.wrapS = THREE.RepeatWrapping;
+						texture.wrapT = THREE.RepeatWrapping;
+						mat.map = texture;
+	
+						break;
+					}
 				}
+			};
+
+			await lookForTexture(); // First look for the texture regularly
+			if (!mat.map && fullPath.includes('interiors/')) {
+				// If we didn't find the texture, try looking for it in the MBP folder.
+				fullPath = fullPath.replace('interiors/', 'interiors_mbp/');
+				await lookForTexture();
 			}
 
 			this.materialGeometry.push({
