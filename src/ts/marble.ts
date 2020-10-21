@@ -221,16 +221,20 @@ export class Marble {
 			contactNormalRotation.setArc(this.level.currentUp, contactNormal);
 			movementRotationAxis.mulMat3Eq(contactNormalRotation.toMat3());
 
-			// Implements sliding: If we hit the surface at an angle below 45°, and move in that approximate direction, we don't bounce.
-			let dot0 = -contactNormal.dot(this.lastVel.clone().normalize());
-			if (dot0 > 0.001 && Math.asin(dot0) <= Math.PI/4 && movementVec.length() > 0 && movementVec.dot(Util.vecOimoToThree(this.lastVel)) > 0) {
-				dot0 = contactNormal.dot(this.body.getLinearVelocity().clone().normalize());
+			let lastSurfaceRelativeVelocity = this.lastVel.sub(surfaceShape.getRigidBody().getLinearVelocity());
+			let surfaceRelativeVelocity = this.body.getLinearVelocity().sub(surfaceShape.getRigidBody().getLinearVelocity());
+			let maxDotSlide = 0.5; // 30°
+
+			// Implements sliding: If we hit the surface at an angle below 45°, and have movement keys pressed, we don't bounce.
+			let dot0 = -contactNormal.dot(lastSurfaceRelativeVelocity.clone().normalize());
+			if (dot0 > 0.001 && dot0 <= maxDotSlide && movementVec.length() > 0) {
+				let dot = contactNormal.dot(this.body.getLinearVelocity());
 				let linearVelocity = this.body.getLinearVelocity();
-				this.body.addLinearVelocity(contactNormal.scale(-dot0 * linearVelocity.length()));
+				let originalLength = linearVelocity.length();
+				linearVelocity.addEq(contactNormal.scale(-dot)); // Remove all velocity in the direction of the surface normal
 
 				let newLength = this.body.getLinearVelocity().length();
-				let diff = linearVelocity.length() - newLength;
-				linearVelocity = this.body.getLinearVelocity();
+				let diff = originalLength - newLength;
 				linearVelocity.normalize().scaleEq(newLength + diff * 2); // Give a small speedboost
 
 				this.body.setLinearVelocity(linearVelocity);
@@ -288,7 +292,6 @@ export class Marble {
 			}
 
 			// Handle rolling and sliding sounds
-			let surfaceRelativeVelocity = this.body.getLinearVelocity().sub(surfaceShape.getRigidBody().getLinearVelocity());
 			if (contactNormal.dot(surfaceRelativeVelocity) < 0.01) {
 				let predictedMovement = this.body.getAngularVelocity().cross(this.level.currentUp).scale(1 / Math.PI / 2);
 				// The expected movement based on the current angular velocity. If actual movement differs too much, we consider the marble to be "sliding".

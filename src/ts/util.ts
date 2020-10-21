@@ -475,6 +475,10 @@ export abstract class Util {
 	static last<T>(arr: T[]) {
 		return arr[arr.length - 1];
 	}
+
+	static isSafari() {
+		return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

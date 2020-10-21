@@ -37,6 +37,11 @@ export abstract class AudioManager {
 
 	/** Loads an audio buffer from a path. Returns the cached version whenever possible. */
 	static loadBuffer(path: string) {
+		if (path.endsWith('.ogg') && Util.isSafari()) {
+			// Safari can't decode OGG, so we serve it a fallback MP3 version instead.
+			path = path.replace('.ogg', '.mp3');
+		}
+
 		if (this.audioBufferCache.has(path)) return this.audioBufferCache.get(path);
 
 		let promise = new Promise<AudioBuffer>(async (resolve) => {
