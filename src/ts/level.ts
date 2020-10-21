@@ -427,7 +427,7 @@ export class Level extends Scheduler {
 			if (!pathedInterior) return;
 
 			this.scene.add(pathedInterior.group);
-			this.physics.addInterior(pathedInterior);
+			if (pathedInterior.hasCollision) this.physics.addInterior(pathedInterior);
 			this.interiors.push(pathedInterior);
 			for (let trigger of pathedInterior.triggers) this.triggers.push(trigger);
 
@@ -466,14 +466,23 @@ export class Level extends Scheduler {
 		let { dif: difFile, path } = await this.mission.getDif(element.interiorfile);
 		if (!difFile) return;
 
-		console.log(difFile, path);
-
 		let interior = new Interior(difFile, path, this);
 		await interior.init();
-		interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
+
+		let interiorPosition = MisParser.parseVector3(element.position);
+		let interiorRotation = MisParser.parseRotation(element.rotation);
+		let interiorScale = MisParser.parseVector3(element.scale);
+		let hasCollision = interiorScale.x !== 0 && interiorScale.y !== 0 && interiorScale.z !== 0; // Don't want to add buggy geometry
+
+		// Fix zero-volume interiors so they receive correct lighting
+		if (interiorScale.x === 0) interiorScale.x = 0.0001;
+		if (interiorScale.y === 0) interiorScale.y = 0.0001;
+		if (interiorScale.z === 0) interiorScale.z = 0.0001;
+
+		interior.setTransform(interiorPosition, interiorRotation, interiorScale);
 
 		this.scene.add(interior.group);
-		this.physics.addInterior(interior);
+		if (hasCollision) this.physics.addInterior(interior);
 		this.interiors.push(interior);
 	}
 

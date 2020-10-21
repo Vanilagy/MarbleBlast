@@ -21,6 +21,7 @@ export class PathedInterior extends Interior {
 	simGroup: MissionElementSimGroup;
 	element: MissionElementPathedInterior;
 	triggers: MustChangeTrigger[] = [];
+	hasCollision: boolean;
 
 	/** The total duration of the path. */
 	duration: number;
@@ -60,6 +61,13 @@ export class PathedInterior extends Interior {
 		this.basePosition = MisParser.parseVector3(this.element.baseposition);
 		this.baseOrientation = MisParser.parseRotation(this.element.baserotation);
 		this.baseScale = MisParser.parseVector3(this.element.basescale);
+		this.hasCollision = this.baseScale.x !== 0 && this.baseScale.y !== 0 && this.baseScale.z !== 0; // Don't want to add buggy geometry
+
+		// Fix zero-volume interiors so they receive correct lighting
+		if (this.baseScale.x === 0) this.baseScale.x = 0.0001;
+		if (this.baseScale.y === 0) this.baseScale.y = 0.0001;
+		if (this.baseScale.z === 0) this.baseScale.z = 0.0001;
+
 		this.buildCollisionGeometry(this.baseScale);
 		this.body.setOrientation(new OIMO.Quat(this.baseOrientation.x, this.baseOrientation.y, this.baseOrientation.z, this.baseOrientation.w));
 		this.element = this.element;
