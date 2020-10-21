@@ -415,13 +415,13 @@ const displayBestTimes = () => {
 /** Advance the current level index by the specified count while respecting the search query. That count can be negative. */
 export const cycleMission = (direction: number) => {
 	let index = getCycleMissionIndex(direction);
-	if (index === currentLevelIndex) return;
+	if (index === null || index === currentLevelIndex) return;
 
 	currentLevelIndex = index;
 	displayMission();
 };
 
-/** Gets the levels index you would get by skipping a certain amount forwards/backwards while respecting the search query. */
+/** Gets the level index you would get by skipping a certain amount forwards/backwards while respecting the search query. Returns null if the index would peek outside of the current level array. */
 const getCycleMissionIndex = (direction: number) => {
 	if (direction === 0) return currentLevelIndex;
 
@@ -430,7 +430,7 @@ const getCycleMissionIndex = (direction: number) => {
 		if (direction === 0) return i;
 	}
 
-	return currentLevelIndex;
+	return null;
 };
 
 window.addEventListener('keydown', (e) => {

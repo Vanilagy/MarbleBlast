@@ -2,6 +2,7 @@ import { MissionElementSimGroup, MisParser, MissionElementType, MissionElementSc
 import { ResourceManager } from "./resources";
 import { DifParser, DifFile } from "./parsing/dif_parser";
 import { Util } from "./util";
+import { DtsFile, DtsParser } from "./parsing/dts_parser";
 
 /** A custom levels archive entry. */
 export interface CLAEntry {
@@ -110,13 +111,25 @@ export class Mission {
 		let parser = new MisParser(text);
 		let misFile = parser.parse();
 
+		console.log(text, zip.files, misFile);
+
 		this.misFile = misFile;
 		this.root = misFile.root;
 
 		// Set up some metadata
 		let missionInfo = this.root.elements.find(x => x._type === MissionElementType.ScriptObject && x._name === "MissionInfo") as MissionElementScriptObject;
-		if (missionInfo?.time && missionInfo.time !== "0") this.qualifyTime = MisParser.parseNumber(missionInfo.time);
-		if (missionInfo?.goldtime) this.goldTime = MisParser.parseNumber(missionInfo.goldtime), this.hasGoldTime = true;
+		if (missionInfo?.time) {
+			this.qualifyTime = MisParser.parseNumber(missionInfo.time);
+			if (!this.qualifyTime) this.qualifyTime = Infinity; // Catches both 0 and NaN cases
+		}
+		if (missionInfo?.goldtime) {
+			this.goldTime = MisParser.parseNumber(missionInfo.goldtime);
+			this.hasGoldTime = true;
+			if (!this.goldTime) { // Again, catches both 0 and NaN cases
+				this.hasGoldTime = false;
+				this.goldTime = 0;
+			}
+		}
 	}
 
 	/** Gets the path of the image of a mission. */
@@ -160,6 +173,23 @@ export class Mission {
 		}
 
 		return { dif, path };
+	}
+
+	/** Gets a DTS file from the mission resources. */
+	async getDts(path: string) {
+		let dts: DtsFile = null;
+
+		if (this.zipDirectory && this.zipDirectory.files[path]) {
+			// Get it from the zip
+			let arrayBuffer = await this.zipDirectory.files[path].async('arraybuffer');
+			let parser = new DtsParser(arrayBuffer);
+			let result = parser.parse();
+			dts = result;
+		} else {
+			dts = await DtsParser.loadFile('./assets/' + path);
+		}
+
+		return dts;
 	}
 
 	/** Same as `ResourceManager.getFullNamesOf`, but including custom mission resources. */

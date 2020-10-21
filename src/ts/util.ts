@@ -431,6 +431,24 @@ export abstract class Util {
 		return -1;
 	}
 
+	/** Returns true iff the supplied index is part of a string literal. */
+	static indexIsInStringLiteral(str: string, index: number, strLiteralToken = '"') {
+		let inString = false;
+		for (let i = 0; i < str.length; i++) {
+			let c = str[i];
+
+			if (inString) {
+				if (i === index) return true;
+				if (c === strLiteralToken && str[i-1] !== '\\') inString = false;
+				continue;
+			}
+
+			if (c === strLiteralToken) inString = true;
+		}
+
+		return false;
+	}
+
 	/** Reorders an array with the given index map. */
 	static remapIndices<T>(arr: T[], indices: number[]) {
 		return indices.map(i => arr[i]);
@@ -451,6 +469,11 @@ export abstract class Util {
 	static normalizeString(str: string) {
 		// https://stackoverflow.com/questions/990904/remove-accents-diacritics-in-a-string-in-javascript
 		return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+	}
+
+	/** Gets the last item in an array. */
+	static last<T>(arr: T[]) {
+		return arr[arr.length - 1];
 	}
 }
 

@@ -5,7 +5,8 @@ import { ResourceManager } from "../resources";
 export interface MisFile {
 	root: MissionElementSimGroup,
 	/** The custom marble attributes overrides specified in the file. */
-	marbleAttributes: Record<string, string>
+	marbleAttributes: Record<string, string>,
+	activatedPackages: string[]
 }
 
 export enum MissionElementType {
@@ -223,6 +224,7 @@ const blockCommentRegEx = /\/\*(.|\n)*?\*\//g;
 const lineCommentRegEx = /\/\/.*/g;
 const assignmentRegEx = /(\$(?:\w|\d)+)\s*=\s*(.+?);/g;
 const marbleAttributesRegEx = /setMarbleAttributes\("(\w+)",\s*(.+?)\);/g;
+const activatePackageRegEx = /activatePackage\((.+?)\);/g;
 
 /** A parser for .mis files, which hold mission information. */
 export class MisParser {
@@ -230,35 +232,43 @@ export class MisParser {
 	index = 0;
 	currentElementId = 0;
 	variables: Record<string, string>;
-	marbleAttributes: Record<string, string>;
 
 	constructor(text: string) {
 		this.text = text;
 	}
 
-	parse() {
+	parse(): MisFile {
 		let objectWriteBeginIndex = this.text.indexOf("//--- OBJECT WRITE BEGIN ---");
 		let objectWriteEndIndex = this.text.lastIndexOf("//--- OBJECT WRITE END ---");
 
+		let outsideText = this.text.slice(0, objectWriteBeginIndex) + this.text.slice(objectWriteEndIndex);
+
 		// Find all specified variables
 		this.variables = { "$usermods": '""' }; // Just make $usermods point to nothing
-		let preamble = this.text.slice(0, objectWriteBeginIndex);
 		assignmentRegEx.lastIndex = 0;
 		let match: RegExpMatchArray = null;
-		while ((match = assignmentRegEx.exec(preamble)) !== null) {
+		while ((match = assignmentRegEx.exec(outsideText)) !== null) {
 			// Only use the first variable found. This is because the variable is likely to be modified later on with conditional statements and that's too complex to parse right now.
 			if (!this.variables[match[1]]) this.variables[match[1]] = match[2];
 		}
 
 		// Parse any custom marble attributes specified at the top of the file
-		this.marbleAttributes = {};
+		let marbleAttributes: Record<string, string> = {};
 		match = null;
 		marbleAttributesRegEx.lastIndex = 0;
-		while ((match = marbleAttributesRegEx.exec(preamble)) !== null) {
-			this.marbleAttributes[match[1]] = this.resolveExpression(match[2]);
+		while ((match = marbleAttributesRegEx.exec(outsideText)) !== null) {
+			marbleAttributes[match[1]] = this.resolveExpression(match[2]);
 		}
 
-		// Trim away the preamble
+		// Parse any packages that the mission file activates
+		let activatedPackages: string[] = [];
+		match = null;
+		activatePackageRegEx.lastIndex = 0;
+		while ((match = activatePackageRegEx.exec(outsideText)) !== null) {
+			activatedPackages.push(this.resolveExpression(match[1]));
+		}
+
+		// Trim away the outside text
 		if (objectWriteBeginIndex !== -1 && objectWriteEndIndex !== -1) {
 			this.text = this.text.slice(objectWriteBeginIndex, objectWriteEndIndex);
 		}
@@ -271,6 +281,10 @@ export class MisParser {
 
 			let blockMatch = blockCommentRegEx.exec(this.text);
 			let lineMatch = lineCommentRegEx.exec(this.text);
+
+			// The detected "comment" might be inside a string literal, in which case we ignore it 'cause it ain't no comment.
+			if (blockMatch && Util.indexIsInStringLiteral(this.text, blockMatch.index)) blockMatch = null;
+			if (lineMatch && Util.indexIsInStringLiteral(this.text, lineMatch.index)) lineMatch = null;
 
 			if (!blockMatch && !lineMatch) break;
 			else if (!lineMatch || (blockMatch && lineMatch && blockMatch.index < lineMatch.index)) {
@@ -292,13 +306,14 @@ export class MisParser {
 
 		if (elements.length !== 1) {
 			// We expect there to be only one outer element; the MissionGroup SimGroup.
-			throw new Error("Mission file doesn't have exactly 1 outer element!");
 			console.log(elements);
+			throw new Error("Mission file doesn't have exactly 1 outer element!");
 		}
 
 		return {
 			root: elements[0] as MissionElementSimGroup,
-			marbleAttributes: this.marbleAttributes
+			marbleAttributes: marbleAttributes,
+			activatedPackages: activatedPackages
 		};
 	}
 

@@ -154,7 +154,7 @@ export class Shape {
 	async init(level?: Level, id = 0) {
 		this.id = id;
 		this.level = level;
-		this.dts = await DtsParser.loadFile('./assets/data/' + this.dtsPath);
+		this.dts = await ((this.level)? this.level.mission.getDts('data/' + this.dtsPath) : DtsParser.loadFile('./assets/data/' + this.dtsPath));
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
 
 		this.group = new THREE.Group();

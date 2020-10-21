@@ -466,6 +466,8 @@ export class Level extends Scheduler {
 		let { dif: difFile, path } = await this.mission.getDif(element.interiorfile);
 		if (!difFile) return;
 
+		console.log(difFile, path);
+
 		let interior = new Interior(difFile, path, this);
 		await interior.init();
 		interior.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
@@ -538,7 +540,10 @@ export class Level extends Scheduler {
 	async addTSStatic(element: MissionElementTSStatic) {
 		let shape = new Shape();
 		let shapeName = element.shapename.toLowerCase();
-		shape.dtsPath = shapeName.slice(shapeName.indexOf('shapes/'));
+		let index = shapeName.indexOf('data/');
+		if (index === -1) return;
+
+		shape.dtsPath = shapeName.slice(index + 'data/'.length);
 		shape.isTSStatic = true;
 		shape.shareId = 1;
 		shape.useInstancing = true; // We can safely instance all TSStatics
@@ -996,8 +1001,8 @@ export class Level extends Scheduler {
 				let first = spawnPoints.elements[0] as MissionElementTrigger;
 				position = MisParser.parseVector3(first.position);
 			} else {
-				// If there isn't anything, start at the origin
-				position = new THREE.Vector3();
+				// If there isn't anything, start at this weird point
+				position = new THREE.Vector3(0, 0, 300);
 			}
 		}
 
@@ -1058,14 +1063,20 @@ export class Level extends Scheduler {
 		}
 	}
 
-	pickUpGem() {
+	pickUpGem(gem: Gem) {
 		this.gemCount++;
 		let string: string;
 
-		// Show a notification (and sound) based on the gems remaining
+		// Show a notification (and play a sound) based on the gems remaining
 		if (this.gemCount === this.totalGems) {
 			string = "You have all the gems, head for the finish!";
 			AudioManager.play('gotallgems.wav');
+			
+			// Some levels with this package end immediately upon collection of all gems
+			if (this.mission.misFile.activatedPackages.includes('endWithTheGems')) {
+				let completionOfImpact = this.physics.computeCompletionOfImpactWithBody(gem.bodies[0], 2); // Get the exact point of impact
+				this.touchFinish(completionOfImpact);
+			}
 		} else {
 			string = "You picked up a gem.  ";
 
@@ -1106,19 +1117,26 @@ export class Level extends Scheduler {
 		this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart());
 	}
 
-	touchFinish() {
+	touchFinish(completionOfImpactOverride?: number) {
 		// Allow finishing with less than half a second of having been OOB
 		if (this.finishTime !== null || (this.outOfBounds && this.timeState.currentAttemptTime - this.outOfBoundsTime.currentAttemptTime >= 500)) return;
 
 		this.replay.recordTouchFinish();
 
-		if (this.gemCount < this.totalGems) {
+		if (completionOfImpactOverride === undefined && this.gemCount < this.totalGems) {
 			AudioManager.play('missinggems.wav');
 			displayAlert("You can't finish without all the gems!!");
 		} else {
-			// The level was completed! Store the time of finishing. Like with start pads, use the last end pad.
-			let finishAreaShape = Util.findLast(this.shapes, (shape) => shape instanceof EndPad).colliders[0].body.getShapeList();
-			let completionOfImpact = this.physics.computeCompletionOfImpactWithShapes(new Set([finishAreaShape]), 1);
+			// The level was completed!
+
+			let completionOfImpact: number;
+			if (completionOfImpactOverride === undefined) {
+				// Compute the time of finishing. Like with start pads, use the last end pad.
+				let finishAreaShape = Util.findLast(this.shapes, (shape) => shape instanceof EndPad).colliders[0].body.getShapeList();
+				completionOfImpact = this.physics.computeCompletionOfImpactWithShapes(new Set([finishAreaShape]), 1);
+			} else {
+				completionOfImpact = completionOfImpactOverride;
+			}
 			let toSubtract = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 
 			this.finishTime = Util.jsonClone(this.timeState);
@@ -1134,7 +1152,7 @@ export class Level extends Scheduler {
 			this.finishPitch = this.pitch;
 
 			let endPad = this.shapes.find((shape) => shape instanceof EndPad) as EndPad;
-			endPad.spawnFirework(this.timeState);
+			endPad?.spawnFirework(this.timeState); // EndPad *might* not exist, in that case no fireworks lol
 
 			this.clearSchedule();
 			if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => {

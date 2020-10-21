@@ -172,13 +172,31 @@ export class Marble {
 		// Try to find a touching contact
 		let current = this.body.getContactLinkList();
 		let touching: OIMO.ContactLink;
+		let allContactNormals: OIMO.Vec3[] = []; // Keep a list of all contact normals here
 		while (current) {
 			let contact = current.getContact();
-			if (contact.isTouching()) touching = current;
+			if (contact.isTouching()) {
+				touching = current;
+				
+				// Update the contact to fix artifacts
+				let contact = current.getContact();
+				contact._updateManifold();
+				contact._postSolve();
+
+				let contactNormal = contact.getManifold().getNormal();
+				let surfaceShape = contact.getShape2();
+				if (surfaceShape === this.shape) {
+					// Invert the normal based on shape order
+					contactNormal = contactNormal.scale(-1);
+					surfaceShape = contact.getShape1();
+				}
+
+				allContactNormals.push(contactNormal);
+			}
 
 			current = current.getNext();
 		}
-		current = touching; // Take the last touching contact
+		current = touching; // Take the last touching contact. Only doing collision logic with one contact normal might seem questionable, but keep in mind that there almost always will be only one.
 
 		// The axis of rotation (for angular velocity) is the cross product of the current up vector and the movement vector, since the axis of rotation is perpendicular to both.
 		let movementRotationAxis = this.level.currentUp.cross(Util.vecThreeToOimo(movementVec));
@@ -186,18 +204,11 @@ export class Marble {
 		this.collisionTimeout--;
 
 		if (current) {
-			// Update the contact to fix artifacts
 			let contact = current.getContact();
-			contact._updateManifold();
-			contact._postSolve();
-
-			let contactNormal = contact.getManifold().getNormal();
+			//let contactNormal = contact.getManifold().getNormal();
 			let surfaceShape = contact.getShape2();
-			if (surfaceShape === this.shape) {
-				// Invert the normal based on shape order
-				contactNormal = contactNormal.scale(-1);
-				surfaceShape = contact.getShape1();
-			}
+			if (surfaceShape === this.shape) surfaceShape = contact.getShape1();
+			let contactNormal = Util.last(allContactNormals);
 			this.lastContactNormal = contactNormal;
 			let inverseContactNormal = contactNormal.scale(-1);
 
@@ -250,7 +261,9 @@ export class Marble {
 				collisionTimeoutNeeded = true;
 			}
 
-			if (this.collisionTimeout <= 0 && (gameButtons.jump || this.level.jumpQueued) && contactNormalUpDot > 1e-10) {
+			// See if, out of all contact normals, there is one that's not at a 90° angle to the up vector.
+			let allContactNormalUpDots = allContactNormals.map(x => Math.abs(x.dot(this.level.currentUp)));
+			if (this.collisionTimeout <= 0 && (gameButtons.jump || this.level.jumpQueued) && allContactNormalUpDots.find(x => x > 1e-10)) {
 				// Handle jumping
 				this.setLinearVelocityInDirection(contactNormal, this.jumpImpulse + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
 					this.playJumpSound();
