@@ -30,7 +30,8 @@ interface StorageData {
 		},
 		mouseSensitivity: number,
 		invertYAxis: boolean,
-		alwaysFreeLook: boolean
+		alwaysFreeLook: boolean,
+		reflectiveMarble: boolean
 	},
 	bestTimes: Record<string, BestTimes>,
 	/** Stores the amount of unlocked levels per category of level (beginner, intermediate, advanced) */
@@ -65,7 +66,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		},
 		mouseSensitivity: 0.2,
 		invertYAxis: false,
-		alwaysFreeLook: false
+		alwaysFreeLook: false,
+		reflectiveMarble: false
 	},
 	bestTimes: {},
 	unlockedLevels: [1, 1, 1],
@@ -89,6 +91,7 @@ export abstract class StorageManager {
 
 		if (!this.data.settings.gameButtonMapping.restart) this.data.settings.gameButtonMapping.restart = 'KeyR';
 		if (!this.data.randomId) this.data.randomId = getRandomId();
+		if (this.data.settings.reflectiveMarble === undefined) this.data.settings.reflectiveMarble = false;
 
 		// Setup the IndexedDB
 		this.idbDatabase = new Promise((resolve) => {

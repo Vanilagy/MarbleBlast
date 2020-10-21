@@ -132,23 +132,23 @@
 #graphics-marble-texture-heading {
 	font-family: 'DomCasualRegular';
 	position: absolute;
-	top: 430px;
-	left: 48px;
+	top: 60px;
+	left: 478px;
 	font-size: 24px;
 	white-space: nowrap;
 }
 
 #graphics-marble-texture-choose {
 	position: absolute;
-	top: 461px;
-	left: 45px;
+	top: 91px;
+	left: 475px;
 	filter: hue-rotate(-50deg);
 }
 
 #graphics-marble-texture-choose-text {
 	position: absolute;
-	top: 466px;
-	left: 75px;
+	top: 96px;
+	left: 505px;
 	font-size: 20px;
 	font-family: 'DomCasualRegular';
 	pointer-events: none;
@@ -156,17 +156,33 @@
 
 #graphics-marble-texture-reset {
 	position: absolute;
-	top: 459px;
-	left: 160px;
+	top: 90px;
+	left: 590px;
 }
 
 #graphics-marble-texture-reset-text {
 	position: absolute;
-	top: 465px;
-	left: 194px;
+	top: 96px;
+	left: 624px;
 	font-size: 20px;
 	font-family: 'DomCasualRegular';
 	pointer-events: none;
+}
+
+#graphics-reflective-marble-heading {
+	position: absolute;
+    left: 478px;
+    top: 147px;
+    margin: 0;
+    white-space: nowrap;
+    font-family: 'DomCasualRegular';
+    font-size: 24px;
+}
+
+#graphics-reflective-marble {
+	position: absolute;
+    top: 131px;
+    left: 644px;
 }
 
 #audio-music-track {

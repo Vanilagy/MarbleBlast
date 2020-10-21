@@ -150,6 +150,13 @@ export class Marble {
 		this.slidingSound.node.loop = true;
 
 		await Promise.all([this.rollingSound.promise, this.slidingSound.promise]);
+
+		if (StorageManager.data.settings.reflectiveMarble) {
+			// Add environment map reflection to the marble
+			sphere.material.envMap = this.level.envMap;
+			sphere.material.combine = THREE.MixOperation;
+			sphere.material.reflectivity = 0.15;
+		}
 	}
 
 	tick(time: TimeState) {

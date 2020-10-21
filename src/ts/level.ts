@@ -1173,7 +1173,7 @@ export class Level extends Scheduler {
 			this.finishYaw = this.yaw;
 			this.finishPitch = this.pitch;
 
-			let endPad = this.shapes.find((shape) => shape instanceof EndPad) as EndPad;
+			let endPad = Util.findLast(this.shapes, (shape) => shape instanceof EndPad) as EndPad;
 			endPad?.spawnFirework(this.timeState); // EndPad *might* not exist, in that case no fireworks lol
 
 			this.clearSchedule();

@@ -63,6 +63,7 @@ export const initOptions = async () => {
 
 	if (StorageManager.data.settings.invertYAxis) invertY.click();
 	if (StorageManager.data.settings.alwaysFreeLook) alwaysFreeLook.click();
+	if (StorageManager.data.settings.reflectiveMarble) reflectiveMarbleCheckbox.click();
 
 	// Default selection
 	selectControlsTab('marble');
@@ -523,3 +524,18 @@ const setResetMarbleTextureState = (enabled: boolean) => {
 const buttonRestartLevel = document.querySelector('#button-restart-level') as HTMLImageElement;
 setupButton(buttonRestartLevel, 'options/cntr_cam_dwn', () => changeKeybinding('restart'));
 const buttonRestartLevelContent = document.querySelector('#button-restart-level-content') as HTMLParagraphElement;
+
+const reflectiveMarbleCheckbox = document.querySelector('#graphics-reflective-marble') as HTMLImageElement;
+setupButton(reflectiveMarbleCheckbox, 'options/cntrl_mous_freel', () => {
+	StorageManager.data.settings.reflectiveMarble = !reflectiveMarbleCheckbox.hasAttribute('data-locked');
+	StorageManager.store();
+
+	// Toggle the checkbox
+	if (!reflectiveMarbleCheckbox.hasAttribute('data-locked')) {
+		reflectiveMarbleCheckbox.setAttribute('data-locked', '');
+		reflectiveMarbleCheckbox.src = './assets/ui/options/cntrl_mous_freel_d.png';
+	} else {
+		reflectiveMarbleCheckbox.removeAttribute('data-locked');
+		reflectiveMarbleCheckbox.src = './assets/ui/options/cntrl_mous_freel_h.png';
+	}
+});
