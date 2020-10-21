@@ -516,7 +516,12 @@ export class Level extends Scheduler {
 		let shapePosition = MisParser.parseVector3(element.position);
 		let shapeRotation = MisParser.parseRotation(element.rotation);
 		let shapeScale = MisParser.parseVector3(element.scale);
-		if (shapeScale.length() === 0) shapeScale = new THREE.Vector3(0.0001,0.0001,0.0001); // Apparently we still do collide with point sized shapes
+
+		// Apparently we still do collide with zero-volume shapes
+		if (shapeScale.x === 0) shapeScale.x = 0.0001;
+		if (shapeScale.y === 0) shapeScale.y = 0.0001;
+		if (shapeScale.z === 0) shapeScale.z = 0.0001;
+
 		shape.setTransform(shapePosition, shapeRotation, shapeScale);
 
 		this.scene.add(shape.group);
@@ -571,7 +576,7 @@ export class Level extends Scheduler {
 		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
 		this.scene.add(shape.group);
-		if (shape.worldScale.x !== 0 && shape.worldScale.y !== 0 && shape.worldScale.z !== 0) this.physics.addShape(shape);
+		if (shape.worldScale.x !== 0 && shape.worldScale.y !== 0 && shape.worldScale.z !== 0) this.physics.addShape(shape); // Only add the shape if it actually has any volume
 	}
 
 	/** Adds a ParticleEmitterNode to the world. */
