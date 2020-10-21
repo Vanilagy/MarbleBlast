@@ -11,7 +11,7 @@ export class SmallDuctFan extends ForceShape {
 	constructor() {
 		super();
 
-		this.addConicForce(5, 0.7, 10);
+		this.addConicForce(5, 2.617, 10);
 	}
 
 	async onLevelStart() {
