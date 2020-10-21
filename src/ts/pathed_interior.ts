@@ -46,11 +46,12 @@ export class PathedInterior extends Interior {
 		let { dif: difFile, path } = await level.mission.getDif(interiorElement.interiorresource);
 		if (!difFile) return null;
 		let pathedInterior = new PathedInterior(difFile, path, level, MisParser.parseNumber(interiorElement.interiorindex));
-		
 		pathedInterior.simGroup = simGroup;
 		pathedInterior.element = interiorElement;
-		await pathedInterior.init();
 
+		level.interiors.push(pathedInterior);
+		await Util.wait(10); // See shapes for the meaning of this hack
+		await pathedInterior.init();
 		return pathedInterior;
 	}
 
@@ -216,7 +217,8 @@ export class PathedInterior extends Interior {
 
 	render(time: TimeState) {
 		let transform = this.getTransformAtTime(this.getInternalTime(time.currentAttemptTime));
-		this.group.matrix.copy(transform);
+		this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, transform);
+		this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
 	}
 
 	/** Resets the movement state of the pathed interior to the beginning values. */

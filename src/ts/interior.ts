@@ -7,6 +7,7 @@ import { Point3F } from "./parsing/binary_file_parser";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 0.5;
+const SMOOTH_SHADING_ANGLE_THRESHOLD = Math.cos(Util.degToRad(15));
 
 const specialFriction: Record<string, number> = {
 	"friction_high": 1.5,
@@ -32,14 +33,16 @@ interface VertexBucket {
 	normals: THREE.Vector3[]
 }
 
-const SMOOTH_SHADING_ANGLE_THRESHOLD = Math.cos(Util.degToRad(15));
+interface SharedInteriorData {
+	instancedMesh: THREE.InstancedMesh,
+	instanceIndex: number
+}
 
 /** Represents a Torque 3D Interior, used for the main surfaces and geometry of levels. */
 export class Interior {
 	level: Level;
 	dif: DifFile;
 	difPath: string;
-	group: THREE.Group;
 	/** The collision body of the interior. */
 	body: OIMO.RigidBody;
 	/** The relevant detail level to read from (non-default for pathed interiors) */
@@ -48,10 +51,11 @@ export class Interior {
 	materialGeometry: MaterialGeometry = [];
 	/** Simply contains the file names of the materials without the path to them. */
 	materialNames: string[] = [];
+	/** The data shared with other interiors with the same detail level (used for instancing). */
+	sharedData: SharedInteriorData;
+	instanceIndex: number;
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
-		this.group = new THREE.Group();
-		this.group.matrixAutoUpdate = false;
 		this.dif = file;
 		this.difPath = path;
 		this.level = level;
@@ -66,84 +70,109 @@ export class Interior {
 	async init() {
 		let materials: THREE.Material[] = [];
 
-		for (let i = 0; i < this.detailLevel.materialList.materials.length; i++) {
-			let texName = this.detailLevel.materialList.materials[i].toLowerCase();
-			let fileName = texName.split('/').pop();
-			let mat = new THREE.MeshLambertMaterial();
-			materials.push(mat);
-			
-			let fullPath = this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length);
-			const lookForTexture = async () => {
-				let currentPath = fullPath;
+		// Check if there's already shared data from another interior
+		let sharedDataPromise = this.level.sharedInteriorData.get(this.detailLevel);
+		if (sharedDataPromise) {
+			// If so, wait for that interior to complete initiation...
+			this.sharedData = await sharedDataPromise;
+			this.instanceIndex = ++this.sharedData.instanceIndex;
+		} else {
+			// If we're here, we're the first interior of this type, so let's prepare the shared data
+			let resolveFunc: (data: SharedInteriorData) => any;
+			if (this.level) {
+				let sharedDataPromise = new Promise<SharedInteriorData>((resolve) => resolveFunc = resolve);
+				this.level.sharedInteriorData.set(this.detailLevel, sharedDataPromise);
+			}
 
-				while (true) {
-					// Search for the texture file inside-out, first looking in the closest directory and then searching in parent directories until it is found.
+			for (let i = 0; i < this.detailLevel.materialList.materials.length; i++) {
+				let texName = this.detailLevel.materialList.materials[i].toLowerCase();
+				let fileName = texName.split('/').pop();
+				let mat = new THREE.MeshLambertMaterial();
+				materials.push(mat);
+				
+				let fullPath = this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length);
+				const lookForTexture = async () => {
+					let currentPath = fullPath;
 	
-					currentPath = currentPath.slice(0, Math.max(0, currentPath.lastIndexOf('/')));
-					if (!currentPath) break; // Nothing found
+					while (true) {
+						// Search for the texture file inside-out, first looking in the closest directory and then searching in parent directories until it is found.
+		
+						currentPath = currentPath.slice(0, Math.max(0, currentPath.lastIndexOf('/')));
+						if (!currentPath) break; // Nothing found
+		
+						let fullNames = this.level.mission.getFullNamesOf(currentPath + '/' + fileName);
+						if (fullNames.length > 0) {
+							let name = fullNames.find(x => !x.endsWith('.dif'));
+							if (!name) break;
+		
+							// We found the texture file; create the texture.
+							let texture = await this.level.mission.getTexture(currentPath + '/' + name);
+							texture.wrapS = THREE.RepeatWrapping;
+							texture.wrapT = THREE.RepeatWrapping;
+							mat.map = texture;
+		
+							break;
+						}
+					}
+				};
 	
-					let fullNames = this.level.mission.getFullNamesOf(currentPath + '/' + fileName);
-					if (fullNames.length > 0) {
-						let name = fullNames.find(x => !x.endsWith('.dif'));
-						if (!name) break;
+				await lookForTexture(); // First look for the texture regularly
+				if (!mat.map && fullPath.includes('interiors/')) {
+					// If we didn't find the texture, try looking for it in the MBP folder.
+					fullPath = fullPath.replace('interiors/', 'interiors_mbp/');
+					await lookForTexture();
+				}
 	
-						// We found the texture file; create the texture.
-						let texture = await this.level.mission.getTexture(currentPath + '/' + name);
-						texture.wrapS = THREE.RepeatWrapping;
-						texture.wrapT = THREE.RepeatWrapping;
-						mat.map = texture;
+				this.materialGeometry.push({
+					vertices: [],
+					normals: [],
+					uvs: [],
+					indices: []
+				});
+			}
 	
-						break;
+			let vertexBuckets = new Map<Point3F, VertexBucket[]>(); // Used for computing vertex normals by averaging face normals
+	
+			// Add every surface
+			for (let surface of this.detailLevel.surfaces) this.addSurface(surface, vertexBuckets);
+	
+			// In order to achieve smooth shading, compute vertex normals by average face normals of faces with similar angles
+			for (let [, buckets] of vertexBuckets) {
+				for (let i = 0; i < buckets.length; i++) {
+					let bucket = buckets[i];
+					let avgNormal = new THREE.Vector3();
+	
+					// Average all vertex normals of this bucket
+					for (let j = 0; j < bucket.normals.length; j++) avgNormal.add(bucket.normals[j]);
+					avgNormal.multiplyScalar(1 / bucket.normals.length);
+	
+					// Write the normal vector into the buffers
+					for (let j = 0; j < bucket.materialIndices.length; j++) {
+						let index = bucket.materialIndices[j];
+						let arr = this.materialGeometry[index].normals;
+						let start = bucket.normalIndices[j];
+						arr[start + 0] = avgNormal.x;
+						arr[start + 1] = avgNormal.y;
+						arr[start + 2] = avgNormal.z;
 					}
 				}
+			}
+	
+			// Create the instanced mesh with appropriate instance count
+			let instanceCount = this.level.interiors.filter(x => x.detailLevel === this.detailLevel).length;
+			let geometry = Util.createGeometryFromMaterialGeometry(this.materialGeometry);
+			let mesh = new THREE.InstancedMesh(geometry, materials, instanceCount);
+			mesh.receiveShadow = true;
+			mesh.matrixAutoUpdate = false;
+			this.level.scene.add(mesh);
+
+			this.instanceIndex = 0;
+			this.sharedData = {
+				instancedMesh: mesh,
+				instanceIndex: this.instanceIndex
 			};
-
-			await lookForTexture(); // First look for the texture regularly
-			if (!mat.map && fullPath.includes('interiors/')) {
-				// If we didn't find the texture, try looking for it in the MBP folder.
-				fullPath = fullPath.replace('interiors/', 'interiors_mbp/');
-				await lookForTexture();
-			}
-
-			this.materialGeometry.push({
-				vertices: [],
-				normals: [],
-				uvs: [],
-				indices: []
-			});
+			resolveFunc(this.sharedData);
 		}
-
-		let vertexBuckets = new Map<Point3F, VertexBucket[]>(); // Used for computing vertex normals by averaging face normals
-
-		// Add every surface
-		for (let surface of this.detailLevel.surfaces) this.addSurface(surface, vertexBuckets);
-
-		// In order to achieve smooth shading, compute vertex normals by average face normals of faces with similar angles
-		for (let [, buckets] of vertexBuckets) {
-			for (let i = 0; i < buckets.length; i++) {
-				let bucket = buckets[i];
-				let avgNormal = new THREE.Vector3();
-
-				// Average all vertex normals of this bucket
-				for (let j = 0; j < bucket.normals.length; j++) avgNormal.add(bucket.normals[j]);
-				avgNormal.multiplyScalar(1 / bucket.normals.length);
-
-				// Write the normal vector into the buffers
-				for (let j = 0; j < bucket.materialIndices.length; j++) {
-					let index = bucket.materialIndices[j];
-					let arr = this.materialGeometry[index].normals;
-					let start = bucket.normalIndices[j];
-					arr[start + 0] = avgNormal.x;
-					arr[start + 1] = avgNormal.y;
-					arr[start + 2] = avgNormal.z;
-				}
-			}
-		}
-
-		let geometry = Util.createGeometryFromMaterialGeometry(this.materialGeometry);
-		let mesh = new THREE.Mesh(geometry, materials);
-		mesh.receiveShadow = true;
-		this.group.add(mesh);
 
 		this.level.loadingState.loaded++;
 	}
@@ -282,11 +311,9 @@ export class Interior {
 	}
 
 	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
-		this.group.position.copy(position);
-		this.group.quaternion.copy(orientation);
-		this.group.scale.copy(scale);
-		this.group.updateMatrix();
 		this.worldMatrix.compose(position, orientation, scale);
+		this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, this.worldMatrix);
+		this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
 
 		this.buildCollisionGeometry(scale);
 

@@ -172,7 +172,6 @@ export class PhysicsHelper {
 				// If we hit a pathed interior, we position both the marble and the interior at the predicted point of impact and then run a simulation step.
 				let intPos = Util.vecThreeToOimo(collisionEvent.interior.prevPosition).add(collisionEvent.interiorMovement.scale(collisionEvent.fraction));
 				collisionEvent.interior.body.setPosition(intPos);
-				collisionEvent.interior.group.position.copy(Util.vecOimoToThree(intPos));
 
 				let marblePos = collisionEvent.position.add(collisionEvent.interiorMovement.scale(collisionEvent.fraction));
 				this.level.marble.body.setPosition(marblePos);

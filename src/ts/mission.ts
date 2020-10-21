@@ -32,7 +32,6 @@ export class Mission {
 	id: number;
 	/** The string used for searching missions. */
 	searchString: string;
-
 	title: string;
 	artist: string;
 	description: string;
@@ -42,6 +41,7 @@ export class Mission {
 	type: 'beginner' | 'intermediate' | 'advanced' | 'custom' = 'custom';
 	zipDirectory: JSZip = null;
 	fileToBlobPromises = new Map<JSZip['files'][number], Promise<Blob>>();
+	difCache = new Map<string, Promise<DifFile>>();
 
 	constructor(path: string, misFile?: MisFile) {
 		this.path = path;
@@ -159,15 +159,26 @@ export class Mission {
 		if (path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
 
 		let dif: DifFile = null;
+		if (this.difCache.get(path)) dif = await this.difCache.get(path); // We've already parsed the dif before
+		else {
+			let promise = new Promise<DifFile>(async (resolve) => {
+				let dif: DifFile;
 
-		if (this.zipDirectory && this.zipDirectory.files[path]) {
-			// Get it from the zip
-			let arrayBuffer = await this.zipDirectory.files[path].async('arraybuffer');
-			let parser = new DifParser(arrayBuffer);
-			let result = parser.parse();
-			dif = result;
-		} else {
-			dif = await DifParser.loadFile('./assets/' + path);
+				if (this.zipDirectory && this.zipDirectory.files[path]) {
+					// Get it from the zip
+					let arrayBuffer = await this.zipDirectory.files[path].async('arraybuffer');
+					let parser = new DifParser(arrayBuffer);
+					let result = parser.parse();
+					dif = result;
+				} else {
+					dif = await DifParser.loadFile('./assets/' + path);
+				}
+
+				resolve(dif);
+			});
+
+			this.difCache.set(path, promise);
+			dif = await promise;
 		}
 
 		return { dif, path };

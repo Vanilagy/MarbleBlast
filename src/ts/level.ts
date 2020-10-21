@@ -44,6 +44,7 @@ import { Replay } from "./replay";
 import { getCurrentLevelArray } from "./ui/level_select";
 import { Mission } from "./mission";
 import { PushButton } from "./shapes/push_button";
+import { DifFile } from "./parsing/dif_parser";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -114,6 +115,7 @@ export class Level extends Scheduler {
 	particles: ParticleManager;
 	marble: Marble;
 	interiors: Interior[] = [];
+	sharedInteriorData = new Map<DifFile["detailLevels"][number], any>();
 	triggers: Trigger[] = [];
 
 	shapes: Shape[] = [];
@@ -426,9 +428,7 @@ export class Level extends Scheduler {
 			let pathedInterior = await PathedInterior.createFromSimGroup(simGroup, this);
 			if (!pathedInterior) return;
 
-			this.scene.add(pathedInterior.group);
 			if (pathedInterior.hasCollision) this.physics.addInterior(pathedInterior);
-			this.interiors.push(pathedInterior);
 			for (let trigger of pathedInterior.triggers) this.triggers.push(trigger);
 
 			return;
@@ -467,6 +467,9 @@ export class Level extends Scheduler {
 		if (!difFile) return;
 
 		let interior = new Interior(difFile, path, this);
+		this.interiors.push(interior);
+
+		await Util.wait(10); // See shapes for the meaning of this hack
 		await interior.init();
 
 		let interiorPosition = MisParser.parseVector3(element.position);
@@ -481,9 +484,8 @@ export class Level extends Scheduler {
 
 		interior.setTransform(interiorPosition, interiorRotation, interiorScale);
 
-		this.scene.add(interior.group);
+		//this.scene.add(interior.group);
 		if (hasCollision) this.physics.addInterior(interior);
-		this.interiors.push(interior);
 	}
 
 	async addShape(element: MissionElementStaticShape | MissionElementItem) {
