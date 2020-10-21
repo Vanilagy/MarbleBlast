@@ -156,9 +156,10 @@ export const initLevelSelect = async () => {
 
 	// Sort the missions into the correct array
 	for (let mission of missions) {
-		if (mission.type.toLowerCase() === 'beginner') beginnerLevels.push(mission);
-		else if (mission.type.toLowerCase() === 'intermediate') intermediateLevels.push(mission);
-		else if (mission.type.toLowerCase() === 'advanced') advancedLevels.push(mission);
+		let missionType = mission.path.split('/')[0]; // We don't use the MissionInfo.type because some customs have that set up wrong
+		if (missionType === 'beginner') beginnerLevels.push(mission);
+		else if (missionType === 'intermediate') intermediateLevels.push(mission);
+		else if (missionType === 'advanced') advancedLevels.push(mission);
 		else customLevels.push(mission);
 	}
 

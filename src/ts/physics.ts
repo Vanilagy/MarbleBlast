@@ -1,6 +1,7 @@
 import { Level, PHYSICS_TICK_RATE } from "./level";
 import { PathedInterior } from "./pathed_interior";
 import OIMO from "./declarations/oimo";
+import * as THREE from "three";
 import { Util } from "./util";
 import { Interior } from "./interior";
 import { Shape } from "./shape";
@@ -61,6 +62,12 @@ export class PhysicsHelper {
 	}
 
 	addInterior(interior: Interior) {
+		let interiorScale = new THREE.Vector3();
+		interior.worldMatrix.decompose(new THREE.Vector3(),new THREE.Quaternion(),interiorScale);
+
+		if (interiorScale.x === 0 || interiorScale.y === 0 || interiorScale.z === 0) {
+			return; // Don't want to add buggy geometry
+		}
 		this.world.addRigidBody(interior.body);
 
 		if (interior instanceof PathedInterior) {
