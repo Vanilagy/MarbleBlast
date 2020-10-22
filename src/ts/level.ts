@@ -228,6 +228,7 @@ export class Level extends Scheduler {
 
 		this.restart();
 		for (let shape of this.shapes) await shape.onLevelStart();
+		AudioManager.normalizePositionalAudioVolume();
 
 		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick for correct positional audio playback
 		this.render(); // This will also do a tick

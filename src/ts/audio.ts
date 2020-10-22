@@ -122,7 +122,7 @@ export abstract class AudioManager {
 			let panRemoval = Util.clamp(distance / 1, 0, 1); // If the listener is very close to the center, start moving to the audio source to the center.
 			
 			source.setPannerValue(-relativePosition.y * 0.8 * panRemoval);
-			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1);
+			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1) * source.gainFactor;
 		}
 	}
 
@@ -137,6 +137,28 @@ export abstract class AudioManager {
 			source.stop();
 		}
 	}
+
+	/** Normalizes the volume of positional audio sources based on the sounds around them to prevent the user's permanent loss of hearing. */
+	static normalizePositionalAudioVolume() {
+		let sources = this.audioSources.filter(x => x.position); // Get all positional sources
+
+		for (let i = 0; i < sources.length; i++) {
+			let source = sources[i];
+			let receivedVolume = 0;
+
+			// Accumulate the total received volume at this point
+			for (let j = 0; j < sources.length; j++) {
+				if (i === j) continue;
+				let otherSource = sources[j];
+				let distance = source.position.distanceTo(otherSource.position);
+				let preceivedVolume = Util.clamp(1 - distance / 30, 0, 1);
+				receivedVolume += preceivedVolume;
+			}
+
+			// Normalize it
+			source.gainFactor = 1 / receivedVolume;
+		}
+	}
 }
 
 /** A small wrapper around audio nodes that are used to play a sound. */
@@ -148,6 +170,7 @@ export class AudioSource {
 	panner: StereoPannerNode | PannerNode;
 	position: THREE.Vector3;
 	stopped = false;
+	gainFactor = 1;
 
 	constructor(bufferPromise: Promise<AudioBuffer>, destination: AudioNode, position?: THREE.Vector3) {
 		this.promise = bufferPromise;
