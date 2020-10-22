@@ -3,7 +3,6 @@
 date_default_timezone_set('UTC');
 
 $cwd = getcwd();
-if (!is_file($cwd . "/leaderboard.json")) file_put_contents($cwd . "/leaderboard.json", "{}");
 
 $input = json_decode(file_get_contents("php://input"), true);
 if (!isset($input)) exit();

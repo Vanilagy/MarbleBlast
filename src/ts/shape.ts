@@ -87,12 +87,12 @@ export class Shape {
 	/** Either the meshes or dummy Object3D's used for instancing. */
 	objects: THREE.Object3D[] = [];
 	bodies: OIMO.RigidBody[];
-	/** Holds an optional body transformation. */
-	bodiesLocalTranslation: WeakMap<OIMO.RigidBody, OIMO.Vec3>;
 	/** Whether the marble can physically collide with this shape. */
 	collideable = true;
 	/** Not physical colliders, but a list bodies that overlap is checked with. This is used for things like force fields. */
 	colliders: ColliderInfo[] = [];
+	/** For each shape, the untransformed vertices of their convex hull geometry. */
+	shapeVertices = new Map<OIMO.Shape, THREE.Vector3[]>();
 
 	worldPosition = new THREE.Vector3();
 	worldOrientation = new THREE.Quaternion();
@@ -115,8 +115,6 @@ export class Shape {
 	/** One transformation matrix per DTS node */
 	nodeTransforms: THREE.Matrix4[] = [];
 	skinMeshInfo: SkinMeshData;
-	/** Whether or not to ignore the node rotations specified in the DTS file. */
-	ignoreNodeRotation = false;
 
 	showSequences = true;
 	/** If the element has non-visual sequences, then these should be updated every simulation tick as well. */
@@ -161,7 +159,6 @@ export class Shape {
 		this.bodies = [];
 		this.materials = [];
 		this.materialInfo = new WeakMap();
-		this.bodiesLocalTranslation = new WeakMap();
 
 		let staticGeometries: THREE.BufferGeometry[] = [];
 		let dynamicGeometries: THREE.BufferGeometry[] = [];
@@ -399,7 +396,7 @@ export class Shape {
 					let config = new OIMO.RigidBodyConfig();
 					config.type = OIMO.RigidBodyType.STATIC;
 					let body = new OIMO.RigidBody(config);
-					body.userData = { nodeIndex: i };
+					body.userData = { nodeIndex: i, objectIndex: this.dts.objects.indexOf(object) };
 
 					this.bodies.push(body);
 				}
@@ -535,8 +532,8 @@ export class Shape {
 		return materialGeometry;
 	}
 
-	/** Generates collision geometry for this shape. */
-	generateCollisionGeometry() {
+	/** Generates collision objects for this shape. Geometry will be generated later. */
+	generateCollisionObjects() {
 		let bodyIndex = 0;
 
 		for (let i = 0; i < this.dts.nodes.length; i++) {
@@ -546,18 +543,13 @@ export class Shape {
 				if (!this.dts.names[object.nameIndex].toLowerCase().startsWith("col")) continue;
 
 				let body = this.bodies[bodyIndex++];
-				while (body.getNumShapes() > 0) body.removeShape(body.getShapeList()); // Remove all previous shapes
-
 				for (let j = object.startMeshIndex; j < object.startMeshIndex + object.numMeshes; j++) {
 					let mesh = this.dts.meshes[j];
 					if (!mesh) continue;
 
 					for (let primitive of mesh.primitives) {
-						// Convex the vertices to OIMO.Vec3's and apply world scaling.
-						let vertices = mesh.indices.slice(primitive.start, primitive.start + primitive.numElements)
-							.map((index) => mesh.verts[index])
-							.map((vert) => new OIMO.Vec3(vert.x * this.worldScale.x, vert.y * this.worldScale.y, vert.z * this.worldScale.z));
-						let geometry = new OIMO.ConvexHullGeometry(vertices);
+						// Create the geometry but with all zero vectors for now
+						let geometry = new OIMO.ConvexHullGeometry(Array(primitive.numElements).fill(null).map(x => new OIMO.Vec3()));
 
 						let shapeConfig = new OIMO.ShapeConfig();
 						shapeConfig.geometry = geometry;
@@ -567,6 +559,12 @@ export class Shape {
 						shape.userData = this.id;
 
 						body.addShape(shape);
+
+						// Remember the actual untransformed vertices for this geometry
+						let vertices = mesh.indices.slice(primitive.start, primitive.start + primitive.numElements)
+							.map((index) => mesh.verts[index])
+							.map((vert) => new THREE.Vector3(vert.x, vert.y, vert.z));
+						this.shapeVertices.set(shape, vertices);
 					}
 				}
 			}
@@ -574,15 +572,27 @@ export class Shape {
 
 		if (bodyIndex === 0 && !this.isTSStatic) {
 			// Create collision geometry based on the bounding box
-
 			let body = this.bodies[0];
-			while (body.getNumShapes() > 0) body.removeShape(body.getShapeList()); // Remove all previous shapes
 
-			let dx = (this.dts.bounds.max.x - this.dts.bounds.min.x) * this.worldScale.x;
-			let dy = (this.dts.bounds.max.y - this.dts.bounds.min.y) * this.worldScale.y;
-			let dz = (this.dts.bounds.max.z - this.dts.bounds.min.z) * this.worldScale.z;
+			let o = new OIMO.Vec3(this.dts.bounds.min.x, this.dts.bounds.min.y, this.dts.bounds.min.z);
+			let dx = (this.dts.bounds.max.x - this.dts.bounds.min.x);
+			let dy = (this.dts.bounds.max.y - this.dts.bounds.min.y);
+			let dz = (this.dts.bounds.max.z - this.dts.bounds.min.z);
 
-			let geometry = new OIMO.BoxGeometry(new OIMO.Vec3(dx/2, dy/2, dz/2));
+			// All 8 vertices of the bounding cuboid
+			let vertices = [
+				o,
+				o.add(new OIMO.Vec3(dx, 0, 0)),
+				o.add(new OIMO.Vec3(0, dy, 0)),
+				o.add(new OIMO.Vec3(0, 0, dz)),
+				o.add(new OIMO.Vec3(dx, dy, 0)),
+				o.add(new OIMO.Vec3(dx, 0, dz)),
+				o.add(new OIMO.Vec3(0, dy, dz)),
+				o.add(new OIMO.Vec3(dx, dy, dz))
+			].map(x => Util.vecOimoToThree(x));
+
+			// Create an empty geometry for now
+			let geometry = new OIMO.ConvexHullGeometry(Array(8).fill(null).map(x => new OIMO.Vec3()));
 			let shapeConfig = new OIMO.ShapeConfig();
 			shapeConfig.geometry = geometry;
 			shapeConfig.restitution = this.restitution;
@@ -591,12 +601,7 @@ export class Shape {
 			shape.userData = this.id;
 			body.addShape(shape);
 
-			// Make sure it's in the right place (default position of the box geometry is center)
-			this.bodiesLocalTranslation.set(body, new OIMO.Vec3(
-				Util.avg(this.dts.bounds.max.x, this.dts.bounds.min.x),
-				Util.avg(this.dts.bounds.max.y, this.dts.bounds.min.y),
-				Util.avg(this.dts.bounds.max.z, this.dts.bounds.min.z)
-			));
+			this.shapeVertices.set(shape, vertices);
 		}
 	}
 
@@ -617,7 +622,6 @@ export class Shape {
 				return quaternion;
 			});
 		}
-		if (this.ignoreNodeRotation) for (let quat of quaternions) quat.identity();
 
 		if (!translations) {
 			// Create the default array of translations
@@ -657,29 +661,39 @@ export class Shape {
 		}
 	}
 
-	/** Updates the transforms of the bodies matching the bitfield based on node transforms. */
-	updateBodyTransforms(bitfield: number) {
+	/** Updates the geometries of the bodies matching the bitfield based on node transforms. */
+	updateCollisionGeometry(bitfield: number) {
 		for (let i = 0; i < this.bodies.length; i++) {
 			let body = this.bodies[i];
 			let mat: THREE.Matrix4;
-
+			
 			if (body.userData?.nodeIndex !== undefined) {
 				if (((1 << body.userData.nodeIndex) & bitfield) === 0) continue;
-				mat = this.nodeTransforms[body.userData.nodeIndex].clone();
-				mat.multiplyMatrices(this.worldMatrix, mat);
+				mat = this.worldMatrix.clone();
+				mat.multiplyMatrices(this.worldMatrix, this.nodeTransforms[body.userData.nodeIndex]);
 			} else {
 				mat = this.worldMatrix;
 			}
 
-			let position = new THREE.Vector3();
-			let orientation = new THREE.Quaternion();
-			mat.decompose(position, orientation, new THREE.Vector3());
+			// For all shapes...
+			let currentShape = body.getShapeList();
+			while (currentShape) {
+				// Recompute all vertices by piping them through the matrix.
+				let vertices = this.shapeVertices.get(currentShape)
+					.map((vec) => vec.clone().applyMatrix4(mat))
+					.map((vec) => Util.vecThreeToOimo(vec));
 
-			let localTranslation = this.bodiesLocalTranslation.get(body);
-			if (!localTranslation) localTranslation = new OIMO.Vec3();
+				// Then, assign the value to the vertices of the geometry
+				let geometry = currentShape._geom as OIMO.ConvexHullGeometry;
+				for (let i = 0; i < vertices.length; i++) {
+					geometry._vertices[i].copyFrom(vertices[i]);
+				}
 
-			body.setPosition(new OIMO.Vec3(position.x + localTranslation.x, position.y + localTranslation.y, position.z + localTranslation.z));
-			body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
+				currentShape = currentShape.getNext();
+			}
+
+			// We need to call this for OIMO to update (sync) the shape
+			body.setPosition(new OIMO.Vec3());
 		}
 	}
 
@@ -758,7 +772,7 @@ export class Shape {
 
 			if (rot || trans) {
 				this.updateNodeTransforms(quaternions, translations, rot | trans);
-				if (!onlyVisual) this.updateBodyTransforms(rot | trans);
+				if (!onlyVisual) this.updateCollisionGeometry(rot | trans);
 			}
 		}
 	}
@@ -923,8 +937,8 @@ export class Shape {
 			collider.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
 		}
 
-		if (scaleUpdated) this.generateCollisionGeometry(); // We need to recompute the geometry if the scale changed; this will always be called at least once in the first call
-		this.updateBodyTransforms(0xffffffff); // Update bodies
+		if (scaleUpdated) this.generateCollisionObjects(); // We need to recompute the geometry if the scale changed; this will always be called at least once in the first call
+		this.updateCollisionGeometry(0xffffffff); // Update collision geometry
 	}
 
 	/** Sets the opacity of the shape. Since there's no quick and easy way of doing this, this method recursively sets it for all materials. */

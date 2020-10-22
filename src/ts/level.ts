@@ -569,11 +569,7 @@ export class Level extends Scheduler {
 		shape.isTSStatic = true;
 		shape.shareId = 1;
 		shape.useInstancing = true; // We can safely instance all TSStatics
-		if (shapeName.includes('colmesh')) {
-			// Special cases for colmesh
-			shape.ignoreNodeRotation = true; // A bit hacky but does it for now
-			shape.receiveShadows = false;
-		}
+		if (shapeName.includes('colmesh')) shape.receiveShadows = false; // Special case for colmesh
 
 		this.shapes.push(shape);
 		await Util.wait(10); // Same hack as for regular shapes
