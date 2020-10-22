@@ -156,7 +156,7 @@ export abstract class AudioManager {
 			}
 
 			// Normalize it
-			source.gainFactor = 1 / receivedVolume;
+			source.gainFactor = Math.min(1 / receivedVolume, 1);
 		}
 	}
 }
