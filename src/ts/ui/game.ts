@@ -69,8 +69,12 @@ document.addEventListener('pointerlockchange', () => {
 window.addEventListener('keydown', (e) => {
 	if (gameUiDiv.classList.contains('hidden')) return;
 
-	if (state.currentLevel?.paused && e.key === 'Escape') {
-		pauseNoButton.src = './assets/ui/common/no_d.png';
+	if (e.key === 'Escape') {
+		if (state.currentLevel?.paused) {
+			pauseNoButton.src = './assets/ui/common/no_d.png';
+		} else {
+			tryPause();
+		}
 	}
 
 	if (e.key === 'Enter') {

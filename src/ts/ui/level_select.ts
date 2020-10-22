@@ -8,6 +8,8 @@ import { loadLevel } from "./loading";
 import { secondsToTimeString } from "./game";
 import { StorageManager } from "../storage";
 import { Mission, CLAEntry } from "../mission";
+import { SerializedReplay, Replay } from "../replay";
+import { executeOnWorker } from "../worker";
 
 export const beginnerLevels: Mission[] = [];
 export const intermediateLevels: Mission[] = [];
@@ -94,7 +96,7 @@ const playCurrentLevel = (replayData?: ArrayBuffer) => {
 	if (!currentMission) return;
 
 	levelSelectDiv.classList.add('hidden');
-	loadLevel(currentMission, replayData); // Initiate level loading
+	loadLevel(currentMission, replayData? () => Replay.fromSerialized(replayData) : undefined); // Initiate level loading
 };
 
 /** Initiates level select by loading all missions.  */
@@ -179,21 +181,29 @@ export const initLevelSelect = async () => {
 
 	for (let elem of [bestTime1.children[3], bestTime2.children[3], bestTime3.children[3]]) {
 		let replayButton = elem as HTMLImageElement;
-		replayButton.addEventListener('click', async () => {
+		replayButton.addEventListener('click', async (e) => {
+			if (e.button !== 0) return;
+			let mission = currentLevelArray[currentLevelIndex];
+			if (!mission) return;
+
 			let attr = replayButton.getAttribute('data-score-id');
 			if (!attr) return;
 
 			let replayData = await StorageManager.databaseGet('replays', attr);
 			if (!replayData) return;
 
-			playCurrentLevel(replayData);
+			if (!e.altKey) {
+				playCurrentLevel(replayData);
+			} else {
+				downloadReplay(replayData, mission);
+			}
 		});
 
 		replayButton.addEventListener('mouseenter', () => {
 			AudioManager.play('buttonover.wav');
 		});
-		replayButton.addEventListener('mousedown', () => {
-			AudioManager.play('buttonpress.wav');
+		replayButton.addEventListener('mousedown', (e) => {
+			if (e.button === 0) AudioManager.play('buttonpress.wav');
 		});
 	}
 };
@@ -542,3 +552,61 @@ const selectBasedOnSearchQuery = (display = true) => {
 		}
 	}
 };
+
+/** Downloads a replay as a .wrec file. */
+const downloadReplay = async (replayData: ArrayBuffer, mission: Mission) => {
+	let uncompressed = pako.inflate(new Uint8Array(replayData), { to: 'string' });
+	
+	// This is a bit unfortunate, but we'd like to bundle the mission path with the replay, but the first replay version didn't include it. So we need to check if the replay actually includes the mission path, which we can check by checking if it includes the "version" field.
+	if (!uncompressed.includes('"version"')) {
+		let json = JSON.parse(uncompressed) as SerializedReplay;
+		json.missionPath = mission.path; // Assign the mission path
+
+		let compressed = await executeOnWorker('compress', JSON.stringify(json)) as ArrayBuffer;
+		replayData = compressed;
+	}
+
+	// Create the blob and download it
+	let blob = new Blob([replayData], {
+		type: 'application/octet-stream'
+	});
+	let url = URL.createObjectURL(blob);
+	let filename = Util.removeSpecialChars(mission.title.toLowerCase().split(' ').map(x => Util.uppercaseFirstLetter(x)).join(''));
+	for (let i = 0; i < 6; i++) filename += Math.floor(Math.random() * 10); // Add a random string of numbers to the end
+	filename += '.wrec';
+	Util.download(url, filename);
+	URL.revokeObjectURL(url);
+};
+
+const loadReplayButton = document.querySelector('#load-replay-button') as HTMLImageElement;
+loadReplayButton.addEventListener('click', async (e) => {
+	// Show a file picker
+	let fileInput = document.createElement('input');
+	fileInput.setAttribute('type', 'file');
+	fileInput.setAttribute('accept', ".wrec");
+
+	fileInput.onchange = async (e) => {
+		try {
+			let file = fileInput.files[0];
+			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(file);
+			let replay = Replay.fromSerialized(arrayBuffer);
+
+			let mission = [...beginnerLevels, ...intermediateLevels, ...advancedLevels, ...customLevels].find(x => x.path === replay.missionPath);
+			if (!mission) throw new Error("Mission not found.");
+
+			levelSelectDiv.classList.add('hidden');
+			loadLevel(mission, () => replay);
+		} catch (e) {
+			alert("There was an error loading the replay.");
+			console.error(e);
+		}
+	};
+	fileInput.click();
+});
+
+loadReplayButton.addEventListener('mouseenter', () => {
+	AudioManager.play('buttonover.wav');
+});
+loadReplayButton.addEventListener('mousedown', (e) => {
+	if (e.button === 0) AudioManager.play('buttonpress.wav');
+});

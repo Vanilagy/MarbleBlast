@@ -103,9 +103,11 @@ export class Replay {
 	currentJumpSoundTime = 0;
 	currentBounceTime = 0;
 
-	constructor(level: Level) {
-		this.level = level;
-		this.missionPath = level.mission.path;
+	constructor(level?: Level) {
+		if (level) {
+			this.level = level;
+			this.missionPath = level.mission.path;
+		}
 	}
 
 	/** Inits the replay's values. */
@@ -371,8 +373,8 @@ export class Replay {
 	}
 
 	/** Reconstructs a replay from its compressed array buffer representation. */
-	static fromSerialized(buf: ArrayBuffer, level: Level) {
-		let replay = new Replay(level);
+	static fromSerialized(buf: ArrayBuffer) {
+		let replay = new Replay();
 		let serialized = JSON.parse(pako.inflate(new Uint8Array(buf), { to: 'string' })) as SerializedReplay;
 		let version = serialized.version ?? 0;
 		

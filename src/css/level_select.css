@@ -283,3 +283,14 @@
 #search-input:focus {
 	outline: none;
 }
+
+#load-replay-button {
+	position: absolute;
+    bottom: 18px;
+	left: 42px;
+	opacity: 0.333;
+}
+
+#load-replay-button:hover {
+	opacity: 0.666;
+}

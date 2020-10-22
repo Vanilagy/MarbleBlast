@@ -479,6 +479,32 @@ export abstract class Util {
 	static isSafari() {
 		return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 	}
+
+	static download(url: string, filename: string) {
+		let element = document.createElement('a');
+		element.setAttribute('href', url);
+		element.setAttribute('download', filename);
+		
+		element.style.display = 'none';
+		document.body.appendChild(element);
+		
+		element.click();
+		
+		document.body.removeChild(element);
+	}
+	
+	/** Removes all characters from a string that aren't letters or digits. */
+	static removeSpecialChars(str: string) {
+		let regex = /[^\w\d]/gi;
+		let match: RegExpExecArray = null;
+
+		while ((match = regex.exec(str)) !== null) {
+			str = str.slice(0, match.index) + str.slice(match.index + match[0].length);
+			regex.lastIndex -= match[0].length;
+		}
+
+		return str;
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

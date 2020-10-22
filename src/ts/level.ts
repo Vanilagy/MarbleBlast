@@ -1136,7 +1136,7 @@ export class Level extends Scheduler {
 		setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
 
-		this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart());
+		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart());
 	}
 
 	touchFinish(completionOfImpactOverride?: number) {

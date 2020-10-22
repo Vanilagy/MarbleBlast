@@ -22,7 +22,7 @@ setupButton(cancelButton, 'loading/cancel', () => {
 	loadingIndex++;
 });
 
-export const loadLevel = async (mission: Mission, replayData?: ArrayBuffer) => {
+export const loadLevel = async (mission: Mission, getReplay?: () => Replay) => {
 	loadingDiv.classList.remove('hidden');
 	let indexAtStart = loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
 	
@@ -47,10 +47,12 @@ export const loadLevel = async (mission: Mission, replayData?: ArrayBuffer) => {
 	try {
 		await level.init();
 
-		if (replayData) {
+		if (getReplay) {
+			let replay = getReplay();
 			// Load the replay
-			level.replay = Replay.fromSerialized(replayData, level);
-			level.replay.mode = 'playback';
+			level.replay = replay;
+			replay.level = level;
+			replay.mode = 'playback';
 		}
 
 		clearInterval(refresher);
