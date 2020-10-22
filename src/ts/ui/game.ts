@@ -345,15 +345,22 @@ const nameEntryInput = document.querySelector('#name-entry-input') as HTMLInputE
 const nameEntryButton = nameEntryScreenDiv.querySelector('#name-entry-confirm') as HTMLImageElement;
 
 setupButton(nameEntryButton, 'common/ok', () => {
-	if (nameEntryInput.value.trim().length < 2) {
+	let trimmed = nameEntryInput.value.trim();
+
+	if (trimmed.length < 2) {
 		alert("Please enter a proper name for usage in the online leaderboard.");
+		return;
+	}
+
+	if (Util.isNaughty(trimmed)) {
+		alert("The name you chose contains words deemed inappropriate. Please, do the right thing and choose a non-offensive name.");
 		return;
 	}
 
 	// Store the time and close the dialog.
 	let level = state.currentLevel;
-	StorageManager.data.lastUsedName = nameEntryInput.value.trim();
-	let newScoreId = StorageManager.insertNewTime(level.mission.path, nameEntryInput.value.trim(), level.finishTime.gameplayClock);
+	StorageManager.data.lastUsedName = trimmed;
+	let newScoreId = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
 	updateOnlineLeaderboard();
 
 	nameEntryScreenDiv.classList.add('hidden');
