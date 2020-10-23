@@ -724,7 +724,7 @@ export class Level extends Scheduler {
 		let timeToDisplay = tempTimeState.gameplayClock;
 		if (this.currentTimeTravelBonus === 0) timeToDisplay = Math.max(timeToDisplay - 1000 / PHYSICS_TICK_RATE, 0);
 		if (this.finishTime) timeToDisplay = this.finishTime.gameplayClock;
-		timeToDisplay = this.maxDisplayedTime = Math.max(timeToDisplay, this.maxDisplayedTime);
+		else timeToDisplay = this.maxDisplayedTime = Math.max(timeToDisplay, this.maxDisplayedTime);
 		displayTime(timeToDisplay / 1000);
 
 		requestAnimationFrame(() => this.render());
