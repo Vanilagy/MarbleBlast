@@ -9,6 +9,7 @@ This patch is meant to be an overall "quality of life" update to the port, round
 - **Tons of bugfixes regarding broken custom levels.** Fixed include levels not loading, MBP textures not loading, not being able to finish when OOB, missing qualifying times, going negative with Time Travels, falling through terrain, and other things.
 - **Shape hitboxes have been fixed**. So no more glitchy trapdoors.
 - **Interiors are now smoothly shaded and instanced**. Basically, this means that curved surfaces now look smoother and lots of the same interior in one level should be more performant now.
+- **The marble can now be made reflective** in the graphics options.
 - **Safari finally gets music**. Yes.
 - **Migrated to IndexedDB entirely**, ditching localStorage.
 
