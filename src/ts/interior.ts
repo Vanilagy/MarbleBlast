@@ -43,6 +43,7 @@ export class Interior {
 	level: Level;
 	dif: DifFile;
 	difPath: string;
+	mesh: THREE.Mesh;
 	/** The collision body of the interior. */
 	body: OIMO.RigidBody;
 	/** The relevant detail level to read from (non-default for pathed interiors) */
@@ -53,6 +54,8 @@ export class Interior {
 	materialNames: string[] = [];
 	/** The data shared with other interiors with the same detail level (used for instancing). */
 	sharedData: SharedInteriorData;
+	/** Whether or not to use instancing. Usually true, but not for Macs. */
+	useInstancing = true;
 	instanceIndex: number;
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
@@ -65,6 +68,7 @@ export class Interior {
 		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
 		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
 		this.body = new OIMO.RigidBody(rigidBodyConfig);
+		this.useInstancing = !Util.isMac();
 	}
 
 	async init() {
@@ -72,14 +76,14 @@ export class Interior {
 
 		// Check if there's already shared data from another interior
 		let sharedDataPromise = this.level.sharedInteriorData.get(this.detailLevel);
-		if (sharedDataPromise) {
+		if (this.useInstancing && sharedDataPromise) {
 			// If so, wait for that interior to complete initiation...
 			this.sharedData = await sharedDataPromise;
 			this.instanceIndex = ++this.sharedData.instanceIndex;
 		} else {
-			// If we're here, we're the first interior of this type, so let's prepare the shared data
+			// If we're here, we're the first interior of this type, so let's prepare the shared data (if we're instanced)
 			let resolveFunc: (data: SharedInteriorData) => any;
-			if (this.level) {
+			if (this.useInstancing && this.level) {
 				let sharedDataPromise = new Promise<SharedInteriorData>((resolve) => resolveFunc = resolve);
 				this.level.sharedInteriorData.set(this.detailLevel, sharedDataPromise);
 			}
@@ -157,21 +161,29 @@ export class Interior {
 					}
 				}
 			}
-	
-			// Create the instanced mesh with appropriate instance count
-			let instanceCount = this.level.interiors.filter(x => x.detailLevel === this.detailLevel).length;
+
 			let geometry = Util.createGeometryFromMaterialGeometry(this.materialGeometry);
-			let mesh = new THREE.InstancedMesh(geometry, materials, instanceCount);
+			let mesh: THREE.Mesh;
+
+			if (this.useInstancing) {
+				// Create the instanced mesh with appropriate instance count
+				let instanceCount = this.level.interiors.filter(x => x.detailLevel === this.detailLevel).length;	
+				mesh = new THREE.InstancedMesh(geometry, materials, instanceCount);
+
+				this.instanceIndex = 0;
+				this.sharedData = {
+					instancedMesh: mesh as THREE.InstancedMesh,
+					instanceIndex: this.instanceIndex
+				};
+				resolveFunc(this.sharedData);
+			} else {
+				mesh = new THREE.Mesh(geometry, materials);
+			}
+			
 			mesh.receiveShadow = true;
 			mesh.matrixAutoUpdate = false;
 			this.level.scene.add(mesh);
-
-			this.instanceIndex = 0;
-			this.sharedData = {
-				instancedMesh: mesh,
-				instanceIndex: this.instanceIndex
-			};
-			resolveFunc(this.sharedData);
+			this.mesh = mesh;
 		}
 
 		this.level.loadingState.loaded++;
@@ -312,8 +324,12 @@ export class Interior {
 
 	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
 		this.worldMatrix.compose(position, orientation, scale);
-		this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, this.worldMatrix);
-		this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
+		if (this.useInstancing) {
+			this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, this.worldMatrix);
+			this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
+		} else {
+			this.mesh.matrix.copy(this.worldMatrix);
+		}
 
 		this.buildCollisionGeometry(scale);
 

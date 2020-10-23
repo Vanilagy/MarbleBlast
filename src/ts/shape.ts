@@ -150,6 +150,9 @@ export class Shape {
 	sounds: string[] = [];
 
 	async init(level?: Level, id = 0) {
+		// Apparently, Macs have a huge issue displayed instanced shapes at the moment. This might be a graphics driver bug or a three bug, will have to investigate.
+		if (Util.isMac()) this.useInstancing = false;
+
 		this.id = id;
 		this.level = level;
 		this.dts = await ((this.level)? this.level.mission.getDts('data/' + this.dtsPath) : DtsParser.loadFile('./assets/data/' + this.dtsPath));

@@ -204,6 +204,7 @@ export class PathedInterior extends Interior {
 			position = Util.lerpThreeVectors(p1, p2, completion);
 		}
 
+		// Offset by the position of the first marker
 		let firstPosition = this.markerData[0].position;
 		position.sub(firstPosition);
 
@@ -217,8 +218,12 @@ export class PathedInterior extends Interior {
 
 	render(time: TimeState) {
 		let transform = this.getTransformAtTime(this.getInternalTime(time.currentAttemptTime));
-		this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, transform);
-		this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
+		if (this.useInstancing) {
+			this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, transform);
+			this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
+		} else {
+			this.mesh.matrix.copy(transform);
+		}
 	}
 
 	/** Resets the movement state of the pathed interior to the beginning values. */

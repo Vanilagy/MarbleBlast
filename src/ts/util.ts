@@ -525,6 +525,10 @@ export abstract class Util {
 
 		return clone;
 	}
+
+	static isMac() {
+		return window.navigator.platform.toLowerCase().includes('mac');
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

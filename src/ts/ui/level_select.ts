@@ -560,10 +560,11 @@ const selectBasedOnSearchQuery = (display = true) => {
 const downloadReplay = async (replayData: ArrayBuffer, mission: Mission) => {
 	let uncompressed = pako.inflate(new Uint8Array(replayData), { to: 'string' });
 	
-	// This is a bit unfortunate, but we'd like to bundle the mission path with the replay, but the first replay version didn't include it. So we need to check if the replay actually includes the mission path, which we can check by checking if it includes the "version" field.
+	// This is a bit unfortunate, but we'd like to bundle the mission path with the replay, but the first replay version didn't include it. So we need to check if the replay actually includes the mission path, which we can check by checking if it includes the "version" field. We then upgrade the replay to verion 1.
 	if (!uncompressed.includes('"version"')) {
 		let json = JSON.parse(uncompressed) as SerializedReplay;
-		json.missionPath = mission.path; // Assign the mission path
+		// Upgrade to version 1
+		json.missionPath = mission.path;
 		json.timestamp = 0;
 		json.version = 1;
 
