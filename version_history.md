@@ -1,5 +1,9 @@
 # Version History
 
+## 1.4.1
+- Fixed old replays not downloading into the correct format
+- Fixed instancing bugs on Mac
+
 ## 1.4.0
 This patch is meant to be an overall "quality of life" update to the port, rounding off the experience. Major changes are:
 - **Replays can now be downloaded and saved as .wrec files.** To do this, simply Alt-Click the replay icon in the scores. .wrecs can be played back using the small play icon in the corner of the level selector.
