@@ -1,5 +1,17 @@
 # Version History
 
+## 1.4.0
+This patch is meant to be an overall "quality of life" update to the port, rounding off the experience. Major changes are:
+- **Replays can now be downloaded and saved as .wrec files.** To do this, simply Alt-Click the replay icon in the scores. .wrecs can be played back using the small play icon in the corner of the level selector.
+- **Fan physics have been reworked.** With the help of RandomityGuy, they should be much closer to the original now. This means that Battlements and Airwalk will now be somewhat more enjoyable to play.
+- Speaking of Airwalk, **positional sounds now get their volume reduced if they appear in clumps.** So, no more earrape from fans.
+- **Sliding has been adjusted**. Now just requires any movement buttons to be pressed and an angle of 30° or less, instead of the previous 45°.
+- **Tons of bugfixes regarding broken custom levels.** Fixed include levels not loading, MBP textures not loading, not being able to finish when OOB, missing qualifying times, going negative with Time Travels, falling through terrain, and other things.
+- **Shape hitboxes have been fixed**. So no more glitchy trapdoors.
+- **Interiors are now smoothly shaded and instanced**. Basically, this means that curved surfaces now look smoother and lots of the same interior in one level should be more performant now.
+- **Safari finally gets music**. Yes.
+- **Migrated to IndexedDB entirely**, ditching localStorage.
+
 ## 1.3.0
 ### Main changes:
 - Added all 1897 CLA gold custom levels
