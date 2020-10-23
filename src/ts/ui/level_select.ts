@@ -564,6 +564,8 @@ const downloadReplay = async (replayData: ArrayBuffer, mission: Mission) => {
 	if (!uncompressed.includes('"version"')) {
 		let json = JSON.parse(uncompressed) as SerializedReplay;
 		json.missionPath = mission.path; // Assign the mission path
+		json.timestamp = 0;
+		json.version = 1;
 
 		let compressed = await executeOnWorker('compress', JSON.stringify(json)) as ArrayBuffer;
 		replayData = compressed;

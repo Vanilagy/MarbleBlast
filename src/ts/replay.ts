@@ -375,7 +375,8 @@ export class Replay {
 	/** Reconstructs a replay from its compressed array buffer representation. */
 	static fromSerialized(buf: ArrayBuffer) {
 		let replay = new Replay();
-		let serialized = JSON.parse(pako.inflate(new Uint8Array(buf), { to: 'string' })) as SerializedReplay;
+		let string = pako.inflate(new Uint8Array(buf), { to: 'string' });
+		let serialized = JSON.parse(string) as SerializedReplay;
 		let version = serialized.version ?? 0;
 		
 		replay.missionPath = (version >= 1)? serialized.missionPath : null;
