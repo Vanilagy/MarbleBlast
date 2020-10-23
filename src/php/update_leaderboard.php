@@ -1,14 +1,42 @@
 <?php
 
+date_default_timezone_set('UTC');
 header("Content-Type: text/plain");
 
-$cwd = getcwd();
-if (!is_file($cwd . "/leaderboard.json")) file_put_contents($cwd . "/leaderboard.json", "{}");
+function createPath($path) {
+    if (is_dir($path)) return true;
+    $prev_path = substr($path, 0, strrpos($path, '/', -2) + 1 );
+    $return = createPath($prev_path);
+    return ($return && is_writable($prev_path)) ? mkdir($path) : false;
+}
 
-$input = json_decode(file_get_contents("php://input"), true);
-$leaderboard = json_decode(file_get_contents($cwd . "/leaderboard.json"), true);
+$cwd = getcwd();
+createPath($cwd . "/../storage/leaderboard"); // Create the leaderboard folder
+
+$leaderboardPath = $cwd . "/../storage/leaderboard/leaderboard.json";
+
+if (is_file($cwd . "/leaderboard.json")) {
+	// Copy the legacy location into the new one, then delete the legacy leaderboard
+	file_put_contents($leaderboardPath, file_get_contents($cwd . "/leaderboard.json"));
+	unlink($cwd . "/leaderboard.json");
+}
+if (!is_file($leaderboardPath)) file_put_contents($leaderboardPath, "{}"); // Create an empty leaderboard if none exists yet
+
+// Handle the backup for the day
+$date = date("Ymd");
+$backupPath = $cwd . "/../storage/leaderboard/leaderboard_backup" . $date . ".json";
+if (!is_file($backupPath)) file_put_contents($backupPath, file_get_contents($leaderboardPath));
+
+// Get and decode the input
+$rawInput = file_get_contents("php://input");
+$decodedInput = zlib_decode($rawInput);
+if (!$decodedInput) exit();
+
+$input = json_decode($decodedInput, true);
+$leaderboard = json_decode(file_get_contents($leaderboardPath), true);
 $version = isset($input["version"])? intval($input["version"]) : 0;
 
+// Handle insertion of best times
 foreach ($input["bestTimes"] as $key => $value) {
 	$toInsert = array($value[0], $value[1], $input["randomId"]);
 	$time = (float) $value[1];
@@ -41,10 +69,12 @@ foreach ($input["bestTimes"] as $key => $value) {
 	}
 }
 
-file_put_contents($cwd . "/leaderboard.json", json_encode($leaderboard));
+// Save it
+file_put_contents($leaderboardPath, json_encode($leaderboard));
 
 $response = array();
 
+// Build the response
 foreach ($leaderboard as $key => $value) {
 	$arr = array();
 

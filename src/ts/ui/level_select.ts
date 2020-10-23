@@ -496,16 +496,19 @@ export const updateOnlineLeaderboard = async () => {
 	// Add all personal best times to the payload
 	for (let path in StorageManager.data.bestTimes) {
 		let val = StorageManager.data.bestTimes[path as keyof typeof StorageManager.data.bestTimes];
-		if (val[0][0]) postData.bestTimes[path] = [val[0][0], val[0][1].toString()]; // Convert the time to string to avoid precision loss in transfer
+		// If the best score for this level has a name and isn't timestamp 0
+		if (val[0][0] && val[0][3] !== 0) postData.bestTimes[path] = [val[0][0], val[0][1].toString()]; // Convert the time to string to avoid precision loss in transfer
 	}
 
 	try {
+		let compressed = await executeOnWorker('compress', JSON.stringify(postData));
+
 		let response = await fetch('./php/update_leaderboard.php', {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/json',
+				'Content-Type': 'application/octet-stream',
 			},
-			body: JSON.stringify(postData)
+			body: compressed
 		});
 		if (response.ok) {
 			let json = await response.json();

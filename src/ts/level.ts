@@ -139,6 +139,8 @@ export class Level extends Scheduler {
 	finishTime: TimeState = null;
 	finishYaw: number;
 	finishPitch: number;
+	/** The maximum time that has been displayed in the current attempt. */
+	maxDisplayedTime = 0;
 	
 	pitch = 0;
 	yaw = 0;
@@ -602,6 +604,7 @@ export class Level extends Scheduler {
 		this.currentTimeTravelBonus = 0;
 		this.outOfBounds = false;
 		this.lastPhysicsTick = null;
+		this.maxDisplayedTime = 0;
 		
 		if (this.totalGems > 0) {
 			this.gemCount = 0;
@@ -717,7 +720,12 @@ export class Level extends Scheduler {
 		renderer.render(this.overlayScene, orthographicCamera);
 		renderer.autoClear = true;
 
-		displayTime((this.finishTime ?? tempTimeState).gameplayClock / 1000);
+		// This might seem a bit strange, but the time we display is actually a few milliseconds in the PAST (unless the user is currently in TT or has finished), for the reason that time was able to go backwards upon finishing or collecting TTs due to CCD time correction. That felt wrong, so we accept this inaccuracy in displaying time for now.
+		let timeToDisplay = tempTimeState.gameplayClock;
+		if (this.currentTimeTravelBonus === 0) timeToDisplay = Math.max(timeToDisplay - 1000 / PHYSICS_TICK_RATE, 0);
+		if (this.finishTime) timeToDisplay = this.finishTime.gameplayClock;
+		timeToDisplay = this.maxDisplayedTime = Math.max(timeToDisplay, this.maxDisplayedTime);
+		displayTime(timeToDisplay / 1000);
 
 		requestAnimationFrame(() => this.render());
 	}

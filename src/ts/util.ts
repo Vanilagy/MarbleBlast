@@ -515,6 +515,16 @@ export abstract class Util {
 		for (let word of words) if (this.naughtyWords.includes(word)) return true;
 		return false;
 	}
+
+	static shallowClone<T extends object>(obj: T) {
+		let clone = {} as T;
+
+		for (let key in obj) {
+			clone[key] = obj[key];
+		}
+
+		return clone;
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */
