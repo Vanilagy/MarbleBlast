@@ -235,7 +235,7 @@ export class Marble {
 			// Implements sliding: If we hit the surface at an angle below 45°, and have movement keys pressed, we don't bounce.
 			let dot0 = -contactNormal.dot(lastSurfaceRelativeVelocity.clone().normalize());
 			if (dot0 > 0.001 && dot0 <= maxDotSlide && movementVec.length() > 0) {
-				let dot = contactNormal.dot(this.body.getLinearVelocity());
+				let dot = contactNormal.dot(surfaceRelativeVelocity);
 				let linearVelocity = this.body.getLinearVelocity();
 				let originalLength = linearVelocity.length();
 				linearVelocity.addEq(contactNormal.scale(-dot)); // Remove all velocity in the direction of the surface normal
