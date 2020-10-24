@@ -529,6 +529,16 @@ export abstract class Util {
 	static isMac() {
 		return window.navigator.platform.toLowerCase().includes('mac');
 	}
+
+	/** Converts seconds into a time string as seen in the game clock at the top, for example. */
+	static secondsToTimeString(seconds: number, decimalDigits = 3) {
+		let abs = Math.abs(seconds);
+		let minutes = Math.floor(abs / 60);
+		let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(abs % 1 * 10**decimalDigits).toString(), decimalDigits);
+		if (seconds < 0) string = '-' + string;
+		
+		return string;
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

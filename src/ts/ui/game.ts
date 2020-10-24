@@ -116,17 +116,9 @@ export const hidePauseScreen = () => {
 	pauseScreenDiv.classList.add('hidden');
 };
 
-/** Converts seconds into a time string as seen in the game clock at the top, for example. */
-export const secondsToTimeString = (seconds: number, decimalDigits = 3) => {
-	let minutes = Math.floor(seconds / 60);
-	let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(seconds % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(seconds % 1 * 10**decimalDigits).toString(), decimalDigits);
-
-	return string;
-}
-
 /** Updates the game clock canvas. */
 export const displayTime = (seconds: number) => {
-	let string = secondsToTimeString(seconds);
+	let string = Util.secondsToTimeString(seconds);
 	const defaultWidth = 43;
 	const defaultMarginRight = -19;
 	let totalWidth = (string.length - 1) * (defaultWidth + defaultMarginRight) - (2 * (defaultWidth + defaultMarginRight - 10)) + defaultWidth;
@@ -258,7 +250,7 @@ export const showFinishScreen = () => {
 	let level = state.currentLevel;
 	finishScreenDiv.classList.remove('hidden');
 
-	let elapsedTime = level.finishTime.currentAttemptTime - GO_TIME;
+	let elapsedTime = Math.max(level.finishTime.currentAttemptTime - GO_TIME, 0);
 	let bonusTime = Math.max(0, elapsedTime - level.finishTime.gameplayClock);
 	let goldTime = level.mission.goldTime;
 	let failedToQualify = false;
@@ -278,15 +270,15 @@ export const showFinishScreen = () => {
 	}
 
 	// Update the time elements
-	finishScreenTime.textContent = secondsToTimeString(level.finishTime.gameplayClock / 1000);
-	qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? secondsToTimeString(level.mission.qualifyTime / 1000) : '99:59.999';
+	finishScreenTime.textContent = Util.secondsToTimeString(level.finishTime.gameplayClock / 1000);
+	qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? Util.secondsToTimeString(level.mission.qualifyTime / 1000) : '99:59.999';
 	qualifyTimeElement.style.color = failedToQualify? 'red' : '';
 	qualifyTimeElement.style.textShadow = failedToQualify? '1px 1px 0px black' : '';
 	
-	goldTimeElement.textContent = secondsToTimeString(goldTime / 1000);
+	goldTimeElement.textContent = Util.secondsToTimeString(goldTime / 1000);
 	goldTimeElement.parentElement.style.display = level.mission.hasGoldTime? '' : 'none';
-	elapsedTimeElement.textContent = secondsToTimeString(elapsedTime / 1000);
-	bonusTimeElement.textContent = secondsToTimeString(bonusTime / 1000);
+	elapsedTimeElement.textContent = Util.secondsToTimeString(elapsedTime / 1000);
+	bonusTimeElement.textContent = Util.secondsToTimeString(bonusTime / 1000);
 
 	drawBestTimes();
 
@@ -326,15 +318,15 @@ const drawBestTimes = () => {
 
 	let bestTimes = StorageManager.getBestTimesForMission(level.mission.path);
 	bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
-	bestTime1.children[1].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
+	bestTime1.children[1].textContent = Util.secondsToTimeString(bestTimes[0][1] / 1000);
 	(bestTime1.children[1] as HTMLParagraphElement).style.color = (bestTimes[0][1] <= goldTime)? '#fff700' : '';
 	(bestTime1.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[0][1] <= goldTime)? '1px 1px 0px black' : '';
 	bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
-	bestTime2.children[1].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
+	bestTime2.children[1].textContent = Util.secondsToTimeString(bestTimes[1][1] / 1000);
 	(bestTime2.children[1] as HTMLParagraphElement).style.color = (bestTimes[1][1] <= goldTime)? '#fff700' : '';
 	(bestTime2.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[1][1] <= goldTime)? '1px 1px 0px black' : '';
 	bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
-	bestTime3.children[1].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
+	bestTime3.children[1].textContent = Util.secondsToTimeString(bestTimes[2][1] / 1000);
 	(bestTime3.children[1] as HTMLParagraphElement).style.color = (bestTimes[2][1] <= goldTime)? '#fff700' : '';
 	(bestTime3.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[2][1] <= goldTime)? '1px 1px 0px black' : '';
 };

@@ -1,5 +1,9 @@
 # Version History
 
+## 1.4.2
+- Add a maximum time cap
+- Fix negative elapsed time
+
 ## 1.4.1
 - Fixed old replays not downloading into the correct format
 - Fixed instancing bugs on Mac

@@ -5,7 +5,6 @@ import { setupButton } from "./ui";
 import { Util } from "../util";
 import { homeScreenDiv } from "./home";
 import { loadLevel } from "./loading";
-import { secondsToTimeString } from "./game";
 import { StorageManager } from "../storage";
 import { Mission, CLAEntry } from "../mission";
 import { SerializedReplay, Replay } from "../replay";
@@ -254,7 +253,7 @@ const displayMission = () => {
 		levelArtist.style.display = (mission.type === 'custom')? 'block' : 'none'; // Only show the artist for custom levels
 		levelDescription.textContent = mission.description;
 		let qualifyTime = (mission.qualifyTime !== 0)? mission.qualifyTime : Infinity;
-		levelQualifyTime.textContent = isFinite(qualifyTime)? "Time to Qualify: " + secondsToTimeString(qualifyTime / 1000) : '';
+		levelQualifyTime.textContent = isFinite(qualifyTime)? "Time to Qualify: " + Util.secondsToTimeString(qualifyTime / 1000) : '';
 
 		// Display best times
 		displayBestTimes();
@@ -381,15 +380,15 @@ const displayBestTimes = () => {
 	let bestTimes = StorageManager.getBestTimesForMission(mission?.path);
 	bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
 	(bestTime1.children[1] as HTMLImageElement).style.opacity = (bestTimes[0][1] <= goldTime)? '' : '0';
-	bestTime1.children[2].textContent = secondsToTimeString(bestTimes[0][1] / 1000);
+	bestTime1.children[2].textContent = Util.secondsToTimeString(bestTimes[0][1] / 1000);
 	updateReplayButton(0);
 	bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
 	(bestTime2.children[1] as HTMLImageElement).style.opacity = (bestTimes[1][1] <= goldTime)? '' : '0';
-	bestTime2.children[2].textContent = secondsToTimeString(bestTimes[1][1] / 1000);
+	bestTime2.children[2].textContent = Util.secondsToTimeString(bestTimes[1][1] / 1000);
 	updateReplayButton(1);
 	bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
 	(bestTime3.children[1] as HTMLImageElement).style.opacity = (bestTimes[2][1] <= goldTime)? '' : '0';
-	bestTime3.children[2].textContent = secondsToTimeString(bestTimes[2][1] / 1000);
+	bestTime3.children[2].textContent = Util.secondsToTimeString(bestTimes[2][1] / 1000);
 	updateReplayButton(2);
 
 	leaderboardScores.innerHTML = '';
@@ -413,7 +412,7 @@ const displayBestTimes = () => {
 			element.appendChild(img);
 
 			let time = document.createElement('div');
-			time.textContent = secondsToTimeString(achievedTime / 1000, 3);
+			time.textContent = Util.secondsToTimeString(achievedTime / 1000, 3);
 			element.appendChild(time);
 
 			leaderboardScores.appendChild(element);

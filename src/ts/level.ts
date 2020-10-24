@@ -60,6 +60,7 @@ const SHAPE_OVERLAY_OFFSETS = {
 export const GO_TIME = 3500;
 /** Default camera pitch */
 const DEFAULT_PITCH = 0.45;
+const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should be large enough
 
 /** The map used to get particle emitter options for a ParticleEmitterNode. */
 const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
@@ -725,6 +726,7 @@ export class Level extends Scheduler {
 		if (this.currentTimeTravelBonus === 0) timeToDisplay = Math.max(timeToDisplay - 1000 / PHYSICS_TICK_RATE, 0);
 		if (this.finishTime) timeToDisplay = this.finishTime.gameplayClock;
 		else timeToDisplay = this.maxDisplayedTime = Math.max(timeToDisplay, this.maxDisplayedTime);
+		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
 		displayTime(timeToDisplay / 1000);
 
 		requestAnimationFrame(() => this.render());
@@ -1171,6 +1173,7 @@ export class Level extends Scheduler {
 			this.finishTime.timeSinceLoad -= toSubtract;
 			this.finishTime.currentAttemptTime -= toSubtract;
 			if (this.currentTimeTravelBonus === 0) this.finishTime.gameplayClock -= toSubtract;
+			this.finishTime.gameplayClock = Math.min(this.finishTime.gameplayClock, MAX_TIME); // Apply the time cap
 			this.finishTime.physicsTickCompletion = completionOfImpact;
 
 			if (this.replay.mode === 'playback') this.finishTime = this.replay.finishTime;
