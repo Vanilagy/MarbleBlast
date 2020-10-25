@@ -723,9 +723,11 @@ export class Level extends Scheduler {
 
 		// This might seem a bit strange, but the time we display is actually a few milliseconds in the PAST (unless the user is currently in TT or has finished), for the reason that time was able to go backwards upon finishing or collecting TTs due to CCD time correction. That felt wrong, so we accept this inaccuracy in displaying time for now.
 		let timeToDisplay = tempTimeState.gameplayClock;
-		if (this.currentTimeTravelBonus === 0) timeToDisplay = Math.max(timeToDisplay - 1000 / PHYSICS_TICK_RATE, 0);
 		if (this.finishTime) timeToDisplay = this.finishTime.gameplayClock;
-		else timeToDisplay = this.maxDisplayedTime = Math.max(timeToDisplay, this.maxDisplayedTime);
+		if (this.currentTimeTravelBonus === 0 && !this.finishTime) timeToDisplay = Math.max(timeToDisplay - 1000 / PHYSICS_TICK_RATE, 0);
+		this.maxDisplayedTime = Math.max(timeToDisplay, this.maxDisplayedTime);
+		if (this.currentTimeTravelBonus === 0 && !this.finishTime) timeToDisplay = this.maxDisplayedTime;
+
 		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
 		displayTime(timeToDisplay / 1000);
 

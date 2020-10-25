@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.3
+- Fix clock inaccuracies
+
 ## 1.4.2
 - Add a maximum time cap
 - Fix negative elapsed time
