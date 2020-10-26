@@ -353,7 +353,7 @@ setupButton(nameEntryButton, 'common/ok', () => {
 	let level = state.currentLevel;
 	StorageManager.data.lastUsedName = trimmed;
 	let newScoreId = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
-	updateOnlineLeaderboard();
+	updateOnlineLeaderboard(true);
 
 	nameEntryScreenDiv.classList.add('hidden');
 	drawBestTimes();

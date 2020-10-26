@@ -176,7 +176,7 @@ export const initLevelSelect = async () => {
 	selectTab('intermediate');
 	selectTab('beginner');
 
-	updateOnlineLeaderboard();
+	updateOnlineLeaderboard(true);
 
 	for (let elem of [bestTime1.children[3], bestTime2.children[3], bestTime3.children[3]]) {
 		let replayButton = elem as HTMLImageElement;
@@ -485,7 +485,7 @@ hiddenUnlocker.addEventListener('mousedown', () => {
 
 // The second value in the tuple can be number or string - number for legacy reasons.
 let onlineLeaderboard: Record<string, [string, number | string][]> = {};
-export const updateOnlineLeaderboard = async () => {
+export const updateOnlineLeaderboard = async (handleUpload = false) => {
 	let postData = {
 		randomId: StorageManager.data.randomId,
 		bestTimes: {} as Record<string, [string, string]>,
@@ -513,6 +513,34 @@ export const updateOnlineLeaderboard = async () => {
 			let json = await response.json();
 			onlineLeaderboard = json;
 			displayBestTimes(); // Refresh best times
+		}
+
+		if (handleUpload) {
+			// Handle upload of .wrecs to the server
+			response = await fetch('./php/get_stored_wrecs.php');
+			if (response.ok) {
+				let json = await response.json() as Record<string, [string, string, number]>;
+
+				for (let mission in StorageManager.data.bestTimes) {
+					if (mission.startsWith('custom')) continue; // We don't care about custom .wrecs for now
+					let bestTime = StorageManager.data.bestTimes[mission][0];
+
+					// Check if the score is the top score on the leaderboard and it's also better than the scored .wrec score
+					if (bestTime[1] === Number(onlineLeaderboard[mission]?.[0]?.[1]) && (!json[mission] || bestTime[1] < Number(json[mission][1]))) {
+						// Then prepare the replay upload
+						let replayData = await StorageManager.databaseGet('replays', bestTime[2]) as ArrayBuffer;
+						if (!replayData) continue;
+
+						fetch(`./php/upload_wrec.php?mission=${decodeURIComponent(mission)}&name=${decodeURIComponent(bestTime[0])}&time=${decodeURIComponent(bestTime[1].toString())}`, {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/octet-stream',
+							},
+							body: replayData
+						});
+					}
+				}
+			}
 		}
 	} catch (e) {}
 };

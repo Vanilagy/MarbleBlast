@@ -121,6 +121,7 @@ export abstract class StorageManager {
 		else this.data = DEFAULT_STORAGE_DATA;
 
 		// Get the best times and uncompress them
+		this.data.bestTimes = {};
 		let compressedBestTimes = await this.databaseGet('keyvalue', 'bestTimes');
 		if (compressedBestTimes) {
 			try {

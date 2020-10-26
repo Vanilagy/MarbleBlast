@@ -1,5 +1,9 @@
 # Version History
 
+## 1.4.4
+- Add automatic .wrec upload to server (if #1 score)
+- Fix data corruption bug when having no scores
+
 ## 1.4.3
 - Fix clock inaccuracies
 
