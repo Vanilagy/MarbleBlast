@@ -353,7 +353,7 @@ setupButton(nameEntryButton, 'common/ok', () => {
 	let level = state.currentLevel;
 	StorageManager.data.lastUsedName = trimmed;
 	let newScoreId = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
-	updateOnlineLeaderboard(true);
+	updateOnlineLeaderboard();
 
 	nameEntryScreenDiv.classList.add('hidden');
 	drawBestTimes();
@@ -361,8 +361,9 @@ setupButton(nameEntryButton, 'common/ok', () => {
 	// Store the replay
 	if (level.replay.mode === 'record' && !level.replay.isInvalid) {
 		level.replay.canStore = false;
-		level.replay.serialize().then(e => {
-			StorageManager.databasePut('replays', e, newScoreId);
+		level.replay.serialize().then(async e => {
+			await StorageManager.databasePut('replays', e, newScoreId);
+			updateOnlineLeaderboard(true);
 		});
 	}
 });

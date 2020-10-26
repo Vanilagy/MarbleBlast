@@ -521,17 +521,18 @@ export const updateOnlineLeaderboard = async (handleUpload = false) => {
 			if (response.ok) {
 				let json = await response.json() as Record<string, [string, string, number]>;
 
-				for (let mission in StorageManager.data.bestTimes) {
-					if (mission.startsWith('custom')) continue; // We don't care about custom .wrecs for now
-					let bestTime = StorageManager.data.bestTimes[mission][0];
+				for (let missionPath in StorageManager.data.bestTimes) {
+					if (missionPath.startsWith('custom')) continue; // We don't care about custom .wrecs for now
+					let bestTime = StorageManager.data.bestTimes[missionPath][0];
 
 					// Check if the score is the top score on the leaderboard and it's also better than the scored .wrec score
-					if (bestTime[1] === Number(onlineLeaderboard[mission]?.[0]?.[1]) && (!json[mission] || bestTime[1] < Number(json[mission][1]))) {
+					if (bestTime[1] === Number(onlineLeaderboard[missionPath]?.[0]?.[1]) && (!json[missionPath] || bestTime[1] < Number(json[missionPath][1]))) {
 						// Then prepare the replay upload
 						let replayData = await StorageManager.databaseGet('replays', bestTime[2]) as ArrayBuffer;
 						if (!replayData) continue;
+						replayData = await maybeUpdateReplay(replayData, missionPath);
 
-						fetch(`./php/upload_wrec.php?mission=${decodeURIComponent(mission)}&name=${decodeURIComponent(bestTime[0])}&time=${decodeURIComponent(bestTime[1].toString())}`, {
+						fetch(`./php/upload_wrec.php?mission=${decodeURIComponent(missionPath)}&name=${decodeURIComponent(bestTime[0])}&time=${decodeURIComponent(bestTime[1].toString())}`, {
 							method: 'POST',
 							headers: {
 								'Content-Type': 'application/octet-stream',
@@ -583,21 +584,28 @@ const selectBasedOnSearchQuery = (display = true) => {
 	}
 };
 
-/** Downloads a replay as a .wrec file. */
-const downloadReplay = async (replayData: ArrayBuffer, mission: Mission) => {
+/** Makes sure a replay fits some requirements. */
+const maybeUpdateReplay = async (replayData: ArrayBuffer, missionPath: string) => {
 	let uncompressed = pako.inflate(new Uint8Array(replayData), { to: 'string' });
 	
 	// This is a bit unfortunate, but we'd like to bundle the mission path with the replay, but the first replay version didn't include it. So we need to check if the replay actually includes the mission path, which we can check by checking if it includes the "version" field. We then upgrade the replay to verion 1.
 	if (!uncompressed.includes('"version"')) {
 		let json = JSON.parse(uncompressed) as SerializedReplay;
 		// Upgrade to version 1
-		json.missionPath = mission.path;
+		json.missionPath = missionPath;
 		json.timestamp = 0;
 		json.version = 1;
 
 		let compressed = await executeOnWorker('compress', JSON.stringify(json)) as ArrayBuffer;
 		replayData = compressed;
 	}
+
+	return replayData;
+};
+
+/** Downloads a replay as a .wrec file. */
+const downloadReplay = async (replayData: ArrayBuffer, mission: Mission) => {
+	replayData = await maybeUpdateReplay(replayData, mission.path); // Normalize the replay first
 
 	// Create the blob and download it
 	let blob = new Blob([replayData], {
