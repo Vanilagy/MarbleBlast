@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.5
+- Replay upload hotfix
+
 ## 1.4.4
 - Add automatic .wrec upload to server (if #1 score)
 - Fix data corruption bug when having no scores
