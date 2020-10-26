@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.6
+- Fix old non-recorded scores crashing the .wrec uploader (thx c0wmanglr for the debug)
+
 ## 1.4.5
 - Replay upload hotfix
 

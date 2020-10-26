@@ -524,6 +524,7 @@ export const updateOnlineLeaderboard = async (handleUpload = false) => {
 				for (let missionPath in StorageManager.data.bestTimes) {
 					if (missionPath.startsWith('custom')) continue; // We don't care about custom .wrecs for now
 					let bestTime = StorageManager.data.bestTimes[missionPath][0];
+					if (!bestTime[2]) continue; // No replay for this score
 
 					// Check if the score is the top score on the leaderboard and it's also better than the scored .wrec score
 					if (bestTime[1] === Number(onlineLeaderboard[missionPath]?.[0]?.[1]) && (!json[missionPath] || bestTime[1] < Number(json[missionPath][1]))) {
@@ -543,7 +544,9 @@ export const updateOnlineLeaderboard = async (handleUpload = false) => {
 				}
 			}
 		}
-	} catch (e) {}
+	} catch (e) {
+		console.error(e);
+	}
 };
 
 /** The current words in the search query. Used for matching. */
