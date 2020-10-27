@@ -28,7 +28,7 @@ if (empty($leaderboardString)) exit(); // We didn't manage to correctly read in 
 // Handle the hourly backup
 $date = date("YmdH");
 $backupPath = $cwd . "/../storage/leaderboard/leaderboard_backup" . $date . ".json";
-if (!is_file($backupPath)) file_put_contents($backupPath, file_get_contents($leaderboardPath));
+if (!is_file($backupPath)) file_put_contents($backupPath, $leaderboardString);
 
 // Get and decode the input
 $rawInput = file_get_contents("php://input");
@@ -36,7 +36,7 @@ $decodedInput = zlib_decode($rawInput);
 if (!$decodedInput) exit();
 
 $input = json_decode($decodedInput, true);
-$leaderboard = json_decode(file_get_contents($leaderboardPath), true);
+$leaderboard = json_decode($leaderboardString, true);
 if (!isset($leaderboard)) exit(); // Just to be sure
 $version = isset($input["version"])? intval($input["version"]) : 0;
 
