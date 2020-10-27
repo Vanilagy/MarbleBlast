@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.7
+- Fixed incorrect position, scale and rotation values in .mis files not resolving correctly
+
 ## 1.4.6
 - Fix old non-recorded scores crashing the .wrec uploader (thx c0wmanglr for the debug)
 

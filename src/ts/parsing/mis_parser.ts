@@ -572,18 +572,21 @@ export class MisParser {
 	/** Parses a 3-component vector from a string of three numbers. */
 	static parseVector3(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
+		if (parts.length !== 3) return new THREE.Vector3();
 		return new THREE.Vector3(parts[0], parts[1], parts[2]);
 	}
 
 	/** Parses a 4-component vector from a string of four numbers. */
 	static parseVector4(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
+		if (parts.length !== 4) return new THREE.Vector3();
 		return new THREE.Vector4(parts[0], parts[1], parts[2], parts[3]);
 	}
 
 	/** Returns a quaternion based on a rotation specified from 4 numbers. */
 	static parseRotation(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
+		if (parts.length !== 4) return new THREE.Quaternion();
 
 		let quaternion = new THREE.Quaternion();
 		// The first 3 values represent the axis to rotate on, the last represents the negative angle in degrees.
