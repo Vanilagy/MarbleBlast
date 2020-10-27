@@ -88,6 +88,7 @@ export class PathedInterior extends Interior {
 		// Add MustChangeTriggers if necessary
 		let triggers = this.simGroup.elements.filter((element) => element._type === MissionElementType.Trigger) as MissionElementTrigger[];
 		for (let triggerElement of triggers) {
+			if (!triggerElement.targettime) continue; // Not a pathed interior trigger
 			let trigger = new MustChangeTrigger(triggerElement, this);
 			this.triggers.push(trigger);
 		}
