@@ -2,6 +2,7 @@
 
 ## 1.4.8
 - Exclude incorrect triggers from pathed interiors
+- Fixed PathedInterior.prevPosition
 
 ## 1.4.7
 - Fixed incorrect position, scale and rotation values in .mis files not resolving correctly

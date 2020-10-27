@@ -35,8 +35,7 @@ export class PathedInterior extends Interior {
 	basePosition: THREE.Vector3;
 	baseOrientation: THREE.Quaternion;
 	baseScale: THREE.Vector3;
-	prevVelocity = new OIMO.Vec3();
-	prevPosition = new THREE.Vector3();
+	prevPosition: THREE.Vector3 = null;
 	currentPosition = new THREE.Vector3();
 
 	/** Creates a PathedInterior from a sim group containing it and its path (and possible triggers). */
@@ -133,12 +132,11 @@ export class PathedInterior extends Interior {
 		let position = new THREE.Vector3();
 		transform.decompose(position, new THREE.Quaternion(), new THREE.Vector3()); // The orientation doesn't matter in that version of TGE
 
-		if (!this.prevPosition) this.prevPosition.copy(position);
+		if (!this.prevPosition) this.prevPosition = position.clone();
 		else this.prevPosition.copy(this.currentPosition);
 
 		this.currentPosition = position;
 
-		this.prevVelocity = this.body.getLinearVelocity().clone();
 		// Calculate the velocity based on current and last position
 		let velocity = position.clone().sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
 
@@ -232,6 +230,7 @@ export class PathedInterior extends Interior {
 		this.currentTime = 0;
 		this.targetTime = 0;
 		this.changeTime = 0;
+		this.prevPosition = null;
 
 		if (this.element.initialposition) {
 			this.currentTime = MisParser.parseNumber(this.element.initialposition);
