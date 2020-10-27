@@ -22,8 +22,11 @@ if (is_file($cwd . "/leaderboard.json")) {
 }
 if (!is_file($leaderboardPath)) file_put_contents($leaderboardPath, "{}"); // Create an empty leaderboard if none exists yet
 
-// Handle the backup for the day
-$date = date("Ymd");
+$leaderboardString = file_get_contents($leaderboardPath);
+if (empty($leaderboardString)) exit(); // We didn't manage to correctly read in the leaderboard, go and stop the script to prevent any further damage
+
+// Handle the hourly backup
+$date = date("YmdH");
 $backupPath = $cwd . "/../storage/leaderboard/leaderboard_backup" . $date . ".json";
 if (!is_file($backupPath)) file_put_contents($backupPath, file_get_contents($leaderboardPath));
 
@@ -34,6 +37,7 @@ if (!$decodedInput) exit();
 
 $input = json_decode($decodedInput, true);
 $leaderboard = json_decode(file_get_contents($leaderboardPath), true);
+if (!isset($leaderboard)) exit(); // Just to be sure
 $version = isset($input["version"])? intval($input["version"]) : 0;
 
 // Handle insertion of best times
