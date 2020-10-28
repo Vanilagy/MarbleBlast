@@ -1,7 +1,7 @@
 import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
-import { gameButtons } from "./input";
+import { isPressed, gamepadAxes } from "./input";
 import { PHYSICS_TICK_RATE, TimeState, Level, GO_TIME } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
@@ -162,10 +162,21 @@ export class Marble {
 	tick(time: TimeState) {
 		// Construct the raw movement vector from inputs
 		let movementVec = new THREE.Vector3(0, 0, 0);
-		if (gameButtons.up) movementVec.add(new THREE.Vector3(1, 0, 0));
-		if (gameButtons.down) movementVec.add(new THREE.Vector3(-1, 0, 0));
-		if (gameButtons.left) movementVec.add(new THREE.Vector3(0, 1, 0));
-		if (gameButtons.right) movementVec.add(new THREE.Vector3(0, -1, 0));
+		if (isPressed('up')) movementVec.add(new THREE.Vector3(1, 0, 0));
+		if (isPressed('down')) movementVec.add(new THREE.Vector3(-1, 0, 0));
+		if (isPressed('left')) movementVec.add(new THREE.Vector3(0, 1, 0));
+		if (isPressed('right')) movementVec.add(new THREE.Vector3(0, -1, 0));
+		
+		// Add gamepad input and restrict if necessary
+		movementVec.add(new THREE.Vector3(-gamepadAxes.marbleY, -gamepadAxes.marbleX));
+		if (movementVec.x > 1.0)
+			movementVec.x = 1.0;
+		if (movementVec.x < -1.0)
+			movementVec.x = -1.0;
+		if (movementVec.y > 1.0)
+			movementVec.y = 1.0;
+		if (movementVec.y < -1.0)
+			movementVec.y = -1.0;
 
 		let inputStrength = movementVec.length();
 
@@ -274,7 +285,7 @@ export class Marble {
 
 			// See if, out of all contact normals, there is one that's not at a 90° angle to the up vector.
 			let allContactNormalUpDots = allContactNormals.map(x => Math.abs(x.dot(this.level.currentUp)));
-			if (this.collisionTimeout <= 0 && (gameButtons.jump || this.level.jumpQueued) && allContactNormalUpDots.find(x => x > 1e-10)) {
+			if (this.collisionTimeout <= 0 && (isPressed('jump') || this.level.jumpQueued) && allContactNormalUpDots.find(x => x > 1e-10)) {
 				// Handle jumping
 				this.setLinearVelocityInDirection(contactNormal, this.jumpImpulse + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
 					this.playJumpSound();

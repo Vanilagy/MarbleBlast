@@ -331,10 +331,10 @@ const drawBestTimes = () => {
 	(bestTime3.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[2][1] <= goldTime)? '1px 1px 0px black' : '';
 };
 
-const nameEntryScreenDiv = document.querySelector('#name-entry-screen') as HTMLDivElement;
+export const nameEntryScreenDiv = document.querySelector('#name-entry-screen') as HTMLDivElement;
 const nameEntryText = document.querySelector('#name-entry-screen > p:nth-child(3)') as HTMLParagraphElement;
 const nameEntryInput = document.querySelector('#name-entry-input') as HTMLInputElement;
-const nameEntryButton = nameEntryScreenDiv.querySelector('#name-entry-confirm') as HTMLImageElement;
+export const nameEntryButton = nameEntryScreenDiv.querySelector('#name-entry-confirm') as HTMLImageElement;
 
 setupButton(nameEntryButton, 'common/ok', () => {
 	let trimmed = nameEntryInput.value.trim();

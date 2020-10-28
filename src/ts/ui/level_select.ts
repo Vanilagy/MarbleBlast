@@ -49,7 +49,7 @@ export const getCurrentLevelArray = () => currentLevelArray;
 export const getCurrentLevelIndex = () => currentLevelIndex;
 
 /** Selects a tab and shows the last-unlocked level in it. */
-const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'custom') => {
+export const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'custom') => {
 	for (let elem of [tabBeginner, tabIntermediate, tabAdvanced, tabCustom]) {
 		elem.style.zIndex = "-1";
 	}
@@ -90,7 +90,7 @@ setupButton(homeButton, 'play/back', () => {
 	homeScreenDiv.classList.remove('hidden');
 });
 
-const playCurrentLevel = (replayData?: ArrayBuffer) => {
+export const playCurrentLevel = (replayData?: ArrayBuffer) => {
 	let currentMission = currentLevelArray[currentLevelIndex];
 	if (!currentMission) return;
 

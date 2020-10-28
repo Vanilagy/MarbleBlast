@@ -27,14 +27,14 @@ import { TriangleBumper } from "./shapes/triangle_bumper";
 import { Oilslick } from "./shapes/oilslick";
 import { Util, Scheduler } from "./util";
 import { PowerUp } from "./shapes/power_up";
-import { gameButtons, releaseAllButtons } from "./input";
+import { isPressed, isPressedByNonLMB, releaseAllButtons, gamepadAxes, getPressedFlag, resetPressedFlag } from "./input";
 import { SmallDuctFan } from "./shapes/small_duct_fan";
 import { PathedInterior } from "./pathed_interior";
 import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, finishScreenDiv, showFinishScreen, stopAndExit } from "./ui/game";
+import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, finishScreenDiv, showFinishScreen, stopAndExit, nameEntryScreenDiv, nameEntryButton } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
@@ -837,30 +837,94 @@ export class Level extends Scheduler {
 	}
 
 	tick(time?: number) {
-		if (this.paused || this.stopped) return;
+		if (this.paused) {
+			// Check for pause buttons
+			if (isPressedByNonLMB('pause') && getPressedFlag('pause')) {
+				resetPressedFlag('pause');
+				this.unpause();
+			}
+			if (isPressedByNonLMB('use') && getPressedFlag('use')) {
+				resetPressedFlag('use');
+				this.unpause();
+			}
+			if (isPressedByNonLMB('jump') && getPressedFlag('jump')) {
+				resetPressedFlag('jump');
+				stopAndExit();
+			}
+			if (isPressedByNonLMB('restart') && getPressedFlag('restart')) {
+				resetPressedFlag('restart');
+				this.unpause();
+				this.restart();
+				this.pressingRestart = true;
+			}
+			return;
+		}
+		if (this.stopped) return;
 		if (time === undefined) time = performance.now();
 		let playReplay = this.replay.mode === 'playback';
 
-		if (!playReplay && (gameButtons.use || this.useQueued)) {
+		if (!playReplay && (isPressed('use') || this.useQueued) && getPressedFlag('use')) {
 			if (this.outOfBounds && !this.finishTime) {
 				// Skip the out of bounce "animation" and restart immediately
 				this.clearSchedule();
 				this.restart();
 				return;
-			} else if (this.heldPowerUp && document.pointerLockElement) {
+			} else if (this.heldPowerUp) {
 				this.replay.recordUsePowerUp(this.heldPowerUp);
 				this.heldPowerUp.use(this.timeState);
 			}
 		}
 		this.useQueued = false;
+		
+		// If the finish screen is up, handle those buttons ...
+		if (!nameEntryScreenDiv.classList.contains('hidden')) {
+			if (isPressedByNonLMB('jump') && getPressedFlag('jump')) {
+				resetPressedFlag('jump');
+				nameEntryButton.click();
+			}
+		}
+		else if (!finishScreenDiv.classList.contains('hidden')) {
+			// Check for buttons
+			if (isPressedByNonLMB('use') && getPressedFlag('use')) {
+				resetPressedFlag('use');
+				let confirmed = confirm("Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top 3 local scores.");
+				
+				if (confirmed) {
+					this.replay.mode = 'playback';
+					finishScreenDiv.classList.add('hidden');
+					this.restart();
+					document.documentElement.requestPointerLock();
+				}
+			}
+			if (isPressedByNonLMB('jump') && getPressedFlag('jump')) {
+				resetPressedFlag('jump');
+				stopAndExit();
+				return;
+			}
+			if (isPressedByNonLMB('restart') && getPressedFlag('restart')) {
+				resetPressedFlag('restart');
+				finishScreenDiv.classList.add('hidden');
+				this.restart();
+				document.documentElement.requestPointerLock();
+			}
+		}
 
 		// Handle pressing of the restart button
-		if (!this.finishTime && gameButtons.restart && !this.pressingRestart) {
+		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
 			this.restart();
 			this.pressingRestart = true;
 			return;
-		} else if (!gameButtons.restart) {
+		} else if (!isPressed('restart')) {
 			this.pressingRestart = false;
+		}
+		
+		// Handle pressing of the pause button
+		if (!this.finishTime && isPressed('pause') && getPressedFlag('pause')) {
+			resetPressedFlag('pause');
+			resetPressedFlag('jump');
+			resetPressedFlag('use');
+			resetPressedFlag('restart');
+			this.pause();
 		}
 
 		if (this.lastPhysicsTick === null) {
@@ -921,10 +985,18 @@ export class Level extends Scheduler {
 				this.marble.shape.setFriction(1);
 			}
 
-			if (gameButtons.cameraLeft) this.yaw += 1.5 / PHYSICS_TICK_RATE;
-			if (gameButtons.cameraRight) this.yaw -= 1.5 / PHYSICS_TICK_RATE;
-			if (gameButtons.cameraUp) this.pitch -= 1.5 / PHYSICS_TICK_RATE;
-			if (gameButtons.cameraDown) this.pitch += 1.5 / PHYSICS_TICK_RATE;
+			let yawChange = 0.0;
+			let pitchChange = 0.0;
+			if (isPressed('cameraLeft')) yawChange += 1.5;
+			if (isPressed('cameraRight')) yawChange -= 1.5;
+			if (isPressed('cameraUp')) pitchChange -= 1.5;
+			if (isPressed('cameraDown')) pitchChange += 1.5;
+			
+			yawChange -= gamepadAxes.cameraX * 5.0;
+			pitchChange += gamepadAxes.cameraY * 5.0;
+			
+			this.yaw += yawChange / PHYSICS_TICK_RATE;
+			this.pitch += pitchChange / PHYSICS_TICK_RATE;
 
 			this.particles.tick();
 			tickDone = true;
@@ -1060,7 +1132,7 @@ export class Level extends Scheduler {
 
 		let factor = Util.lerp(1 / 2500, 1 / 100, StorageManager.data.settings.mouseSensitivity);
 		let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;
-		let freeLook = StorageManager.data.settings.alwaysFreeLook || gameButtons.freeLook;
+		let freeLook = StorageManager.data.settings.alwaysFreeLook || isPressed('freeLook');
 
 		if (freeLook) this.pitch += e.movementY * factor * yFactor;
 		this.yaw -= e.movementX * factor;
@@ -1191,6 +1263,9 @@ export class Level extends Scheduler {
 				// Show the finish screen
 				document.exitPointerLock();
 				showFinishScreen();
+				resetPressedFlag('use');
+				resetPressedFlag('jump');
+				resetPressedFlag('restart');
 			});
 			displayAlert("Congratulations! You've finished!");
 		}

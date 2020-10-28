@@ -7,8 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "rollup -c -w",
     "watch-fast": "rollup -c -w --config rollup-fast.config.js",
-	"compile": "rollup -c",
-	"bundle": "node create_bundle.js"
+    "compile": "rollup -c",
+    "bundle": "node create_bundle.js"
   },
   "author": "Vanilagy",
   "license": "ISC",
