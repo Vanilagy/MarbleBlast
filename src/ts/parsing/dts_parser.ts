@@ -389,7 +389,7 @@ class OldAlloc {
 
 /** A parser for .dts files, used for static shapes and items. Main resources are http://docs.garagegames.com/torque-3d/official/content/documentation/Artist%20Guide/Formats/dts_format.html#:~:text=DTS%20is%20the%20native%20binary,and%20(optionally)%20sequence%20data.&text=The%20DTS%20file%20format%20stores,loading%20on%20non%2DIntel%20platforms. and the Torque 3D source. */
 export class DtsParser extends BinaryFileParser {
-    parse(): DtsFile {
+	parse(): DtsFile {
 		let version = this.readU16();
 		let exporterVersion = this.readU16();
 
