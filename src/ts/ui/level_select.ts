@@ -9,6 +9,7 @@ import { StorageManager } from "../storage";
 import { Mission, CLAEntry } from "../mission";
 import { SerializedReplay, Replay } from "../replay";
 import { executeOnWorker } from "../worker";
+import { previousButtonState } from "../input";
 
 export const beginnerLevels: Mission[] = [];
 export const intermediateLevels: Mission[] = [];
@@ -654,3 +655,33 @@ loadReplayButton.addEventListener('mouseenter', () => {
 loadReplayButton.addEventListener('mousedown', (e) => {
 	if (e.button === 0) AudioManager.play('buttonpress.wav');
 });
+
+export const handleLevelSelectControllerInput = (gamepad: Gamepad) => {
+	// A button to play
+	if (gamepad.buttons[0].value > 0.5 && !previousButtonState[0])
+	playCurrentLevel();
+	// LT, RT to change category
+	if (gamepad.buttons[6].value > 0.5 && !previousButtonState[6]) {
+	// Should probably have a function for this tbh
+	if (getCurrentLevelArray() === intermediateLevels)
+		selectTab('beginner');
+	else if (getCurrentLevelArray() === advancedLevels)
+		selectTab('intermediate');
+	else if (getCurrentLevelArray() === customLevels)
+		selectTab('advanced');
+	}
+	if (gamepad.buttons[7].value > 0.5 && !previousButtonState[7]) {
+	// Should probably have a function for this tbh
+	if (getCurrentLevelArray() === beginnerLevels)
+		selectTab('intermediate');
+	else if (getCurrentLevelArray() === intermediateLevels)
+		selectTab('advanced');
+	else if (getCurrentLevelArray() === advancedLevels)
+		selectTab('custom');
+	}
+	// D-pad left+right to change levels
+	if (gamepad.buttons[14].value > 0.5 && !previousButtonState[14])
+	cycleMission(-1);
+	if (gamepad.buttons[15].value > 0.5 && !previousButtonState[15])
+	cycleMission(1);
+};

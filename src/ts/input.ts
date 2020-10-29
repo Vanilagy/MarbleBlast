@@ -1,7 +1,7 @@
 import { state } from "./state";
 import { StorageManager } from "./storage";
 import { gameUiDiv } from "./ui/game";
-import { levelSelectDiv, playCurrentLevel, selectTab, getCurrentLevelArray, beginnerLevels, intermediateLevels, advancedLevels, customLevels, cycleMission } from "./ui/level_select";
+import { levelSelectDiv, playCurrentLevel, selectTab, getCurrentLevelArray, beginnerLevels, intermediateLevels, advancedLevels, customLevels, cycleMission, handleLevelSelectControllerInput } from "./ui/level_select";
 
 export const currentMousePosition = {
 	x: 0,
@@ -90,19 +90,19 @@ window.addEventListener('beforeunload', (e) => {
 
 /** For each game button, a list of the keys/buttons corresponding to it that are currently pressed. */
 const gameButtons = {
-	up: [],
-	down: [],
-	left: [],
-	right: [],
-	jump: [],
-	use: [],
-	cameraUp: [],
-	cameraDown: [],
-	cameraLeft: [],
-	cameraRight: [],
-	freeLook: [],
-	restart: [],
-	pause: []
+	up: [] as string[],
+	down: [] as string[],
+	left: [] as string[],
+	right: [] as string[],
+	jump: [] as string[],
+	use: [] as string[],
+	cameraUp: [] as string[],
+	cameraDown: [] as string[],
+	cameraLeft: [] as string[],
+	cameraRight: [] as string[],
+	freeLook: [] as string[],
+	restart: [] as string[],
+	pause: [] as string[]
 };
 
 /** For each game button, a flag indicating whether it has been pressed since the flag was reset. Used to prevent things like entering and immediately leaving the pause menu. */
@@ -123,39 +123,43 @@ const pressedSinceFlag = {
 };
 
 /** Set a button's state based on a presser. */
-const setPressed = (buttonName, presser, state) => {
+const setPressed = (buttonName: keyof typeof gameButtons, presser: string, state: boolean) => {
 	let incl = gameButtons[buttonName].includes(presser);
 	if (!state && incl) {
 		gameButtons[buttonName] = gameButtons[buttonName].filter(x => x !== presser);
-	}
-	else if (state && !incl) {
+	} else if (state && !incl) {
 		gameButtons[buttonName].push(presser);
 		pressedSinceFlag[buttonName] = true;
 	}
 };
 
 /** Determine if a button is pressed. */
-export const isPressed = (buttonName) => {
+export const isPressed = (buttonName: keyof typeof gameButtons) => {
 	return (gameButtons[buttonName].length > 0);
 };
 
 /** Determine if a button is pressed by something other than LMB. */
-export const isPressedByNonLMB = (buttonName) => {
+export const isPressedByNonLMB = (buttonName: keyof typeof gameButtons) => {
 	return (gameButtons[buttonName].filter(x => x !== 'LMB').length > 0);
 };
 
+/** Determine if a button is pressed by a gamepad. */
+export const isPressedByGamepad = (buttonName: keyof typeof gameButtons) => {
+	return gameButtons[buttonName].find(x => x.startsWith('gamepadButton')) !== undefined;
+};
+
 /** Determine if a button is only pressed by one presser. */
-const isPressedOnce = (buttonName) => {
+const isPressedOnce = (buttonName: keyof typeof gameButtons) => {
 	return (gameButtons[buttonName].length === 1);
 };
 
 /** Return whether a presser has pressed the button since the flag was reset. */
-export const getPressedFlag = (buttonName) => {
+export const getPressedFlag = (buttonName: keyof typeof gameButtons) => {
 	return pressedSinceFlag[buttonName];
 };
 
 /** Reset the pressed flag for a button. */
-export const resetPressedFlag = (buttonName) => {
+export const resetPressedFlag = (buttonName: keyof typeof gameButtons) => {
 	pressedSinceFlag[buttonName] = false;
 };
 
@@ -181,12 +185,13 @@ const gamepadButtonMappings = ['jump', 'use', '', '', '', '', 'jump', 'use', 're
 /** The most recent controller a button was pressed on, used to select the controller to poll */
 let mostRecentGamepad = 0;
 
-const previousButtonState = [false, false, false, false, false, false, false, false, false, false, false, false, false, false];
+/** Referring to the button state of the controller. */
+export const previousButtonState = [false, false, false, false, false, false, false, false, false, false, false, false, false, false];
 
 /** Update the input from the gamepad, if it is connected. */
 const updateGamepadInput = () => {
-	let gamepads = navigator.getGamepads();
-	if (gamepads.length == 0) {
+	let gamepads = [...navigator.getGamepads()].filter(x => x);
+	if (gamepads.length === 0) {
 		// No gamepad active
 		for (let key in gamepadAxes) gamepadAxes[key as keyof typeof gamepadAxes] = 0.0;
 		return;
@@ -204,52 +209,25 @@ const updateGamepadInput = () => {
 
 	for (let i = 0; i < gamepads[mostRecentGamepad].buttons.length && i < 18; i++) {
 		let state = (gamepads[mostRecentGamepad].buttons[i].value > 0.5);
-		let presser = 'button' + i;
+		let presser = 'gamepadButton' + i;
 		let buttonName = gamepadButtonMappings[i];
-		if (buttonName != '')
-			setPressed(buttonName, presser, state);
+		if (buttonName !== '')
+			setPressed(buttonName as keyof typeof StorageManager.data.settings.gameButtonMapping, presser, state);
 	}
 	
 	for (let i = 0; i < gamepads[mostRecentGamepad].axes.length && i < 4; i++) {
 		let axisName = gamepadAxisMappings[i];
-		if (axisName != '') {
-			gamepadAxes[axisName] = gamepads[mostRecentGamepad].axes[i];
+		if (axisName !== '') {
+			gamepadAxes[axisName as keyof typeof gamepadAxes] = gamepads[mostRecentGamepad].axes[i];
 			// Dead zone
-			if (Math.abs(gamepadAxes[axisName]) < 0.1)
-				gamepadAxes[axisName] = 0;
+			if (Math.abs(gamepadAxes[axisName as keyof typeof gamepadAxes]) < 0.1)
+				gamepadAxes[axisName as keyof typeof gamepadAxes] = 0;
 		}
 	}
 	
-	// Check for input on the level select screen (TODO: this could probably go in a better place tbh)
-	if (!levelSelectDiv.classList.contains('hidden')) {
-		// A button to play
-		if (gamepads[mostRecentGamepad].buttons[0].value > 0.5 && !previousButtonState[0])
-			playCurrentLevel();
-		// LT, RT to change category
-		if (gamepads[mostRecentGamepad].buttons[6].value > 0.5 && !previousButtonState[6]) {
-			// Should probably have a function for this tbh
-			if (getCurrentLevelArray() === intermediateLevels)
-				selectTab('beginner');
-			else if (getCurrentLevelArray() === advancedLevels)
-				selectTab('intermediate');
-			else if (getCurrentLevelArray() === customLevels)
-				selectTab('advanced');
-		}
-		if (gamepads[mostRecentGamepad].buttons[7].value > 0.5 && !previousButtonState[7]) {
-			// Should probably have a function for this tbh
-			if (getCurrentLevelArray() === beginnerLevels)
-				selectTab('intermediate');
-			else if (getCurrentLevelArray() === intermediateLevels)
-				selectTab('advanced');
-			else if (getCurrentLevelArray() === advancedLevels)
-				selectTab('custom');
-		}
-		// D-pad left+right to change levels
-		if (gamepads[mostRecentGamepad].buttons[14].value > 0.5 && !previousButtonState[14])
-			cycleMission(-1);
-		if (gamepads[mostRecentGamepad].buttons[15].value > 0.5 && !previousButtonState[15])
-			cycleMission(1);
-	}
+	// Check for input on the level select screen
+	if (!levelSelectDiv.classList.contains('hidden')) 
+		handleLevelSelectControllerInput(gamepads[mostRecentGamepad]);
 	
 	for (let i = 0; i < gamepads[mostRecentGamepad].buttons.length && i < 18; i++) {
 		previousButtonState[i] = (gamepads[mostRecentGamepad].buttons[i].value > 0.5);

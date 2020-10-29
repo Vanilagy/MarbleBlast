@@ -27,14 +27,14 @@ import { TriangleBumper } from "./shapes/triangle_bumper";
 import { Oilslick } from "./shapes/oilslick";
 import { Util, Scheduler } from "./util";
 import { PowerUp } from "./shapes/power_up";
-import { isPressed, isPressedByNonLMB, releaseAllButtons, gamepadAxes, getPressedFlag, resetPressedFlag } from "./input";
+import { isPressed, isPressedByNonLMB, releaseAllButtons, gamepadAxes, getPressedFlag, resetPressedFlag, isPressedByGamepad } from "./input";
 import { SmallDuctFan } from "./shapes/small_duct_fan";
 import { PathedInterior } from "./pathed_interior";
 import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, finishScreenDiv, showFinishScreen, stopAndExit, nameEntryScreenDiv, nameEntryButton } from "./ui/game";
+import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, finishScreenDiv, showFinishScreen, stopAndExit, nameEntryScreenDiv, nameEntryButton, handleFinishScreenGamepadInput } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
@@ -838,20 +838,20 @@ export class Level extends Scheduler {
 
 	tick(time?: number) {
 		if (this.paused) {
-			// Check for pause buttons
-			if (isPressedByNonLMB('pause') && getPressedFlag('pause')) {
+			// Check for pause button input from the gamepad
+			if (isPressedByGamepad('pause') && getPressedFlag('pause')) {
 				resetPressedFlag('pause');
 				this.unpause();
 			}
-			if (isPressedByNonLMB('use') && getPressedFlag('use')) {
+			if (isPressedByGamepad('use') && getPressedFlag('use')) {
 				resetPressedFlag('use');
 				this.unpause();
 			}
-			if (isPressedByNonLMB('jump') && getPressedFlag('jump')) {
+			if (isPressedByGamepad('jump') && getPressedFlag('jump')) {
 				resetPressedFlag('jump');
 				stopAndExit();
 			}
-			if (isPressedByNonLMB('restart') && getPressedFlag('restart')) {
+			if (isPressedByGamepad('restart') && getPressedFlag('restart')) {
 				resetPressedFlag('restart');
 				this.unpause();
 				this.restart();
@@ -876,38 +876,7 @@ export class Level extends Scheduler {
 		}
 		this.useQueued = false;
 		
-		// If the finish screen is up, handle those buttons ...
-		if (!nameEntryScreenDiv.classList.contains('hidden')) {
-			if (isPressedByNonLMB('jump') && getPressedFlag('jump')) {
-				resetPressedFlag('jump');
-				nameEntryButton.click();
-			}
-		}
-		else if (!finishScreenDiv.classList.contains('hidden')) {
-			// Check for buttons
-			if (isPressedByNonLMB('use') && getPressedFlag('use')) {
-				resetPressedFlag('use');
-				let confirmed = confirm("Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top 3 local scores.");
-				
-				if (confirmed) {
-					this.replay.mode = 'playback';
-					finishScreenDiv.classList.add('hidden');
-					this.restart();
-					document.documentElement.requestPointerLock();
-				}
-			}
-			if (isPressedByNonLMB('jump') && getPressedFlag('jump')) {
-				resetPressedFlag('jump');
-				stopAndExit();
-				return;
-			}
-			if (isPressedByNonLMB('restart') && getPressedFlag('restart')) {
-				resetPressedFlag('restart');
-				finishScreenDiv.classList.add('hidden');
-				this.restart();
-				document.documentElement.requestPointerLock();
-			}
-		}
+		handleFinishScreenGamepadInput();
 
 		// Handle pressing of the restart button
 		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
@@ -918,7 +887,7 @@ export class Level extends Scheduler {
 			this.pressingRestart = false;
 		}
 		
-		// Handle pressing of the pause button
+		// Handle pressing of the gamepad pause button
 		if (!this.finishTime && isPressed('pause') && getPressedFlag('pause')) {
 			resetPressedFlag('pause');
 			resetPressedFlag('jump');

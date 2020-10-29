@@ -6,6 +6,7 @@ import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
 import { ResourceManager } from "../resources";
 import { AudioManager } from "../audio";
+import { isPressedByNonLMB, getPressedFlag, resetPressedFlag, isPressedByGamepad } from "../input";
 
 export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
@@ -367,3 +368,28 @@ setupButton(nameEntryButton, 'common/ok', () => {
 		});
 	}
 });
+
+export const handleFinishScreenGamepadInput = () => {
+	// If the finish screen is up, handle those buttons ...
+	if (!nameEntryScreenDiv.classList.contains('hidden')) {
+		if (isPressedByGamepad('jump') && getPressedFlag('jump')) {
+			resetPressedFlag('jump');
+			nameEntryButton.click();
+		}
+	} else if (!finishScreenDiv.classList.contains('hidden')) {
+		// Check for buttons
+		if (isPressedByGamepad('use') && getPressedFlag('use')) {
+			resetPressedFlag('use');
+			viewReplayButton.click();
+		}
+		if (isPressedByGamepad('jump') && getPressedFlag('jump')) {
+			resetPressedFlag('jump');
+			continueButton.click();
+			return;
+		}
+		if (isPressedByGamepad('restart') && getPressedFlag('restart')) {
+			resetPressedFlag('restart');
+			replayButton.click();
+		}
+	}
+};
