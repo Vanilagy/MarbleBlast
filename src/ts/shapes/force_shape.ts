@@ -35,7 +35,7 @@ export abstract class ForceShape extends Shape {
 			if (vec.length() > actualDistance) return; // Out distance is greater than the allowed distance, so we stop right here
 
 			// Maximum force is proportional to the negative of the distance between the marble and the tip of the cone
-			let maxF = Util.lerp(actualStrength,0,vec.length()/actualDistance);
+			let maxF = Util.lerp(actualStrength, 0, vec.length()/actualDistance);
 
 			// Calculate the angle between the perpendicular and the relative position of the marble to the tip of the cone
 			let theta = perpendicular.angleTo(Util.vecOimoToThree(vec));
