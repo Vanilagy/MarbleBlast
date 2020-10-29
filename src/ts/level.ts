@@ -27,14 +27,14 @@ import { TriangleBumper } from "./shapes/triangle_bumper";
 import { Oilslick } from "./shapes/oilslick";
 import { Util, Scheduler } from "./util";
 import { PowerUp } from "./shapes/power_up";
-import { isPressed, isPressedByNonLMB, releaseAllButtons, gamepadAxes, getPressedFlag, resetPressedFlag, isPressedByGamepad } from "./input";
+import { isPressed, releaseAllButtons, gamepadAxes, getPressedFlag, resetPressedFlag } from "./input";
 import { SmallDuctFan } from "./shapes/small_duct_fan";
 import { PathedInterior } from "./pathed_interior";
 import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, finishScreenDiv, showFinishScreen, stopAndExit, nameEntryScreenDiv, nameEntryButton, handleFinishScreenGamepadInput } from "./ui/game";
+import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, showFinishScreen, stopAndExit, handleFinishScreenGamepadInput } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
@@ -837,28 +837,7 @@ export class Level extends Scheduler {
 	}
 
 	tick(time?: number) {
-		if (this.paused) {
-			// Check for pause button input from the gamepad
-			if (isPressedByGamepad('pause') && getPressedFlag('pause')) {
-				resetPressedFlag('pause');
-				this.unpause();
-			}
-			if (isPressedByGamepad('use') && getPressedFlag('use')) {
-				resetPressedFlag('use');
-				this.unpause();
-			}
-			if (isPressedByGamepad('jump') && getPressedFlag('jump')) {
-				resetPressedFlag('jump');
-				stopAndExit();
-			}
-			if (isPressedByGamepad('restart') && getPressedFlag('restart')) {
-				resetPressedFlag('restart');
-				this.unpause();
-				this.restart();
-				this.pressingRestart = true;
-			}
-			return;
-		}
+		if (this.paused) return;
 		if (this.stopped) return;
 		if (time === undefined) time = performance.now();
 		let playReplay = this.replay.mode === 'playback';
@@ -875,7 +854,7 @@ export class Level extends Scheduler {
 			}
 		}
 		this.useQueued = false;
-		
+
 		handleFinishScreenGamepadInput();
 
 		// Handle pressing of the restart button
@@ -886,7 +865,7 @@ export class Level extends Scheduler {
 		} else if (!isPressed('restart')) {
 			this.pressingRestart = false;
 		}
-		
+
 		// Handle pressing of the gamepad pause button
 		if (!this.finishTime && isPressed('pause') && getPressedFlag('pause')) {
 			resetPressedFlag('pause');

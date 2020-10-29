@@ -658,30 +658,38 @@ loadReplayButton.addEventListener('mousedown', (e) => {
 
 export const handleLevelSelectControllerInput = (gamepad: Gamepad) => {
 	// A button to play
-	if (gamepad.buttons[0].value > 0.5 && !previousButtonState[0])
-	playCurrentLevel();
+	if (gamepad.buttons[0].value > 0.5 && !previousButtonState[0]) {
+		playCurrentLevel();
+		AudioManager.play('buttonpress.wav');
+	}
 	// LT, RT to change category
 	if (gamepad.buttons[6].value > 0.5 && !previousButtonState[6]) {
-	// Should probably have a function for this tbh
-	if (getCurrentLevelArray() === intermediateLevels)
-		selectTab('beginner');
-	else if (getCurrentLevelArray() === advancedLevels)
-		selectTab('intermediate');
-	else if (getCurrentLevelArray() === customLevels)
-		selectTab('advanced');
+		// Should probably have a function for this tbh
+		if (getCurrentLevelArray() === intermediateLevels)
+			selectTab('beginner');
+		else if (getCurrentLevelArray() === advancedLevels)
+			selectTab('intermediate');
+		else if (getCurrentLevelArray() === customLevels)
+			selectTab('advanced');
+		AudioManager.play('buttonpress.wav');
 	}
 	if (gamepad.buttons[7].value > 0.5 && !previousButtonState[7]) {
-	// Should probably have a function for this tbh
-	if (getCurrentLevelArray() === beginnerLevels)
-		selectTab('intermediate');
-	else if (getCurrentLevelArray() === intermediateLevels)
-		selectTab('advanced');
-	else if (getCurrentLevelArray() === advancedLevels)
-		selectTab('custom');
+		// Should probably have a function for this tbh
+		if (getCurrentLevelArray() === beginnerLevels)
+			selectTab('intermediate');
+		else if (getCurrentLevelArray() === intermediateLevels)
+			selectTab('advanced');
+		else if (getCurrentLevelArray() === advancedLevels)
+			selectTab('custom');
+		AudioManager.play('buttonpress.wav');
 	}
 	// D-pad left+right to change levels
-	if (gamepad.buttons[14].value > 0.5 && !previousButtonState[14])
-	cycleMission(-1);
-	if (gamepad.buttons[15].value > 0.5 && !previousButtonState[15])
-	cycleMission(1);
+	if (gamepad.buttons[14].value > 0.5 && !previousButtonState[14]) {
+		cycleMission(-1);
+		AudioManager.play('buttonpress.wav');
+	}
+	if (gamepad.buttons[15].value > 0.5 && !previousButtonState[15]) {
+		cycleMission(1);
+		AudioManager.play('buttonpress.wav');
+	}
 };

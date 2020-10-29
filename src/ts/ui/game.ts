@@ -6,7 +6,7 @@ import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
 import { ResourceManager } from "../resources";
 import { AudioManager } from "../audio";
-import { isPressedByNonLMB, getPressedFlag, resetPressedFlag, isPressedByGamepad } from "../input";
+import { getPressedFlag, resetPressedFlag, isPressedByGamepad, previousButtonState } from "../input";
 
 export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
@@ -369,27 +369,56 @@ setupButton(nameEntryButton, 'common/ok', () => {
 	}
 });
 
+export const handlePauseScreenGamepadInput = (gamepad: Gamepad) => {
+	// A button to exit
+	if (gamepad.buttons[0].value > 0.5 && !previousButtonState[0]) {
+		stopAndExit();
+		AudioManager.play('buttonpress.wav');
+	}
+	// B button or pause button to continue
+	if (gamepad.buttons[1].value > 0.5 && !previousButtonState[1]) {
+		state.currentLevel.unpause();
+		AudioManager.play('buttonpress.wav');
+	}
+	if (gamepad.buttons[9].value > 0.5 && !previousButtonState[9]) {
+		state.currentLevel.unpause();
+		resetPressedFlag('pause');
+		AudioManager.play('buttonpress.wav');
+	}
+	// Restart button to restart
+	if (gamepad.buttons[8].value > 0.5 && !previousButtonState[8]) {
+		state.currentLevel.unpause();
+		state.currentLevel.restart();
+		state.currentLevel.pressingRestart = true;
+		AudioManager.play('buttonpress.wav');
+	}
+};
+
 export const handleFinishScreenGamepadInput = () => {
 	// If the finish screen is up, handle those buttons ...
 	if (!nameEntryScreenDiv.classList.contains('hidden')) {
 		if (isPressedByGamepad('jump') && getPressedFlag('jump')) {
 			resetPressedFlag('jump');
 			nameEntryButton.click();
+			AudioManager.play('buttonpress.wav');
 		}
 	} else if (!finishScreenDiv.classList.contains('hidden')) {
 		// Check for buttons
 		if (isPressedByGamepad('use') && getPressedFlag('use')) {
 			resetPressedFlag('use');
 			viewReplayButton.click();
+			AudioManager.play('buttonpress.wav');
 		}
 		if (isPressedByGamepad('jump') && getPressedFlag('jump')) {
 			resetPressedFlag('jump');
 			continueButton.click();
+			AudioManager.play('buttonpress.wav');
 			return;
 		}
 		if (isPressedByGamepad('restart') && getPressedFlag('restart')) {
 			resetPressedFlag('restart');
 			replayButton.click();
+			AudioManager.play('buttonpress.wav');
 		}
 	}
 };

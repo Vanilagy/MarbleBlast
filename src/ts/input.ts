@@ -1,7 +1,7 @@
 import { state } from "./state";
 import { StorageManager } from "./storage";
-import { gameUiDiv } from "./ui/game";
-import { levelSelectDiv, playCurrentLevel, selectTab, getCurrentLevelArray, beginnerLevels, intermediateLevels, advancedLevels, customLevels, cycleMission, handleLevelSelectControllerInput } from "./ui/level_select";
+import { handlePauseScreenGamepadInput } from "./ui/game";
+import { levelSelectDiv, handleLevelSelectControllerInput } from "./ui/level_select";
 
 export const currentMousePosition = {
 	x: 0,
@@ -224,10 +224,13 @@ const updateGamepadInput = () => {
 				gamepadAxes[axisName as keyof typeof gamepadAxes] = 0;
 		}
 	}
-	
+
 	// Check for input on the level select screen
 	if (!levelSelectDiv.classList.contains('hidden')) 
 		handleLevelSelectControllerInput(gamepads[mostRecentGamepad]);
+		
+	if (state.currentLevel?.paused)
+		handlePauseScreenGamepadInput(gamepads[mostRecentGamepad]);
 	
 	for (let i = 0; i < gamepads[mostRecentGamepad].buttons.length && i < 18; i++) {
 		previousButtonState[i] = (gamepads[mostRecentGamepad].buttons[i].value > 0.5);

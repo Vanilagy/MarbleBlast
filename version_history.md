@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.9
+- Added gamepad support (thanks, [Whirligig](https://github.com/Whirligig231)!)
+
 ## 1.4.8
 - Exclude incorrect triggers from pathed interiors
 - Fixed PathedInterior.prevPosition
