@@ -99,7 +99,8 @@ function sendToWebhook($toInsert, $path) {
 		$seconds = floor($timeRaw / 1000 % 60);
 		$milliseconds = floor($timeRaw % 1000);
 		$time = str_pad(strval($minutes), 2, "0", STR_PAD_LEFT) . ":" . str_pad(strval($seconds), 2, "0", STR_PAD_LEFT) . "." . str_pad(strval($milliseconds), 3, "0", STR_PAD_LEFT);
-		$message = $toInsert[0] . " has just achieved a world record on \"" . $levelName . "\" (Web " . $category . ") of " . $time;
+		$sanitizedName = str_replace("@", "@\u{00A0}", $toInsert[0]);
+		$message = $sanitizedName . " has just achieved a world record on \"" . $levelName . "\" (Web " . $category . ") of " . $time;
 		
 		sendPost(
 			$webhookUrl,
