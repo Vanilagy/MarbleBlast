@@ -1,5 +1,9 @@
 # Version History
 
+## 1.4.10
+- Added support for webhook integration for announcing records
+- Fix custom level gold and qualify times not showing up
+
 ## 1.4.9
 - Added gamepad support (thanks, [Whirligig](https://github.com/Whirligig231)!)
 

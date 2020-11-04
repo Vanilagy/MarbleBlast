@@ -486,7 +486,7 @@ hiddenUnlocker.addEventListener('mousedown', () => {
 
 // The second value in the tuple can be number or string - number for legacy reasons.
 let onlineLeaderboard: Record<string, [string, number | string][]> = {};
-export const updateOnlineLeaderboard = async (handleUpload = false) => {
+export const updateOnlineLeaderboard = async (handleUpload = false, handleBestTimes = true) => {
 	let postData = {
 		randomId: StorageManager.data.randomId,
 		bestTimes: {} as Record<string, [string, string]>,
@@ -501,24 +501,27 @@ export const updateOnlineLeaderboard = async (handleUpload = false) => {
 	}
 
 	try {
-		let compressed = await executeOnWorker('compress', JSON.stringify(postData));
+		if (handleBestTimes) {
+			let compressed = await executeOnWorker('compress', JSON.stringify(postData));
 
-		let response = await fetch('./php/update_leaderboard.php', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/octet-stream',
-			},
-			body: compressed
-		});
-		if (response.ok) {
-			let json = await response.json();
-			onlineLeaderboard = json;
-			displayBestTimes(); // Refresh best times
+			let response = await fetch('./php/update_leaderboard.php', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/octet-stream',
+				},
+				body: compressed
+			});
+			if (response.ok) {
+				let text = await response.text();
+				let json = JSON.parse(text);
+				onlineLeaderboard = json;
+				displayBestTimes(); // Refresh best times
+			}
 		}
 
 		if (handleUpload) {
 			// Handle upload of .wrecs to the server
-			response = await fetch('./php/get_stored_wrecs.php');
+			let response = await fetch('./php/get_stored_wrecs.php');
 			if (response.ok) {
 				let json = await response.json() as Record<string, [string, string, number]>;
 

@@ -15,10 +15,12 @@ export interface CLAEntry {
 	egg: boolean,
 	gameType: string,
 	gems: number,
+	goldTime: number,
 	id: number,
 	modification: string,
 	name: string,
 	rating: number,
+	time: number,
 	weight: number
 }
 
@@ -72,6 +74,8 @@ export class Mission {
 		mission.title = entry.name.trim();
 		mission.artist = entry.artist ?? '';
 		mission.description = entry.desc ?? '';
+		if (entry.time) mission.qualifyTime = entry.time;
+		if (entry.goldTime) mission.goldTime = entry.goldTime;
 		mission.id = entry.id;
 		mission.initSearchString();
 

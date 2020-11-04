@@ -2,6 +2,7 @@
 
 date_default_timezone_set('UTC');
 header("Content-Type: text/plain");
+require_once('./level_name_map.php');
 
 function createPath($path) {
     if (is_dir($path)) return true;
@@ -23,7 +24,10 @@ if (is_file($cwd . "/leaderboard.json")) {
 if (!is_file($leaderboardPath)) file_put_contents($leaderboardPath, "{}"); // Create an empty leaderboard if none exists yet
 
 $leaderboardString = file_get_contents($leaderboardPath);
-if (empty($leaderboardString)) exit(); // We didn't manage to correctly read in the leaderboard, go and stop the script to prevent any further damage
+// We didn't manage to correctly read in the leaderboard, go and stop the script to prevent any further damage
+if (empty($leaderboardString)) {
+	exit();
+}
 
 // Handle the hourly backup
 $date = date("YmdH");
@@ -33,20 +37,87 @@ if (!is_file($backupPath)) file_put_contents($backupPath, $leaderboardString);
 // Get and decode the input
 $rawInput = file_get_contents("php://input");
 $decodedInput = zlib_decode($rawInput);
-if (!$decodedInput) exit();
+if (!$decodedInput) {
+	exit();
+}
 
 $input = json_decode($decodedInput, true);
 $leaderboard = json_decode($leaderboardString, true);
 if (!isset($leaderboard)) exit(); // Just to be sure
 $version = isset($input["version"])? intval($input["version"]) : 0;
 
+function sendPost($url, $data) {
+	try {
+		$options = array(
+			'http' => array(
+				'header'  => "Content-type: application/json\n",
+				'method'  => 'POST',
+				'content' => $data
+			)
+		);
+		$context  = stream_context_create($options);
+		@$result = file_get_contents($url, false, $context);
+	} catch (Exception $e) {
+		// Don't do anything I guess
+	}
+}
+
+$webhookScoreCountThreshold = 6; // Require at least this many scores on a level before the announcement is made
+function sendToWebhook($toInsert, $path) {
+	global $cwd;
+	global $level_names;
+
+	if (is_file($cwd . "/../storage/discord_webhook.txt")) {
+		$webhookUrl = file_get_contents($cwd . "/../storage/discord_webhook.txt");
+
+		$levelName;
+		$category;
+		if (strpos($path, 'custom') === 0) {
+			$claList = json_decode(file_get_contents($cwd . "/../assets/cla_list.json"), true);
+			$searchedId = intval(substr($path, 7));
+			$entry;
+			for ($i = 0; $i < count($claList); $i++) {
+				if ($claList[$i]["id"] === $searchedId) {
+					$entry = $claList[$i];
+					break;
+				}
+			}
+			if (!$entry) return;
+
+			$levelName = trim($entry["name"]);
+			$category = "Custom";
+		} else {
+			$levelName = $level_names[$path];
+			$category = ucfirst(substr($path, 0, strpos($path, "/")));
+		}
+		if (!isset($levelName)) return;
+		
+		$timeStr = strval($toInsert[1]);
+		$intPart = (strpos($timeStr, ".") !== false)? substr($timeStr, 0, strpos($timeStr, ".")) : $timeStr;
+		$timeRaw = (float) $intPart;
+		$minutes = floor($timeRaw / (1000 * 60));
+		$seconds = floor($timeRaw / 1000 % 60);
+		$milliseconds = floor($timeRaw % 1000);
+		$time = str_pad(strval($minutes), 2, "0", STR_PAD_LEFT) . ":" . str_pad(strval($seconds), 2, "0", STR_PAD_LEFT) . "." . str_pad(strval($milliseconds), 3, "0", STR_PAD_LEFT);
+		$message = $toInsert[0] . " has just achieved a world record on \"" . $levelName . "\" (Web " . $category . ") of " . $time;
+		
+		sendPost(
+			$webhookUrl,
+			json_encode(array("content" => $message))
+		);
+	}
+}
+
 // Handle insertion of best times
 foreach ($input["bestTimes"] as $key => $value) {
 	$toInsert = array($value[0], $value[1], $input["randomId"]);
 	$time = (float) $value[1];
 
+	$webhookOverride = strpos($key, "custom") !== 0; // Always show non-custom records
+
 	if (!isset($leaderboard[$key])) {
 		$leaderboard[$key] = array($toInsert);
+		if ($webhookOverride || $webhookScoreCountThreshold <= 1) sendToWebhook($toInsert, $key);
 	} else {
 		$needsInsert = true;
 
@@ -69,12 +140,14 @@ foreach ($input["bestTimes"] as $key => $value) {
 	
 			array_splice($leaderboard[$key], $i, 0, array($toInsert));
 			$leaderboard[$key] = array_slice($leaderboard[$key], 0, 50);
+
+			if ($webhookOverride || $webhookScoreCountThreshold <= count($leaderboard[$key])) sendToWebhook($toInsert, $key);
 		}
 	}
 }
 
 // Save it
-file_put_contents($leaderboardPath, json_encode($leaderboard));
+file_put_contents($leaderboardPath, json_encode($leaderboard), LOCK_EX);
 
 $response = array();
 

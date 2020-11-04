@@ -364,7 +364,7 @@ setupButton(nameEntryButton, 'common/ok', () => {
 		level.replay.canStore = false;
 		level.replay.serialize().then(async e => {
 			await StorageManager.databasePut('replays', e, newScoreId);
-			updateOnlineLeaderboard(true);
+			updateOnlineLeaderboard(true, false);
 		});
 	}
 });
