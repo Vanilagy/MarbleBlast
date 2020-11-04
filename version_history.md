@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.11
+- Fix horrible webhook exploits 😂
+
 ## 1.4.10
 - Added support for webhook integration for announcing records
 - Fix custom level gold and qualify times not showing up

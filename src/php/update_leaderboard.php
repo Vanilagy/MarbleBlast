@@ -62,6 +62,23 @@ function sendPost($url, $data) {
 	}
 }
 
+function escapeDiscord($message) {
+	$message = str_replace("\\", "\\\\", $message);
+	$message = str_replace("*", "\\*", $message);
+	$message = str_replace("_", "\\_", $message);
+	$message = str_replace("~", "\\~", $message);
+	$message = str_replace("-", "\\-", $message);
+	$message = str_replace("`", "\\`", $message);
+	$message = str_replace(":", "\\:", $message);
+
+	//To prevent people from @everyone and causing a problem
+	$message = str_replace("@", "@﻿", $message);
+	//To prevent people from <@&> as well
+	$message = str_replace("<", "<﻿", $message);
+
+	return $message;
+}
+
 $webhookScoreCountThreshold = 6; // Require at least this many scores on a level before the announcement is made
 function sendToWebhook($toInsert, $path) {
 	global $cwd;
@@ -91,6 +108,7 @@ function sendToWebhook($toInsert, $path) {
 			$category = ucfirst(substr($path, 0, strpos($path, "/")));
 		}
 		if (!isset($levelName)) return;
+		$levelName = escapeDiscord($levelName);
 		
 		$timeStr = strval($toInsert[1]);
 		$intPart = (strpos($timeStr, ".") !== false)? substr($timeStr, 0, strpos($timeStr, ".")) : $timeStr;
@@ -99,7 +117,7 @@ function sendToWebhook($toInsert, $path) {
 		$seconds = floor($timeRaw / 1000 % 60);
 		$milliseconds = floor($timeRaw % 1000);
 		$time = str_pad(strval($minutes), 2, "0", STR_PAD_LEFT) . ":" . str_pad(strval($seconds), 2, "0", STR_PAD_LEFT) . "." . str_pad(strval($milliseconds), 3, "0", STR_PAD_LEFT);
-		$sanitizedName = str_replace("@", "@\u{00A0}", $toInsert[0]);
+		$sanitizedName = escapeDiscord($toInsert[0]);
 		$message = $sanitizedName . " has just achieved a world record on \"" . $levelName . "\" (Web " . $category . ") of " . $time;
 		
 		sendPost(
