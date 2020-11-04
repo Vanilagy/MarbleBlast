@@ -15,7 +15,7 @@ setupButton(playButton, 'home/play', () => {
 	levelSelectDiv.classList.remove('hidden');
 	hiddenUnlocker.classList.remove('hidden');
 
-	updateOnlineLeaderboard();
+	updateOnlineLeaderboard(true);
 });
 setupButton(helpButton, 'home/help', () => {
 	// Show the help screen

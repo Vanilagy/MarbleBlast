@@ -1,11 +1,12 @@
 # Version History
 
 ## 1.4.11
-- Fix horrible webhook exploits 😂
+- Fixed horrible webhook exploits 😂
+- Fixed replays not uploading immediately after achieving a play
 
 ## 1.4.10
 - Added support for webhook integration for announcing records
-- Fix custom level gold and qualify times not showing up
+- Fixed custom level gold and qualify times not showing up
 
 ## 1.4.9
 - Added gamepad support (thanks, [Whirligig](https://github.com/Whirligig231)!)
@@ -18,21 +19,21 @@
 - Fixed incorrect position, scale and rotation values in .mis files not resolving correctly
 
 ## 1.4.6
-- Fix old non-recorded scores crashing the .wrec uploader (thx c0wmanglr for the debug)
+- Fixed old non-recorded scores crashing the .wrec uploader (thx c0wmanglr for the debug)
 
 ## 1.4.5
 - Replay upload hotfix
 
 ## 1.4.4
-- Add automatic .wrec upload to server (if #1 score)
-- Fix data corruption bug when having no scores
+- Added automatic .wrec upload to server (if #1 score)
+- Fixed data corruption bug when having no scores
 
 ## 1.4.3
-- Fix clock inaccuracies
+- Fixed clock inaccuracies
 
 ## 1.4.2
-- Add a maximum time cap
-- Fix negative elapsed time
+- Added a maximum time cap
+- Fixed negative elapsed time
 
 ## 1.4.1
 - Fixed old replays not downloading into the correct format

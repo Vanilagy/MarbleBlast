@@ -354,7 +354,7 @@ setupButton(nameEntryButton, 'common/ok', () => {
 	let level = state.currentLevel;
 	StorageManager.data.lastUsedName = trimmed;
 	let newScoreId = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
-	updateOnlineLeaderboard();
+	let uploadScoresPromise = updateOnlineLeaderboard();
 
 	nameEntryScreenDiv.classList.add('hidden');
 	drawBestTimes();
@@ -364,6 +364,7 @@ setupButton(nameEntryButton, 'common/ok', () => {
 		level.replay.canStore = false;
 		level.replay.serialize().then(async e => {
 			await StorageManager.databasePut('replays', e, newScoreId);
+			await uploadScoresPromise; // Make sure the scores have actually been uploaded before pushing the replay
 			updateOnlineLeaderboard(true, false);
 		});
 	}
