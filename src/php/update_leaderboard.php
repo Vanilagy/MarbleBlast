@@ -141,7 +141,7 @@ foreach ($input["bestTimes"] as $key => $value) {
 			array_splice($leaderboard[$key], $i, 0, array($toInsert));
 			$leaderboard[$key] = array_slice($leaderboard[$key], 0, 50);
 
-			if ($webhookOverride || $webhookScoreCountThreshold <= count($leaderboard[$key])) sendToWebhook($toInsert, $key);
+			if (($webhookOverride || $webhookScoreCountThreshold <= count($leaderboard[$key])) && $i === 0) sendToWebhook($toInsert, $key);
 		}
 	}
 }
