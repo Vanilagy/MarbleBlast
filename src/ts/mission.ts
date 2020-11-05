@@ -84,7 +84,7 @@ export class Mission {
 
 	initSearchString() {
 		// Just the title and artist for now
-		this.searchString = Util.normalizeString(this.title + ' ' + this.artist).toLowerCase().trim();
+		this.searchString = Util.removeSpecialCharacters(Util.normalizeString(this.title + ' ' + this.artist)).toLowerCase().trim();
 	}
 
 	/** Loads this mission for gameplay. */

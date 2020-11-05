@@ -169,7 +169,7 @@ export class Shape {
 		let collisionGeometries = new Set<THREE.BufferGeometry>();
 
 		// Check if there's already shared data from another shape of the same type
-		let sharedDataPromise = this.level?.sharedShapeData.get(this.dtsPath + this.shareId.toString());
+		let sharedDataPromise = this.level?.sharedShapeData.get(this.constructor.name + ' ' + this.shareId.toString());
 		if (sharedDataPromise) {
 			// If so, wait for that shape to complete initiation...
 			this.sharedData = await sharedDataPromise;
@@ -194,7 +194,7 @@ export class Shape {
 			let resolveFunc: (data: SharedShapeData) => any;
 			if (this.level) {
 				let sharedDataPromise = new Promise<SharedShapeData>((resolve) => resolveFunc = resolve);
-				this.level.sharedShapeData.set(this.dtsPath + this.shareId.toString(), sharedDataPromise);
+				this.level.sharedShapeData.set(this.constructor.name + ' ' + this.shareId.toString(), sharedDataPromise);
 			}
 
 			for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());

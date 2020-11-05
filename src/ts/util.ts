@@ -471,6 +471,10 @@ export abstract class Util {
 		return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 	}
 
+	static removeSpecialCharacters(str: string) {
+		return str.replace(/[-!$%^&*()_+|~=`{}\[\]:";'<>?,.\/]/g, '');
+	}
+
 	/** Gets the last item in an array. */
 	static last<T>(arr: T[]) {
 		return arr[arr.length - 1];

@@ -1,5 +1,9 @@
 # Version History
 
+## 1.4.13
+- Fixed levels with both DuctFans and SmallDuctFans
+- Special characters are now ignored in level search
+
 ## 1.4.12
 - Fixed mission file number parsing issue
 

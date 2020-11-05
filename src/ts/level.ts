@@ -120,7 +120,7 @@ export class Level extends Scheduler {
 	triggers: Trigger[] = [];
 
 	shapes: Shape[] = [];
-	/** Holds data shared between multiple shapes of the same .dts path. */
+	/** Holds data shared between multiple shapes with the same constructor. */
 	sharedShapeData = new Map<string, Promise<SharedShapeData>>();
 	/** The shapes used for drawing HUD overlay (powerups in the corner) */
 	overlayShapes: Shape[] = [];
