@@ -52,7 +52,7 @@ export class SuperSpeed extends PowerUp {
 		quat2.setArc(this.level.currentUp, marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
 		movementVector.applyQuaternion(new THREE.Quaternion(quat2.x, quat2.y, quat2.z, quat2.w)); // ...then rotate the movement bonus vector by that amount.
 		
-		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirlgig's determined value
+		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirligig's determined value
 
 		AudioManager.play(this.sounds[1]);
 		this.level.particles.createEmitter(superSpeedParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
