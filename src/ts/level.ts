@@ -1067,7 +1067,6 @@ export class Level extends Scheduler {
 	onMouseMove(e: MouseEvent) {
 		if (!document.pointerLockElement || this.finishTime || this.paused || this.replay.mode === 'playback') return;
 
-		// temp
 		let totalDistance = Math.hypot(e.movementX, e.movementY);
 		if (totalDistance > 300 && location.search.includes('debug')) alert(totalDistance + ', ' + e.movementX + ' ' + e.movementY);
 
