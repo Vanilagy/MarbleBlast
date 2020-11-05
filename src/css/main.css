@@ -52,46 +52,46 @@ html, body {
 	top: 0;
 	left: 0;
 	width: 100%;
-    height: 100%;
+	height: 100%;
 	object-fit: fill;
 }
 
 #loading-message {
 	position: absolute;
-    margin: auto;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    font-family: DomCasualRegular;
-    color: white;
-    font-size: 24px;
-    width: 200px;
-    text-align: center;
+	margin: auto;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	font-family: DomCasualRegular;
+	color: white;
+	font-size: 24px;
+	width: 200px;
+	text-align: center;
 	height: 35px;
 	animation: pulse-opacity 1s infinite forwards;
 }
 
 #start-game-dialog {
 	width: 400px;
-    height: 60px;
-    text-align: center;
-    position: absolute;
-    margin: auto;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    font-family: DomCasualRegular;
-    color: white;
+	height: 60px;
+	text-align: center;
+	position: absolute;
+	margin: auto;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	font-family: DomCasualRegular;
+	color: white;
 }
 
 #version {
 	position: absolute;
-    bottom: 0;
-    left: 0;
-    margin: 0;
-    font-family: Arial;
-    padding: 2px;
-    font-size: 10px;
+	bottom: 0;
+	left: 0;
+	margin: 0;
+	font-family: Arial;
+	padding: 2px;
+	font-size: 10px;
 }

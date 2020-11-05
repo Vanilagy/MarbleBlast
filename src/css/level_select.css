@@ -15,28 +15,28 @@
 	display: block;
 	position: absolute;
 	top: -40px;
-    left: 29px;
+	left: 29px;
 }
 
 #tab-intermediate {
 	display: block;
 	position: absolute;
 	top: -38px;
-    left: 212px;
+	left: 212px;
 }
 
 #tab-advanced {
 	display: block;
 	position: absolute;
 	top: -21px;
-    left: 407px;
+	left: 407px;
 }
 
 #tab-custom {
 	display: block;
 	position: absolute;
 	top: 43px;
-    left: 589px;
+	left: 589px;
 }
 
 #level-select-text-window {
@@ -49,7 +49,7 @@
 
 #level-select-text-window-scrollable {
 	position: absolute;
-    height: 205px;
+	height: 205px;
 	overflow-y: auto;
 	overflow-x: hidden;
 	top: 10px;
@@ -76,7 +76,7 @@
 	display: block;
 	position: absolute;
 	top: 257px;
-    left: 103px;
+	left: 103px;
 }
 
 #level-select-level-window {
@@ -91,14 +91,14 @@
 
 #level-select-level-window > img:first-child {
 	position: absolute;
-    top: 0;
+	top: 0;
 	left: 0;
 	z-index: 0;
 }
 
 #level-image {
-    width: 100%;
-    height: 100%;
+	width: 100%;
+	height: 100%;
 	object-fit: fill;
 	z-index: -2;
 	position: absolute;
@@ -106,123 +106,123 @@
 }
 
 #not-qualified-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    color: white;
-    background: #0000007a;
-    text-align: center;
-    font-family: DomCasualRegular;
-    font-size: 24px;
-    line-height: 200px;
-    z-index: -1;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	color: white;
+	background: #0000007a;
+	text-align: center;
+	font-family: DomCasualRegular;
+	font-size: 24px;
+	line-height: 200px;
+	z-index: -1;
 }
 
 #level-number {
 	position: absolute;
-    margin: auto;
-    left: 0;
-    right: 0;
-    text-align: center;
-    bottom: 14px;
-    font-family: DomCasualRegular;
-    color: white;
-    text-shadow: 1px 1px 0px black, 1px 1px 0px black;
-    font-size: 19px;
+	margin: auto;
+	left: 0;
+	right: 0;
+	text-align: center;
+	bottom: 14px;
+	font-family: DomCasualRegular;
+	color: white;
+	text-shadow: 1px 1px 0px black, 1px 1px 0px black;
+	font-size: 19px;
 }
 
 #level-select-prev {
 	display: block;
 	position: absolute;
 	top: 257px;
-    left: 314px;
+	left: 314px;
 }
 
 #level-select-play {
 	display: block;
 	position: absolute;
 	top: 255px;
-    left: 385px;
+	left: 385px;
 }
 
 #level-select-next {
 	display: block;
 	position: absolute;
 	top: 260px;
-    left: 501px;
+	left: 501px;
 }
 
 #level-title {
 	font-family: DomCasualRegular;
-    margin: 0;
-    margin-top: 4px;
-    margin-left: 30px;
+	margin: 0;
+	margin-top: 4px;
+	margin-left: 30px;
 	font-size: 20px;
 	white-space: pre-line;
 }
 
 #level-artist {
 	font-family: Arial, sans-serif;
-    margin: 0;
-    margin-left: 31px;
-    font-size: 9px;
-    white-space: pre-line;
+	margin: 0;
+	margin-left: 31px;
+	font-size: 9px;
+	white-space: pre-line;
 }
 
 #level-description {
 	font-family: Arial, sans-serif;
-    margin: 0;
-    margin-top: 16px;
-    margin-left: 38px;
-    width: 207px;
+	margin: 0;
+	margin-top: 16px;
+	margin-left: 38px;
+	width: 207px;
 	font-size: 11px;
 	white-space: pre-line;
 }
 
 #level-qualify-time {
 	font-family: DomCasualRegular;
-    margin: 0;
-    margin-left: 30px;
+	margin: 0;
+	margin-left: 30px;
 	font-size: 20px;
 	white-space: pre-line;
 }
 
 #best-times-heading {
 	font-family: DomCasualRegular;
-    margin: 0;
-    margin-top: 14px;
-    margin-left: 30px;
+	margin: 0;
+	margin-top: 14px;
+	margin-left: 30px;
 	font-size: 20px;
 	margin-bottom: 14px;
 }
 
 #online-leaderboard-heading {
 	font-family: DomCasualRegular;
-    margin: 0;
-    margin-top: 23px;
-    margin-left: 30px;
+	margin: 0;
+	margin-top: 23px;
+	margin-left: 30px;
 	font-size: 20px;
 	margin-bottom: 14px;
 }
 
 .level-select-best-time {
 	font-family: Arial, sans-serif;
-    font-weight: bolder;
-    font-size: 11px;
-    width: 189px;
-    margin-left: 42px;
+	font-weight: bolder;
+	font-size: 11px;
+	width: 189px;
+	margin-left: 42px;
 	clear: both;
 	position: relative;
 }
 
 .level-select-best-time > div:first-child {
 	float: left;
-    width: 97px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+	width: 97px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .level-select-best-time > div:nth-child(3) {
@@ -237,8 +237,8 @@
 
 .level-select-best-time > img:nth-child(4) {
 	position: absolute;
-    top: -3px;
-    left: -23px;
+	top: -3px;
+	left: -23px;
 	opacity: 0.333;
 	display: none;
 }
@@ -258,26 +258,26 @@
 
 #search-bar {
 	position: absolute;
-    top: -23px;
-    left: 0;
-    height: 22px;
-    width: 252px;
-    border-image: url(../assets/ui/common/window.png) stretch;
-    border-width: 11px;
-    border-style: solid;
-    border-image-slice: 27 fill;
-    box-sizing: border-box;
+	top: -23px;
+	left: 0;
+	height: 22px;
+	width: 252px;
+	border-image: url(../assets/ui/common/window.png) stretch;
+	border-width: 11px;
+	border-style: solid;
+	border-image-slice: 27 fill;
+	box-sizing: border-box;
 }
 
 #search-input {
 	position: absolute;
-    top: -19px;
-    left: 16px;
-    font-size: 12px;
-    background: transparent;
-    border: none;
-    font-family: Arial, sans-serif;
-    width: 210px;
+	top: -19px;
+	left: 16px;
+	font-size: 12px;
+	background: transparent;
+	border: none;
+	font-family: Arial, sans-serif;
+	width: 210px;
 }
 
 #search-input:focus {
@@ -286,7 +286,7 @@
 
 #load-replay-button {
 	position: absolute;
-    bottom: 18px;
+	bottom: 18px;
 	left: 42px;
 	opacity: 0.333;
 }

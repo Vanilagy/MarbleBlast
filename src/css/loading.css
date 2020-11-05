@@ -15,25 +15,25 @@
 	display: block;
 	position: absolute;
 	top: 232px;
-    left: 316px;
+	left: 316px;
 }
 
 #loading-level-name {
 	position: absolute;
-    top: 50px;
-    left: 61px;
-    text-align: center;
-    width: 100%;
-    font-family: DomCasualRegular;
-    font-size: 24px;
+	top: 50px;
+	left: 61px;
+	text-align: center;
+	width: 100%;
+	font-family: DomCasualRegular;
+	font-size: 24px;
 }
 
 #loading-progress {
 	height: 67px;
-    position: absolute;
-    width: 0px;
-    background: #0000001f;
-    left: 160px;
-    top: 140px;
-    z-index: -1;
+	position: absolute;
+	width: 0px;
+	background: #0000001f;
+	left: 160px;
+	top: 140px;
+	z-index: -1;
 }

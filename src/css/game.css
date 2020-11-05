@@ -73,41 +73,41 @@
 	right: 0;
 	bottom: 0;
 	width: 380px;
-    height: 183px;
+	height: 183px;
 }
 
 #pause-screen > img:first-child {
 	width: 380px;
-    height: 183px;
+	height: 183px;
 }
 
 #pause-screen > p {
 	position: absolute;
-    font-family: DomCasualRegular;
-    font-size: 24px;
-    top: 17px;
-    left: 106px;
+	font-family: DomCasualRegular;
+	font-size: 24px;
+	top: 17px;
+	left: 106px;
 }
 
 #pause-yes {
 	display: block;
 	position: absolute;
 	top: 104px;
-    left: 46px;
+	left: 46px;
 }
 
 #pause-no {
 	display: block;
 	position: absolute;
 	top: 102px;
-    left: 146px;
+	left: 146px;
 }
 
 #pause-restart {
 	display: block;
 	position: absolute;
 	top: 101px;
-    left: 243px;
+	left: 243px;
 }
 
 #finish-screen {
@@ -119,26 +119,26 @@
 	right: 0;
 	bottom: 0;
 	width: 476px;
-    height: 449px;
+	height: 449px;
 }
 
 #finish-screen > img:first-child {
 	width: 476px;
 	height: 449px;
 	position: absolute;
-    top: 0;
+	top: 0;
 	left: 0;
 	image-rendering: pixelated;
 }
 
 #finish-screen-time {
-    font-size: 34px;
-    width: 388px;
-    font-family: Expo;
-    text-shadow: 1px 1px 0px black, 1px 1px 0px black;
-    position: relative;
-    margin-left: 43px;
-    margin-top: 17px;
+	font-size: 34px;
+	width: 388px;
+	font-family: Expo;
+	text-shadow: 1px 1px 0px black, 1px 1px 0px black;
+	position: relative;
+	margin-left: 43px;
+	margin-top: 17px;
 }
 
 #finish-screen-time > p {
@@ -157,21 +157,21 @@
 
 #finish-message {
 	position: relative;
-    margin: 0;
-    font-family: Expo;
-    font-size: 22px;
-    text-shadow: 1px 1px 0px black, 1px 1px 0px black;
-    color: lime;
-    margin-left: 38px;
+	margin: 0;
+	font-family: Expo;
+	font-size: 22px;
+	text-shadow: 1px 1px 0px black, 1px 1px 0px black;
+	color: lime;
+	margin-left: 38px;
 }
 
 .finish-row {
 	position: relative;
-    margin-left: 108px;
-    margin-top: 8px;
-    font-family: DomCasualRegular;
-    font-size: 25px;
-    width: 265px;
+	margin-left: 108px;
+	margin-top: 8px;
+	font-family: DomCasualRegular;
+	font-size: 25px;
+	width: 265px;
 	text-shadow: 1px 1px 0px #ffffff7a;
 	clear: both;
 }
@@ -182,11 +182,11 @@
 
 .finish-row > p:first-child {
 	float: left;
-    width: 155px;
-    white-space: nowrap;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
+	width: 155px;
+	white-space: nowrap;
+	text-align: left;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .finish-row > p:last-child {
@@ -195,29 +195,29 @@
 
 #finish-replay {
 	display: block;
-    position: absolute;
-    top: 378px;
-    left: 52px;
-    height: 46px;
+	position: absolute;
+	top: 378px;
+	left: 52px;
+	height: 46px;
 	width: 102px;
 	image-rendering: pixelated;
 }
 
 #finish-continue {
 	display: block;
-    position: absolute;
-    top: 376px;
-    left: 318px;
-    height: 48px;
+	position: absolute;
+	top: 376px;
+	left: 318px;
+	height: 48px;
 	width: 120px;
 	image-rendering: pixelated;
 }
 
 #finish-view-replay {
 	position: absolute;
-    opacity: 0.333;
-    bottom: 36px;
-    left: 232px;
+	opacity: 0.333;
+	bottom: 36px;
+	left: 232px;
 }
 
 #finish-view-replay:hover {
@@ -226,62 +226,62 @@
 
 #name-entry-screen {
 	position: absolute;
-    top: 0;
+	top: 0;
 	left: 0;
 	bottom: 0;
 	right: 0;
 	margin: auto;
-    width: 500px;
-    height: 500px;
+	width: 500px;
+	height: 500px;
 }
 
 #name-entry-screen > img:first-child {
 	position: absolute;
-    display: block;
-    top: 117px;
-    left: 52px;
-    height: 250px;
-    width: 400px;
+	display: block;
+	top: 117px;
+	left: 52px;
+	height: 250px;
+	width: 400px;
 }
 
 #name-entry-screen > p:nth-child(2) {
 	position: absolute;
-    display: block;
-    top: 145px;
-    left: 114px;
-    margin: 0;
-    font-family: Expo;
-    font-size: 32px;
+	display: block;
+	top: 145px;
+	left: 114px;
+	margin: 0;
+	font-family: Expo;
+	font-size: 32px;
 }
 
 #name-entry-screen > p:nth-child(3) {
 	position: absolute;
-    display: block;
-    top: 191px;
-    left: 60px;
-    margin: 0;
-    font-family: DomCasualRegular;
-    font-size: 24px;
-    text-align: center;
-    width: 400px;
+	display: block;
+	top: 191px;
+	left: 60px;
+	margin: 0;
+	font-family: DomCasualRegular;
+	font-size: 24px;
+	text-align: center;
+	width: 400px;
 }
 
 #name-entry-input-background {
 	position: absolute;
-    display: block;
-    top: 235px;
-    left: 100px;
+	display: block;
+	top: 235px;
+	left: 100px;
 }
 
 #name-entry-input {
 	position: absolute;
-    display: block;
-    top: 246px;
-    left: 131px;
-    border: none;
-    font-size: 26px;
-    font-family: DomCasualRegular;
-    background: none;
+	display: block;
+	top: 246px;
+	left: 131px;
+	border: none;
+	font-size: 26px;
+	font-family: DomCasualRegular;
+	background: none;
 }
 
 #name-entry-input:focus {
@@ -290,7 +290,7 @@
 
 #name-entry-confirm {
 	position: absolute;
-    display: block;
-    top: 291px;
-    left: 209px;
+	display: block;
+	top: 291px;
+	left: 209px;
 }

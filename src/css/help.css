@@ -7,63 +7,63 @@
 	right: 0;
 	bottom: 0;
 	height: 438px;
-    width: 600px;
+	width: 600px;
 }
 
 #help > img:nth-child(1) {
 	display: block;
 	position: absolute;
 	height: 438px;
-    width: 600px;
-    image-rendering: pixelated;
+	width: 600px;
+	image-rendering: pixelated;
 }
 
 #help > div:nth-child(2) {
 	display: block;
-    position: absolute;
-    top: 27px;
-    left: 30px;
-    width: 541px;
+	position: absolute;
+	top: 27px;
+	left: 30px;
+	width: 541px;
 	height: 326px;
 	border-image: url(../assets/ui/play/text_window.png) stretch;
 	border-width: 30px;
-    border-style: solid;
-    border-image-slice: 30 fill;
-    box-sizing: border-box;
+	border-style: solid;
+	border-image-slice: 30 fill;
+	box-sizing: border-box;
 }
 
 #help-prev {
 	display: block;
-    position: absolute;
-    top: 365px;
-    left: 50px;
+	position: absolute;
+	top: 365px;
+	left: 50px;
 }
 
 #help-back {
 	display: block;
-    position: absolute;
-    top: 362px;
-    left: 266px;
+	position: absolute;
+	top: 362px;
+	left: 266px;
 }
 
 #help-next {
 	display: block;
-    position: absolute;
-    top: 361px;
-    left: 476px;
+	position: absolute;
+	top: 361px;
+	left: 476px;
 }
 
 .help-heading {
 	font-family: Expo;
-    text-align: center;
-    font-size: 34px;
-    margin-top: -10px;
+	text-align: center;
+	font-size: 34px;
+	margin-top: -10px;
 }
 
 .help-paragraph {
 	font-family: DomCasualRegular;
-    font-size: 25px;
-    margin-top: 25px;
+	font-size: 25px;
+	margin-top: 25px;
 	margin-right: -18px;
 	white-space: pre-line;
 }
@@ -79,10 +79,10 @@
 
 .help-canvas-row > div {
 	display: inline-block;
-    vertical-align: top;
-    font-family: DomCasualRegular;
-    font-size: 24px;
-    width: 390px;
+	vertical-align: top;
+	font-family: DomCasualRegular;
+	font-size: 24px;
+	width: 390px;
 	margin-top: 27px;
 	white-space: pre;
 }
@@ -92,7 +92,7 @@
 	font-size: 24px;
 	clear: both;
 	width: 340px;
-    margin: auto;
+	margin: auto;
 }
 
 .help-left-right > div:first-child {
