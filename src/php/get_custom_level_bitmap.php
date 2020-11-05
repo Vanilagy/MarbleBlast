@@ -1,6 +1,7 @@
 <?php
 
 header('Content-Type: image/jpeg');
+header('Access-Control-Allow-Origin: *');
 
 $id = $_GET["id"];
 if (!isset($id)) exit();

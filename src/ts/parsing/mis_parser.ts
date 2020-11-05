@@ -573,13 +573,15 @@ export class MisParser {
 	static parseVector3(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
 		if (parts.length !== 3) return new THREE.Vector3();
+		if (parts.find(x => !isFinite(x)) !== undefined) return new THREE.Vector3();
 		return new THREE.Vector3(parts[0], parts[1], parts[2]);
 	}
 
 	/** Parses a 4-component vector from a string of four numbers. */
 	static parseVector4(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
-		if (parts.length !== 4) return new THREE.Vector3();
+		if (parts.length !== 4) return new THREE.Vector4();
+		if (parts.find(x => !isFinite(x)) !== undefined) return new THREE.Vector4();
 		return new THREE.Vector4(parts[0], parts[1], parts[2], parts[3]);
 	}
 
@@ -587,6 +589,7 @@ export class MisParser {
 	static parseRotation(string: string) {
 		let parts = string.split(' ').map((part) => Number(part));
 		if (parts.length !== 4) return new THREE.Quaternion();
+		if (parts.find(x => !isFinite(x)) !== undefined) return new THREE.Quaternion();
 
 		let quaternion = new THREE.Quaternion();
 		// The first 3 values represent the axis to rotate on, the last represents the negative angle in degrees.

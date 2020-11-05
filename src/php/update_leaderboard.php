@@ -113,10 +113,13 @@ function sendToWebhook($toInsert, $path) {
 		$timeStr = strval($toInsert[1]);
 		$intPart = (strpos($timeStr, ".") !== false)? substr($timeStr, 0, strpos($timeStr, ".")) : $timeStr;
 		$timeRaw = (float) $intPart;
+		$neg = $timeRaw < 0;
+		$timeRaw = abs($timeRaw);
 		$minutes = floor($timeRaw / (1000 * 60));
 		$seconds = floor($timeRaw / 1000 % 60);
 		$milliseconds = floor($timeRaw % 1000);
 		$time = str_pad(strval($minutes), 2, "0", STR_PAD_LEFT) . ":" . str_pad(strval($seconds), 2, "0", STR_PAD_LEFT) . "." . str_pad(strval($milliseconds), 3, "0", STR_PAD_LEFT);
+		if ($neg) $time = "-" . $time; // Prepend the sign
 		$sanitizedName = escapeDiscord($toInsert[0]);
 		$message = $sanitizedName . " has just achieved a world record on \"" . $levelName . "\" (Web " . $category . ") of " . $time;
 		

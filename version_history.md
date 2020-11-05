@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.12
+- Fixed mission file number parsing issue
+
 ## 1.4.11
 - Fixed horrible webhook exploits 😂
 - Fixed replays not uploading immediately after achieving a play
