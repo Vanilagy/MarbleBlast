@@ -130,7 +130,8 @@ export class Marble {
 		this.sphere.add(this.forcefield.group);
 
 		this.helicopter = new Shape();
-		this.helicopter.dtsPath = "shapes/images/helicopter.dts";
+		// Easter egg: Due to an iconic bug where the helicopter would instead look like a glow bounce, this can now happen 0.1% of the time.
+		this.helicopter.dtsPath = (Math.random() < 1 / 1000)? "shapes/images/glow_bounce.dts" : "shapes/images/helicopter.dts";
 		this.helicopter.castShadow = true;
 		await this.helicopter.init(this.level);
 		this.helicopter.setOpacity(0);

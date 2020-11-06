@@ -4,6 +4,7 @@
 - Fixed pathed interiors with less than two markers in its path
 - Fixed shapes incorrectly sharing data with shapes of a different DTS path ("shockcopter")
 - Fixed gyrocopter spinning too quickly in the powerup box
+- Gyrocopter now has a 0.1% chance of looking like a shock absorber instead
 
 ## 1.4.13
 - Fixed levels with both DuctFans and SmallDuctFans
