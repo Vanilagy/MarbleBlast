@@ -160,6 +160,12 @@ export class PathedInterior extends Interior {
 		let m1 = this.markerData[0];
 		let m2 = this.markerData[1];
 
+		if (!m1) {
+			// Incase there are no markers at all
+			let mat = new THREE.Matrix4();
+			mat.compose(this.basePosition, this.baseOrientation, this.baseScale);
+		}
+
 		// Find the two markers in question
 		let currentEndTime = m1.msToNext;
 		let i = 2;
@@ -169,6 +175,8 @@ export class PathedInterior extends Interior {
 			
 			currentEndTime += m1.msToNext;
 		}
+		
+		if (!m2) m2 = m1;
 
 		let m1Time = currentEndTime - m1.msToNext;
 		let m2Time = currentEndTime;

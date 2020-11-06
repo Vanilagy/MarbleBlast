@@ -120,7 +120,7 @@ export class Level extends Scheduler {
 	triggers: Trigger[] = [];
 
 	shapes: Shape[] = [];
-	/** Holds data shared between multiple shapes with the same constructor. */
+	/** Holds data shared between multiple shapes with the same constructor and .dts path. */
 	sharedShapeData = new Map<string, Promise<SharedShapeData>>();
 	/** The shapes used for drawing HUD overlay (powerups in the corner) */
 	overlayShapes: Shape[] = [];
@@ -289,13 +289,15 @@ export class Level extends Scheduler {
 		let skyElement = this.mission.root.elements.find((element) => element._type === MissionElementType.Sky) as MissionElementSky;
 
 		let fogColor = MisParser.parseVector4(skyElement.fogcolor);
-		let skySolidColor = MisParser.parseVector4(skyElement.skysolidcolor);
-		// This is kind of a weird situation here. It seems as if when the skysolidcolor isn't the default value, it's used as the skycolor; otherwise, fog color is used. Strange.
-		if (skySolidColor.x !== 0.6 || skySolidColor.y !== 0.6 || skySolidColor.z !== 0.6) fogColor = skySolidColor;
 		// Uber strange way Torque maps these values:
 		if (fogColor.x > 1) fogColor.x = 1 - (fogColor.x - 1) % 256 / 256;
 		if (fogColor.y > 1) fogColor.y = 1 - (fogColor.y - 1) % 256 / 256;
 		if (fogColor.z > 1) fogColor.z = 1 - (fogColor.z - 1) % 256 / 256;
+
+		let skySolidColor = MisParser.parseVector4(skyElement.skysolidcolor);
+		// This is kind of a weird situation here. It seems as if when the skysolidcolor isn't the default value, it's used as the skycolor; otherwise, fog color is used. Strange.
+		if (skySolidColor.x !== 0.6 || skySolidColor.y !== 0.6 || skySolidColor.z !== 0.6) fogColor = skySolidColor;
+		
 		renderer.setClearColor(new THREE.Color(fogColor.x, fogColor.y, fogColor.z), 1);
 
 		camera.far = MisParser.parseNumber(skyElement.visibledistance);
@@ -385,14 +387,12 @@ export class Level extends Scheduler {
 			let shape = new Shape();
 			shape.dtsPath = path;
 			shape.ambientRotate = true;
+			shape.showSequences = false;
 			await shape.init();
 
 			this.overlayShapes.push(shape);
 			this.overlayScene.add(shape.group); // Add the shape temporarily (permanently if gem) for a GPU update
-			if (path.includes("gem")) {
-				shape.ambientSpinFactor /= -2; // Gems spin the other way apparently
-				shape.showSequences = false; // Hide this stupid gem shine animation
-			}
+			if (path.includes("gem")) shape.ambientSpinFactor /= -2; // Gems spin the other way apparently
 			else shape.ambientSpinFactor /= 2;
 		}
 

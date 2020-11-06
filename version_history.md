@@ -1,5 +1,9 @@
 # Version History
 
+## 1.4.14
+- Fixed pathed interiors with less than two markers in its path
+- Fixed shapes incorrectly sharing data with shapes of a different DTS path ("shockcopter")
+
 ## 1.4.13
 - Fixed levels with both DuctFans and SmallDuctFans
 - Special characters are now ignored in level search
