@@ -79,7 +79,7 @@ function escapeDiscord($message) {
 	return $message;
 }
 
-$webhookScoreCountThreshold = 10; // Require at least this many scores on a level before the announcement is made
+$webhookScoreCountThreshold = 50; // Require at least this many scores on a level before the announcement is made
 function sendToWebhook($toInsert, $path) {
 	global $cwd;
 	global $level_names;

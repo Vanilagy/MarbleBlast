@@ -238,6 +238,12 @@ export class PhysicsHelper {
 			// Remove the interior from the world again
 			this.pathedInteriorCollisionWorld.removeRigidBody(body);
 		}
+
+		// Prevent horrible BvhProxy memory leak
+		let world = this.pathedInteriorCollisionWorld as any;
+		world._updateContacts();
+		world._broadPhase.movedProxies.length = 0;
+		world._broadPhase.numMovedProxies = 0;
 	}
 
 	/** Checks collisions with objects and triggers and acts accordingly. */
