@@ -1,7 +1,7 @@
 # Version History
 
 ## 1.4.15
-- Fix pathed interior collision detection memory leak
+- Fixed pathed interior collision detection memory leak
 
 ## 1.4.14
 - Fixed pathed interiors with less than two markers in its path
