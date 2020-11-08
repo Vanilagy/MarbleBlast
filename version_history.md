@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.16
+- Fixed incorrect .mis text encoding
+
 ## 1.4.15
 - Fixed pathed interior collision detection memory leak
 

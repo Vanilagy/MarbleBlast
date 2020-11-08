@@ -140,12 +140,12 @@ export abstract class ResourceManager {
 		return this.loadedImages.get(path) || null;
 	}
 
-	static readBlobAsText(blob: Blob) {
+	static readBlobAsText(blob: Blob, encoding?: string) {
 		if (blob.text) return blob.text();
 		else return new Promise<string>((resolve) => {
 			let reader = new FileReader();
 			reader.onload = (e) => resolve(e.target.result as string);
-			reader.readAsText(blob);
+			reader.readAsText(blob, encoding);
 		});
 	}
 

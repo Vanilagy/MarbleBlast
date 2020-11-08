@@ -571,22 +571,27 @@ export class MisParser {
 
 	/** Parses a 3-component vector from a string of three numbers. */
 	static parseVector3(string: string) {
+		if (!string) return new THREE.Vector3();
 		let parts = string.split(' ').map((part) => Number(part));
 		if (parts.length !== 3) return new THREE.Vector3();
 		if (parts.find(x => !isFinite(x)) !== undefined) return new THREE.Vector3();
+
 		return new THREE.Vector3(parts[0], parts[1], parts[2]);
 	}
 
 	/** Parses a 4-component vector from a string of four numbers. */
 	static parseVector4(string: string) {
+		if (!string) return new THREE.Vector4();
 		let parts = string.split(' ').map((part) => Number(part));
 		if (parts.length !== 4) return new THREE.Vector4();
 		if (parts.find(x => !isFinite(x)) !== undefined) return new THREE.Vector4();
+
 		return new THREE.Vector4(parts[0], parts[1], parts[2], parts[3]);
 	}
 
 	/** Returns a quaternion based on a rotation specified from 4 numbers. */
 	static parseRotation(string: string) {
+		if (!string) return new THREE.Quaternion();
 		let parts = string.split(' ').map((part) => Number(part));
 		if (parts.length !== 4) return new THREE.Quaternion();
 		if (parts.find(x => !isFinite(x)) !== undefined) return new THREE.Quaternion();
@@ -600,6 +605,7 @@ export class MisParser {
 
 	/** Parses a numeric value. */
 	static parseNumber(string: string) {
+		if (!string) return 0;
 		// Strange thing here, apparently you can supply lists of numbers. In this case tho, we just take the first value.
 		let val = Number(string.split(',')[0]);
 		if (isNaN(val)) return 0;

@@ -111,7 +111,7 @@ export class Mission {
 
 		// Read the .mis file
 		let missionFileName = Object.keys(zip.files).find(x => x.endsWith('.mis'));
-		let text = await zip.files[missionFileName].async('text');
+		let text = await ResourceManager.readBlobAsText(await zip.files[missionFileName].async('blob'), 'ISO-8859-1')
 		let parser = new MisParser(text);
 		let misFile = parser.parse();
 
