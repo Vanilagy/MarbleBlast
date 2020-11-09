@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.17
+- Fixed .mis parsing error
+
 ## 1.4.16
 - Fixed incorrect .mis text encoding
 
