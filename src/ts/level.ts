@@ -1238,6 +1238,7 @@ export class Level extends Scheduler {
 	stop() {
 		this.stopped = true;
 		clearInterval(this.tickInterval);
+		this.dispose();
 
 		this.music.stop();
 		for (let shape of this.shapes) {
@@ -1256,5 +1257,12 @@ export class Level extends Scheduler {
 	/** Returns how much percent the level has finished loading. */
 	getLoadingCompletion() {
 		return this.loadingState.total? this.loadingState.loaded / this.loadingState.total : 0;
+	}
+
+	/** Disposes the GPU assets used by the level. */
+	dispose() {
+		for (let interior of this.interiors) interior.dispose();
+		for (let shape of this.shapes) shape.dispose();
+		for (let overlayShape of this.overlayShapes) overlayShape.dispose();
 	}
 }

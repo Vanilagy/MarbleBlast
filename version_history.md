@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.19
+- Implemented proper GPU memory disposing upon closing a level
+
 ## 1.4.18
 - Fixed a bug where PushButtons would share their button position
 

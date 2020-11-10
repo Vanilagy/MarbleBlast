@@ -87,6 +87,7 @@ export class Shape {
 	/** Either the meshes or dummy Object3D's used for instancing. */
 	objects: THREE.Object3D[] = [];
 	bodies: OIMO.RigidBody[];
+	geometries: THREE.BufferGeometry[] = [];
 	/** Whether the marble can physically collide with this shape. */
 	collideable = true;
 	/** Not physical colliders, but a list bodies that overlap is checked with. This is used for things like force fields. */
@@ -293,6 +294,7 @@ export class Shape {
 				let merged = Util.mergeMaterialGeometries(staticNonCollision);
 				let geometry = Util.createGeometryFromMaterialGeometry(merged);
 				staticGeometries.push(geometry);
+				this.geometries.push(geometry);
 
 				if (skinnedMeshIndex !== null) {
 					// Will be used for animating the skin later
@@ -311,6 +313,7 @@ export class Shape {
 				let geometry = Util.createGeometryFromMaterialGeometry(Util.mergeMaterialGeometries(staticCollision));
 				staticGeometries.push(geometry);
 				collisionGeometries.add(geometry);
+				this.geometries.push(geometry);
 			}
 
 			for (let materialGeom of dynamicMaterialGeometries) {
@@ -318,6 +321,7 @@ export class Shape {
 				let geometry = Util.createGeometryFromMaterialGeometry(materialGeom);
 				dynamicGeometries.push(geometry);
 				if (collisionMaterialGeometries.has(materialGeom)) collisionGeometries.add(geometry);
+				this.geometries.push(geometry);
 			}
 
 			if (this.level && this.useInstancing) {
@@ -1016,6 +1020,11 @@ export class Shape {
 				shape = shape.getNext();
 			}
 		}
+	}
+
+	dispose() {
+		for (let material of this.materials) material.dispose();
+		for (let geometry of this.geometries) geometry.dispose();
 	}
 
 	onMarbleContact(time: TimeState, contact?: OIMO.Contact) {}

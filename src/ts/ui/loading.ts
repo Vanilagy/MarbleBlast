@@ -56,7 +56,10 @@ export const loadLevel = async (mission: Mission, getReplay?: () => Replay) => {
 		}
 
 		clearInterval(refresher);
-		if (loadingIndex !== indexAtStart) return;
+		if (loadingIndex !== indexAtStart) {
+			level.dispose();
+			return;
+		}
 
 		// Fake some second loading pass
 		let start = performance.now();
@@ -68,7 +71,10 @@ export const loadLevel = async (mission: Mission, getReplay?: () => Replay) => {
 		await Util.wait(150);
 		clearInterval(refresher);
 
-		if (loadingIndex !== indexAtStart) return;
+		if (loadingIndex !== indexAtStart) {
+			level.dispose();
+			return;
+		}
 
 		// Loading has finished, hop into gameplay.
 

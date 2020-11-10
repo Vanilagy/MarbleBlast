@@ -49,6 +49,7 @@ export class Interior {
 	/** The relevant detail level to read from (non-default for pathed interiors) */
 	detailLevel: DifFile["detailLevels"][number];
 	worldMatrix = new THREE.Matrix4();
+	materials: THREE.Material[];
 	materialGeometry: MaterialGeometry = [];
 	/** Simply contains the file names of the materials without the path to them. */
 	materialNames: string[] = [];
@@ -72,8 +73,6 @@ export class Interior {
 	}
 
 	async init() {
-		let materials: THREE.Material[] = [];
-
 		// Check if there's already shared data from another interior
 		let sharedDataPromise = this.level.sharedInteriorData.get(this.detailLevel);
 		if (this.useInstancing && sharedDataPromise) {
@@ -81,6 +80,9 @@ export class Interior {
 			this.sharedData = await sharedDataPromise;
 			this.instanceIndex = ++this.sharedData.instanceIndex;
 		} else {
+			let materials: THREE.Material[] = [];
+			this.materials = materials;
+
 			// If we're here, we're the first interior of this type, so let's prepare the shared data (if we're instanced)
 			let resolveFunc: (data: SharedInteriorData) => any;
 			if (this.useInstancing && this.level) {
@@ -335,6 +337,11 @@ export class Interior {
 
 		this.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
 		this.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
+	}
+
+	dispose() {
+		if (this.materials) for (let material of this.materials) material.dispose();
+		if (this.mesh?.geometry) this.mesh.geometry.dispose();
 	}
 
 	tick(time: TimeState) {}
