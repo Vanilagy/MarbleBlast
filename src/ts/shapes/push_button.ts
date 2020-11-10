@@ -10,6 +10,7 @@ export class PushButton extends Shape {
 	dtsPath = 'shapes/buttons/pushbutton.dts';
 	useInstancing = true;
 	lastContactTime = -Infinity;
+	shareNodeTransforms = false;
 
 	tick(time: TimeState, onlyVisual: boolean) {
 		let currentCompletion = this.getCurrentCompletion(time);

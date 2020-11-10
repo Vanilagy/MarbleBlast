@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.18
+- Fixed a bug where PushButtons would share their button position
+
 ## 1.4.17
 - Fixed .mis parsing error
 
