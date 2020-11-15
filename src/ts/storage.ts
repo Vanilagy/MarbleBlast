@@ -219,15 +219,10 @@ export abstract class StorageManager {
 		return scoreId;
 	}
 
-	static async createTransaction(storeName: string) {
-		let db = await this.idbDatabase;
-		let transaction = db.transaction(storeName, 'readwrite');
-		return transaction;
-	}
-
 	/** Gets an entry from an IndexedDB store by key. */
 	static async databaseGet(storeName: string, key: string) {
-		let transaction = await this.createTransaction(storeName);
+		let db = await this.idbDatabase;
+		let transaction = db.transaction(storeName, 'readonly');
 		let store = transaction.objectStore(storeName);
 		let request = store.get(key);
 
@@ -237,7 +232,8 @@ export abstract class StorageManager {
 
 	/** Puts an entry into an IndexedDB store by key. */
 	static async databasePut(storeName: string, value: any, key?: string) {
-		let transaction = await this.createTransaction(storeName);
+		let db = await this.idbDatabase;
+		let transaction = db.transaction(storeName, 'readwrite');
 		let store = transaction.objectStore(storeName);
 		store.put(value, key);
 
@@ -246,7 +242,8 @@ export abstract class StorageManager {
 
 	/** Deletes an entry from an IndexedDB store by key. */
 	static async databaseDelete(storeName: string, key: string) {
-		let transaction = await this.createTransaction(storeName);
+		let db = await this.idbDatabase;
+		let transaction = db.transaction(storeName, 'readwrite');
 		let store = transaction.objectStore(storeName);
 		store.delete(key);
 
@@ -255,7 +252,8 @@ export abstract class StorageManager {
 
 	/** Counts all entries in an IndexedDB store with a specific key. */
 	static async databaseCount(storeName: string, key: string): Promise<number> {
-		let transaction = await this.createTransaction(storeName);
+		let db = await this.idbDatabase;
+		let transaction = db.transaction(storeName, 'readonly');
 		let store = transaction.objectStore(storeName);
 		let request = store.count(key);
 

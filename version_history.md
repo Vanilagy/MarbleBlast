@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.20
+- Fixed IndexedDB transaction expiration bug on Safari
+
 ## 1.4.19
 - Implemented proper GPU memory disposing upon closing a level
 
