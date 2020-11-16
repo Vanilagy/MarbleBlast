@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.21
+- Added special outdated local score handling
+
 ## 1.4.20
 - Fixed IndexedDB transaction expiration bug on Safari
 

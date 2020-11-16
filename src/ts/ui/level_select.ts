@@ -495,7 +495,7 @@ export const updateOnlineLeaderboard = async (handleUpload = false, handleBestTi
 
 	// Add all personal best times to the payload
 	for (let path in StorageManager.data.bestTimes) {
-		let val = StorageManager.data.bestTimes[path as keyof typeof StorageManager.data.bestTimes];
+		let val = StorageManager.data.bestTimes[path];
 		// If the best score for this level has a name and isn't timestamp 0
 		if (val[0][0] && val[0][3] !== 0) postData.bestTimes[path] = [val[0][0], val[0][1].toString()]; // Convert the time to string to avoid precision loss in transfer
 	}
@@ -515,6 +515,24 @@ export const updateOnlineLeaderboard = async (handleUpload = false, handleBestTi
 				let text = await response.text();
 				let json = JSON.parse(text);
 				onlineLeaderboard = json;
+
+				let localScoreRemoved = false;
+				for (let path in StorageManager.data.bestTimes) {
+					let firstLeaderboardScore = onlineLeaderboard[path]?.[0];
+					if (!firstLeaderboardScore) continue;
+
+					let bestTime = StorageManager.data.bestTimes[path][0];
+					while (bestTime && bestTime[1] < Number(firstLeaderboardScore[1]) && bestTime[3] === 0) {
+						// Splice all timestamp 0 times that are faster than the current WR on the leaderboard. We do this because the score is outdated.
+						StorageManager.data.bestTimes[path].splice(0, 1);
+						bestTime = StorageManager.data.bestTimes[path][0];
+						localScoreRemoved = true;
+					}
+
+					if (StorageManager.data.bestTimes[path].length === 0) delete StorageManager.data.bestTimes[path];
+				}
+				if (localScoreRemoved) StorageManager.storeBestTimes();
+
 				displayBestTimes(); // Refresh best times
 			}
 		}
