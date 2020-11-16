@@ -119,7 +119,7 @@ export abstract class AudioManager {
 			relativePosition.z = 0;
 
 			let distance = source.position.distanceTo(listenerPos);
-			let panRemoval = Util.clamp(distance / 1, 0, 1); // If the listener is very close to the center, start moving to the audio source to the center.
+			let panRemoval = Util.clamp(distance / 1, 0, 1); // If the listener is very close to the center, start moving the audio source to the center.
 			
 			source.setPannerValue(-relativePosition.y * 0.7 * panRemoval);
 			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1) * source.gainFactor;

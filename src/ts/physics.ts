@@ -161,7 +161,7 @@ export class PhysicsHelper {
 		// Now do CCD with pathed interiors
 		this.checkPathedInteriorCollision(prevMarblePosition, prevMarbleTransform, collisionCorrectionEvents);
 
-		// Pick the earlier collision event
+		// Pick the earliest collision event
 		let collisionEvent = collisionCorrectionEvents[0];
 		for (let event of collisionCorrectionEvents) {
 			if (event.fraction < collisionEvent.fraction) collisionEvent = event;
