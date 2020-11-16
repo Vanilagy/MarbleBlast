@@ -857,15 +857,6 @@ export class Level extends Scheduler {
 
 		handleFinishScreenGamepadInput();
 
-		// Handle pressing of the restart button
-		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
-			this.restart();
-			this.pressingRestart = true;
-			return;
-		} else if (!isPressed('restart')) {
-			this.pressingRestart = false;
-		}
-
 		// Handle pressing of the gamepad pause button
 		if (!this.finishTime && isPressed('pause') && getPressedFlag('pause')) {
 			resetPressedFlag('pause');
@@ -989,6 +980,14 @@ export class Level extends Scheduler {
 		AudioManager.updatePositionalAudio(this.timeState, camera.position, this.yaw);
 		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
 		if (tickDone) this.calculatePreemptiveTransforms();
+
+		// Handle pressing of the restart button
+		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
+			this.restart();
+			this.pressingRestart = true;
+		} else if (!isPressed('restart')) {
+			this.pressingRestart = false;
+		}
 	}
 
 	/** Predicts the position of the marble in the next physics tick to allow for smooth, interpolated rendering. */

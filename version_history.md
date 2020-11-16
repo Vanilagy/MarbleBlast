@@ -2,6 +2,7 @@
 
 ## 1.4.21
 - Added special outdated local score handling
+- Fixed crash when holding down the restart button while loading a level
 
 ## 1.4.20
 - Fixed IndexedDB transaction expiration bug on Safari
