@@ -1195,6 +1195,7 @@ export class Level extends Scheduler {
 			if (this.currentTimeTravelBonus === 0) this.finishTime.gameplayClock -= toSubtract;
 			this.finishTime.gameplayClock = Math.min(this.finishTime.gameplayClock, MAX_TIME); // Apply the time cap
 			this.finishTime.physicsTickCompletion = completionOfImpact;
+			this.currentTimeTravelBonus = 0;
 
 			if (this.replay.mode === 'playback') this.finishTime = this.replay.finishTime;
 
