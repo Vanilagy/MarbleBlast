@@ -17,7 +17,7 @@ THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
 const startGameDialog = document.querySelector('#start-game-dialog') as HTMLDivElement;
 
-async function init() {
+const init = async () => {
 	await Util.init();
 	await StorageManager.init();
 	await ResourceManager.init();
@@ -56,7 +56,7 @@ async function init() {
 		if (started) return;
 		if (e.code === 'F11' && !Util.isInFullscreen()) start();
 	});
-}
+};
 window.onload = init;
 
 let errorTimeout: number = null;
