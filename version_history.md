@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.22
+- Made gyrocopter work correctly with different gravity intensities
+
 ## 1.4.21
 - Added special outdated local score handling
 - Fixed crash when holding down the restart button while loading a level

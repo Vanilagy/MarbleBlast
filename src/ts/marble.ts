@@ -423,7 +423,7 @@ export class Marble {
 			// Show the helicopter
 			this.helicopter.setOpacity(1);
 			this.helicopter.setTransform(new THREE.Vector3(), this.level.newOrientationQuat, new THREE.Vector3(1, 1, 1));
-			this.level.setGravityIntensity(5);
+			this.level.setGravityIntensity(this.level.defaultGravity * 0.25);
 			
 			if (!this.helicopterSound) {
 				this.helicopterSound = AudioManager.createAudioSource('use_gyrocopter.wav');
