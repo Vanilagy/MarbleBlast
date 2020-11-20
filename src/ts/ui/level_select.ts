@@ -10,6 +10,7 @@ import { Mission, CLAEntry } from "../mission";
 import { SerializedReplay, Replay } from "../replay";
 import { executeOnWorker } from "../worker";
 import { previousButtonState } from "../input";
+import { getRandomId } from "../state";
 
 export const beginnerLevels: Mission[] = [];
 export const intermediateLevels: Mission[] = [];
@@ -358,9 +359,12 @@ const setImages = (fromTimeout = false) => {
 	}
 };
 
+let lastDisplayBestTimesId: string; // Used to prevent some async issues
 const displayBestTimes = () => {
 	let mission = currentLevelArray[currentLevelIndex];
 	let goldTime = 0;
+	let randomId = getRandomId();
+	lastDisplayBestTimesId = randomId;
 
 	if (mission) goldTime = mission.goldTime;
 
@@ -372,7 +376,7 @@ const displayBestTimes = () => {
 		if (!bestTime[2]) return;
 
 		let count = await StorageManager.databaseCount('replays', bestTime[2]);
-		if (count > 0) {
+		if (randomId === lastDisplayBestTimesId && count > 0) {
 			element.style.display = 'block';
 			element.setAttribute('data-score-id', bestTime[2]);
 		}

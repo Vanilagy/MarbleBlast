@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.23
+- Fixed mismatched replays showing up in level select under certain conditions
+
 ## 1.4.22
 - Made gyrocopter work correctly with different gravity intensities
 
