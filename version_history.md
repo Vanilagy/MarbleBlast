@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.24
+- Fixed flickering loading bar when loading two levels simultaneously
+
 ## 1.4.23
 - Fixed mismatched replays showing up in level select under certain conditions
 

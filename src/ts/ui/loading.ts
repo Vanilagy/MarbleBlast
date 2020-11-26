@@ -14,12 +14,14 @@ const progressBar = document.querySelector('#loading-progress') as HTMLDivElemen
 const maxProgressBarWidth = 252;
 /** Used to cancel loading if necessary. */
 let loadingIndex = 0;
+let refresher: number;
 
 setupButton(cancelButton, 'loading/cancel', () => {
 	// Cancel the loading progress and return to level select
 	loadingDiv.classList.add('hidden');
 	levelSelectDiv.classList.remove('hidden');
 	loadingIndex++;
+	clearInterval(refresher);
 });
 
 export const loadLevel = async (mission: Mission, getReplay?: () => Replay) => {
@@ -37,7 +39,7 @@ export const loadLevel = async (mission: Mission, getReplay?: () => Replay) => {
 
 	if (loadingIndex !== indexAtStart) return;
 
-	let refresher = setInterval(() => {
+	refresher = setInterval(() => {
 		// Constantly refresh the loading bar's width
 		let completion = level.getLoadingCompletion();
 		progressBar.style.width = (completion * maxProgressBarWidth) + 'px';
@@ -55,11 +57,11 @@ export const loadLevel = async (mission: Mission, getReplay?: () => Replay) => {
 			replay.mode = 'playback';
 		}
 
-		clearInterval(refresher);
 		if (loadingIndex !== indexAtStart) {
 			level.dispose();
 			return;
 		}
+		clearInterval(refresher);
 
 		// Fake some second loading pass
 		let start = performance.now();
@@ -69,12 +71,12 @@ export const loadLevel = async (mission: Mission, getReplay?: () => Replay) => {
 		});
 
 		await Util.wait(150);
-		clearInterval(refresher);
 
 		if (loadingIndex !== indexAtStart) {
 			level.dispose();
 			return;
 		}
+		clearInterval(refresher);
 
 		// Loading has finished, hop into gameplay.
 
@@ -88,7 +90,6 @@ export const loadLevel = async (mission: Mission, getReplay?: () => Replay) => {
 	} catch(e) {
 		console.error(e);
 		cancelButton.click();
-		clearInterval(refresher);
 
 		setTimeout(() => alert("There was an error due to which the level couldn't be loaded."), 50);
 	}

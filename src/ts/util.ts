@@ -228,7 +228,7 @@ export abstract class Util {
 		return str[0].toUpperCase() + str.slice(1);
 	}
 
-	/** Returns a promise that resolves after ms seconds. */
+	/** Returns a promise that resolves after `ms` milliseconds. */
 	static wait(ms: number) {
 		return new Promise<void>((resolve) => setTimeout(resolve, ms));
 	}
