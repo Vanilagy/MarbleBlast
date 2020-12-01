@@ -1,7 +1,8 @@
 # Marble Blast Gold - Web Port
 This project is a complete web port of the 3D platformer game Marble Blast Gold by GarageGames, implemented in TypeScript.
 
-Play it here: https://marbleblast.vani.ga/ (Hoping the link will still work)
+Play it here: https://marbleblast.vani.ga/ (Hoping the link will still work)<br>
+TAS Rewind version here: https://github.com/RandomityGuy/MBG-Web-Rewind
 
 ## Features
 In this game, the objective is to roll your marble to the finish pad in the fastest time possible, while avoiding hazards and collecting gems and power-ups. It includes all 100 default levels of the original (24 beginner, 24 intermediate, 52 advanced), as well as almost 2,000 community custom levels. It implements all gameplay elements, sounds, music and UI/menu components - additional features include a replay system and online leaderboards. The game can be played using a keyboard, mouse or gamepad.
