@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.26
+- Fixed the game state text ("Go!") not disappearing when level already finished
+
 ## 1.4.25
 - Fixed all trapdoors opening at the beginning of a replay under certain circumstances
 

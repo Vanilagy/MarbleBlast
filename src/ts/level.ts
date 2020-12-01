@@ -1163,7 +1163,7 @@ export class Level extends Scheduler {
 		setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
 
-		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart());
+		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart(), 'oobRestart');
 	}
 
 	touchFinish(completionOfImpactOverride?: number) {
@@ -1205,7 +1205,7 @@ export class Level extends Scheduler {
 			let endPad = Util.findLast(this.shapes, (shape) => shape instanceof EndPad) as EndPad;
 			endPad?.spawnFirework(this.timeState); // EndPad *might* not exist, in that case no fireworks lol
 
-			this.clearSchedule();
+			this.clearScheduleId('oobRestart'); // Make sure we don't restart the level now
 			if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => {
 				// Show the finish screen
 				document.exitPointerLock();

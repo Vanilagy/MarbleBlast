@@ -549,7 +549,8 @@ export abstract class Util {
 export abstract class Scheduler {
 	scheduled: {
 		time: number,
-		callback: () => any
+		callback: () => any,
+		id: string
 	}[] = [];
 
 	tickSchedule(time: number) {
@@ -561,11 +562,17 @@ export abstract class Scheduler {
 		}
 	}
 
-	schedule(time: number, callback: () => any) {
-		this.scheduled.push({ time, callback });
+	schedule(time: number, callback: () => any, id: string = null) {
+		this.scheduled.push({ time, callback, id });
 	}
 
 	clearSchedule() {
 		this.scheduled.length = 0;
+	}
+
+	clearScheduleId(id: string) {
+		for (let i = 0; i < this.scheduled.length; i++) {
+			if (this.scheduled[i].id === id) this.scheduled.splice(i--, 1);
+		}
 	}
 }
