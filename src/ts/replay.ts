@@ -171,6 +171,8 @@ export class Replay {
 					let startValues = this.trapdoorStartValues.find(x => x.id === shape.id);
 					if (!startValues) continue;
 
+					// This is quite stupid. lastContactTime, of course, is never null, but it might be -Infinity, in which case JSON.stringify turns it to null. We're catching that here.
+					if (startValues.lastContactTime === null) startValues.lastContactTime = -Infinity;
 					shape.lastContactTime = startValues.lastContactTime - this.timeSinceLoad + this.level.timeState.timeSinceLoad;
 					shape.lastDirection = startValues.lastDirection;
 					shape.lastCompletion = startValues.lastCompletion;
@@ -178,11 +180,13 @@ export class Replay {
 					let startValues = this.landmineStartValues.find(x => x.id === shape.id);
 					if (!startValues) continue;
 
+					if (startValues.disappearTime === null) startValues.disappearTime = -Infinity;
 					shape.disappearTime = startValues.disappearTime - this.timeSinceLoad + this.level.timeState.timeSinceLoad;
 				} else if (shape instanceof PushButton) {
 					let startValues = this.pushButtonStartValues.find(x => x.id === shape.id);
 					if (!startValues) continue;
 
+					if (startValues.lastContactTime === null) startValues.lastContactTime = -Infinity;
 					shape.lastContactTime = startValues.lastContactTime - this.timeSinceLoad + this.level.timeState.timeSinceLoad;
 				}
 			}

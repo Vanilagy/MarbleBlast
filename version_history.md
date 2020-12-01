@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.25
+- Fixed all trapdoors opening at the beginning of a replay under certain circumstances
+
 ## 1.4.24
 - Fixed flickering loading bar when loading two levels simultaneously
 
