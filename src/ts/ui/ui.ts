@@ -12,16 +12,21 @@ export const setupButton = (element: HTMLImageElement, path: string, onclick: ()
 	let down = path + '_d.png';
 	let disabled = path + '_i.png';
 	let held = false;
+	let hovered = false;
 
 	element.src = normal;
 	element.addEventListener('mouseenter', () => {
 		if (element.style.pointerEvents === 'none') return;
 		if (!element.hasAttribute('data-locked')) element.src = held? down : hover;
 		if (!held) AudioManager.play('buttonover.wav');
+		hovered = true;
+		element.setAttribute('data-hovered', '');
 	});
 	element.addEventListener('mouseleave', () => {
 		if (element.style.pointerEvents === 'none') return;
 		if (!element.hasAttribute('data-locked')) element.src = normal;
+		hovered = false;
+		element.removeAttribute('data-hovered');
 	});
 	element.addEventListener('mousedown', (e) => {
 		if (element.style.pointerEvents === 'none') return;
@@ -34,7 +39,7 @@ export const setupButton = (element: HTMLImageElement, path: string, onclick: ()
 	window.addEventListener('mouseup', () => {
 		if (element.style.pointerEvents === 'none') return;
 		held = false;
-		if (!element.hasAttribute('data-locked')) element.src = normal;
+		if (!element.hasAttribute('data-locked')) element.src = hovered? hover : normal;
 	});
 	if (!triggerOnMouseDown) element.addEventListener('click', (e) => e.button === 0 && onclick());
 

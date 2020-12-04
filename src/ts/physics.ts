@@ -1,7 +1,6 @@
 import { Level, PHYSICS_TICK_RATE } from "./level";
 import { PathedInterior } from "./pathed_interior";
 import OIMO from "./declarations/oimo";
-import * as THREE from "three";
 import { Util } from "./util";
 import { Interior } from "./interior";
 import { Shape } from "./shape";

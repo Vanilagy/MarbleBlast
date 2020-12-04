@@ -466,9 +466,9 @@ window.addEventListener('keyup', (e) => {
 	if (levelSelectDiv.classList.contains('hidden')) return;
 
 	if (e.code === 'ArrowLeft') {
-		if (!prevButton.style.pointerEvents) prevButton.src = './assets/ui/play/prev_n.png';
+		if (!prevButton.style.pointerEvents) prevButton.src = prevButton.hasAttribute('data-hovered')? './assets/ui/play/prev_h.png' : './assets/ui/play/prev_n.png';
 	} else if (e.code === 'ArrowRight') {
-		if (!nextButton.style.pointerEvents) nextButton.src = './assets/ui/play/next_n.png';
+		if (!nextButton.style.pointerEvents) nextButton.src = nextButton.hasAttribute('data-hovered')? './assets/ui/play/next_h.png' : './assets/ui/play/next_n.png';
 	} else if (e.code === 'Escape') {
 		homeButton.click();
 	}

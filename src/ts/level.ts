@@ -4,7 +4,7 @@ import { renderer, camera, orthographicCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble, MARBLE_RADIUS, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementSun, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
@@ -190,7 +190,7 @@ export class Level extends Scheduler {
 					this.loadingState.total++;
 
 					// Override the end pad element. We do this because only the last finish pad element will actually do anything.
-					if (element._type === MissionElementType.StaticShape && element.datablock.toLowerCase() === 'endpad') this.endPadElement = element;
+					if (element._type === MissionElementType.StaticShape && element.datablock?.toLowerCase() === 'endpad') this.endPadElement = element;
 				} else if (element._type === MissionElementType.SimGroup) {
 					scanMission(element);
 				}
@@ -496,8 +496,9 @@ export class Level extends Scheduler {
 		let shape: Shape;
 
 		// Add the correct shape based on type
-		let dataBlockLowerCase = element.datablock.toLowerCase();
-		if (dataBlockLowerCase === "startpad") shape = new StartPad();
+		let dataBlockLowerCase = element.datablock?.toLowerCase();
+		if (!dataBlockLowerCase) {} // Make sure we don't do anything if there's no data block
+		else if (dataBlockLowerCase === "startpad") shape = new StartPad();
 		else if (dataBlockLowerCase === "endpad") shape = new EndPad(element === this.endPadElement);
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
 		else if (dataBlockLowerCase.startsWith("signplain")) shape = new SignPlain(element as MissionElementStaticShape);

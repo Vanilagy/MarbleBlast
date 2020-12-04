@@ -1,9 +1,62 @@
 import { Shape } from "../shape";
 import { Util } from "../util";
 import { TimeState } from "../level";
-import OIMO from "../declarations/oimo";
 import { AudioManager } from "../audio";
 import * as THREE from "three";
+
+/** Land mines explode on contact and knock the marble away. */
+export class LandMine extends Shape {
+	dtsPath = "shapes/hazards/landmine.dts";
+	disappearTime = -Infinity;
+	sounds = ['explode1.wav'];
+	shareMaterials = false;
+
+	onMarbleContact(time: TimeState) {
+		let marble = this.level.marble;
+		let minePos = Util.vecThreeToOimo(this.worldPosition);
+		let vec = marble.lastPos.sub(Util.vecThreeToOimo(this.worldPosition)).normalize(); // Use the last pos so that it's a little less RNG
+
+		// Add velocity to the marble
+		let explosionStrength = this.computeExplosionStrength(this.level.marble.body.getPosition().sub(minePos).length());
+		marble.body.addLinearVelocity(vec.scale(explosionStrength));
+		this.disappearTime = time.timeSinceLoad;
+		this.setCollisionEnabled(false);
+
+		AudioManager.play(this.sounds[0]);
+		this.level.particles.createEmitter(landMineParticle, this.worldPosition);
+		this.level.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
+		this.level.particles.createEmitter(landMineSparksParticle, this.worldPosition);
+		// Normally, we would add a light here, but that's too expensive for THREE, apparently.
+
+		this.level.replay.recordMarbleContact(this);
+	}
+
+	/** Computes the strength of the explosion (force) based on distance from it. */
+	computeExplosionStrength(r: number) {
+		// Figured out through testing by RandomityGuy
+		if (r >= 10.25) return 0;
+		if (r >= 10) return Util.lerp(30.0087, 30.7555, r - 10);
+
+		// The explosion first becomes stronger the further you are away from it, then becomes weaker again (parabolic).
+		let a = 0.071436222;
+		let v = ((r - 5) ** 2) / (-4 * a) + 87.5;
+
+		return v;
+	}
+
+	tick(time: TimeState, onlyVisual: boolean) {
+		if (onlyVisual) return;
+		
+		// Enable or disable the collision based on disappear time
+		let visible = time.timeSinceLoad >= this.disappearTime + 5000;
+		this.setCollisionEnabled(visible);
+	}
+
+	render(time: TimeState) {
+		let opacity = Util.clamp((time.timeSinceLoad - (this.disappearTime + 5000)) / 1000, 0, 1);
+		this.setOpacity(opacity);
+	}
+}
 
 /** The fire particle. */
 const landMineParticle = {
@@ -74,57 +127,3 @@ export const landMineSparksParticle = {
 		times: [0, 0.5, 1]
 	}
 };
-
-/** Land mines explode on contact and knock the marble away. */
-export class LandMine extends Shape {
-	dtsPath = "shapes/hazards/landmine.dts";
-	disappearTime = -Infinity;
-	sounds = ['explode1.wav'];
-	shareMaterials = false;
-
-	onMarbleContact(time: TimeState) {
-		let marble = this.level.marble;
-		let minePos = Util.vecThreeToOimo(this.worldPosition);
-		let vec = marble.lastPos.sub(Util.vecThreeToOimo(this.worldPosition)).normalize(); // Use the last pos so that it's a little less RNG
-
-		// Add velocity to the marble
-		let explosionStrength = this.computeExplosionStrength(this.level.marble.body.getPosition().sub(minePos).length());
-		marble.body.addLinearVelocity(vec.scale(explosionStrength));
-		this.disappearTime = time.timeSinceLoad;
-		this.setCollisionEnabled(false);
-
-		AudioManager.play(this.sounds[0]);
-		this.level.particles.createEmitter(landMineParticle, this.worldPosition);
-		this.level.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
-		this.level.particles.createEmitter(landMineSparksParticle, this.worldPosition);
-		// Normally, we would add a light here, but that's too expensive for THREE, apparently.
-
-		this.level.replay.recordMarbleContact(this);
-	}
-
-	/** Computes the strength of the explosion (force) based on distance from it. */
-	computeExplosionStrength(r: number) {
-		// Figured out through testing by RandomityGuy
-		if (r >= 10.25) return 0;
-		if (r >= 10) return Util.lerp(30.0087, 30.7555, r - 10);
-
-		// The explosion first becomes stronger the further you are away from it, then becomes weaker again (parabolic).
-		let a = 0.071436222;
-		let v = ((r - 5) ** 2) / (-4 * a) + 87.5;
-
-		return v;
-	}
-
-	tick(time: TimeState, onlyVisual: boolean) {
-		if (onlyVisual) return;
-		
-		// Enable or disable the collision based on disappear time
-		let visible = time.timeSinceLoad >= this.disappearTime + 5000;
-		this.setCollisionEnabled(visible);
-	}
-
-	render(time: TimeState) {
-		let opacity = Util.clamp((time.timeSinceLoad - (this.disappearTime + 5000)) / 1000, 0, 1);
-		this.setOpacity(opacity);
-	}
-}

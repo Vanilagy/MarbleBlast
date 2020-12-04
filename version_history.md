@@ -1,5 +1,9 @@
 # Version History
 
+## 1.4.27
+- Fixed certain custom levels crashing on load
+- Fixed buttons not correctly returning to hovered state
+
 ## 1.4.26
 - Fixed the game state text ("Go!") not disappearing when level already finished
 

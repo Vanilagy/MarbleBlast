@@ -1,5 +1,4 @@
 import { Interior } from "./interior";
-import { DifParser } from "./parsing/dif_parser";
 import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "./parsing/mis_parser";
 import { Util } from "./util";
 import * as THREE from "three";

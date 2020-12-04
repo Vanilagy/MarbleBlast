@@ -3,6 +3,27 @@ import { AudioManager } from "../audio";
 import * as THREE from "three";
 import { Util } from "../util";
 
+/** Gives the marble an upwards boost. */
+export class SuperJump extends PowerUp {
+	dtsPath = "shapes/items/superjump.dts";
+	pickUpName = "Super Jump PowerUp";
+	sounds = ["pusuperjumpvoice.wav", "dosuperjump.wav"];
+
+	pickUp(): boolean {
+		return this.level.pickUpPowerUp(this);
+	}
+
+	use() {
+		let marble = this.level.marble;
+		marble.body.addLinearVelocity(this.level.currentUp.scale(20)); // Simply add to vertical velocity
+
+		AudioManager.play(this.sounds[1]);
+		this.level.particles.createEmitter(superJumpParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
+
+		this.level.deselectPowerUp();
+	}
+}
+
 export const superJumpParticleOptions = {
 	ejectionPeriod: 10,
 	ambientVelocity: new THREE.Vector3(0, 0, 0.05),
@@ -25,24 +46,3 @@ export const superJumpParticleOptions = {
 		times: [0, 0.75, 1]
 	}
 };
-
-/** Gives the marble an upwards boost. */
-export class SuperJump extends PowerUp {
-	dtsPath = "shapes/items/superjump.dts";
-	pickUpName = "Super Jump PowerUp";
-	sounds = ["pusuperjumpvoice.wav", "dosuperjump.wav"];
-
-	pickUp(): boolean {
-		return this.level.pickUpPowerUp(this);
-	}
-
-	use() {
-		let marble = this.level.marble;
-		marble.body.addLinearVelocity(this.level.currentUp.scale(20)); // Simply add to vertical velocity
-
-		AudioManager.play(this.sounds[1]);
-		this.level.particles.createEmitter(superJumpParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
-
-		this.level.deselectPowerUp();
-	}
-}

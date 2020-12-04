@@ -24,13 +24,12 @@ export abstract class ForceShape extends Shape {
 		// Create a cone-shaped collider
 		this.addCollider(() => new OIMO.ConeGeometry(radius, height/2), () => {
 			let marble = this.level.marble;
-			let threeMarblePosition = Util.vecOimoToThree(marble.body.getPosition());
 
 			let perpendicular = new THREE.Vector3(0, 0, 1); // The normal to the fan
 			perpendicular.applyQuaternion(this.worldOrientation);
 
 			let conetip = this.worldPosition.clone().sub(perpendicular.multiplyScalar(0.7)); // The tip of the cone
-			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(conetip)); // The vector to the tip of the cone
+			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(conetip)); // The vector from the tip of the cone to the marble
 			if (vec.length() === 0) return;
 			if (vec.length() > actualDistance) return; // Out distance is greater than the allowed distance, so we stop right here
 
