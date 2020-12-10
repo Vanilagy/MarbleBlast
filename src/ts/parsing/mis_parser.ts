@@ -611,4 +611,34 @@ export class MisParser {
 		if (isNaN(val)) return 0;
 		return val;
 	}
+
+	/** Parses a list of space-separated numbers. */
+	static parseNumberList(string: string) {
+		let parts = string.split(' ');
+		let result: number[] = [];
+
+		for (let part of parts) {
+			let number = Number(part);
+
+			if (!isNaN(number)) {
+				// The number parsed without issues; simply add it to the array.
+				result.push(number);
+			} else {
+				// Since we got NaN, we assume the number did not parse correctly and we have a case where the space between multiple numbers are missing. So "0.0000000 1.0000000" turning into "0.00000001.0000000".
+				const assumedDecimalPlaces = 7; // Reasonable assumption
+
+				// Scan the part to try to find all numbers contained in it
+				while (part.length > 0) {
+					let dotIndex = part.indexOf('.');
+					if (dotIndex === -1) break;
+
+					let section = part.slice(0, Math.min(dotIndex + assumedDecimalPlaces + 1, part.length));
+					result.push(Number(section));
+					part = part.slice(dotIndex + assumedDecimalPlaces + 1);
+				}
+			}
+		}
+
+		return result;
+	}
 }

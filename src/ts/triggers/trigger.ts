@@ -17,7 +17,7 @@ export class Trigger {
 		this.level = level;
 
 		// Parse the "polyhedron"
-		let coordinates = element.polyhedron.split(' ').map((part) => Number(part));
+		let coordinates = MisParser.parseNumberList(element.polyhedron);
 		let origin = new OIMO.Vec3(coordinates[0], coordinates[1], coordinates[2]);
 		let d1 = new OIMO.Vec3(coordinates[3], coordinates[4], coordinates[5]);
 		let d2 = new OIMO.Vec3(coordinates[6], coordinates[7], coordinates[8]);

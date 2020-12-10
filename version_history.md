@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.28
+- Fixed broken trigger hitboxes breaking collision
+
 ## 1.4.27
 - Fixed certain custom levels crashing on load
 - Fixed buttons not correctly returning to hovered state
