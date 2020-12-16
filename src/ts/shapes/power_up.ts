@@ -1,10 +1,12 @@
 import { Util } from "../util";
 import { Shape } from "../shape";
 import { TimeState } from "../level";
-import { displayAlert } from "../ui/game";
+import { displayAlert, displayHelp } from "../ui/game";
+import { MissionElementItem } from "../parsing/mis_parser";
 
 /** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
+	element: MissionElementItem;
 	lastPickUpTime: number = null;
 	/** Reappears after this time. */
 	cooldownDuration: number = 7000;
@@ -15,6 +17,11 @@ export abstract class PowerUp extends Shape {
 	shareMaterials = false;
 	/** The name of the powerup that is shown on pickup. */
 	pickUpName: string;
+
+	constructor(element: MissionElementItem) {
+		super();
+		this.element = element;
+	}
 
 	onMarbleInside(time: TimeState) {
 		let pickupable = this.lastPickUpTime === null || (time.currentAttemptTime - this.lastPickUpTime) >= this.cooldownDuration;
@@ -27,6 +34,7 @@ export abstract class PowerUp extends Shape {
 			if (this.autoUse) this.use(time);
 
 			displayAlert(`You picked up a ${this.pickUpName}!`);
+			if (this.element.showhelponpickup === "1" && !this.autoUse) displayHelp(`Press <func:bind mousefire> to use the ${this.pickUpName}!`);
 		}
 	}
 

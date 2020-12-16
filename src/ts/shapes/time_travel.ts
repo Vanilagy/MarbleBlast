@@ -12,7 +12,7 @@ export class TimeTravel extends PowerUp {
 	sounds = ["putimetravelvoice.wav", "timetravelactive.wav"];
 
 	constructor(element: MissionElementItem) {
-		super();
+		super(element);
 
 		if (element.timebonus) {
 			this.timeBonus = MisParser.parseNumber(element.timebonus);

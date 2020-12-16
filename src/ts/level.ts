@@ -34,7 +34,7 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, showFinishScreen, stopAndExit, handleFinishScreenGamepadInput } from "./ui/game";
+import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, showFinishScreen, stopAndExit, handleFinishScreenGamepadInput, helpElement, alertElement } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
@@ -170,6 +170,10 @@ export class Level extends Scheduler {
 	useQueued = false;
 	/** Whether or not the player is currently pressing the restart button. */
 	pressingRestart = false;
+	/** The time state at the last point the help text was updated. */
+	helpTextTimeState: TimeState = null;
+	/** The time state at the last point the alert text was updated. */
+	alertTextTimeState: TimeState = null;
 	
 	timeTravelSound: AudioSource;
 	music: AudioSource;
@@ -225,9 +229,6 @@ export class Level extends Scheduler {
 
 	async start() {
 		if (this.stopped) return;
-
-		displayHelp('');
-		displayAlert('');
 
 		this.restart();
 		for (let shape of this.shapes) await shape.onLevelStart();
@@ -503,18 +504,18 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
 		else if (dataBlockLowerCase.startsWith("signplain")) shape = new SignPlain(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase.startsWith("gemitem")) shape = new Gem(element as MissionElementItem), this.totalGems++;
-		else if (dataBlockLowerCase === "superjumpitem") shape = new SuperJump();
+		else if (dataBlockLowerCase === "superjumpitem") shape = new SuperJump(element as MissionElementItem);
 		else if (dataBlockLowerCase.startsWith("signcaution")) shape = new SignCaution(element as MissionElementStaticShape);
-		else if (dataBlockLowerCase === "superbounceitem") shape = new SuperBounce();
+		else if (dataBlockLowerCase === "superbounceitem") shape = new SuperBounce(element as MissionElementItem);
 		else if (dataBlockLowerCase === "roundbumper") shape = new RoundBumper();
 		else if (dataBlockLowerCase === "trianglebumper") shape = new TriangleBumper();
-		else if (dataBlockLowerCase === "helicopteritem") shape = new Helicopter();
+		else if (dataBlockLowerCase === "helicopteritem") shape = new Helicopter(element as MissionElementItem);
 		else if (dataBlockLowerCase === "ductfan") shape = new DuctFan();
 		else if (dataBlockLowerCase === "smallductfan") shape = new SmallDuctFan();
-		else if (dataBlockLowerCase === "antigravityitem") shape = new AntiGravity();
+		else if (dataBlockLowerCase === "antigravityitem") shape = new AntiGravity(element as MissionElementItem);
 		else if (dataBlockLowerCase === "landmine") shape = new LandMine();
-		else if (dataBlockLowerCase === "shockabsorberitem") shape = new ShockAbsorber();
-		else if (dataBlockLowerCase === "superspeeditem") shape = new SuperSpeed();
+		else if (dataBlockLowerCase === "shockabsorberitem") shape = new ShockAbsorber(element as MissionElementItem);
+		else if (dataBlockLowerCase === "superspeeditem") shape = new SuperSpeed(element as MissionElementItem);
 		else if (dataBlockLowerCase === "timetravelitem") shape = new TimeTravel(element as MissionElementItem);
 		else if (dataBlockLowerCase === "tornado") shape = new Tornado();
 		else if (dataBlockLowerCase === "trapdoor") shape = new TrapDoor(element as MissionElementStaticShape);
@@ -731,6 +732,17 @@ export class Level extends Scheduler {
 
 		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
 		displayTime(timeToDisplay / 1000);
+
+		// Update help and alert text visibility
+		let helpTextTime = this.helpTextTimeState?.timeSinceLoad ?? -Infinity;
+		let alertTextTime = this.alertTextTimeState?.timeSinceLoad ?? -Infinity;
+		let helpTextCompletion = Util.clamp((this.timeState.timeSinceLoad - helpTextTime - 3000) / 1000, 0, 1) ** 2;
+		let alertTextCompletion = Util.clamp((this.timeState.timeSinceLoad - alertTextTime - 3000) / 1000, 0, 1) ** 2;
+
+		helpElement.style.opacity = (1 - helpTextCompletion).toString();
+		helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, helpTextCompletion)})`;
+		alertElement.style.opacity = (1 - alertTextCompletion).toString();
+		alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
 
 		requestAnimationFrame(() => this.render());
 	}

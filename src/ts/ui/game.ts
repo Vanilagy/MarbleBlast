@@ -12,8 +12,8 @@ export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
 const clockCanvas = document.querySelector('#clock') as HTMLCanvasElement;
 const clockCtx = clockCanvas.getContext('2d');
-const helpElement = document.querySelector('#help-text') as HTMLDivElement;
-const alertElement = document.querySelector('#alert-text') as HTMLDivElement;
+export const helpElement = document.querySelector('#help-text') as HTMLDivElement;
+export const alertElement = document.querySelector('#alert-text') as HTMLDivElement;
 const centerElement = document.querySelector('#center-text') as HTMLImageElement;
 const pauseScreenDiv = document.querySelector('#pause-screen') as HTMLDivElement;
 const pauseYesButton = document.querySelector('#pause-yes') as HTMLImageElement;
@@ -175,8 +175,14 @@ export const displayHelp = async (message: string) => {
 			"movebackward": "down",
 			"moveleft": "left",
 			"moveright": "right",
-			"jump": "jump"
-		} as Record<string, string>)[match[1]];
+			"jump": "jump",
+			"mousefire": "use",
+			"panup": "cameraUp",
+			"pandown": "cameraDown",
+			"panleft": "cameraLeft",
+			"panright": "cameraRight",
+			"freelook": "freeLook"
+		} as Record<string, string>)[match[1].toLowerCase()];
 		if (!gameButton) continue;
 
 		let keyName = Util.getKeyForButtonCode(StorageManager.data.settings.gameButtonMapping[gameButton as keyof typeof StorageManager.data.settings.gameButtonMapping]);
@@ -188,19 +194,13 @@ export const displayHelp = async (message: string) => {
 	if (message === 'MSG_RACETOTHEFINISH') message = "Race to the finish!";
 
 	helpElement.textContent = message;
-
-	helpElement.style.animation = '';
-	Util.forceLayout(helpElement);
-	helpElement.style.animation = 'gameplay-text-popup 4s forwards ease-in';
+	state.currentLevel.helpTextTimeState = Util.jsonClone(state.currentLevel.timeState);
 };
 
 /** Displays an alert at the bottom of the screen. */
 export const displayAlert = (message: string) => {
 	alertElement.textContent = message;
-
-	alertElement.style.animation = '';
-	Util.forceLayout(alertElement);
-	alertElement.style.animation = 'gameplay-text-popup 4s forwards ease-in';
+	state.currentLevel.alertTextTimeState = Util.jsonClone(state.currentLevel.timeState);
 };
 
 export const setCenterText = (type: 'none' | 'ready' | 'set' | 'go' | 'outofbounds') => {

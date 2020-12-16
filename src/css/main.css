@@ -8,12 +8,6 @@
 	src: url("../assets/font/Expo/EXPON.TTF");
 }
 
-@keyframes gameplay-text-popup {
-	0% { opacity: 1; filter: brightness(1); }
-	75% { opacity: 1; filter: brightness(1); }
-	100% { opacity: 0; filter: brightness(0.25); }
-}
-
 @keyframes pulse-opacity {
 	0% { opacity: 1; }
 	50% { opacity: 0.666; }

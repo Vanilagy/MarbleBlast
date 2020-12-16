@@ -1,5 +1,9 @@
 # Version History
 
+## 1.4.29
+- Added support for showHelpOnPickup flag on power-ups
+- Fixed help and alert text fading out even when game is paused
+
 ## 1.4.28
 - Fixed broken trigger hitboxes breaking collision
 
