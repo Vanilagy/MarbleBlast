@@ -112,9 +112,6 @@ export class PhysicsHelper {
 		let prevMarblePosition = this.level.marble.body.getPosition().clone();
 		let prevMarbleTransform = this.level.marble.body.getTransform().clone();
 
-		// Update pathed interior velocities before running the simulation step
-		for (let interior of this.level.interiors) interior.tick(this.level.timeState);
-
 		let gravityBefore = this.world.getGravity().clone();
 		if (this.level.finishTime) {
 			// Slow down the marble when it's in the finish and disable gravity

@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.30
+- Fixed bugs regarding pathed interiors and camera positioning
+
 ## 1.4.29
 - Added support for showHelpOnPickup flag on power-ups
 - Fixed help and alert text fading out even when game is paused

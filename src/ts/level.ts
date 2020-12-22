@@ -901,15 +901,23 @@ export class Level extends Scheduler {
 			elapsed -= 1000 / PHYSICS_TICK_RATE;
 
 			this.tickSchedule(this.timeState.currentAttemptTime);
-			if (!playReplay) this.physics.step(); // Step the physics
+
+			// Update pathed interior velocities before running the simulation step
+			// Note: We do this even in replay playback mode, because pathed interior body position is relevant for the camera code.
+			for (let interior of this.interiors) interior.tick(this.timeState);
+
+			// Step the physics
+			if (!playReplay) this.physics.step();
 
 			for (let shape of this.shapes) if (!shape.isTSStatic) shape.tick(this.timeState);
 
-			if (!playReplay) {
-				// Update pathed interior positions after the physics tick because they will have changed position only after the physics tick was calculated, not during.
-				for (let interior of this.interiors) if (interior instanceof PathedInterior) interior.updatePosition();
-				this.marble.tick(this.timeState);
-			}
+			// Update pathed interior positions after the physics tick because they will have changed position only after the physics tick was calculated, not during.
+			for (let interior of this.interiors) if (interior instanceof PathedInterior) interior.updatePosition();
+
+			// Major bruh energy here: Simply updating the interior positions isn't enough, OIMO needs to do some extra broadphase stuff or something. That's why we do this call here.
+			if (playReplay) (this.physics.world as any)._updateContacts();
+
+			if (!playReplay) this.marble.tick(this.timeState);
 			this.marble.updatePowerUpStates(this.timeState);
 
 			this.jumpQueued = false;

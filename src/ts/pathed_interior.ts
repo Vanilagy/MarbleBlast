@@ -34,7 +34,7 @@ export class PathedInterior extends Interior {
 	basePosition: THREE.Vector3;
 	baseOrientation: THREE.Quaternion;
 	baseScale: THREE.Vector3;
-	prevPosition: THREE.Vector3 = null;
+	prevPosition: THREE.Vector3;
 	currentPosition = new THREE.Vector3();
 
 	/** Creates a PathedInterior from a sim group containing it and its path (and possible triggers). */
@@ -50,6 +50,7 @@ export class PathedInterior extends Interior {
 		level.interiors.push(pathedInterior);
 		await Util.wait(10); // See shapes for the meaning of this hack
 		await pathedInterior.init();
+
 		return pathedInterior;
 	}
 
@@ -128,12 +129,10 @@ export class PathedInterior extends Interior {
 	tick(time: TimeState) {
 		let transform = this.getTransformAtTime(this.getInternalTime(time.currentAttemptTime));
 
-		let position = new THREE.Vector3();
-		transform.decompose(position, new THREE.Quaternion(), new THREE.Vector3()); // The orientation doesn't matter in that version of TGE
+		this.body.setPosition(Util.vecThreeToOimo(this.currentPosition)); // Reset the body's position to the last position used in a proper physics simstep. We do this because the position might've changed since then through render().
 
-		if (!this.prevPosition) this.prevPosition = position.clone();
-		else this.prevPosition.copy(this.currentPosition);
-
+		let position = new THREE.Vector3().setFromMatrixPosition(transform); // The orientation doesn't matter in that version of TGE, so we only need position
+		this.prevPosition.copy(this.currentPosition);
 		this.currentPosition = position;
 
 		// Calculate the velocity based on current and last position
@@ -224,12 +223,16 @@ export class PathedInterior extends Interior {
 
 	render(time: TimeState) {
 		let transform = this.getTransformAtTime(this.getInternalTime(time.currentAttemptTime));
+
 		if (this.useInstancing) {
 			this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, transform);
 			this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
 		} else {
 			this.mesh.matrix.copy(transform);
 		}
+
+		let position = new THREE.Vector3().setFromMatrixPosition(transform);
+		this.body.setPosition(Util.vecThreeToOimo(position)); // Set the position of the body as well for correct camera raycasting results
 	}
 
 	/** Resets the movement state of the pathed interior to the beginning values. */
@@ -237,7 +240,6 @@ export class PathedInterior extends Interior {
 		this.currentTime = 0;
 		this.targetTime = 0;
 		this.changeTime = 0;
-		this.prevPosition = null;
 
 		if (this.element.initialposition) {
 			this.currentTime = MisParser.parseNumber(this.element.initialposition);
@@ -248,5 +250,13 @@ export class PathedInterior extends Interior {
 			// Alright this is strange. In Torque, there are some FPS-dependent client/server desync issues that cause the interior to start at the end position whenever the initialTargetPosition is somewhere greater than 1 and, like, approximately below 50.
 			if (this.targetTime > 0 && this.targetTime < 50) this.currentTime = this.duration;
 		}
+
+		// Reset the position
+		let transform = this.getTransformAtTime(this.getInternalTime(0));
+		let position = new THREE.Vector3().setFromMatrixPosition(transform);
+
+		this.prevPosition = position.clone();
+		this.currentPosition = position;
+		this.body.setPosition(Util.vecThreeToOimo(this.currentPosition));
 	}
 }
