@@ -633,8 +633,8 @@ const maybeUpdateReplay = async (replayData: ArrayBuffer, missionPath: string) =
 };
 
 /** Downloads a replay as a .wrec file. */
-const downloadReplay = async (replayData: ArrayBuffer, mission: Mission) => {
-	replayData = await maybeUpdateReplay(replayData, mission.path); // Normalize the replay first
+export const downloadReplay = async (replayData: ArrayBuffer, mission: Mission, normalize = true) => {
+	if (normalize) replayData = await maybeUpdateReplay(replayData, mission.path); // Normalize the replay first
 
 	// Create the blob and download it
 	let blob = new Blob([replayData], {

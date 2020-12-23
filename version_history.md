@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.31
+- Added ability to download .wrec right from the finish screen
+
 ## 1.4.30
 - Fixed bugs regarding pathed interiors and camera positioning
 
