@@ -240,7 +240,7 @@ viewReplayButton.addEventListener('click', async (e) => {
 
 	if (e.altKey) {
 		let serialized = await level.replay.serialize();
-		downloadReplay(serialized, level.mission);
+		downloadReplay(serialized, level.mission, false);
 	} else {
 		let confirmed = confirm("Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top 3 local scores.");
 		if (!confirmed) return;
