@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.32
+- Added support for pathed interior sounds
+
 ## 1.4.31
 - Added ability to download .wrec right from the finish screen
 

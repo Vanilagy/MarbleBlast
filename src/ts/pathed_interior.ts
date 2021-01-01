@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { TimeState, PHYSICS_TICK_RATE, Level } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
 import OIMO from "./declarations/oimo";
+import { AudioManager, AudioSource } from "./audio";
 
 interface MarkerData {
 	msToNext: number,
@@ -21,6 +22,9 @@ export class PathedInterior extends Interior {
 	element: MissionElementPathedInterior;
 	triggers: MustChangeTrigger[] = [];
 	hasCollision: boolean;
+	/** Some pathed interiors emit a sound; this is for that. */
+	soundSource: AudioSource;
+	soundPosition: THREE.Vector3;
 
 	/** The total duration of the path. */
 	duration: number;
@@ -70,7 +74,6 @@ export class PathedInterior extends Interior {
 
 		this.buildCollisionGeometry(this.baseScale);
 		this.body.setOrientation(new OIMO.Quat(this.baseOrientation.x, this.baseOrientation.y, this.baseOrientation.z, this.baseOrientation.w));
-		this.element = this.element;
 		this.path = this.simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 
 		// Parse the markers
@@ -92,7 +95,20 @@ export class PathedInterior extends Interior {
 			this.triggers.push(trigger);
 		}
 
+		// Create a sound effect if so specified
+		if (this.element.datablock?.toLowerCase() === 'pathedmovingblock') {
+			this.soundPosition = new THREE.Vector3(); // This position will be modified
+			this.soundSource = AudioManager.createAudioSource('movingblockloop.wav', AudioManager.soundGain, this.soundPosition);
+			this.soundSource.node.loop = true;
+
+			await this.soundSource.promise;
+		}
+
 		this.reset();
+	}
+
+	async onLevelStart() {
+		this.soundSource?.play();
 	}
 
 	/** Computes the total duration of the path. */
@@ -147,6 +163,9 @@ export class PathedInterior extends Interior {
 			this.body.setType(OIMO.RigidBodyType.STATIC);
 			this.body.setLinearVelocity(new OIMO.Vec3());
 		}
+
+		// Modify the sound effect position, if present
+		this.soundPosition?.copy(position).add(this.markerData[0]?.position ?? new THREE.Vector3());
 	}
 
 	updatePosition() {
@@ -162,6 +181,8 @@ export class PathedInterior extends Interior {
 			// Incase there are no markers at all
 			let mat = new THREE.Matrix4();
 			mat.compose(this.basePosition, this.baseOrientation, this.baseScale);
+
+			return mat;
 		}
 
 		// Find the two markers in question
@@ -258,5 +279,6 @@ export class PathedInterior extends Interior {
 		this.prevPosition = position.clone();
 		this.currentPosition = position;
 		this.body.setPosition(Util.vecThreeToOimo(this.currentPosition));
+		this.soundPosition?.copy(position).add(this.markerData[0]?.position ?? new THREE.Vector3());
 	}
 }

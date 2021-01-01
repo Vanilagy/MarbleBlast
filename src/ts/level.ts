@@ -231,6 +231,7 @@ export class Level extends Scheduler {
 		if (this.stopped) return;
 
 		this.restart();
+		for (let interior of this.interiors) await interior.onLevelStart();
 		for (let shape of this.shapes) await shape.onLevelStart();
 		AudioManager.normalizePositionalAudioVolume();
 
@@ -1262,6 +1263,9 @@ export class Level extends Scheduler {
 		this.dispose();
 
 		this.music.stop();
+		for (let interior of this.interiors) {
+			if (interior instanceof PathedInterior) interior.soundSource?.stop();
+		}
 		for (let shape of this.shapes) {
 			if (shape instanceof Tornado || shape instanceof DuctFan) shape.soundSource?.stop();
 		}
