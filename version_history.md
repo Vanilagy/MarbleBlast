@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.33
+- Fixed pathed interiors crashing levels under certain conditions
+
 ## 1.4.32
 - Added support for pathed interior sounds
 

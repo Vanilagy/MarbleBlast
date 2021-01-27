@@ -137,7 +137,7 @@ export class PathedInterior extends Interior {
 			return Util.adjustedMod(this.currentTime + (externalTime - this.changeTime) * direction, this.duration);
 		} else {
 			let dur = Math.abs(this.currentTime - this.targetTime);
-			let completion = Util.clamp((externalTime - this.changeTime) / dur, 0, 1);
+			let completion = Util.clamp(dur? (externalTime - this.changeTime) / dur : 1, 0, 1);
 			return Util.clamp(Util.lerp(this.currentTime, this.targetTime, completion), 0, this.duration);
 		}
 	}
