@@ -1189,8 +1189,7 @@ export class Level extends Scheduler {
 	}
 
 	touchFinish(completionOfImpactOverride?: number) {
-		// Allow finishing with less than half a second of having been OOB
-		if (this.finishTime !== null || (this.outOfBounds && this.timeState.currentAttemptTime - this.outOfBoundsTime.currentAttemptTime >= 500)) return;
+		if (this.finishTime !== null) return;
 
 		this.replay.recordTouchFinish();
 
@@ -1198,8 +1197,6 @@ export class Level extends Scheduler {
 			AudioManager.play('missinggems.wav');
 			displayAlert("You can't finish without all the gems!!");
 		} else {
-			// The level was completed!
-
 			let completionOfImpact: number;
 			if (completionOfImpactOverride === undefined) {
 				// Compute the time of finishing. Like with start pads, use the last end pad.
@@ -1227,7 +1224,15 @@ export class Level extends Scheduler {
 			let endPad = Util.findLast(this.shapes, (shape) => shape instanceof EndPad) as EndPad;
 			endPad?.spawnFirework(this.timeState); // EndPad *might* not exist, in that case no fireworks lol
 
+			displayAlert("Congratulations! You've finished!");
+
+			// Check if the player is OOB, but still allow finishing with less than half a second of having been OOB
+			if (this.outOfBounds && this.timeState.currentAttemptTime - this.outOfBoundsTime.currentAttemptTime >= 500) return;
+
+			// When we reach this point, the player has actually successfully completed the level.
+
 			this.clearScheduleId('oobRestart'); // Make sure we don't restart the level now
+			// Schedule the finish screen to be shown
 			if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => {
 				// Show the finish screen
 				document.exitPointerLock();
@@ -1236,7 +1241,6 @@ export class Level extends Scheduler {
 				resetPressedFlag('jump');
 				resetPressedFlag('restart');
 			});
-			displayAlert("Congratulations! You've finished!");
 		}
 	}
 

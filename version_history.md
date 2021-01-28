@@ -1,5 +1,8 @@
 # Version History
 
+## 1.4.34
+- Finishing a level while OOB for longer than 0.5 seconds now stops the time and shows fireworks as usual, but doesn't actually complete the level
+
 ## 1.4.33
 - Fixed pathed interiors crashing levels under certain conditions
 
