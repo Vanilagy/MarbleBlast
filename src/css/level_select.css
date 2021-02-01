@@ -201,7 +201,7 @@
 #online-leaderboard-heading {
 	font-family: DomCasualRegular;
 	margin: 0;
-	margin-top: 23px;
+	margin-top: 11px;
 	margin-left: 30px;
 	font-size: 20px;
 	margin-bottom: 14px;
@@ -212,6 +212,7 @@
 	font-weight: bolder;
 	font-size: 11px;
 	width: 189px;
+	height: 12px;
 	margin-left: 42px;
 	clear: both;
 	position: relative;
