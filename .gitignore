@@ -1,7 +1,8 @@
 **/node_modules
 src/js/bundle.js
-src/storage
+server/storage
+server/bundle.js
+server/js
 dist
 todo.txt
 .rpt2_cache
-src/php/leaderboard.json

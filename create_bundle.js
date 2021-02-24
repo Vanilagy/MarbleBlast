@@ -8,5 +8,6 @@ sarcina.bundle({
 	ignore: ['ts', 'php/leaderboard.json', 'storage'],
 	keep: ['lib/pako.js'],
 	transpileScript: sarcina.ES2017,
-	insertPolyfill: true
+	insertPolyfill: true,
+	handleInlineScript: false
 }).then((e) => console.log(e));

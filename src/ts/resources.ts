@@ -20,7 +20,7 @@ export abstract class ResourceManager {
 	static urlCache = new Map<Blob, string>();
 
 	static async init() {
-		let response = await this.loadResource('./php/get_directory_structure.php');
+		let response = await this.loadResource('./api/directory_structure');
 		this.dataDirectoryStructure = JSON.parse(await this.readBlobAsText(response));
 	}
 
@@ -90,6 +90,7 @@ export abstract class ResourceManager {
 			const attempt = async () => {
 				try {
 					let response = await fetch(path);
+
 					if (!response.ok) {
 						this.cachedResources.set(path, null);
 						resolve(null);
@@ -149,6 +150,11 @@ export abstract class ResourceManager {
 		});
 	}
 
+	static async readBlobAsJson(blob: Blob, encoding?: string) {
+		let text = await this.readBlobAsText(blob, encoding);
+		return JSON.parse(text);
+	}
+
 	static readBlobAsArrayBuffer(blob: Blob) {
 		if (blob.arrayBuffer) return blob.arrayBuffer();
 		else return new Promise<ArrayBuffer>((resolve) => {
@@ -173,5 +179,21 @@ export abstract class ResourceManager {
 		let url = URL.createObjectURL(blob);
 		this.urlCache.set(blob, url);
 		return url;
+	}
+
+	/** Fetches a URL until a response a received. */
+	static retryFetch(input: RequestInfo, init?: RequestInit) {
+		return new Promise<Blob>(resolve => {
+			const attempt = async () => {
+				try {
+					let response = await fetch(input, init);
+					let blob = await response.blob();
+					resolve(blob);
+				} catch (e) {
+					setTimeout(attempt, 1000);
+				}
+			};
+			attempt();
+		});
 	}
 }

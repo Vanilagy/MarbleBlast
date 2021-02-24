@@ -11,7 +11,9 @@ import { SerializedReplay, Replay } from "../replay";
 import { executeOnWorker } from "../worker";
 import { previousButtonState } from "../input";
 import { getRandomId } from "../state";
+import { Leaderboard } from "../leaderboard";
 
+export const missions: Mission[] = [];
 export const beginnerLevels: Mission[] = [];
 export const intermediateLevels: Mission[] = [];
 export const advancedLevels: Mission[] = [];
@@ -30,6 +32,7 @@ const levelQualifyTime = document.querySelector('#level-qualify-time') as HTMLPa
 const bestTime1 = document.querySelector('#level-select-best-time-1') as HTMLDivElement;
 const bestTime2 = document.querySelector('#level-select-best-time-2') as HTMLDivElement;
 const bestTime3 = document.querySelector('#level-select-best-time-3') as HTMLDivElement;
+const leaderboardLoading = document.querySelector('#online-leaderboard-loading') as HTMLParagraphElement;
 const leaderboardScores = document.querySelector('#leaderboard-scores') as HTMLDivElement;
 const levelImage = document.querySelector('#level-image') as HTMLImageElement;
 const notQualifiedOverlay = document.querySelector('#not-qualified-overlay') as HTMLDivElement;
@@ -39,7 +42,6 @@ const playButton = document.querySelector('#level-select-play') as HTMLImageElem
 const nextButton = document.querySelector('#level-select-next') as HTMLImageElement;
 const homeButton = document.querySelector('#level-select-home-button') as HTMLImageElement;
 export const hiddenUnlocker = document.querySelector('#hidden-level-unlocker') as HTMLDivElement;
-const searchBar = document.querySelector('#search-bar') as HTMLImageElement;
 const searchInput = document.querySelector('#search-input') as HTMLInputElement;
 
 /** The array of the current level group being shown. */
@@ -139,8 +141,6 @@ export const initLevelSelect = async () => {
 		return MisParser.parseNumber(missionInfo1.level) - MisParser.parseNumber(missionInfo2.level);
 	});
 
-	let missions: Mission[] = [];
-
 	// Create the regular missions
 	for (let misFile of misFiles) {
 		let mission = Mission.fromMisFile(misFileToFilename.get(misFile), misFile);
@@ -177,8 +177,6 @@ export const initLevelSelect = async () => {
 	selectTab('advanced');
 	selectTab('intermediate');
 	selectTab('beginner');
-
-	updateOnlineLeaderboard(true);
 
 	for (let elem of [bestTime1.children[3], bestTime2.children[3], bestTime3.children[3]]) {
 		let replayButton = elem as HTMLImageElement;
@@ -267,6 +265,7 @@ const displayMission = () => {
 
 	setImages();
 	updateNextPrevButtons();
+	Leaderboard.loadLocal();
 };
 
 /** Returns true if there is a next level to advance to. */
@@ -360,7 +359,7 @@ const setImages = (fromTimeout = false) => {
 };
 
 let lastDisplayBestTimesId: string; // Used to prevent some async issues
-const displayBestTimes = () => {
+export const displayBestTimes = () => {
 	let mission = currentLevelArray[currentLevelIndex];
 	let goldTime = 0;
 	let randomId = getRandomId();
@@ -396,33 +395,42 @@ const displayBestTimes = () => {
 	bestTime3.children[2].textContent = Util.secondsToTimeString(bestTimes[2][1] / 1000);
 	updateReplayButton(2);
 
-	leaderboardScores.innerHTML = '';
-	let onlineScores = onlineLeaderboard[mission?.path];
+	leaderboardLoading.style.display = Leaderboard.isLoading(mission.path)? 'block' : 'none';
+
+	let onlineScores = Leaderboard.scores.get(mission.path);
 	if (onlineScores) {
-		let i = 0;
-
-		for (let score of onlineScores) {
-			let achievedTime = Number(score[1]);
-
+		// Ensure a minimum number of leaderboard score elements. We pregenerate them for better performance.
+		while (leaderboardScores.children.length < Math.max(500, onlineScores.length)) {
 			let element = document.createElement('div');
 			element.classList.add('level-select-best-time');
 
 			let name = document.createElement('div');
-			name.textContent = (i + 1) + '. ' + score[0];
 			element.appendChild(name);
 
 			let img = document.createElement('img');
 			img.src = "./assets/ui/play/goldscore.png";
-			img.style.opacity = (achievedTime <= goldTime)? '' : '0';
 			element.appendChild(img);
 
 			let time = document.createElement('div');
-			time.textContent = Util.secondsToTimeString(achievedTime / 1000, 3);
 			element.appendChild(time);
 
 			leaderboardScores.appendChild(element);
+		}
 
-			i++;
+		// Update the score elements
+		for (let i = 0; i < leaderboardScores.children.length; i++) {
+			let element = leaderboardScores.childNodes[i] as HTMLDivElement;
+			let score = onlineScores[i];
+
+			if (!score) {
+				element.style.display = 'none';
+				continue;
+			}
+
+			element.style.display = 'block';
+			element.children[0].textContent = (i + 1) + '. ' + score[0];
+			(element.children[1] as HTMLImageElement).style.opacity = (score[1] <= goldTime)? '' : '0';
+			element.children[2].textContent = Util.secondsToTimeString(score[1] / 1000, 3);
 		}
 	}
 };
@@ -437,7 +445,7 @@ export const cycleMission = (direction: number) => {
 };
 
 /** Gets the level index you would get by skipping a certain amount forwards/backwards while respecting the search query. Returns null if the index would peek outside of the current level array. */
-const getCycleMissionIndex = (direction: number) => {
+export const getCycleMissionIndex = (direction: number) => {
 	if (direction === 0) return currentLevelIndex;
 
 	for (let i = currentLevelIndex + Math.sign(direction); i >= 0 && i < currentLevelArray.length; i += Math.sign(direction)) {
@@ -488,93 +496,6 @@ hiddenUnlocker.addEventListener('mousedown', () => {
 	}
 });
 
-// The second value in the tuple can be number or string - number for legacy reasons.
-let onlineLeaderboard: Record<string, [string, number | string][]> = {};
-export const updateOnlineLeaderboard = async (handleUpload = false, handleBestTimes = true) => {
-	let postData = {
-		randomId: StorageManager.data.randomId,
-		bestTimes: {} as Record<string, [string, string]>,
-		version: 1
-	};
-
-	// Add all personal best times to the payload
-	for (let path in StorageManager.data.bestTimes) {
-		let val = StorageManager.data.bestTimes[path];
-		// If the best score for this level has a name and isn't timestamp 0
-		if (val[0][0] && val[0][3] !== 0) postData.bestTimes[path] = [val[0][0], val[0][1].toString()]; // Convert the time to string to avoid precision loss in transfer
-	}
-
-	try {
-		if (handleBestTimes) {
-			let compressed = await executeOnWorker('compress', JSON.stringify(postData));
-
-			let response = await fetch('./php/update_leaderboard.php', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/octet-stream',
-				},
-				body: compressed
-			});
-			if (response.ok) {
-				let text = await response.text();
-				let json = JSON.parse(text);
-				onlineLeaderboard = json;
-
-				let localScoreRemoved = false;
-				for (let path in StorageManager.data.bestTimes) {
-					let firstLeaderboardScore = onlineLeaderboard[path]?.[0];
-					if (!firstLeaderboardScore) continue;
-
-					let bestTime = StorageManager.data.bestTimes[path][0];
-					while (bestTime && bestTime[1] < Number(firstLeaderboardScore[1]) && bestTime[3] === 0) {
-						// Splice all timestamp 0 times that are faster than the current WR on the leaderboard. We do this because the score is outdated.
-						StorageManager.data.bestTimes[path].splice(0, 1);
-						bestTime = StorageManager.data.bestTimes[path][0];
-						localScoreRemoved = true;
-					}
-
-					if (StorageManager.data.bestTimes[path].length === 0) delete StorageManager.data.bestTimes[path];
-				}
-				if (localScoreRemoved) StorageManager.storeBestTimes();
-
-				displayBestTimes(); // Refresh best times
-			}
-		}
-
-		if (handleUpload) {
-			// Handle upload of .wrecs to the server
-			let response = await fetch('./php/get_stored_wrecs.php');
-			if (response.ok) {
-				let json = await response.json() as Record<string, [string, string, number]>;
-
-				for (let missionPath in StorageManager.data.bestTimes) {
-					if (missionPath.startsWith('custom')) continue; // We don't care about custom .wrecs for now
-					let bestTime = StorageManager.data.bestTimes[missionPath][0];
-					if (!bestTime[2]) continue; // No replay for this score
-
-					// Check if the score is the top score on the leaderboard and it's also better than the scored .wrec score
-					if (bestTime[1] === Number(onlineLeaderboard[missionPath]?.[0]?.[1]) && (!json[missionPath] || bestTime[1] < Number(json[missionPath][1]))) {
-						// Then prepare the replay upload
-						let replayData = await StorageManager.databaseGet('replays', bestTime[2]) as ArrayBuffer;
-						if (!replayData) continue;
-						replayData = await maybeUpdateReplay(replayData, missionPath);
-
-						fetch(`./php/upload_wrec.php?mission=${decodeURIComponent(missionPath)}&name=${decodeURIComponent(bestTime[0])}&time=${decodeURIComponent(bestTime[1].toString())}`, {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/octet-stream',
-							},
-							body: replayData
-						});
-					}
-				}
-			}
-		}
-	} catch (e) {
-		console.error(e);
-	}
-};
-
 /** The current words in the search query. Used for matching. */
 let currentQueryWords: string[] = [];
 
@@ -614,7 +535,7 @@ const selectBasedOnSearchQuery = (display = true) => {
 };
 
 /** Makes sure a replay fits some requirements. */
-const maybeUpdateReplay = async (replayData: ArrayBuffer, missionPath: string) => {
+export const maybeUpdateReplay = async (replayData: ArrayBuffer, missionPath: string) => {
 	let uncompressed = pako.inflate(new Uint8Array(replayData), { to: 'string' });
 	
 	// This is a bit unfortunate, but we'd like to bundle the mission path with the replay, but the first replay version didn't include it. So we need to check if the replay actually includes the mission path, which we can check by checking if it includes the "version" field. We then upgrade the replay to verion 1.
@@ -655,7 +576,7 @@ loadReplayButton.addEventListener('click', async (e) => {
 	fileInput.setAttribute('type', 'file');
 	fileInput.setAttribute('accept', ".wrec");
 
-	fileInput.onchange = async (e) => {
+	fileInput.onchange = async () => {
 		try {
 			let file = fileInput.files[0];
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(file);

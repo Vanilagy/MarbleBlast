@@ -207,6 +207,13 @@
 	margin-bottom: 14px;
 }
 
+#online-leaderboard-loading {
+	margin: 0;
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    margin-left: 38px;
+}
+
 .level-select-best-time {
 	font-family: Arial, sans-serif;
 	font-weight: bolder;
@@ -215,7 +222,6 @@
 	height: 12px;
 	margin-left: 42px;
 	clear: both;
-	position: relative;
 }
 
 .level-select-best-time > div:first-child {

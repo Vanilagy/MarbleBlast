@@ -1,12 +1,13 @@
 import { Util } from "../util";
 import { setupButton, menuDiv, startMenuMusic } from "./ui";
 import { state } from "../state";
-import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex, getCurrentLevelArray, updateOnlineLeaderboard, downloadReplay } from "./level_select";
+import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex, getCurrentLevelArray, downloadReplay, displayBestTimes } from "./level_select";
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
 import { ResourceManager } from "../resources";
 import { AudioManager } from "../audio";
 import { getPressedFlag, resetPressedFlag, isPressedByGamepad, previousButtonState } from "../input";
+import { Leaderboard } from "../leaderboard";
 
 export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
@@ -46,9 +47,8 @@ export const stopAndExit = () => {
 	levelSelectDiv.classList.remove('hidden');
 	menuDiv.classList.remove('hidden');
 	finishScreenDiv.classList.add('hidden');
-	cycleMission(0); // Make sure to reload the current level to potentially update best times having changed
+	displayBestTimes(); // Potentially update best times having changed
 	startMenuMusic();
-	updateOnlineLeaderboard();
 	document.exitPointerLock();
 };
 
@@ -343,7 +343,7 @@ const nameEntryText = document.querySelector('#name-entry-screen > p:nth-child(3
 const nameEntryInput = document.querySelector('#name-entry-input') as HTMLInputElement;
 export const nameEntryButton = nameEntryScreenDiv.querySelector('#name-entry-confirm') as HTMLImageElement;
 
-setupButton(nameEntryButton, 'common/ok', () => {
+setupButton(nameEntryButton, 'common/ok', async () => {
 	let trimmed = nameEntryInput.value.trim();
 
 	if (trimmed.length < 2) {
@@ -352,27 +352,29 @@ setupButton(nameEntryButton, 'common/ok', () => {
 	}
 
 	if (Util.isNaughty(trimmed)) {
-		alert("The name you chose contains words deemed inappropriate. Please, do the right thing and choose a non-offensive name.");
+		alert("The name you chose contains words deemed inappropriate. Please do the right thing and choose a non-offensive name.");
 		return;
 	}
+	
+	StorageManager.data.lastUsedName = trimmed;
+	StorageManager.store();
 
 	// Store the time and close the dialog.
 	let level = state.currentLevel;
-	StorageManager.data.lastUsedName = trimmed;
-	let newScoreId = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
-	let uploadScoresPromise = updateOnlineLeaderboard();
+	let inserted = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
 
 	nameEntryScreenDiv.classList.add('hidden');
 	drawBestTimes();
 
-	// Store the replay
-	if (level.replay.mode === 'record' && !level.replay.isInvalid) {
-		level.replay.canStore = false;
-		level.replay.serialize().then(async e => {
-			await StorageManager.databasePut('replays', e, newScoreId);
-			await uploadScoresPromise; // Make sure the scores have actually been uploaded before pushing the replay
-			updateOnlineLeaderboard(true, false);
-		});
+	if (inserted) {
+		// Store the replay
+		if (level.replay.mode === 'record' && !level.replay.isInvalid) {
+			level.replay.canStore = false;
+			let serialized = await level.replay.serialize();
+			await StorageManager.databasePut('replays', serialized, inserted.score[2]);
+		}
+
+		if (inserted.index === 0) Leaderboard.submitBestTime(level.mission.path, inserted.score);
 	}
 });
 

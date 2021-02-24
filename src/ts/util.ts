@@ -1,5 +1,6 @@
 import OIMO from "./declarations/oimo";
 import * as THREE from "three";
+import { ResourceManager } from "./resources";
 
 export interface RGBAColor {
 	r: number,
@@ -542,6 +543,12 @@ export abstract class Util {
 		if (seconds < 0) string = '-' + string;
 		
 		return string;
+	}
+
+	static async arrayBufferToBase64(buf: ArrayBuffer) {
+		let blob = new Blob([buf]);
+		let dataUrl = await ResourceManager.readBlobAsDataUrl(blob);
+		return dataUrl.slice(dataUrl.indexOf(',') + 1); // Remove the stupid preable
 	}
 }
 

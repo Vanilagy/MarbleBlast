@@ -1,7 +1,8 @@
 import { setupButton } from "./ui";
-import { levelSelectDiv, hiddenUnlocker, updateOnlineLeaderboard } from "./level_select";
+import { levelSelectDiv, hiddenUnlocker } from "./level_select";
 import { helpDiv, showHelpPage, initHelpScenes } from "./help";
 import { optionsDiv } from "./options";
+import { Leaderboard } from "../leaderboard";
 
 export const homeScreenDiv = document.querySelector('#home-screen') as HTMLDivElement;
 const playButton = document.querySelector('#home-play') as HTMLImageElement;
@@ -15,7 +16,7 @@ setupButton(playButton, 'home/play', () => {
 	levelSelectDiv.classList.remove('hidden');
 	hiddenUnlocker.classList.remove('hidden');
 
-	updateOnlineLeaderboard(true);
+	Leaderboard.syncLeaderboard();
 });
 setupButton(helpButton, 'home/help', () => {
 	// Show the help screen

@@ -31,6 +31,7 @@ export class Mission {
 	misFile: MisFile;
 	/** The root sim group, MissionGroup. */
 	root: MissionElementSimGroup;
+	/** The custom level id. */
 	id: number;
 	/** The string used for searching missions. */
 	searchString: string;
@@ -93,7 +94,7 @@ export class Mission {
 		if (this.type !== 'custom') return; // Just a safety check
 
 		// Get the zip archive
-		let blob = await ResourceManager.loadResource('./php/get_custom_level.php?id=' + this.id);
+		let blob = await ResourceManager.loadResource(`./api/custom/${this.id}.zip`);
 		let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 		let zip = await JSZip.loadAsync(arrayBuffer); // Unzip the thing
 		this.zipDirectory = zip;
@@ -150,7 +151,7 @@ export class Mission {
 			return "./assets/data/missions/" + this.path.slice(0, this.path.lastIndexOf('/') + 1) + imagePath;
 		} else {
 			// Request the bitmap
-			return "./php/get_custom_level_bitmap.php?id=" + this.id;
+			return `./api/custom/${this.id}.jpg`;
 		}
 	}
 

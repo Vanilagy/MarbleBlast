@@ -5,7 +5,7 @@ import { executeOnWorker } from "./worker";
 /** name, time, scoreId, timestamp */
 export type BestTimes = [string, number, string, number][];
 
-const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999.99; // The 99:59.99 thing
+const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999.99; // The 99:59.999 thing
 
 interface StorageData {
 	settings: {
@@ -40,7 +40,10 @@ interface StorageData {
 	unlockedLevels: [number, number, number],
 	/** Used for the name entry in the post-game screen. */
 	lastUsedName: string,
-	randomId: string
+	/** A random ID to somewhat uniquely identify this user, even if they change their username. */
+	randomId: string,
+	/** The queue of scores that are still to be sent to the server. */
+	bestTimeSubmissionQueue: Record<string, BestTimes[number]>
 }
 
 const DEFAULT_STORAGE_DATA: StorageData = {
@@ -74,7 +77,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	bestTimes: {},
 	unlockedLevels: [1, 1, 1],
 	lastUsedName: '',
-	randomId: getRandomId()
+	randomId: getRandomId(),
+	bestTimeSubmissionQueue: {}
 };
 
 /** Manages storage and persistence. */
@@ -137,6 +141,7 @@ export abstract class StorageManager {
 		if (!this.data.settings.gameButtonMapping.restart) this.data.settings.gameButtonMapping.restart = 'KeyR';
 		if (!this.data.randomId) this.data.randomId = getRandomId();
 		if (this.data.settings.reflectiveMarble === undefined) this.data.settings.reflectiveMarble = false;
+		if (!this.data.bestTimeSubmissionQueue) this.data.bestTimeSubmissionQueue = {};
 	}
 
 	/** Migrates from localStorage to IndexedDB. */
@@ -188,17 +193,20 @@ export abstract class StorageManager {
 		return result;
 	}
 
-	/** Register a new time for a mission. */
+	/** Register a new time for a mission.
+	 * @returns The inserted score and the index at which at was inserted. Returns null, if the score wasn't inserted (so, not in the top 3 best times).
+	 */
 	static insertNewTime(path: string, name: string, time: number) {
 		let stored = this.data.bestTimes[path] ?? [];
 		let scoreId = getRandomId();
+		let toInsert: BestTimes[number] = [name, time, scoreId, Date.now()];
 
 		// Determine the correct index to insert the time at
 		let index: number;
 		for (index = 0; index < stored.length; index++) {
 			if (stored[index][1] > time) break;
 		}
-		stored.splice(index, 0, [name, time, scoreId, Date.now()]);
+		stored.splice(index, 0, toInsert);
 
 		// Shorten the array if needed
 		if (stored.length > 3) {
@@ -216,7 +224,11 @@ export abstract class StorageManager {
 
 		this.storeBestTimes();
 
-		return scoreId;
+		if (index === 3) return null;
+		return {
+			index,
+			score: toInsert
+		};
 	}
 
 	/** Gets an entry from an IndexedDB store by key. */
