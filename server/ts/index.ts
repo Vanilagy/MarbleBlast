@@ -17,8 +17,8 @@ import { getCustomLevelResource } from './customs';
 
 /** Sets up the database and creates tables, indices and prepared statements. */
 const setupDb = () => {
-	shared.db = new Database(path.join(__dirname, 'storage', 'main.db'));
-	shared.db.exec(`
+	let db = new Database(path.join(__dirname, 'storage', 'main.db'));
+	db.exec(`
 		CREATE TABLE IF NOT EXISTS score (
 			mission VARCHAR(255),
 			time DOUBLE,
@@ -29,17 +29,27 @@ const setupDb = () => {
 		CREATE INDEX IF NOT EXISTS mission_index ON score (mission);
 		CREATE INDEX IF NOT EXISTS timestamp_index ON score (timestamp);
 	`);
-	shared.db.pragma('journal_mode = WAL'); // Significantly improves performance
+	db.pragma('journal_mode = WAL'); // Significantly improves performance
 
 	// Prepare the statements now for later use
-	shared.getScoresForMissionStatement = shared.db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC;`);
-	shared.getScoreByUserStatement = shared.db.prepare(`SELECT rowid, time FROM score WHERE mission=? AND (username=? OR user_random_id=?);`);
-	shared.updateScoreStatement = shared.db.prepare(`UPDATE score SET time=?, username=?, user_random_id=?, timestamp=? WHERE rowid=?;`);
-	shared.insertScoreStatement = shared.db.prepare(`INSERT INTO score VALUES (?, ?, ?, ?, ?);`);
-	shared.getTopScoreStatement = shared.db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC LIMIT 1;`);
-	shared.getMissionScoreCount = shared.db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);
-	shared.getNewerScoresStatement = shared.db.prepare(`SELECT mission FROM score WHERE timestamp>?;`);
-	shared.getLatestTimestampStatement = shared.db.prepare(`SELECT MAX(timestamp) FROM score;`);
+	shared.getScoresForMissionStatement = db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC;`);
+	shared.getScoreByUserStatement = db.prepare(`SELECT rowid, time FROM score WHERE mission=? AND (username=? OR user_random_id=?);`);
+	shared.updateScoreStatement = db.prepare(`UPDATE score SET time=?, username=?, user_random_id=?, timestamp=? WHERE rowid=?;`);
+	shared.insertScoreStatement = db.prepare(`INSERT INTO score VALUES (?, ?, ?, ?, ?);`);
+	shared.getTopScoreStatement = db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC LIMIT 1;`);
+	shared.getMissionScoreCount = db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);
+	shared.getNewerScoresStatement = db.prepare(`SELECT mission FROM score WHERE timestamp>?;`);
+	shared.getLatestTimestampStatement = db.prepare(`SELECT MAX(timestamp) FROM score;`);
+
+	const backupDb = () => {
+		let yyyymmdd = new Date().toISOString().split('T')[0];
+		let fileName = `main_backup_${yyyymmdd}.db`;
+		db.backup(path.join(__dirname, 'storage', 'backups', fileName))
+			.then(() => console.log(`Successfully created database backup file ${fileName}.`))
+			.catch((err) => console.error("Backup failed: ", err));
+	};
+	setInterval(backupDb, 3.5 * 24 * 60 * 60 * 1000); // Biweekly
+	backupDb();
 };
 
 /** Starts the HTTP server. */
@@ -114,6 +124,7 @@ const init = () => {
 	fs.ensureDirSync(path.join(__dirname, 'storage'));
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'wrecs'));
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'customs'));
+	fs.ensureDirSync(path.join(__dirname, 'storage', 'backups'));
 	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'user_errors.log'));
 	
 	setupDb();

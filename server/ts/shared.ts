@@ -23,8 +23,6 @@ interface CLAEntry {
 export const shared: {
 	/** The path to the served HTML directory. */
 	directoryPath: string,
-	/** The main database. */
-	db: Database.Database,
 	config: {
 		/** Port for the HTTP server */
 		port: number,
