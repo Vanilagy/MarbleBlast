@@ -32,11 +32,13 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 		response[mission] = rows.map(x => [x.username, x.time]);
 	}
 
+	let stringified = JSON.stringify(response);
 	res.writeHead(200, {
 		'Content-Type': 'application/json',
+		'Content-Length': Buffer.byteLength(stringified),
 		'Cache-Control': 'no-cache, no-store' // Don't cache this
 	});
-	res.end(JSON.stringify(response));
+	res.end(stringified);
 };
 
 /** Submits new scores to the leaderboard. */
@@ -152,14 +154,16 @@ const sendNewScores = (res: http.ServerResponse, timestamp: number) => {
 	let latestTimestamp: number = shared.getLatestTimestampStatement.pluck().get();
 	if (!latestTimestamp) latestTimestamp = 0;
 
-	res.writeHead(200, {
-		'Content-Type': 'application/json',
-		'Cache-Control': 'no-cache, no-store' // Don't cache this
-	});
-	res.end(JSON.stringify({
+	let stringified = JSON.stringify({
 		latestTimestamp: latestTimestamp,
 		scores: result
-	}));
+	});
+	res.writeHead(200, {
+		'Content-Type': 'application/json',
+		'Content-Length': Buffer.byteLength(stringified),
+		'Cache-Control': 'no-cache, no-store' // Don't cache this
+	});
+	res.end(stringified);
 };
 
 /** Creates a sheet of default-level world records in CSV format for use in spreadsheets. */
@@ -195,6 +199,7 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 
 	res.writeHead(200, {
 		'Content-Type': 'text/plain; charset=utf-8',
+		'Content-Length': Buffer.byteLength(output),
 		'Cache-Control': 'no-cache, no-store'
 	});
 	res.end(output);

@@ -34,9 +34,12 @@ const getCustomLevelBitmap = async (res: http.ServerResponse, id: number) => {
 		await fs.writeFile(filePath, Buffer.from(arrayBuffer)); // Store the bitmap in a file
 	}
 
+	let stats = await fs.stat(filePath);
 	let stream = fs.createReadStream(filePath);
+
 	res.writeHead(200, {
 		'Content-Type': 'image/jpeg',
+		'Content-Length': stats.size,
 		'Access-Control-Allow-Origin': '*'
 	});
 	stream.pipe(res);
@@ -73,10 +76,13 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 		await Promise.all(promises);
 		await new Promise(resolve => zip.writeZip(filePath, resolve)); // Store the modified archive into a file
 	}
-
+	
+	let stats = await fs.stat(filePath);
 	let stream = fs.createReadStream(filePath);
+
 	res.writeHead(200, {
 		'Content-Type': 'application/zip',
+		'Content-Length': stats.size,
 		'Access-Control-Allow-Origin': '*'
 	});
 	stream.pipe(res);
