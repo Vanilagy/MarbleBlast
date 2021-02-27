@@ -222,6 +222,7 @@
 	height: 12px;
 	margin-left: 42px;
 	clear: both;
+	position: relative;
 }
 
 .level-select-best-time > div:first-child {

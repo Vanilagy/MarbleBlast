@@ -432,6 +432,11 @@ export const displayBestTimes = () => {
 			(element.children[1] as HTMLImageElement).style.opacity = (score[1] <= goldTime)? '' : '0';
 			element.children[2].textContent = Util.secondsToTimeString(score[1] / 1000, 3);
 		}
+	} else {
+		for (let i = 0; i < leaderboardScores.children.length; i++) {
+			let element = leaderboardScores.childNodes[i] as HTMLDivElement;
+			element.style.display = 'none';
+		}
 	}
 };
 

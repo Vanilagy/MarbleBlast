@@ -1,5 +1,14 @@
 # Version History
 
+## 1.5.0
+This patch focuses on a full backend rewrite. The client is mostly the same.
+- Ditched PHP for a Node.js server
+- Added a proper SQLite database (byebye, JSON)
+- Leaderboard updates are now lazy: The client requests only the parts of the leaderboard that it can currently display.
+- Score submission is similarly optimized, only new scores are sent instead of all local scores. Additionally, replay upload happens concurrently with score submission to avoid multiple requests.
+- Sped up large leaderboard lists loading
+- Fixed a bug where the username wouldn't be stored on the client
+
 ## 1.4.34
 - Finishing a level while OOB for longer than 0.5 seconds now stops the time and shows fireworks as usual, but doesn't actually complete the level
 
