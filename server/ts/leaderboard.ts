@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import * as zlib from 'zlib';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import fetch from 'node-fetch';
 
 import { shared } from './shared';
 import { escapeDiscord, secondsToTimeString, uppercaseFirstLetter } from './util';
