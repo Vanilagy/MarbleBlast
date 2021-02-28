@@ -1,5 +1,8 @@
 # Version History
 
+## 1.5.1
+- Fixed call stack error for large array concatenation
+
 ## 1.5.0
 This patch focuses on a full backend rewrite. The client is mostly the same.
 - Ditched PHP for a Node.js server

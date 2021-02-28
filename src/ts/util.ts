@@ -240,7 +240,8 @@ export abstract class Util {
 	}
 
 	static concatArrays<T>(arrays: T[][]) {
-		return arrays.reduce((prev, next) => (prev.push(...next), prev), []);
+		if (arrays.length === 0) return [];
+		return arrays[0].concat(...arrays.slice(1));
 	}
 
 	/** Creates a BufferGeometry from a MaterialGeometry by setting all the buffer attributes and group accordingly. */
