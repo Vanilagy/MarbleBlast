@@ -1,5 +1,8 @@
 # Version History
 
+## 1.5.2
+- Added unfinished replays: You can now watch and download replays from within the pause menu, even if you haven't finished the level yet.
+
 ## 1.5.1
 - Fixed call stack error for large array concatenation
 

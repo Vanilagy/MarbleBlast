@@ -110,6 +110,17 @@
 	left: 243px;
 }
 
+#pause-replay {
+	position: absolute;
+    top: 22px;
+    left: 184px;
+	opacity: 0.333;
+}
+
+#pause-replay:hover {
+	opacity: 0.666;
+}
+
 #finish-screen {
 	display: block;
 	margin: auto;

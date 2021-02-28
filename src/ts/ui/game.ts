@@ -1,13 +1,14 @@
 import { Util } from "../util";
 import { setupButton, menuDiv, startMenuMusic } from "./ui";
 import { state } from "../state";
-import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex, getCurrentLevelArray, downloadReplay, displayBestTimes } from "./level_select";
+import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex, getCurrentLevelArray, displayBestTimes } from "./level_select";
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
 import { ResourceManager } from "../resources";
 import { AudioManager } from "../audio";
 import { getPressedFlag, resetPressedFlag, isPressedByGamepad, previousButtonState } from "../input";
 import { Leaderboard } from "../leaderboard";
+import { Replay } from "../replay";
 
 export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
@@ -20,6 +21,7 @@ const pauseScreenDiv = document.querySelector('#pause-screen') as HTMLDivElement
 const pauseYesButton = document.querySelector('#pause-yes') as HTMLImageElement;
 const pauseNoButton = document.querySelector('#pause-no') as HTMLImageElement;
 const pauseRestartButton = document.querySelector('#pause-restart') as HTMLImageElement;
+const pauseReplayButton = document.querySelector('#pause-replay') as HTMLImageElement;
 
 export let numberSources = {
 	"0": "0.png",
@@ -60,6 +62,22 @@ setupButton(pauseNoButton, 'common/no', () => state.currentLevel.unpause());
 setupButton(pauseRestartButton, 'common/restart', () => {
 	state.currentLevel.unpause();
 	state.currentLevel.restart();
+});
+
+pauseReplayButton.addEventListener('click', async (e) => {
+	if (e.button !== 0) return;
+	let level = state.currentLevel;
+
+	if (e.altKey) {
+		let serialized = await level.replay.serialize();
+		Replay.download(serialized, level.mission, false, true);
+	} else {
+		let confirmed = confirm("Note that you can only watch this replay once. If you want to watch it more often, download it first. (alt-click)");
+		if (!confirmed) return;
+	
+		level.replay.mode = 'playback';
+		pauseRestartButton.click();
+	}
 });
 
 document.addEventListener('pointerlockchange', () => {
@@ -236,11 +254,12 @@ setupButton(replayButton, 'endgame/replay', () => {
 setupButton(continueButton, 'endgame/continue', () => stopAndExit());
 
 viewReplayButton.addEventListener('click', async (e) => {
+	if (e.button !== 0) return;
 	let level = state.currentLevel;
 
 	if (e.altKey) {
 		let serialized = await level.replay.serialize();
-		downloadReplay(serialized, level.mission, false);
+		Replay.download(serialized, level.mission, false);
 	} else {
 		let confirmed = confirm("Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top 3 local scores.");
 		if (!confirmed) return;

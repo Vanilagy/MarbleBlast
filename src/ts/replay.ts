@@ -8,6 +8,7 @@ import { TrapDoor } from "./shapes/trap_door";
 import { LandMine } from "./shapes/land_mine";
 import { executeOnWorker } from "./worker";
 import { PushButton } from "./shapes/push_button";
+import { Mission } from "./mission";
 
 /** Stores everything necessary for a correct replay of a playthrough. Instead of relying on replaying player inputs, the replay simply stores all necessary state. */
 export class Replay {
@@ -468,6 +469,42 @@ export class Replay {
 		}
 		
 		return quats;
+	}
+
+	/** Downloads a replay as a .wrec file. */
+	static async download(replayData: ArrayBuffer, mission: Mission, normalize = true, unfinished = false) {
+		if (normalize) replayData = await this.maybeUpdateReplay(replayData, mission.path); // Normalize the replay first
+	
+		// Create the blob and download it
+		let blob = new Blob([replayData], {
+			type: 'application/octet-stream'
+		});
+		let url = URL.createObjectURL(blob);
+		let filename = Util.removeSpecialChars(mission.title.toLowerCase().split(' ').map(x => Util.uppercaseFirstLetter(x)).join(''));
+		for (let i = 0; i < 6; i++) filename += Math.floor(Math.random() * 10); // Add a random string of numbers to the end
+		if (unfinished) filename += 'u'; // Clearly mark the replay as being unfinished
+		filename += '.wrec';
+		Util.download(url, filename);
+		URL.revokeObjectURL(url);
+	}
+
+	/** Makes sure a replay fits some requirements. */
+	static async maybeUpdateReplay(replayData: ArrayBuffer, missionPath: string) {
+		let uncompressed = pako.inflate(new Uint8Array(replayData), { to: 'string' });
+		
+		// This is a bit unfortunate, but we'd like to bundle the mission path with the replay, but the first replay version didn't include it. So we need to check if the replay actually includes the mission path, which we can check by checking if it includes the "version" field. We then upgrade the replay to verion 1.
+		if (!uncompressed.includes('"version"')) {
+			let json = JSON.parse(uncompressed) as SerializedReplay;
+			// Upgrade to version 1
+			json.missionPath = missionPath;
+			json.timestamp = 0;
+			json.version = 1;
+	
+			let compressed = await executeOnWorker('compress', JSON.stringify(json)) as ArrayBuffer;
+			replayData = compressed;
+		}
+	
+		return replayData;
 	}
 }
 

@@ -7,8 +7,7 @@ import { homeScreenDiv } from "./home";
 import { loadLevel } from "./loading";
 import { StorageManager } from "../storage";
 import { Mission, CLAEntry } from "../mission";
-import { SerializedReplay, Replay } from "../replay";
-import { executeOnWorker } from "../worker";
+import { Replay } from "../replay";
 import { previousButtonState } from "../input";
 import { getRandomId } from "../state";
 import { Leaderboard } from "../leaderboard";
@@ -194,7 +193,7 @@ export const initLevelSelect = async () => {
 			if (!e.altKey) {
 				playCurrentLevel(replayData);
 			} else {
-				downloadReplay(replayData, mission);
+				Replay.download(replayData, mission);
 			}
 		});
 
@@ -537,41 +536,6 @@ const selectBasedOnSearchQuery = (display = true) => {
 			break;
 		}
 	}
-};
-
-/** Makes sure a replay fits some requirements. */
-export const maybeUpdateReplay = async (replayData: ArrayBuffer, missionPath: string) => {
-	let uncompressed = pako.inflate(new Uint8Array(replayData), { to: 'string' });
-	
-	// This is a bit unfortunate, but we'd like to bundle the mission path with the replay, but the first replay version didn't include it. So we need to check if the replay actually includes the mission path, which we can check by checking if it includes the "version" field. We then upgrade the replay to verion 1.
-	if (!uncompressed.includes('"version"')) {
-		let json = JSON.parse(uncompressed) as SerializedReplay;
-		// Upgrade to version 1
-		json.missionPath = missionPath;
-		json.timestamp = 0;
-		json.version = 1;
-
-		let compressed = await executeOnWorker('compress', JSON.stringify(json)) as ArrayBuffer;
-		replayData = compressed;
-	}
-
-	return replayData;
-};
-
-/** Downloads a replay as a .wrec file. */
-export const downloadReplay = async (replayData: ArrayBuffer, mission: Mission, normalize = true) => {
-	if (normalize) replayData = await maybeUpdateReplay(replayData, mission.path); // Normalize the replay first
-
-	// Create the blob and download it
-	let blob = new Blob([replayData], {
-		type: 'application/octet-stream'
-	});
-	let url = URL.createObjectURL(blob);
-	let filename = Util.removeSpecialChars(mission.title.toLowerCase().split(' ').map(x => Util.uppercaseFirstLetter(x)).join(''));
-	for (let i = 0; i < 6; i++) filename += Math.floor(Math.random() * 10); // Add a random string of numbers to the end
-	filename += '.wrec';
-	Util.download(url, filename);
-	URL.revokeObjectURL(url);
 };
 
 const loadReplayButton = document.querySelector('#load-replay-button') as HTMLImageElement;
