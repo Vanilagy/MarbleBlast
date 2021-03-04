@@ -15,9 +15,11 @@ import { getDirectoryStructure, logUserError } from './misc';
 import { getLeaderboard, submitScores, getWorldRecordSheet } from './leaderboard';
 import { getCustomLevelResource } from './customs';
 
+let db: Database.Database = null;
+
 /** Sets up the database and creates tables, indices and prepared statements. */
 const setupDb = () => {
-	let db = new Database(path.join(__dirname, 'storage', 'main.db'));
+	db = new Database(path.join(__dirname, 'storage', 'main.db'));
 	db.exec(`
 		CREATE TABLE IF NOT EXISTS score (
 			mission VARCHAR(255),
@@ -44,6 +46,8 @@ const setupDb = () => {
 	const backupDb = () => {
 		let yyyymmdd = new Date().toISOString().split('T')[0];
 		let fileName = `main_backup_${yyyymmdd}.db`;
+
+		db.pragma('wal_checkpoint(RESTART)'); // First, checkpoint the WAL to the database so that its changes get backed up too
 		db.backup(path.join(__dirname, 'storage', 'backups', fileName))
 			.then(() => console.log(`Successfully created database backup file ${fileName}.`))
 			.catch((err) => console.error("Backup failed: ", err));
@@ -131,3 +135,11 @@ const init = () => {
 	initServer(port);
 };
 init();
+
+process.on('exit', () => {
+	console.log("Stopping...");
+	db?.close(); // Gracefully shutdown the SQLite connection
+});
+process.on('SIGHUP', () => process.exit(128 + 1));
+process.on('SIGINT', () => process.exit(128 + 2));
+process.on('SIGTERM', () => process.exit(128 + 15));

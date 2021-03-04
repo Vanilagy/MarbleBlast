@@ -1,5 +1,9 @@
 # Version History
 
+## 1.5.3
+- Added graceful database shutdown
+- Fixed custom level archives having more files than necessary
+
 ## 1.5.2
 - Added unfinished replays: You can now watch and download replays from within the pause menu, even if you haven't finished the level yet.
 

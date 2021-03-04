@@ -13,7 +13,7 @@ export const getCustomLevelResource = async (res: http.ServerResponse, urlObject
 	let resourceName = pathComponents[2]; // The id and file type are encoded in the path (e.g. 1234.jpg or 1234.zip)
 	let extension = resourceName.slice(resourceName.indexOf('.') + 1);
 	let id = Number(resourceName.slice(0, resourceName.indexOf('.')));
-	if (!isFinite(id)) throw new Error("Invalid custom level ID.");
+	if (!Number.isInteger(id)) throw new Error("Invalid custom level ID.");
 
 	if (extension === 'jpg') await getCustomLevelBitmap(res, id);
 	else if (extension === 'zip') await getCustomLevelArchive(res, id);
@@ -65,7 +65,7 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 				entry.entryName.replace("interiors_mbg/", "interiors/"); // Clean up interior paths
 			
 				// Check if the asset is already part of the standard MBG assets. If yes, remove it from the archive.
-				let filePath = path.join(shared.directoryPath, 'assets', entry.entryName);
+				let filePath = path.join(shared.directoryPath, 'assets', entry.entryName).toLowerCase(); // Case-insensitive paths
 				let exists = await fs.pathExists(filePath);
 				if (exists) zip.deleteFile(entry);
 
