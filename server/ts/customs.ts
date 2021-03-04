@@ -30,8 +30,8 @@ const getCustomLevelBitmap = async (res: http.ServerResponse, id: number) => {
 		let response = await fetch(`https://cla.higuy.me/api/v1/missions/${id}/bitmap?width=258&height=194`);
 		if (!response.ok) throw new Error("CLA bitmap request error.");
 
-		let arrayBuffer = await response.arrayBuffer();
-		await fs.writeFile(filePath, Buffer.from(arrayBuffer)); // Store the bitmap in a file
+		let buffer = await response.buffer();
+		await fs.writeFile(filePath, buffer); // Store the bitmap in a file
 	}
 
 	let stats = await fs.stat(filePath);
@@ -76,7 +76,7 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 		});
 
 		await Promise.all(promises);
-		
+
 		let newBuffer = await zip.generateAsync({ type: 'nodebuffer' });
 		await fs.writeFile(filePath, newBuffer); // Store the modified archive into a file
 	}
