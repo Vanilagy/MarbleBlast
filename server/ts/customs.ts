@@ -3,7 +3,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as url from 'url';
 import fetch from 'node-fetch';
-import AdmZip from 'adm-zip';
+import JSZip from 'jszip';
 
 import { shared } from './shared';
 
@@ -56,25 +56,29 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 		if (!response.ok) throw new Error("CLA archive request error.");
 
 		let buffer = await response.buffer();
-		let zip = new AdmZip(buffer);
+		let zip = await JSZip.loadAsync(buffer);
 		let promises: Promise<void>[] = [];
 
 		// Clean up the archive a bit:
-		zip.getEntries().forEach(entry => {
+		zip.forEach((_, entry) => {
 			promises.push(new Promise(async resolve => {
-				entry.entryName.replace("interiors_mbg/", "interiors/"); // Clean up interior paths
+				delete zip.files[entry.name];
+				entry.name.replace("interiors_mbg/", "interiors/"); // Clean up interior paths
+				zip.files[entry.name] = entry;
 			
 				// Check if the asset is already part of the standard MBG assets. If yes, remove it from the archive.
-				let filePath = path.join(shared.directoryPath, 'assets', entry.entryName).toLowerCase(); // Case-insensitive paths
+				let filePath = path.join(shared.directoryPath, 'assets', entry.name).toLowerCase(); // Case-insensitive paths
 				let exists = await fs.pathExists(filePath);
-				if (exists) zip.deleteFile(entry);
+				if (exists) zip.remove(entry.name);
 
 				resolve();
 			}));
 		});
 
 		await Promise.all(promises);
-		await new Promise(resolve => zip.writeZip(filePath, resolve)); // Store the modified archive into a file
+		
+		let newBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+		await fs.writeFile(filePath, newBuffer); // Store the modified archive into a file
 	}
 	
 	let stats = await fs.stat(filePath);
