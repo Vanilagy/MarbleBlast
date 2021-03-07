@@ -63,7 +63,6 @@ export class Mission {
 		if (missionInfo.time && missionInfo.time !== "0") mission.qualifyTime = MisParser.parseNumber(missionInfo.time);
 		if (missionInfo.goldtime) mission.goldTime = MisParser.parseNumber(missionInfo.goldtime), mission.hasGoldTime = true;
 		mission.type = missionInfo.type.toLowerCase() as any;
-		mission.initSearchString();
 
 		return mission;
 	}
@@ -78,14 +77,13 @@ export class Mission {
 		if (entry.time) mission.qualifyTime = entry.time;
 		if (entry.goldTime) mission.goldTime = entry.goldTime;
 		mission.id = entry.id;
-		mission.initSearchString();
 
 		return mission;
 	}
 
-	initSearchString() {
+	initSearchString(index: number) {
 		// Just the title and artist for now
-		this.searchString = Util.removeSpecialCharacters(Util.normalizeString(this.title + ' ' + this.artist)).toLowerCase().trim();
+		this.searchString = Util.removeSpecialCharacters(Util.normalizeString(this.title + ' ' + this.artist + ' ' + (index + 1))).toLowerCase().trim();
 	}
 
 	/** Loads this mission for gameplay. */

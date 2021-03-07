@@ -171,6 +171,11 @@ export const initLevelSelect = async () => {
 	// Sort all custom levels alphabetically
 	customLevels.sort((a, b) => Util.normalizeString(a.title).localeCompare(Util.normalizeString(b.title), undefined, { numeric: true, sensitivity: 'base' }));
 
+	for (let i = 0; i < beginnerLevels.length; i++) beginnerLevels[i].initSearchString(i);
+	for (let i = 0; i < intermediateLevels.length; i++) intermediateLevels[i].initSearchString(i);
+	for (let i = 0; i < advancedLevels.length; i++) advancedLevels[i].initSearchString(i);
+	for (let i = 0; i < customLevels.length; i++) customLevels[i].initSearchString(i);
+
 	// Initiate loading some images like this
 	selectTab('custom');
 	selectTab('advanced');

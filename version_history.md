@@ -1,5 +1,8 @@
 # Version History
 
+## 1.5.4
+- Added the ability to search for levels by their level number
+
 ## 1.5.3
 - Added graceful database shutdown
 - Fixed custom level archives having more files than necessary
