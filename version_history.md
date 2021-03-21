@@ -1,5 +1,8 @@
 # Version History
 
+## 1.5.5
+- Increase online leaderboard performance for a lot of scores
+
 ## 1.5.4
 - Added the ability to search for levels by their level number
 

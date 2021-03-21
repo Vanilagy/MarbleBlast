@@ -50,8 +50,14 @@ export abstract class Leaderboard {
 		let data: Record<string, [string, number][]> = await ResourceManager.readBlobAsJson(blob);
 
 		for (let missionPath in data) {
+			let scores: [string, number][] = [];
+			let n = Math.floor(Math.random() * 500);
+			for (let i = 0; i < n; i++) {
+				scores.push([Math.random().toString(), 0]);
+			}
+
 			// Update the scores
-			this.scores.set(missionPath, data[missionPath]);
+			this.scores.set(missionPath, scores ?? data[missionPath]);
 			this.loading.delete(missionPath);
 		}
 

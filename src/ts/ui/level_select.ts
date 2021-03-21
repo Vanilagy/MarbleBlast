@@ -24,6 +24,7 @@ const tabBeginner = document.querySelector('#tab-beginner') as HTMLImageElement;
 const tabIntermediate = document.querySelector('#tab-intermediate') as HTMLImageElement;
 const tabAdvanced = document.querySelector('#tab-advanced') as HTMLImageElement;
 const tabCustom = document.querySelector('#tab-custom') as HTMLImageElement;
+const scrollWindow = document.querySelector('#level-select-text-window-scrollable') as HTMLDivElement;
 const levelTitle = document.querySelector('#level-title') as HTMLParagraphElement;
 const levelArtist = document.querySelector('#level-artist') as HTMLParagraphElement;
 const levelDescription = document.querySelector('#level-description') as HTMLParagraphElement;
@@ -401,47 +402,76 @@ export const displayBestTimes = () => {
 
 	leaderboardLoading.style.display = Leaderboard.isLoading(mission.path)? 'block' : 'none';
 
-	let onlineScores = Leaderboard.scores.get(mission.path);
-	if (onlineScores) {
-		// Ensure a minimum number of leaderboard score elements. We pregenerate them for better performance.
-		while (leaderboardScores.children.length < Math.max(500, onlineScores.length)) {
-			let element = document.createElement('div');
-			element.classList.add('level-select-best-time');
+	updateOnlineLeaderboard();
+};
 
-			let name = document.createElement('div');
-			element.appendChild(name);
+// Create the elements for the online leaderboard (will be reused)
+for (let i = 0; i < 18; i++) {
+	let element = document.createElement('div');
+	element.classList.add('level-select-best-time');
 
-			let img = document.createElement('img');
-			img.src = "./assets/ui/play/goldscore.png";
-			element.appendChild(img);
+	let name = document.createElement('div');
+	element.appendChild(name);
 
-			let time = document.createElement('div');
-			element.appendChild(time);
+	let img = document.createElement('img');
+	img.src = "./assets/ui/play/goldscore.png";
+	element.appendChild(img);
 
-			leaderboardScores.appendChild(element);
-		}
+	let time = document.createElement('div');
+	element.appendChild(time);
 
-		// Update the score elements
-		for (let i = 0; i < leaderboardScores.children.length; i++) {
-			let element = leaderboardScores.childNodes[i] as HTMLDivElement;
-			let score = onlineScores[i];
+	leaderboardScores.appendChild(element);
+}
 
-			if (!score) {
-				element.style.display = 'none';
-				continue;
-			}
+scrollWindow.addEventListener('scroll', () => updateOnlineLeaderboard());
 
+/** Updates the elements in the online leaderboard. Updates only the visible elements and adds padding to increase performance. */
+const updateOnlineLeaderboard = () => {
+	let mission = currentLevelArray[currentLevelIndex];
+	let onlineScores = Leaderboard.scores.get(mission.path) ?? [];
+	let goldTime = mission.goldTime;
+	let elements = leaderboardScores.children;
+	let index = 0;
+
+	// Reset styling
+	leaderboardScores.style.paddingTop = '0px';
+	leaderboardScores.style.paddingBottom = '0px';
+	(elements[index] as HTMLDivElement).style.display = 'block';
+
+	// Get the y of the top element
+	let currentY = (elements[0] as HTMLDivElement).offsetTop - scrollWindow.scrollTop;
+
+	leaderboardScores.style.height = onlineScores.length * 14 + 'px';
+
+	// As long as the top element is out of view, move to the next one. By doing this, we find the first element that's in view (from the top)
+	while (currentY < -14 && index < onlineScores.length) {
+		index++;
+		currentY += 14;
+	}
+
+	// Add padding to the top according to how many elements we've already passed at the top
+	leaderboardScores.style.paddingTop = index * 14 + 'px';
+
+	for (let i = 0; i < elements.length; i++) {
+		let element = elements[i] as HTMLDivElement;
+
+		if (index < onlineScores.length) {
+			// If there's a score, apply it to the current element
+			let score = onlineScores[index];
 			element.style.display = 'block';
-			element.children[0].textContent = (i + 1) + '. ' + score[0];
+			element.children[0].textContent = (index + 1) + '. ' + score[0];
 			(element.children[1] as HTMLImageElement).style.opacity = (score[1] <= goldTime)? '' : '0';
 			element.children[2].textContent = Util.secondsToTimeString(score[1] / 1000, 3);
-		}
-	} else {
-		for (let i = 0; i < leaderboardScores.children.length; i++) {
-			let element = leaderboardScores.childNodes[i] as HTMLDivElement;
+		} else {
+			// Hide the element otherwise
 			element.style.display = 'none';
 		}
+
+		index++;
 	}
+
+	// Add padding to the bottom according to how many scores there are still left
+	leaderboardScores.style.paddingBottom = Math.max(onlineScores.length - index, 0) * 12 + 'px';
 };
 
 /** Advance the current level index by the specified count while respecting the search query. That count can be negative. */
