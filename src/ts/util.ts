@@ -551,6 +551,25 @@ export abstract class Util {
 		let dataUrl = await ResourceManager.readBlobAsDataUrl(blob);
 		return dataUrl.slice(dataUrl.indexOf(',') + 1); // Remove the stupid preable
 	}
+
+	static randomNumberQueue: number[] = [];
+
+	/** Gets the next random number. Will be equal to the number returned by `peekRandomNumber(0)`. */
+	static popRandomNumber() {
+		if (this.randomNumberQueue.length > 0) {
+			return this.randomNumberQueue.shift();
+		} else {
+			return Math.random();
+		}
+	}
+
+	/** See what the (`index` + 1)th next call of `popRandomNumber()` will return. */
+	static peekRandomNumber(index = 0) {
+		while (this.randomNumberQueue.length <= index) {
+			this.randomNumberQueue.push(Math.random());
+		}
+		return this.randomNumberQueue[index];
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

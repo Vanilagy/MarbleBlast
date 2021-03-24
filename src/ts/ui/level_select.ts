@@ -53,7 +53,7 @@ export const getCurrentLevelArray = () => currentLevelArray;
 export const getCurrentLevelIndex = () => currentLevelIndex;
 
 /** Selects a tab and shows the last-unlocked level in it. */
-export const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'custom') => {
+export const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'custom', doImageTimeout = true) => {
 	for (let elem of [tabBeginner, tabIntermediate, tabAdvanced, tabCustom]) {
 		elem.style.zIndex = "-1";
 	}
@@ -69,7 +69,7 @@ export const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'cus
 	currentLevelIndex = Util.clamp(currentLevelIndex, 0, currentLevelArray.length - 1);
 	if (which === 'custom') currentLevelIndex = customLevels.length - 1; // Select the last custom level
 	selectBasedOnSearchQuery(false);
-	displayMission();
+	displayMission(doImageTimeout);
 };
 
 const setupTab = (element: HTMLImageElement, which: 'beginner' | 'intermediate' | 'advanced' | 'custom') => {
@@ -178,10 +178,10 @@ export const initLevelSelect = async () => {
 	for (let i = 0; i < customLevels.length; i++) customLevels[i].initSearchString(i);
 
 	// Initiate loading some images like this
-	selectTab('custom');
-	selectTab('advanced');
-	selectTab('intermediate');
-	selectTab('beginner');
+	selectTab('custom', false); // Make sure to disable the image timeouts so that no funky stuff happens
+	selectTab('advanced', false);
+	selectTab('intermediate', false);
+	selectTab('beginner', false);
 
 	for (let elem of [bestTime1.children[3], bestTime2.children[3], bestTime3.children[3]]) {
 		let replayButton = elem as HTMLImageElement;
@@ -213,7 +213,7 @@ export const initLevelSelect = async () => {
 };
 
 /** Displays the currently-selected mission. */
-const displayMission = () => {
+const displayMission = (doImageTimeout = true) => {
 	let mission = currentLevelArray[currentLevelIndex];
 
 	if (!mission) {
@@ -268,7 +268,7 @@ const displayMission = () => {
 		levelNumberElement.textContent = `${Util.uppercaseFirstLetter(mission.type)} Level ${currentLevelIndex + 1}`;
 	}
 
-	setImages();
+	setImages(false, doImageTimeout);
 	updateNextPrevButtons();
 	Leaderboard.loadLocal();
 };
@@ -322,19 +322,22 @@ const updateNextPrevButtons = () => {
 let setImagesTimeout: number = null;
 let clearImageTimeout: number = null;
 /** Handles retrieving level thumbnails intelligently and showing them. */
-const setImages = (fromTimeout = false) => {
+const setImages = (fromTimeout = false, doTimeout = true) => {
 	if (fromTimeout) {
 		// We come from a timeout, so clear it
 		clearTimeout(setImagesTimeout);	
 		setImagesTimeout = null;
 	}
 
-	if (setImagesTimeout !== null) {
+	if (setImagesTimeout !== null && doTimeout) {
 		// There is currently a timeout ongoing; reset the timer and return.
 		clearTimeout(setImagesTimeout);
 		setImagesTimeout = setTimeout(() => setImages(true), 75) as any as number;
 		return;
 	}
+
+	// List of missions whose image should be loaded
+	let toLoad: Mission[] = [];
 
 	// Preload the neighboring-level images for faster flicking between levels without having to wait for images to load.
 	for (let i = 0; i <= 10; i++) {
@@ -342,20 +345,43 @@ const setImages = (fromTimeout = false) => {
 		let mission = currentLevelArray[index];
 		if (!mission) continue;
 
-		let imagePath = mission.getImagePath();
+		toLoad.push(mission);
+	}
 
+	// Preload the next shuffled levels
+	if (currentLevelArray.length > 1) {
+		let lastIndex = currentLevelIndex;
+		let i = 0;
+		let count = 0;
+		while (count < 5) {
+			let randomNumber = Util.peekRandomNumber(i++);
+			let nextIndex = Math.floor(randomNumber * currentLevelArray.length);
+
+			if (lastIndex !== nextIndex) {
+				let mission = currentLevelArray[nextIndex];
+				toLoad.push(mission);
+				count++;
+			}
+
+			lastIndex = nextIndex;
+		}
+	}
+
+	for (let mission of toLoad) {
+		let imagePath = mission.getImagePath();
 		let start = performance.now();
+
 		ResourceManager.loadResource(imagePath).then(async blob => {
 			if (!blob) return;
 
-			if (index === currentLevelIndex) {
-				// Show the thumbnail
+			if (mission === currentLevelArray[currentLevelIndex]) {
+				// Show the thumbnail if the mission is the same
 				levelImage.src = await ResourceManager.readBlobAsDataUrl(blob);
 				clearTimeout(clearImageTimeout);
 			}
 
 			let elapsed = performance.now() - start;
-			if (elapsed > 75 && !setImagesTimeout) {
+			if (elapsed > 75 && !setImagesTimeout && doTimeout) {
 				// If the image took too long to load, set a timeout to prevent spamming requests.
 				setImagesTimeout = setTimeout(() => setImages(true), 75) as any as number;
 			}
@@ -604,6 +630,21 @@ loadReplayButton.addEventListener('mouseenter', () => {
 });
 loadReplayButton.addEventListener('mousedown', (e) => {
 	if (e.button === 0) AudioManager.play('buttonpress.wav');
+});
+
+const shuffleButton = document.querySelector('#shuffle-button') as HTMLImageElement;
+shuffleButton.addEventListener('click', () => {
+	AudioManager.play('buttonpress.wav');
+	if (currentLevelArray.length <= 1) return;
+
+	// Find a random level that isn't the current one
+	let nextIndex = currentLevelIndex;
+	while (nextIndex === currentLevelIndex) {
+		nextIndex = Math.floor(Util.popRandomNumber() * currentLevelArray.length);
+	}
+
+	currentLevelIndex = nextIndex;
+	displayMission();
 });
 
 export const handleLevelSelectControllerInput = (gamepad: Gamepad) => {

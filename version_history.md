@@ -1,7 +1,13 @@
 # Version History
 
+## 1.5.6
+- Improved level select image loading
+- Added shuffle button to level select
+- Fixed button bugs
+- Fixed untrimmed level names in webhook announcements
+
 ## 1.5.5
-- Increase online leaderboard performance for a lot of scores
+- Increased online leaderboard performance for a lot of scores
 
 ## 1.5.4
 - Added the ability to search for levels by their level number

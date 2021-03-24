@@ -302,3 +302,16 @@
 #load-replay-button:hover {
 	opacity: 0.666;
 }
+
+#shuffle-button {
+	position: absolute;
+    bottom: 18px;
+    left: 66px;
+    opacity: 0.333;
+    width: 18px;
+    height: 18px;
+}
+
+#shuffle-button:hover {
+	opacity: 0.666;
+}

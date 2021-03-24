@@ -106,7 +106,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 
 /** Broadcasts a new #1 score to a Discord webhook as a world record message. */
 const broadcastToWebhook = (missionPath: string, score: [string, number]) => {
-	let missionName = escapeDiscord(getMissionNameFromMissionPath(missionPath));
+	let missionName = escapeDiscord(getMissionNameFromMissionPath(missionPath)).trim();
 	let timeString = secondsToTimeString(score[1] / 1000);
 	let category = uppercaseFirstLetter(missionPath.slice(0, missionPath.indexOf('/')));
 	let message = `${escapeDiscord(score[0])} has just achieved a world record on "${missionName}" (Web ${category}) of ${timeString}`;
