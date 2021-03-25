@@ -647,7 +647,6 @@ loadReplayButton.addEventListener('mousedown', (e) => {
 
 const shuffleButton = document.querySelector('#shuffle-button') as HTMLImageElement;
 shuffleButton.addEventListener('click', () => {
-	AudioManager.play('buttonpress.wav');
 	if (currentLevelArray.length <= 1) return;
 
 	// Find a random level that isn't the current one
@@ -658,6 +657,12 @@ shuffleButton.addEventListener('click', () => {
 
 	currentLevelIndex = nextIndex;
 	displayMission();
+});
+shuffleButton.addEventListener('mouseenter', () => {
+	AudioManager.play('buttonover.wav');
+});
+shuffleButton.addEventListener('mousedown', (e) => {
+	if (e.button === 0) AudioManager.play('buttonpress.wav');
 });
 
 export const handleLevelSelectControllerInput = (gamepad: Gamepad) => {
