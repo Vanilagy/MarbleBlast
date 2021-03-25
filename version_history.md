@@ -1,5 +1,8 @@
 # Version History
 
+## 1.5.7
+- Improved level select image loading some more
+
 ## 1.5.6
 - Improved level select image loading
 - Added shuffle button to level select

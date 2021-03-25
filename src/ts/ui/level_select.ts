@@ -263,7 +263,7 @@ const displayMission = (doImageTimeout = true) => {
 		// Display best times
 		displayBestTimes();
 
-		clearImageTimeout = setTimeout(() => levelImage.src = '', 50) as any as number;
+		levelImage.src = ''; // Clear the image (will be set later)
 
 		levelNumberElement.textContent = `${Util.uppercaseFirstLetter(mission.type)} Level ${currentLevelIndex + 1}`;
 	}
@@ -320,7 +320,6 @@ const updateNextPrevButtons = () => {
 };
 
 let setImagesTimeout: number = null;
-let clearImageTimeout: number = null;
 /** Handles retrieving level thumbnails intelligently and showing them. */
 const setImages = (fromTimeout = false, doTimeout = true) => {
 	if (fromTimeout) {
@@ -337,7 +336,7 @@ const setImages = (fromTimeout = false, doTimeout = true) => {
 	}
 
 	// List of missions whose image should be loaded
-	let toLoad: Mission[] = [];
+	let toLoad = new Set<Mission>();
 
 	// Preload the neighboring-level images for faster flicking between levels without having to wait for images to load.
 	for (let i = 0; i <= 10; i++) {
@@ -345,7 +344,7 @@ const setImages = (fromTimeout = false, doTimeout = true) => {
 		let mission = currentLevelArray[index];
 		if (!mission) continue;
 
-		toLoad.push(mission);
+		toLoad.add(mission);
 	}
 
 	// Preload the next shuffled levels
@@ -359,7 +358,7 @@ const setImages = (fromTimeout = false, doTimeout = true) => {
 
 			if (lastIndex !== nextIndex) {
 				let mission = currentLevelArray[nextIndex];
-				toLoad.push(mission);
+				toLoad.add(mission);
 				count++;
 			}
 
@@ -377,7 +376,6 @@ const setImages = (fromTimeout = false, doTimeout = true) => {
 			if (mission === currentLevelArray[currentLevelIndex]) {
 				// Show the thumbnail if the mission is the same
 				levelImage.src = await ResourceManager.readBlobAsDataUrl(blob);
-				clearTimeout(clearImageTimeout);
 			}
 
 			let elapsed = performance.now() - start;
