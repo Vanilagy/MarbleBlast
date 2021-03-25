@@ -1,6 +1,6 @@
 import { ResourceManager } from "./resources";
 import { BestTimes, StorageManager } from "./storage";
-import { displayBestTimes, getCurrentLevelArray, getCurrentLevelIndex, getCycleMissionIndex } from "./ui/level_select";
+import { displayBestTimes, getCurrentLevelArray, getCurrentLevelIndex, getCycleMissionIndex, getNextShuffledMissions } from "./ui/level_select";
 import { Util } from "./util";
 import { executeOnWorker } from "./worker";
 
@@ -20,16 +20,18 @@ export abstract class Leaderboard {
 
 	/** Loads the scores of all missions in the vicinity of the current mission. */
 	static loadLocal() {
-		let missionPaths: string[] = [];
+		let missionPaths = new Set<string>();
 		let currentLevelArray = getCurrentLevelArray();
 
 		for (let i = -5; i <= 5; i++) {
 			let index = getCycleMissionIndex(i);
 			let mission = currentLevelArray[index];
-			if (mission) missionPaths.push(mission.path);
+			if (mission) missionPaths.add(mission.path);
 		}
 
-		this.loadForMissions(missionPaths);
+		for (let mission of getNextShuffledMissions()) missionPaths.add(mission.path);
+
+		this.loadForMissions([...missionPaths]);
 	}
 
 	/** Loads all scores for the given missions. */

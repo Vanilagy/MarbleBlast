@@ -177,7 +177,7 @@ export const initLevelSelect = async () => {
 	for (let i = 0; i < advancedLevels.length; i++) advancedLevels[i].initSearchString(i);
 	for (let i = 0; i < customLevels.length; i++) customLevels[i].initSearchString(i);
 
-	// Initiate loading some images like this
+	// Preload images and leaderboards
 	selectTab('custom', false); // Make sure to disable the image timeouts so that no funky stuff happens
 	selectTab('advanced', false);
 	selectTab('intermediate', false);
@@ -263,7 +263,7 @@ const displayMission = (doImageTimeout = true) => {
 		// Display best times
 		displayBestTimes();
 
-		levelImage.src = ''; // Clear the image (will be set later)
+		if (!clearImageTimeout) clearImageTimeout = setTimeout(() => levelImage.src = '', 16) as any as number; // Clear the image after a very short time (if no image is loaded 'til then)
 
 		levelNumberElement.textContent = `${Util.uppercaseFirstLetter(mission.type)} Level ${currentLevelIndex + 1}`;
 	}
@@ -320,6 +320,7 @@ const updateNextPrevButtons = () => {
 };
 
 let setImagesTimeout: number = null;
+let clearImageTimeout: number = null;
 /** Handles retrieving level thumbnails intelligently and showing them. */
 const setImages = (fromTimeout = false, doTimeout = true) => {
 	if (fromTimeout) {
@@ -348,23 +349,7 @@ const setImages = (fromTimeout = false, doTimeout = true) => {
 	}
 
 	// Preload the next shuffled levels
-	if (currentLevelArray.length > 1) {
-		let lastIndex = currentLevelIndex;
-		let i = 0;
-		let count = 0;
-		while (count < 5) {
-			let randomNumber = Util.peekRandomNumber(i++);
-			let nextIndex = Math.floor(randomNumber * currentLevelArray.length);
-
-			if (lastIndex !== nextIndex) {
-				let mission = currentLevelArray[nextIndex];
-				toLoad.add(mission);
-				count++;
-			}
-
-			lastIndex = nextIndex;
-		}
-	}
+	for (let mission of getNextShuffledMissions()) toLoad.add(mission);
 
 	for (let mission of toLoad) {
 		let imagePath = mission.getImagePath();
@@ -375,7 +360,12 @@ const setImages = (fromTimeout = false, doTimeout = true) => {
 
 			if (mission === currentLevelArray[currentLevelIndex]) {
 				// Show the thumbnail if the mission is the same
-				levelImage.src = await ResourceManager.readBlobAsDataUrl(blob);
+				let dataUrl = await ResourceManager.readBlobAsDataUrl(blob);
+				if (mission === currentLevelArray[currentLevelIndex]) {
+					clearTimeout(clearImageTimeout);
+					clearImageTimeout = null;
+					levelImage.src = dataUrl;
+				}
 			}
 
 			let elapsed = performance.now() - start;
@@ -385,6 +375,31 @@ const setImages = (fromTimeout = false, doTimeout = true) => {
 			}
 		});
 	}
+};
+
+/** Returns the next few levels that would be selected by repeating pressing of the shuffle button. */
+export const getNextShuffledMissions = () => {
+	let missions: Mission[] = [];
+
+	if (currentLevelArray.length > 1) {
+		let lastIndex = currentLevelIndex;
+		let i = 0;
+		let count = 0;
+		while (count < 5) {
+			let randomNumber = Util.peekRandomNumber(i++);
+			let nextIndex = Math.floor(randomNumber * currentLevelArray.length);
+
+			if (lastIndex !== nextIndex) {
+				let mission = currentLevelArray[nextIndex];
+				missions.push(mission);
+				count++;
+			}
+
+			lastIndex = nextIndex;
+		}
+	}
+
+	return missions;
 };
 
 let lastDisplayBestTimesId: string; // Used to prevent some async issues
