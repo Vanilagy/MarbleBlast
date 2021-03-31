@@ -24,6 +24,7 @@ const tabBeginner = document.querySelector('#tab-beginner') as HTMLImageElement;
 const tabIntermediate = document.querySelector('#tab-intermediate') as HTMLImageElement;
 const tabAdvanced = document.querySelector('#tab-advanced') as HTMLImageElement;
 const tabCustom = document.querySelector('#tab-custom') as HTMLImageElement;
+const scrollWindow = document.querySelector('#level-select-text-window-scrollable') as HTMLDivElement;
 const levelTitle = document.querySelector('#level-title') as HTMLParagraphElement;
 const levelArtist = document.querySelector('#level-artist') as HTMLParagraphElement;
 const levelDescription = document.querySelector('#level-description') as HTMLParagraphElement;
@@ -52,7 +53,7 @@ export const getCurrentLevelArray = () => currentLevelArray;
 export const getCurrentLevelIndex = () => currentLevelIndex;
 
 /** Selects a tab and shows the last-unlocked level in it. */
-export const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'custom') => {
+export const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'custom', doImageTimeout = true) => {
 	for (let elem of [tabBeginner, tabIntermediate, tabAdvanced, tabCustom]) {
 		elem.style.zIndex = "-1";
 	}
@@ -68,7 +69,7 @@ export const selectTab = (which: 'beginner' | 'intermediate' | 'advanced' | 'cus
 	currentLevelIndex = Util.clamp(currentLevelIndex, 0, currentLevelArray.length - 1);
 	if (which === 'custom') currentLevelIndex = customLevels.length - 1; // Select the last custom level
 	selectBasedOnSearchQuery(false);
-	displayMission();
+	displayMission(doImageTimeout);
 };
 
 const setupTab = (element: HTMLImageElement, which: 'beginner' | 'intermediate' | 'advanced' | 'custom') => {
@@ -176,11 +177,11 @@ export const initLevelSelect = async () => {
 	for (let i = 0; i < advancedLevels.length; i++) advancedLevels[i].initSearchString(i);
 	for (let i = 0; i < customLevels.length; i++) customLevels[i].initSearchString(i);
 
-	// Initiate loading some images like this
-	selectTab('custom');
-	selectTab('advanced');
-	selectTab('intermediate');
-	selectTab('beginner');
+	// Preload images and leaderboards
+	selectTab('custom', false); // Make sure to disable the image timeouts so that no funky stuff happens
+	selectTab('advanced', false);
+	selectTab('intermediate', false);
+	selectTab('beginner', false);
 
 	for (let elem of [bestTime1.children[3], bestTime2.children[3], bestTime3.children[3]]) {
 		let replayButton = elem as HTMLImageElement;
@@ -212,7 +213,7 @@ export const initLevelSelect = async () => {
 };
 
 /** Displays the currently-selected mission. */
-const displayMission = () => {
+const displayMission = (doImageTimeout = true) => {
 	let mission = currentLevelArray[currentLevelIndex];
 
 	if (!mission) {
@@ -262,12 +263,12 @@ const displayMission = () => {
 		// Display best times
 		displayBestTimes();
 
-		clearImageTimeout = setTimeout(() => levelImage.src = '', 50) as any as number;
+		if (!clearImageTimeout) clearImageTimeout = setTimeout(() => levelImage.src = '', 16) as any as number; // Clear the image after a very short time (if no image is loaded 'til then)
 
 		levelNumberElement.textContent = `${Util.uppercaseFirstLetter(mission.type)} Level ${currentLevelIndex + 1}`;
 	}
 
-	setImages();
+	setImages(false, doImageTimeout);
 	updateNextPrevButtons();
 	Leaderboard.loadLocal();
 };
@@ -321,19 +322,22 @@ const updateNextPrevButtons = () => {
 let setImagesTimeout: number = null;
 let clearImageTimeout: number = null;
 /** Handles retrieving level thumbnails intelligently and showing them. */
-const setImages = (fromTimeout = false) => {
+const setImages = (fromTimeout = false, doTimeout = true) => {
 	if (fromTimeout) {
 		// We come from a timeout, so clear it
 		clearTimeout(setImagesTimeout);	
 		setImagesTimeout = null;
 	}
 
-	if (setImagesTimeout !== null) {
+	if (setImagesTimeout !== null && doTimeout) {
 		// There is currently a timeout ongoing; reset the timer and return.
 		clearTimeout(setImagesTimeout);
 		setImagesTimeout = setTimeout(() => setImages(true), 75) as any as number;
 		return;
 	}
+
+	// List of missions whose image should be loaded
+	let toLoad = new Set<Mission>();
 
 	// Preload the neighboring-level images for faster flicking between levels without having to wait for images to load.
 	for (let i = 0; i <= 10; i++) {
@@ -341,25 +345,61 @@ const setImages = (fromTimeout = false) => {
 		let mission = currentLevelArray[index];
 		if (!mission) continue;
 
-		let imagePath = mission.getImagePath();
+		toLoad.add(mission);
+	}
 
+	// Preload the next shuffled levels
+	for (let mission of getNextShuffledMissions()) toLoad.add(mission);
+
+	for (let mission of toLoad) {
+		let imagePath = mission.getImagePath();
 		let start = performance.now();
+
 		ResourceManager.loadResource(imagePath).then(async blob => {
 			if (!blob) return;
 
-			if (index === currentLevelIndex) {
-				// Show the thumbnail
-				levelImage.src = await ResourceManager.readBlobAsDataUrl(blob);
-				clearTimeout(clearImageTimeout);
+			if (mission === currentLevelArray[currentLevelIndex]) {
+				// Show the thumbnail if the mission is the same
+				let dataUrl = await ResourceManager.readBlobAsDataUrl(blob);
+				if (mission === currentLevelArray[currentLevelIndex]) {
+					clearTimeout(clearImageTimeout);
+					clearImageTimeout = null;
+					levelImage.src = dataUrl;
+				}
 			}
 
 			let elapsed = performance.now() - start;
-			if (elapsed > 75 && !setImagesTimeout) {
+			if (elapsed > 75 && !setImagesTimeout && doTimeout) {
 				// If the image took too long to load, set a timeout to prevent spamming requests.
 				setImagesTimeout = setTimeout(() => setImages(true), 75) as any as number;
 			}
 		});
 	}
+};
+
+/** Returns the next few levels that would be selected by repeating pressing of the shuffle button. */
+export const getNextShuffledMissions = () => {
+	let missions: Mission[] = [];
+
+	if (currentLevelArray.length > 1) {
+		let lastIndex = currentLevelIndex;
+		let i = 0;
+		let count = 0;
+		while (count < 5) {
+			let randomNumber = Util.peekRandomNumber(i++);
+			let nextIndex = Math.floor(randomNumber * currentLevelArray.length);
+
+			if (lastIndex !== nextIndex) {
+				let mission = currentLevelArray[nextIndex];
+				missions.push(mission);
+				count++;
+			}
+
+			lastIndex = nextIndex;
+		}
+	}
+
+	return missions;
 };
 
 let lastDisplayBestTimesId: string; // Used to prevent some async issues
@@ -401,47 +441,76 @@ export const displayBestTimes = () => {
 
 	leaderboardLoading.style.display = Leaderboard.isLoading(mission.path)? 'block' : 'none';
 
-	let onlineScores = Leaderboard.scores.get(mission.path);
-	if (onlineScores) {
-		// Ensure a minimum number of leaderboard score elements. We pregenerate them for better performance.
-		while (leaderboardScores.children.length < Math.max(500, onlineScores.length)) {
-			let element = document.createElement('div');
-			element.classList.add('level-select-best-time');
+	updateOnlineLeaderboard();
+};
 
-			let name = document.createElement('div');
-			element.appendChild(name);
+// Create the elements for the online leaderboard (will be reused)
+for (let i = 0; i < 18; i++) {
+	let element = document.createElement('div');
+	element.classList.add('level-select-best-time');
 
-			let img = document.createElement('img');
-			img.src = "./assets/ui/play/goldscore.png";
-			element.appendChild(img);
+	let name = document.createElement('div');
+	element.appendChild(name);
 
-			let time = document.createElement('div');
-			element.appendChild(time);
+	let img = document.createElement('img');
+	img.src = "./assets/ui/play/goldscore.png";
+	element.appendChild(img);
 
-			leaderboardScores.appendChild(element);
-		}
+	let time = document.createElement('div');
+	element.appendChild(time);
 
-		// Update the score elements
-		for (let i = 0; i < leaderboardScores.children.length; i++) {
-			let element = leaderboardScores.childNodes[i] as HTMLDivElement;
-			let score = onlineScores[i];
+	leaderboardScores.appendChild(element);
+}
 
-			if (!score) {
-				element.style.display = 'none';
-				continue;
-			}
+scrollWindow.addEventListener('scroll', () => updateOnlineLeaderboard());
 
+/** Updates the elements in the online leaderboard. Updates only the visible elements and adds padding to increase performance. */
+const updateOnlineLeaderboard = () => {
+	let mission = currentLevelArray[currentLevelIndex];
+	let onlineScores = Leaderboard.scores.get(mission.path) ?? [];
+	let goldTime = mission.goldTime;
+	let elements = leaderboardScores.children;
+	let index = 0;
+
+	// Reset styling
+	leaderboardScores.style.paddingTop = '0px';
+	leaderboardScores.style.paddingBottom = '0px';
+	(elements[index] as HTMLDivElement).style.display = 'block';
+
+	// Get the y of the top element
+	let currentY = (elements[0] as HTMLDivElement).offsetTop - scrollWindow.scrollTop;
+
+	leaderboardScores.style.height = onlineScores.length * 14 + 'px';
+
+	// As long as the top element is out of view, move to the next one. By doing this, we find the first element that's in view (from the top)
+	while (currentY < -14 && index < onlineScores.length) {
+		index++;
+		currentY += 14;
+	}
+
+	// Add padding to the top according to how many elements we've already passed at the top
+	leaderboardScores.style.paddingTop = index * 14 + 'px';
+
+	for (let i = 0; i < elements.length; i++) {
+		let element = elements[i] as HTMLDivElement;
+
+		if (index < onlineScores.length) {
+			// If there's a score, apply it to the current element
+			let score = onlineScores[index];
 			element.style.display = 'block';
-			element.children[0].textContent = (i + 1) + '. ' + score[0];
+			element.children[0].textContent = (index + 1) + '. ' + score[0];
 			(element.children[1] as HTMLImageElement).style.opacity = (score[1] <= goldTime)? '' : '0';
 			element.children[2].textContent = Util.secondsToTimeString(score[1] / 1000, 3);
-		}
-	} else {
-		for (let i = 0; i < leaderboardScores.children.length; i++) {
-			let element = leaderboardScores.childNodes[i] as HTMLDivElement;
+		} else {
+			// Hide the element otherwise
 			element.style.display = 'none';
 		}
+
+		index++;
 	}
+
+	// Add padding to the bottom according to how many scores there are still left
+	leaderboardScores.style.paddingBottom = Math.max(onlineScores.length - index, 0) * 12 + 'px';
 };
 
 /** Advance the current level index by the specified count while respecting the search query. That count can be negative. */
@@ -573,6 +642,26 @@ loadReplayButton.addEventListener('mouseenter', () => {
 	AudioManager.play('buttonover.wav');
 });
 loadReplayButton.addEventListener('mousedown', (e) => {
+	if (e.button === 0) AudioManager.play('buttonpress.wav');
+});
+
+const shuffleButton = document.querySelector('#shuffle-button') as HTMLImageElement;
+shuffleButton.addEventListener('click', () => {
+	if (currentLevelArray.length <= 1) return;
+
+	// Find a random level that isn't the current one
+	let nextIndex = currentLevelIndex;
+	while (nextIndex === currentLevelIndex) {
+		nextIndex = Math.floor(Util.popRandomNumber() * currentLevelArray.length);
+	}
+
+	currentLevelIndex = nextIndex;
+	displayMission();
+});
+shuffleButton.addEventListener('mouseenter', () => {
+	AudioManager.play('buttonover.wav');
+});
+shuffleButton.addEventListener('mousedown', (e) => {
 	if (e.button === 0) AudioManager.play('buttonpress.wav');
 });
 
