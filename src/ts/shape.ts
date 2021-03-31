@@ -8,7 +8,6 @@ import { Util, MaterialGeometry } from "./util";
 import { TimeState, Level } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 import { AudioManager } from "./audio";
-import { InstancedMesh } from "three";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
@@ -43,7 +42,7 @@ export interface SharedShapeData {
 	collisionGeometries: Set<THREE.BufferGeometry>,
 	nodeTransforms: THREE.Matrix4[],
 	rootGraphNodes: GraphNode[],
-	instancedMeshes: InstancedMesh[],
+	instancedMeshes: THREE.InstancedMesh[],
 	instanceIndex: number
 }
 
@@ -144,7 +143,7 @@ export class Shape {
 	shareMaterials = true;
 	/** Whether or not to use instancing. Instancing drastically improves rendering performance but configuration per instance becomes very limited. */
 	useInstancing = false;
-	instancedMeshes: InstancedMesh[] = [];
+	instancedMeshes: THREE.InstancedMesh[] = [];
 	/** The assigned instance index of this shape. */
 	instanceIndex = 0;
 
