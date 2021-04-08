@@ -13501,6 +13501,7 @@
 		setViewOffset: function ( fullWidth, fullHeight, x, y, width, height ) {
 
 			this.aspect = fullWidth / fullHeight;
+      this.zoom *= this.aspect <= 16.0 / 9.0 ? this.aspect / (16.0 / 9.0) * 0.75 : 0.75;
 
 			if ( this.view === null ) {
 
@@ -13525,6 +13526,8 @@
 			this.view.height = height;
 
 			this.updateProjectionMatrix();
+      
+      this.zoom /= this.aspect <= 16.0 / 9.0 ? this.aspect / (16.0 / 9.0) * 0.75 : 0.75;
 
 		},
 
