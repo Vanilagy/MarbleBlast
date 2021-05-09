@@ -26,8 +26,8 @@ const getCustomLevelBitmap = async (res: http.ServerResponse, id: number) => {
 	let exists = await fs.pathExists(filePath); // See if the bitmap has already been downloaded and saved
 
 	if (!exists) {
-		// If it doesn't exist yet, fetch it from the CLA API
-		let response = await fetch(`https://cla.higuy.me/api/v1/missions/${id}/bitmap?width=258&height=194`);
+		// If it doesn't exist yet, fetch it from the Marbleland API
+		let response = await fetch(`https://marbleland.vani.ga/api/level/${id}/image?width=258&height=194`);
 		if (!response.ok) throw new Error("CLA bitmap request error.");
 
 		let buffer = await response.buffer();
@@ -51,8 +51,8 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 	let exists = await fs.pathExists(filePath); // See if the archive has already been downloaded and saved
 
 	if (!exists) {
-		// If it doesn't exist yet, fetch it from the CLA API
-		let response = await fetch(`https://cla.higuy.me/api/v1/missions/${id}/zip?official=true`);
+		// If it doesn't exist yet, fetch it from the Marbleland API
+		let response = await fetch(`https://marbleland.vani.ga/api/level/${id}/zip?assuming=none`);
 		if (!response.ok) throw new Error("CLA archive request error.");
 
 		let buffer = await response.buffer();
@@ -63,6 +63,8 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 		zip.forEach((_, entry) => {
 			promises.push(new Promise(async resolve => {
 				delete zip.files[entry.name];
+
+				if (!entry.name.includes('data/')) entry.name = 'data/' + entry.name; // Ensure they got data/ in 'em
 				entry.name.replace("interiors_mbg/", "interiors/"); // Clean up interior paths
 				zip.files[entry.name] = entry;
 			

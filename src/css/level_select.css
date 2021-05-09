@@ -315,3 +315,18 @@
 #shuffle-button:hover {
 	opacity: 0.666;
 }
+
+#new-badge {
+	display: block;
+	position: absolute;
+	font-family: DomCasualRegular;
+	margin: 0px;
+	background: rgb(247, 180, 98);
+	padding: 2px;
+	border-radius: 5px;
+	top: 4px;
+	font-size: 18px;
+	right: -2px;
+	transform: rotate(15deg);
+	box-shadow: rgb(0 0 0 / 51%) 0px 0px 5px;
+}

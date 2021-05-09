@@ -43,6 +43,7 @@ const nextButton = document.querySelector('#level-select-next') as HTMLImageElem
 const homeButton = document.querySelector('#level-select-home-button') as HTMLImageElement;
 export const hiddenUnlocker = document.querySelector('#hidden-level-unlocker') as HTMLDivElement;
 const searchInput = document.querySelector('#search-input') as HTMLInputElement;
+const newBadge = document.querySelector('#new-badge') as HTMLImageElement;
 
 /** The array of the current level group being shown. */
 let currentLevelArray: Mission[];
@@ -125,7 +126,7 @@ export const initLevelSelect = async () => {
 	}
 
 	// Get the list of all custom levels in the CLA
-	let customLevelListPromise = ResourceManager.loadResource('./assets/cla_list.json');
+	let customLevelListPromise = ResourceManager.loadResource('./assets/gold_levels.json');
 
 	let misFiles = await Promise.all(promises);
 	let misFileToFilename = new Map<MisFile, string>();
@@ -147,13 +148,14 @@ export const initLevelSelect = async () => {
 		missions.push(mission);
 	}
 
-	// Read the custom level list and filter it
-	let customLevelList = JSON.parse(await ResourceManager.readBlobAsText(await customLevelListPromise)) as CLAEntry[];
-	customLevelList = customLevelList.filter(x => x.modification === 'gold' && x.gameType.toLowerCase() === 'single player');
+	// Read the custom level list
+	let customLevelList = await ResourceManager.readBlobAsJson(await customLevelListPromise) as CLAEntry[];
+	let oldIdsList = await ResourceManager.readBlobAsJson(await ResourceManager.loadResource('./assets/old_ids.json')) as number[];
+	let oldIds = new Set(oldIdsList);
 
 	// Create all custom missions
 	for (let custom of customLevelList) {
-		let mission = Mission.fromCLAEntry(custom);
+		let mission = Mission.fromCLAEntry(custom, !oldIds.has(custom.id));
 		missions.push(mission);
 	}
 
@@ -228,6 +230,7 @@ const displayMission = (doImageTimeout = true) => {
 		levelNumberElement.textContent = `Level ${currentLevelIndex + 1}`;
 		playButton.src = './assets/ui/play/play_i.png';
 		playButton.style.pointerEvents = 'none';
+		newBadge.style.display = 'none';
 		displayBestTimes();
 	} else {
 		// Reenable the play button if it was disabled
@@ -266,6 +269,7 @@ const displayMission = (doImageTimeout = true) => {
 		if (!clearImageTimeout) clearImageTimeout = setTimeout(() => levelImage.src = '', 16) as any as number; // Clear the image after a very short time (if no image is loaded 'til then)
 
 		levelNumberElement.textContent = `${Util.uppercaseFirstLetter(mission.type)} Level ${currentLevelIndex + 1}`;
+		newBadge.style.display = mission.isNew? 'block' : 'none';
 	}
 
 	setImages(false, doImageTimeout);

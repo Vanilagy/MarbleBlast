@@ -6,22 +6,30 @@ import { DtsFile, DtsParser } from "./parsing/dts_parser";
 
 /** A custom levels archive entry. */
 export interface CLAEntry {
-	addTime: string,
-	artist: string,
-	baseName: string,
-	bitmap: string,
-	desc: string,
-	difficulty: string,
-	egg: boolean,
-	gameType: string,
-	gems: number,
-	goldTime: number,
 	id: number,
+	baseName: string,
+	gameType: string,
 	modification: string,
 	name: string,
-	rating: number,
-	time: number,
-	weight: number
+	artist: string,
+	desc: string,
+	addedAt: number,
+	gameMode: string,
+
+	qualifyingTime: number,
+	goldTime: number,
+	platinumTime: number,
+	ultimateTime: number,
+	awesomeTime: number,
+
+	qualifyingScore: number,
+	goldScore: number,
+	platinumScore: number,
+	ultimateScore: number,
+	awesomeScore: number,
+
+	gems: number,
+	hasEasterEgg: boolean
 }
 
 /** Represents a playable mission. Contains all the necessary metadata, as well as methods for loading the mission and gettings its resources. */
@@ -45,6 +53,7 @@ export class Mission {
 	zipDirectory: JSZip = null;
 	fileToBlobPromises = new Map<JSZip['files'][number], Promise<Blob>>();
 	difCache = new Map<string, Promise<DifFile>>();
+	isNew = false;
 
 	constructor(path: string, misFile?: MisFile) {
 		this.path = path;
@@ -68,15 +77,16 @@ export class Mission {
 	}
 
 	/** Creates a new mission from a CLA entry. */
-	static fromCLAEntry(entry: CLAEntry) {
+	static fromCLAEntry(entry: CLAEntry, isNew: boolean) {
 		let path = 'custom/' + entry.id;
 		let mission = new Mission(path);
 		mission.title = entry.name.trim();
 		mission.artist = entry.artist ?? '';
 		mission.description = entry.desc ?? '';
-		if (entry.time) mission.qualifyTime = entry.time;
+		if (entry.qualifyingTime) mission.qualifyTime = entry.qualifyingTime;
 		if (entry.goldTime) mission.goldTime = entry.goldTime;
 		mission.id = entry.id;
+		mission.isNew = isNew;
 
 		return mission;
 	}
@@ -104,6 +114,7 @@ export class Mission {
 			zip.files[filename.toLowerCase()] = val;
 
 			if (filename.includes('interiors_mbg/')) {
+				// Create an alias in interiors
 				zip.files[filename.replace('interiors_mbg/', 'interiors/')] = val;
 			}
 		}
