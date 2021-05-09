@@ -99,9 +99,10 @@ export class Marble {
 		} else {
 			marbleTexture = await ResourceManager.getTexture("shapes/balls/base.marble.png");
 		}
+		marbleTexture.flipY = true; // Because THREE.js UVs are different from what Torque would do
 
 		// Create the 3D object
-        let geometry = new THREE.SphereBufferGeometry(MARBLE_RADIUS, 32, 32);
+        let geometry = new THREE.SphereBufferGeometry(MARBLE_RADIUS, 32, 16);
 		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({map: marbleTexture, color: 0xffffff}));
 		sphere.castShadow = true;
 		this.sphere = sphere;
