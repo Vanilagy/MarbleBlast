@@ -1,5 +1,10 @@
 # Version History
 
+## 1.5.8
+- Added an additional 387 custom levels from Marbleland
+- Fixed marble texture being flipped
+- Added viewable changelog
+
 ## 1.5.7
 - Improved level select image loading some more
 

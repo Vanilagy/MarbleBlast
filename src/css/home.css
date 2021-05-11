@@ -37,3 +37,105 @@
 	top: 359px;
 	left: 82px;
 }
+
+#show-changelog {
+	position: absolute;
+	bottom: 5px;
+	left: 5px;
+}
+
+#show-changelog-text {
+	position: absolute;
+	bottom: 38px;
+	left: 26px;
+	font-size: 19px;
+	font-family: 'DomCasualRegular';
+	pointer-events: none;
+}
+
+#changelog {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 438px;
+	width: 600px;
+}
+
+#changelog > img:nth-child(1) {
+	display: block;
+	position: absolute;
+	height: 438px;
+	width: 600px;
+	image-rendering: pixelated;
+}
+
+#changelog > div:nth-child(2) {
+	display: block;
+	position: absolute;
+	top: 27px;
+	left: 30px;
+	width: 541px;
+	height: 326px;
+	border-image: url(../assets/ui/play/text_window.png) stretch;
+	border-width: 30px;
+	border-style: solid;
+	border-image-slice: 30 fill;
+	box-sizing: border-box;
+	font-family: DomCasualRegular;
+}
+
+#changelog-back {
+	display: block;
+	position: absolute;
+	top: 362px;
+	left: 266px;
+}
+
+.changelog-h1, .changelog-h2, .changelog-h3 {
+	font-weight: normal;
+	margin: 0;
+}
+
+.changelog-h1 {
+	font-size: 32px;
+	text-align: center;
+	display: block;
+	margin-bottom: -20px;
+}
+
+.changelog-h2 {
+	font-size: 28px;
+}
+
+.changelog-h3 {
+	font-size: 24px;
+}
+
+#changelog-content {
+	overflow-y: auto;
+	overflow-x: hidden;
+	height: 307px;
+	margin: -20px -17px;
+	padding: 20px;
+	box-sizing: border-box;
+	white-space: pre-line;
+	font-size: 20px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#changelog-content::-webkit-scrollbar {
+	width: 5px;
+}
+
+#changelog-content::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#changelog-content::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}

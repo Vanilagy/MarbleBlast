@@ -1,5 +1,5 @@
 import { setupButton } from "./ui";
-import { homeScreenDiv } from "./home";
+import { showHome } from "./home";
 import { Util } from "../util";
 import * as THREE from "three";
 import { Shape } from "../shape";
@@ -14,7 +14,7 @@ setupButton(prevButton, 'play/prev', () => cyclePage(-1));
 setupButton(backButton, 'play/back', () => {
 	// Close help and go back to the main menu
 	helpDiv.classList.add('hidden');
-	homeScreenDiv.classList.remove('hidden');
+	showHome();
 });
 setupButton(nextButton, 'play/next', () => cyclePage(1));
 

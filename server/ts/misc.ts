@@ -73,3 +73,13 @@ export const logUserError = async (res: http.ServerResponse, body: string) => {
 	});
 	res.end();
 };
+
+/** Sends the version history file contents. */
+export const getVersionHistory = async (res: http.ServerResponse) => {
+	const contents = await fs.readFile(path.join(__dirname, '../version_history.md'));
+
+	res.writeHead(200, {
+		'Content-Type': 'text/markdown'
+	});
+	res.end(contents);
+};

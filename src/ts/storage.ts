@@ -43,7 +43,9 @@ interface StorageData {
 	/** A random ID to somewhat uniquely identify this user, even if they change their username. */
 	randomId: string,
 	/** The queue of scores that are still to be sent to the server. */
-	bestTimeSubmissionQueue: Record<string, BestTimes[number]>
+	bestTimeSubmissionQueue: Record<string, BestTimes[number]>,
+	/** The last-seen version of the game. */
+	lastSeenVersion: string
 }
 
 const DEFAULT_STORAGE_DATA: StorageData = {
@@ -78,7 +80,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	unlockedLevels: [1, 1, 1],
 	lastUsedName: '',
 	randomId: getRandomId(),
-	bestTimeSubmissionQueue: {}
+	bestTimeSubmissionQueue: {},
+	lastSeenVersion: null
 };
 
 /** Manages storage and persistence. */

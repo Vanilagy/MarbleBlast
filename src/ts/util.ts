@@ -571,6 +571,21 @@ export abstract class Util {
 		}
 		return this.randomNumberQueue[index];
 	}
+
+	/** Compares two major.minor.patch version number strings. */
+	static compareVersions(v1: string, v2: string) {
+		let parts1 = v1.split('.').map(x => Number(x));
+		let parts2 = v2.split('.').map(x => Number(x));
+
+		for (let i = 0; i < parts1.length; i++) {
+			let a = parts1[i];
+			let b = parts2[i];
+			if (a > b) return 1;
+			if (a < b) return -1;
+		}
+
+		return 0;
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

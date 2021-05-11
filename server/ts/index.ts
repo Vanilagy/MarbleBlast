@@ -11,7 +11,7 @@ const serveStatic = serveStatic_;
 const finalhandler = finalhandler_;
 
 import { shared } from './shared';
-import { getDirectoryStructure, logUserError } from './misc';
+import { getDirectoryStructure, getVersionHistory, logUserError } from './misc';
 import { getLeaderboard, submitScores, getWorldRecordSheet } from './leaderboard';
 import { getCustomLevelResource } from './customs';
 
@@ -81,6 +81,7 @@ const initServer = (port: number) => {
 						case 'custom': await getCustomLevelResource(res, urlObject); break;
 						case 'sheet': await getWorldRecordSheet(res); break;
 						case 'error': await logUserError(res, body); break;
+						case 'version_history': await getVersionHistory(res); break;
 						default: break outer; // Incorrect API function
 					}
 	
@@ -121,7 +122,7 @@ const init = () => {
 	shared.config = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'config.json')).toString());
 	shared.directoryPath = path.join(__dirname, '..', shared.config.useDist? 'dist' : 'src');
 	shared.levelNameMap = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'level_name_map.json')).toString());
-	shared.claList = JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'cla_list.json')).toString());
+	shared.claList = JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'gold_levels.json')).toString());
 	let port = Number(shared.config.port);
 
 	// Ensure certain directories and files exist

@@ -10,6 +10,7 @@ import { StorageManager } from './storage';
 import { Util } from './util';
 import { initOptions } from './ui/options';
 import { Leaderboard } from './leaderboard';
+import { initHome } from './ui/home';
 
 OIMO.Setting.defaultGJKMargin = 0.005; // Without this, the marble is very visibly floating above stuff.
 OIMO.Setting.defaultContactPositionCorrectionAlgorithm = OIMO.PositionCorrectionAlgorithm.NGS; // Slower, but there's really only one collision object anyway so
@@ -23,7 +24,7 @@ const init = async () => {
 	await StorageManager.init();
 	await ResourceManager.init();
 	AudioManager.init();
-	await Promise.all([initOptions(), initLevelSelect(), initUi(), Leaderboard.init()]);
+	await Promise.all([initOptions(), initLevelSelect(), initUi(), Leaderboard.init(), initHome()]);
 
 	let started = false;
 	const start = () => {

@@ -2,22 +2,30 @@ import * as Database from 'better-sqlite3';
 
 /** A custom levels archive entry. */
 interface CLAEntry {
-	addTime: string,
-	artist: string,
-	baseName: string,
-	bitmap: string,
-	desc: string,
-	difficulty: string,
-	egg: boolean,
-	gameType: string,
-	gems: number,
-	goldTime: number,
 	id: number,
+	baseName: string,
+	gameType: string,
 	modification: string,
 	name: string,
-	rating: number,
-	time: number,
-	weight: number
+	artist: string,
+	desc: string,
+	addedAt: number,
+	gameMode: string,
+
+	qualifyingTime: number,
+	goldTime: number,
+	platinumTime: number,
+	ultimateTime: number,
+	awesomeTime: number,
+
+	qualifyingScore: number,
+	goldScore: number,
+	platinumScore: number,
+	ultimateScore: number,
+	awesomeScore: number,
+
+	gems: number,
+	hasEasterEgg: boolean
 }
 
 export const shared: {

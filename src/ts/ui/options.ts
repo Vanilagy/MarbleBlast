@@ -1,6 +1,6 @@
 import { AudioManager, AudioSource } from "../audio";
 import { setupButton } from "./ui";
-import { homeScreenDiv } from "./home";
+import { showHome } from "./home";
 import { StorageManager } from "../storage";
 import { currentMousePosition } from "../input";
 import { Util } from "../util";
@@ -40,7 +40,7 @@ setupTab(tabControls, 'controls');
 const homeButton = document.querySelector('#options-home') as HTMLImageElement;
 setupButton(homeButton, 'options/mainm', () => {
 	optionsDiv.classList.add('hidden');
-	homeScreenDiv.classList.remove('hidden');
+	showHome();
 });
 
 const graphicsDiv = document.querySelector('#options-graphics') as HTMLDivElement;

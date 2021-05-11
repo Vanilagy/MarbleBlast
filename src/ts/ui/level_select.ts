@@ -3,7 +3,7 @@ import { ResourceManager, DirectoryStructure } from "../resources";
 import { MisParser, MissionElementType, MissionElementScriptObject, MisFile } from "../parsing/mis_parser";
 import { setupButton } from "./ui";
 import { Util } from "../util";
-import { homeScreenDiv } from "./home";
+import { showHome } from "./home";
 import { loadLevel } from "./loading";
 import { StorageManager } from "../storage";
 import { Mission, CLAEntry } from "../mission";
@@ -92,7 +92,7 @@ setupButton(homeButton, 'play/back', () => {
 	// Close level select and return back to the home screen
 	levelSelectDiv.classList.add('hidden');
 	hiddenUnlocker.classList.add('hidden');
-	homeScreenDiv.classList.remove('hidden');
+	showHome();
 });
 
 export const playCurrentLevel = (replayData?: ArrayBuffer) => {
