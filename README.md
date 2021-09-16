@@ -2,7 +2,7 @@
 This project is a complete web port of the 3D platformer game Marble Blast Gold by GarageGames, implemented in TypeScript.
 
 Play it here: https://marbleblast.vani.ga/ (Hoping the link will still work)<br>
-And here: https://marbleblast.online/
+And here: https://marbleblast.online/<br>
 TAS Rewind version here: https://github.com/RandomityGuy/MBG-Web-Rewind
 
 ## Features
