@@ -1,0 +1,46 @@
+#mbp-home-screen {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 800px;
+	height: 530px;
+}
+
+#mbp-home-play {
+	display: block;
+	position: absolute;
+	top: -52px;
+	left: -55px;
+}
+
+#mbp-home-online {
+	display: block;
+	position: absolute;
+	top: 78px;
+	left: -55px;
+}
+
+#mbp-home-options {
+	display: block;
+	position: absolute;
+	top: 210px;
+	left: -55px;
+}
+
+#mbp-home-quit {
+	display: block;
+	position: absolute;
+	top: 342px;
+	left: -55px;
+}
+
+#mbp-home-help {
+	display: block;
+	position: absolute;
+	top: 450px;
+	left: 651px;
+}
