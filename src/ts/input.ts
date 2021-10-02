@@ -1,7 +1,6 @@
 import { state } from "./state";
 import { StorageManager } from "./storage";
 import { handlePauseScreenGamepadInput } from "./ui/game";
-import { levelSelectDiv, handleLevelSelectControllerInput } from "./ui/level_select";
 
 export const currentMousePosition = {
 	x: 0,

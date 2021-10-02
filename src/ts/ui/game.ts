@@ -1,7 +1,6 @@
 import { Util } from "../util";
-import { setupButton, menuDiv, startMenuMusic } from "./ui";
+import { setupButton } from "./ui";
 import { state } from "../state";
-import { levelSelectDiv, cycleMission, beginnerLevels, intermediateLevels, advancedLevels, getCurrentLevelIndex, getCurrentLevelArray, displayBestTimes } from "./level_select";
 import { GO_TIME } from "../level";
 import { StorageManager } from "../storage";
 import { ResourceManager } from "../resources";
@@ -9,36 +8,13 @@ import { AudioManager } from "../audio";
 import { getPressedFlag, resetPressedFlag, isPressedByGamepad, previousButtonState } from "../input";
 import { Leaderboard } from "../leaderboard";
 import { Replay } from "../replay";
+import { MissionLibrary } from "./mission_library";
 
-export const gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
-export const gemCountElement = document.querySelector('#gem-count') as HTMLDivElement;
-const clockCanvas = document.querySelector('#clock') as HTMLCanvasElement;
-const clockCtx = clockCanvas.getContext('2d');
-export const helpElement = document.querySelector('#help-text') as HTMLDivElement;
-export const alertElement = document.querySelector('#alert-text') as HTMLDivElement;
-const centerElement = document.querySelector('#center-text') as HTMLImageElement;
 const pauseScreenDiv = document.querySelector('#pause-screen') as HTMLDivElement;
 const pauseYesButton = document.querySelector('#pause-yes') as HTMLImageElement;
 const pauseNoButton = document.querySelector('#pause-no') as HTMLImageElement;
 const pauseRestartButton = document.querySelector('#pause-restart') as HTMLImageElement;
 const pauseReplayButton = document.querySelector('#pause-replay') as HTMLImageElement;
-
-export let numberSources = {
-	"0": "0.png",
-	"1": "1.png",
-	"2": "2.png",
-	"3": "3.png",
-	"4": "4.png",
-	"5": "5.png",
-	"6": "6.png",
-	"7": "7.png",
-	"8": "8.png",
-	"9": "9.png",
-	":": "colon.png",
-	".": "point.png",
-	"/": "slash.png",
-	"-": "dash.png"
-};
 
 /** Stops and destroys the current level and returns back to the menu. */
 export const stopAndExit = () => {
@@ -46,11 +22,10 @@ export const stopAndExit = () => {
 	state.currentLevel = null;
 	pauseScreenDiv.classList.add('hidden');
 	gameUiDiv.classList.add('hidden');
-	levelSelectDiv.classList.remove('hidden');
-	menuDiv.classList.remove('hidden');
+	state.menu.show();
+	state.menu.levelSelect.show();
+	state.menu.levelSelect.displayBestTimes(); // Potentially update best times having changed
 	finishScreenDiv.classList.add('hidden');
-	displayBestTimes(); // Potentially update best times having changed
-	startMenuMusic();
 	document.exitPointerLock();
 };
 
@@ -134,102 +109,6 @@ export const showPauseScreen = () => {
 export const hidePauseScreen = () => {
 	pauseScreenDiv.classList.add('hidden');
 };
-
-/** Updates the game clock canvas. */
-export const displayTime = (seconds: number) => {
-	let string = Util.secondsToTimeString(seconds);
-	const defaultWidth = 43;
-	const defaultMarginRight = -19;
-	let totalWidth = (string.length - 1) * (defaultWidth + defaultMarginRight) - (2 * (defaultWidth + defaultMarginRight - 10)) + defaultWidth;
-	let baseOffset = Math.floor((clockCanvas.width - totalWidth) / 2);
-	let currentX = 0;
-
-	clockCtx.clearRect(0, 0, clockCanvas.width, clockCanvas.height);
-	
-	// Draw every symbol
-	for (let i = 0; i < string.length; i++) {
-		let char = string[i];
-		let path = "./assets/ui/game/numbers/" + numberSources[char as keyof typeof numberSources];
-		let image = ResourceManager.getImageFromCache(path);
-
-		if (char === ':' || char === '.') currentX -= 3;
-		clockCtx.drawImage(image, baseOffset + currentX, 0);
-		currentX += defaultWidth + defaultMarginRight;
-		if (char === ':' || char === '.') currentX -= 7;
-	}
-};
-
-/** Updates the gem count display. */
-export const displayGemCount = (count: number, total: number) => {
-	let string = Util.leftPadZeroes(count.toString(), 2) + '/' + Util.leftPadZeroes(total.toString(), 2);
-
-	// Generate the appropriate number of image elements
-	while (string.length > gemCountElement.children.length) {
-		let newChild = document.createElement('img');
-		gemCountElement.appendChild(newChild);
-	}
-	while (string.length < gemCountElement.children.length) {
-		gemCountElement.removeChild(gemCountElement.lastChild);
-	}
-
-	for (let i = 0; i < string.length; i++) {
-		let char = string[i];
-		let node = gemCountElement.children[i] as HTMLImageElement;
-
-		node.src = "./assets/ui/game/numbers/" + numberSources[char as keyof typeof numberSources];
-	}
-};
-
-const keybindRegex = /<func:bind (\w+)>/g;
-/** Displays a help message in the middle of the screen. */
-export const displayHelp = async (message: string) => {
-	keybindRegex.lastIndex = 0;
-	let match: RegExpMatchArray;
-
-	// Search the string for possible keybind references. If found, replace them with the key bound to that keybind.
-	while ((match = keybindRegex.exec(message)) !== null) {
-		let gameButton = ({
-			"moveforward": "up",
-			"movebackward": "down",
-			"moveleft": "left",
-			"moveright": "right",
-			"jump": "jump",
-			"mousefire": "use",
-			"panup": "cameraUp",
-			"pandown": "cameraDown",
-			"panleft": "cameraLeft",
-			"panright": "cameraRight",
-			"freelook": "freeLook"
-		} as Record<string, string>)[match[1].toLowerCase()];
-		if (!gameButton) continue;
-
-		let keyName = Util.getKeyForButtonCode(StorageManager.data.settings.gameButtonMapping[gameButton as keyof typeof StorageManager.data.settings.gameButtonMapping]);
-		message = message.slice(0, match.index) + keyName + message.slice(match.index + match[0].length);
-	}
-
-	// A few hardcoded messages from Marble Blast Mobile
-	if (message === 'MSG_FINDALLTHEGEMS') message = "Find all the gems!";
-	if (message === 'MSG_RACETOTHEFINISH') message = "Race to the finish!";
-
-	helpElement.textContent = message;
-	state.currentLevel.helpTextTimeState = Util.jsonClone(state.currentLevel.timeState);
-};
-
-/** Displays an alert at the bottom of the screen. */
-export const displayAlert = (message: string) => {
-	alertElement.textContent = message;
-	state.currentLevel.alertTextTimeState = Util.jsonClone(state.currentLevel.timeState);
-};
-
-export const setCenterText = (type: 'none' | 'ready' | 'set' | 'go' | 'outofbounds') => {
-	if (type === 'none') centerElement.style.display = 'none';
-	else centerElement.style.display = '';
-	
-	if (type === 'ready') centerElement.src = './assets/ui/game/ready.png';
-	if (type === 'set') centerElement.src = './assets/ui/game/set.png';
-	if (type === 'go') centerElement.src = './assets/ui/game/go.png';
-	if (type === 'outofbounds') centerElement.src = './assets/ui/game/outofbounds.png';
-}
 
 export const finishScreenDiv = document.querySelector('#finish-screen') as HTMLDivElement;
 const finishScreenTime = document.querySelector('#finish-screen-time-time') as HTMLParagraphElement;
@@ -323,14 +202,15 @@ export const showFinishScreen = () => {
 
 	// Unlock the next level if qualified
 	if (!failedToQualify && level.mission.type !== 'custom') {
+		let levelSelect = state.menu.levelSelect;
 		let typeIndex = ['beginner', 'intermediate', 'advanced'].indexOf(level.mission.type);
-		let levelIndex = getCurrentLevelArray().indexOf(level.mission);
-		let unlockedLevels = Math.min(Math.max(StorageManager.data.unlockedLevels[typeIndex], levelIndex + 1 + 1), [beginnerLevels, intermediateLevels, advancedLevels][typeIndex].length);
+		let levelIndex = levelSelect.currentMissionArray.indexOf(level.mission);
+		let unlockedLevels = Math.min(Math.max(StorageManager.data.unlockedLevels[typeIndex], levelIndex + 1 + 1), [MissionLibrary.goldBeginner, MissionLibrary.goldIntermediate, MissionLibrary.goldAdvanced][typeIndex].length);
 		
 		StorageManager.data.unlockedLevels[typeIndex] = unlockedLevels;
 		StorageManager.store();
 
-		if (getCurrentLevelIndex() === levelIndex) cycleMission(1); // Cycle to that next level, but only if it isn't already selected
+		if (levelSelect.currentMissionIndex === levelIndex) levelSelect.cycleMission(1); // Cycle to that next level, but only if it isn't already selected
 	}
 
 	// Hide the replay button if the replay's invalid

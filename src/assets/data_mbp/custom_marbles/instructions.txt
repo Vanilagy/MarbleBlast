@@ -1,0 +1,23 @@
+Here you can copy your own marble's DTS and its respective skin file (JPG, PNG, etc.)
+It should appear in Select Marble, category "Uncategorized."
+
+To create a category of marbles, simply create a new directory in here, titled what you want your new category to be called. Place any marble skins or DTS shapes into this directory for them to show up categorized in-game.
+
+If you have marble skins which you would like to apply to the default marble, copy the ball-superball.dts shape into the category where you would like to place the skins. All marble skins must be named <name>.marble.png (i.e. "base.marble.png"), otherwise they will not work with the marble.
+
+Matan's note - Please note that when making your own texture, it must always be the same filename as the texture name you want to replace. So it always ends up as CustomMarble1.png or CustomMarble17.png etc. This is because each DTS specifies for it and it is unchangeable.
+
+Phil's note - If your skin is a .png, if you want to compress the image to a .jpg file without losing transparency, the game's engine has a special function for just that. Note that only the Mac build has this function. Open the console with ~, then type:
+
+texMunge("%file");
+
+Where %file is the path to the image. You MUST keep the quotes in the command for it to work. An example of a valid command might be:
+
+texMunge($usermods @ "/data/custom_marbles/phil.png");
+
+Now, hit enter, and you should get some information about the image's dimensions & that the image has converted. Now, in the folder you converted the images you should get two .jpg files with the following format:
+
+<image>.jpg
+<image>.alpha.jpg
+
+Now you can delete the old .png file.

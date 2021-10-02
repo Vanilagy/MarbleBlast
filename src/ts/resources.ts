@@ -13,6 +13,7 @@ export abstract class ResourceManager {
 	static textureLoader = new THREE.TextureLoader();
 	/** The structure in the assets/data directory. Used mainly to look up file extensions. */
 	static dataDirectoryStructure: DirectoryStructure = {};
+	static dataMbpDirectoryStructure: DirectoryStructure = {};
 	static loadResourcePromises = new Map<string, Promise<Blob>>();
 	static cachedResources = new Map<string, Blob>();
 	static loadImagePromises = new Map<string, Promise<HTMLImageElement>>();
@@ -20,8 +21,13 @@ export abstract class ResourceManager {
 	static urlCache = new Map<Blob, string>();
 
 	static async init() {
-		let response = await this.loadResource('./api/directory_structure');
-		this.dataDirectoryStructure = JSON.parse(await this.readBlobAsText(response));
+		let promiseMbg = this.loadResource('./api/directory_structure');
+		let promiseMbp = this.loadResource('./api/directory_structure_mbp');
+
+		let [responseMbg, responseMbp] = await Promise.all([promiseMbg, promiseMbp]);
+
+		this.dataDirectoryStructure = JSON.parse(await this.readBlobAsText(responseMbg));
+		this.dataMbpDirectoryStructure = JSON.parse(await this.readBlobAsText(responseMbp));
 	}
 
 	/** Creates a three.js texture from the path, or returned the cached version. */

@@ -76,6 +76,7 @@ const initServer = (port: number) => {
 					// We're handling a special API request
 					switch (pathComponents[1]) {
 						case 'directory_structure': await getDirectoryStructure(res); break;
+						case 'directory_structure_mbp': await getDirectoryStructure(res, true); break;
 						case 'scores': await getLeaderboard(res, body); break;
 						case 'submit': await submitScores(res, body); break;
 						case 'custom': await getCustomLevelResource(res, urlObject); break;

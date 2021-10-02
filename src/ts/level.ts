@@ -34,17 +34,17 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, showFinishScreen, stopAndExit, handleFinishScreenGamepadInput, helpElement, alertElement } from "./ui/game";
+import { showPauseScreen, hidePauseScreen, showFinishScreen, stopAndExit, handleFinishScreenGamepadInput } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
 import { ParticleManager, ParticleEmitterOptions, particleNodeEmittersEmitterOptions, ParticleEmitter } from "./particles";
 import { StorageManager } from "./storage";
 import { Replay } from "./replay";
-import { getCurrentLevelArray } from "./ui/level_select";
 import { Mission } from "./mission";
 import { PushButton } from "./shapes/push_button";
 import { DifFile } from "./parsing/dif_parser";
+import { state } from "./state";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -368,8 +368,7 @@ export class Level extends Scheduler {
 
 	async initUi() {
 		// Load all necessary UI image elements
-		await ResourceManager.loadImages(Object.values(numberSources).map(x => "./assets/ui/game/numbers/" + x));
-		await ResourceManager.loadImages(["ready.png", "set.png", "go.png", "outofbounds.png", "powerup.png"].map(x => "./assets/ui/game/" + x));
+		await state.menu.hud.load();
 
 		// Set up the HUD overlay
 
@@ -400,10 +399,10 @@ export class Level extends Scheduler {
 
 		if (this.totalGems > 0) {
 			// Show the gem overlay
-			gemCountElement.style.display = '';
+			state.menu.hud.setGemVisibility(true);
 		} else {
 			// Hide the gem UI
-			gemCountElement.style.display = 'none';
+			state.menu.hud.setGemVisibility(false);
 		}
 
 		// Render everything once to force a GPU upload
@@ -417,7 +416,7 @@ export class Level extends Scheduler {
 	}
 
 	async initSounds() {
-		let levelIndex = getCurrentLevelArray().indexOf(this.mission);
+		let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
 		let musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The music choice is based off of level index
 
 		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
@@ -603,6 +602,8 @@ export class Level extends Scheduler {
 
 	/** Restarts and resets the level. */
 	restart() {
+		let hud = state.menu.hud;
+
 		this.timeState.currentAttemptTime = 0;
 		this.timeState.gameplayClock = 0;
 		this.currentTimeTravelBonus = 0;
@@ -612,7 +613,7 @@ export class Level extends Scheduler {
 		
 		if (this.totalGems > 0) {
 			this.gemCount = 0;
-			displayGemCount(this.gemCount, this.totalGems);
+			hud.displayGemCount(this.gemCount, this.totalGems);
 		}
 
 		this.finishTime = null;
@@ -629,7 +630,7 @@ export class Level extends Scheduler {
 		this.pitch = DEFAULT_PITCH;
 
 		let missionInfo = this.mission.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === "MissionInfo") as MissionElementScriptObject;
-		if (missionInfo.starthelptext) displayHelp(missionInfo.starthelptext); // Show the start help text
+		if (missionInfo.starthelptext) state.menu.hud.displayHelp(missionInfo.starthelptext); // Show the start help text
 
 		for (let shape of this.shapes) shape.reset();
 		for (let interior of this.interiors) interior.reset();
@@ -643,7 +644,7 @@ export class Level extends Scheduler {
 		this.physics.reset();
 		
 		this.deselectPowerUp();
-		setCenterText('none');
+		hud.setCenterText('none');
 
 		this.timeTravelSound?.stop();
 		this.timeTravelSound = null;
@@ -656,19 +657,19 @@ export class Level extends Scheduler {
 
 		this.clearSchedule();
 		this.schedule(500, () => {
-			setCenterText('ready');
+			hud.setCenterText('ready');
 			AudioManager.play('ready.wav');
 		});
 		this.schedule(2000, () => {
-			setCenterText('set');
+			hud.setCenterText('set');
 			AudioManager.play('set.wav');
 		});
 		this.schedule(GO_TIME, () => {
-			setCenterText('go');
+			hud.setCenterText('go');
 			AudioManager.play('go.wav');
 		});
 		this.schedule(5500, () => {
-			if (!this.outOfBounds) setCenterText('none');
+			if (!this.outOfBounds) hud.setCenterText('none');
 		});
 	}
 
@@ -732,7 +733,9 @@ export class Level extends Scheduler {
 		if (this.currentTimeTravelBonus === 0 && !this.finishTime) timeToDisplay = this.maxDisplayedTime;
 
 		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
-		displayTime(timeToDisplay / 1000);
+
+		let hud = state.menu.hud;
+		hud.displayTime(timeToDisplay / 1000);
 
 		// Update help and alert text visibility
 		let helpTextTime = this.helpTextTimeState?.timeSinceLoad ?? -Infinity;
@@ -740,10 +743,10 @@ export class Level extends Scheduler {
 		let helpTextCompletion = Util.clamp((this.timeState.timeSinceLoad - helpTextTime - 3000) / 1000, 0, 1) ** 2;
 		let alertTextCompletion = Util.clamp((this.timeState.timeSinceLoad - alertTextTime - 3000) / 1000, 0, 1) ** 2;
 
-		helpElement.style.opacity = (1 - helpTextCompletion).toString();
-		helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, helpTextCompletion)})`;
-		alertElement.style.opacity = (1 - alertTextCompletion).toString();
-		alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
+		hud.helpElement.style.opacity = (1 - helpTextCompletion).toString();
+		hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, helpTextCompletion)})`;
+		hud.alertElement.style.opacity = (1 - alertTextCompletion).toString();
+		hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
 
 		requestAnimationFrame(() => this.render());
 	}
@@ -1160,8 +1163,8 @@ export class Level extends Scheduler {
 			AudioManager.play('gotgem.wav');
 		}
 
-		displayAlert(string);
-		displayGemCount(this.gemCount, this.totalGems);
+		state.menu.hud.displayAlert(string);
+		state.menu.hud.displayGemCount(this.gemCount, this.totalGems);
 	}
 
 	addTimeTravelBonus(bonus: number, timeToRevert: number) {
@@ -1182,7 +1185,7 @@ export class Level extends Scheduler {
 		this.outOfBounds = true;
 		this.outOfBoundsTime = Util.jsonClone(this.timeState);
 		this.oobCameraPosition = camera.position.clone();
-		setCenterText('outofbounds');
+		state.menu.hud.setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
 
 		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart(), 'oobRestart');
@@ -1195,7 +1198,7 @@ export class Level extends Scheduler {
 
 		if (completionOfImpactOverride === undefined && this.gemCount < this.totalGems) {
 			AudioManager.play('missinggems.wav');
-			displayAlert("You can't finish without all the gems!!");
+			state.menu.hud.displayAlert("You can't finish without all the gems!!");
 		} else {
 			let completionOfImpact: number;
 			if (completionOfImpactOverride === undefined) {
@@ -1224,7 +1227,7 @@ export class Level extends Scheduler {
 			let endPad = Util.findLast(this.shapes, (shape) => shape instanceof EndPad) as EndPad;
 			endPad?.spawnFirework(this.timeState); // EndPad *might* not exist, in that case no fireworks lol
 
-			displayAlert("Congratulations! You've finished!");
+			state.menu.hud.displayAlert("Congratulations! You've finished!");
 
 			// Check if the player is OOB, but still allow finishing with less than half a second of having been OOB
 			if (this.outOfBounds && this.timeState.currentAttemptTime - this.outOfBoundsTime.currentAttemptTime >= 500) return;

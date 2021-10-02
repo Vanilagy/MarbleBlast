@@ -12,6 +12,7 @@ export abstract class AudioManager {
 	static soundGain: GainNode;
 	static musicGain: GainNode;
 
+	static assetPath: string;
 	static audioBufferCache = new Map<string, Promise<AudioBuffer>>();
 	/** Stores a list of all currently playing audio sources. */
 	static audioSources: AudioSource[] = [];
@@ -35,6 +36,10 @@ export abstract class AudioManager {
 		this.updateVolumes();
 	}
 
+	static setAssetPath(path: string) {
+		this.assetPath = path;
+	}
+
 	/** Loads an audio buffer from a path. Returns the cached version whenever possible. */
 	static loadBuffer(path: string) {
 		if (path.endsWith('.ogg') && Util.isSafari()) {
@@ -42,10 +47,11 @@ export abstract class AudioManager {
 			path = path.replace('.ogg', '.mp3');
 		}
 
-		if (this.audioBufferCache.has(path)) return this.audioBufferCache.get(path);
+		let fullPath = this.assetPath + path;
+		if (this.audioBufferCache.has(fullPath)) return this.audioBufferCache.get(fullPath);
 
 		let promise = new Promise<AudioBuffer>(async (resolve) => {
-			let blob = await ResourceManager.loadResource("./assets/data/sound/" + path);
+			let blob = await ResourceManager.loadResource(fullPath);
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let audioBuffer: AudioBuffer;
 			try {
@@ -62,13 +68,13 @@ export abstract class AudioManager {
 				}
 			} catch (e) {
 				console.log("Error with decoding Audio Data:", e);
-				console.log(path);
+				console.log(fullPath);
 			}
 
 			resolve(audioBuffer);
 		});
 
-		this.audioBufferCache.set(path, promise);
+		this.audioBufferCache.set(fullPath, promise);
 		return promise;
 	}
 

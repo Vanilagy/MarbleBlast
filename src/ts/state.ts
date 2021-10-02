@@ -1,7 +1,9 @@
 import { Level } from "./level";
+import { Menu } from "./ui/menu";
 
 export const state = {
-	currentLevel: null as Level
+	currentLevel: null as Level,
+	menu: null as Menu
 };
 
 /** Gets a unique id. */

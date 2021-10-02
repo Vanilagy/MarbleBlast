@@ -1,8 +1,8 @@
 import { Util } from "../util";
 import { Shape } from "../shape";
 import { TimeState } from "../level";
-import { displayAlert, displayHelp } from "../ui/game";
 import { MissionElementItem } from "../parsing/mis_parser";
+import { state } from "../state";
 
 /** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
@@ -33,8 +33,8 @@ export abstract class PowerUp extends Shape {
 			this.lastPickUpTime = time.currentAttemptTime;
 			if (this.autoUse) this.use(time);
 
-			displayAlert(`You picked up a ${this.pickUpName}!`);
-			if (this.element.showhelponpickup === "1" && !this.autoUse) displayHelp(`Press <func:bind mousefire> to use the ${this.pickUpName}!`);
+			state.menu.hud.displayAlert(`You picked up a ${this.pickUpName}!`);
+			if (this.element.showhelponpickup === "1" && !this.autoUse) state.menu.hud.displayHelp(`Press <func:bind mousefire> to use the ${this.pickUpName}!`);
 		}
 	}
 

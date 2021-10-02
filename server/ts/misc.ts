@@ -8,7 +8,7 @@ import { shared } from './shared';
 type DirectoryStructure = {[name: string]: null | DirectoryStructure};
 
 /** Sends the current asset directory structure. */
-export const getDirectoryStructure = async (res: http.ServerResponse) => {
+export const getDirectoryStructure = async (res: http.ServerResponse, mbp = false) => {
 	/** Scans the directory recursively. */
 	const scanDirectory = async (directoryPath: string) => {
 		let files = await fs.readdir(directoryPath);
@@ -35,7 +35,7 @@ export const getDirectoryStructure = async (res: http.ServerResponse) => {
 		return result;
 	};
 
-	let structure = await scanDirectory(path.join(shared.directoryPath, 'assets', 'data'));
+	let structure = await scanDirectory(path.join(shared.directoryPath, 'assets', mbp? 'data_mbp' : 'data'));
 
 	res.writeHead(200, {
 		'Content-Type': 'application/json'

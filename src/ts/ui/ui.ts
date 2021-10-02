@@ -1,7 +1,5 @@
-import { AudioManager, AudioSource } from "../audio";
+import { AudioManager } from "../audio";
 import { ResourceManager } from "../resources";
-
-export const menuDiv = document.querySelector('#menu') as HTMLDivElement;
 
 /** Sets up an image element to act like a button and change textures based on click and hover state. */
 export const setupButton = (element: HTMLImageElement, path: string, onclick: () => any, loadDisabledImage = false, triggerOnMouseDown = false) => {
@@ -50,26 +48,4 @@ export const setupButton = (element: HTMLImageElement, path: string, onclick: ()
 		ResourceManager.loadImage(down);
 		if (loadDisabledImage) ResourceManager.loadImage(disabled);
 	}
-};
-
-let menuMusic: AudioSource;
-
-export const initUi = async () => {
-	await AudioManager.loadBuffers(['shell.ogg', 'buttonover.wav', 'buttonpress.wav']);
-};
-
-export const startUi = () => {
-	menuDiv.classList.remove('hidden');
-	startMenuMusic();
-};
-
-export const startMenuMusic = async () => {
-	menuMusic = AudioManager.createAudioSource('shell.ogg', AudioManager.musicGain);
-	menuMusic.node.loop = true;
-	menuMusic.play();
-	await menuMusic.promise;
-};
-
-export const stopMenuMusic = async () => {
-	menuMusic?.stop();
 };

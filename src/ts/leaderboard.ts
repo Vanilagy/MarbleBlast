@@ -1,6 +1,6 @@
 import { ResourceManager } from "./resources";
+import { state } from "./state";
 import { BestTimes, StorageManager } from "./storage";
-import { displayBestTimes, getCurrentLevelArray, getCurrentLevelIndex, getCycleMissionIndex, getNextShuffledMissions } from "./ui/level_select";
 import { Util } from "./util";
 import { executeOnWorker } from "./worker";
 
@@ -21,15 +21,15 @@ export abstract class Leaderboard {
 	/** Loads the scores of all missions in the vicinity of the current mission. */
 	static loadLocal() {
 		let missionPaths = new Set<string>();
-		let currentLevelArray = getCurrentLevelArray();
+		let currentLevelArray = state.menu.levelSelect.currentMissionArray;
 
 		for (let i = -5; i <= 5; i++) {
-			let index = getCycleMissionIndex(i);
+			let index = state.menu.levelSelect.getCycleMissionIndex(i);
 			let mission = currentLevelArray[index];
 			if (mission) missionPaths.add(mission.path);
 		}
 
-		for (let mission of getNextShuffledMissions()) missionPaths.add(mission.path);
+		for (let mission of state.menu.levelSelect.getNextShuffledMissions()) missionPaths.add(mission.path);
 
 		this.loadForMissions([...missionPaths]);
 	}
@@ -145,7 +145,7 @@ export abstract class Leaderboard {
 		}
 		if (localScoreRemoved) StorageManager.storeBestTimes();
 
-		let currentMission = getCurrentLevelArray()?.[getCurrentLevelIndex()];
-		if (changedMissions.includes(currentMission?.path)) displayBestTimes(); // Redraw the leaderboard
+		let currentMission = state.menu.levelSelect.currentMission;
+		if (changedMissions.includes(currentMission?.path)) state.menu.levelSelect.displayBestTimes(); // Redraw the leaderboard
 	}
 }

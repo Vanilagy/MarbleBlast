@@ -1,0 +1,115 @@
+//--- OBJECT WRITE BEGIN ---
+new SimGroup(MissionGroup) {
+   
+   // ***** Level builder, look here! *****
+   //
+   // Look for the line below this one that contains "new ScriptObject(MissionInfo) {", and 
+   // the nextmost line with just "};".
+   //
+   // Between these lines are the key level properties you can change!
+   //
+   // To change a property's value, change ONLY the text inside a line's pair of quotes.
+   // For example, to change the level's name to My Great Level, change:
+   //    name = "Mission Template";
+   // to
+   //    name = "My Great Level";
+   //
+   // Below are descriptions of each of the possible properties you can change:
+   //    name          - your level's name on the level selection screen
+   //    desc          - a brief description shown on the level selection screen
+   //    goldTime      - the level's gold or platinum time in milliseconds (1000 ms = 1 second)
+   //    ultimateTime  - the level's ultimate time in milliseconds (1000 ms = 1 second)
+   //    level         - the nth level in the level selection screen, eg. 5
+   //    startHelpText - the text displayed when you initially spawn
+   //    type          - leave this
+   //    artist        - your name shown on the level selection screen
+   //
+   // One last thing (before the actual level code starts) - if you're releasing your level, feel free to delete
+   // this section of lines prefixed with // (so don't delete the '//--- OBJECT WRITE BEGIN ---' line).
+   //
+   // Have fun creating your level!
+   // - the Platinum Team
+
+
+
+
+   new ScriptObject(MissionInfo) {
+         name = "Custom Level Template";
+         desc = "Make a copy of this file, then open that copy in a plain text editor for instructions on how to change each level property.";
+         goldTime = "0";
+         level = "1";
+         ultimateTime = "0";
+         startHelpText = "Change this text!";
+         type = "custom";
+         artist = "Your name here";
+   };
+   new MissionArea(MissionArea) {
+      area = "-360 -648 720 1296";
+      flightCeiling = "300";
+      flightCeilingRange = "20";
+         locked = "true";
+   };
+   new Sky(Sky) {
+      position = "336 136 0";
+      rotation = "1 0 0 0";
+      scale = "1 1 1";
+      cloudHeightPer[0] = "0";
+      cloudHeightPer[1] = "0";
+      cloudHeightPer[2] = "0";
+      cloudSpeed1 = "0.0001";
+      cloudSpeed2 = "0.0002";
+      cloudSpeed3 = "0.0003";
+      visibleDistance = "500";
+      useSkyTextures = "1";
+      renderBottomTexture = "1";
+      SkySolidColor = "0.600000 0.600000 0.600000 1.000000";
+      fogDistance = "300";
+      fogColor = "0.600000 0.600000 0.600000 1.000000";
+      fogVolume1 = "-1 7.45949e-031 1.3684e-038";
+      fogVolume2 = "-1 1.07208e-014 8.756e-014";
+      fogVolume3 = "-1 5.1012e-010 2.05098e-008";
+      materialList = "~/data/skies/Intermediate/Intermediate_Sky.dml";
+      windVelocity = "1 0 0";
+      windEffectPrecipitation = "0";
+      noRenderBans = "1";
+      fogVolumeColor1 = "128.000000 128.000000 128.000000 0.000000";
+      fogVolumeColor2 = "128.000000 128.000000 128.000000 0.000004";
+      fogVolumeColor3 = "128.000000 128.000000 128.000000 14435505.000000";
+   };
+   new Sun() {
+      direction = "0.638261 0.459006 -0.61801";
+      color = "1.400000 1.200000 0.400000 1.000000";
+      ambient = "0.300000 0.300000 0.400000 1.000000";
+   };
+   new StaticShape(StartPoint) {
+      position = "14 -6 0";
+      rotation = "1 0 0 0";
+      scale = "1 1 1";
+      dataBlock = "StartPad";
+   };
+   new StaticShape(EndPoint) {
+      position = "14 24 0";
+      rotation = "1 0 0 0";
+      scale = "1 1 1";
+      dataBlock = "EndPad";
+   };
+   new Trigger(Bounds) {
+      position = "-100 100 -100";
+      rotation = "1 0 0 0";
+      scale = "200 200 200";
+      dataBlock = "InBoundsTrigger";
+      polyhedron = "0.0000000 0.0000000 0.0000000 1.0000000 0.0000000 0.0000000 0.0000000 -1.0000000 0.0000000 0.0000000 0.0000000 1.0000000";
+   };
+   new StaticShape() {
+      position = "15.5 24.5 6";
+      rotation = "1 0 0 0";
+      scale = "1 1 1";
+      dataBlock = "SignFinish";
+   };
+   new AudioProfile(MusicProfile) {
+      fileName = "~/data/sound/music/Metropolis.ogg";
+      description = "AudioMusic";
+      preload = "0";
+   };
+};
+//--- OBJECT WRITE END ---
