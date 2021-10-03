@@ -1,6 +1,5 @@
 import { state } from "./state";
 import { StorageManager } from "./storage";
-import { handlePauseScreenGamepadInput } from "./ui/game";
 
 export const currentMousePosition = {
 	x: 0,
@@ -85,6 +84,11 @@ window.addEventListener('beforeunload', (e) => {
 		e.preventDefault();
 		e.returnValue = '';
 	}
+});
+
+document.addEventListener('pointerlockchange', () => {
+	// When pointer lock is left, we pause.
+	if (!document.pointerLockElement) state.menu.pauseScreen.tryPause();
 });
 
 /** For each game button, a list of the keys/buttons corresponding to it that are currently pressed. */
@@ -225,11 +229,11 @@ const updateGamepadInput = () => {
 	}
 
 	// Check for input on the level select screen
-	if (!levelSelectDiv.classList.contains('hidden')) 
-		handleLevelSelectControllerInput(gamepads[mostRecentGamepad]);
+	if (!state.menu.levelSelect.div.classList.contains('hidden')) 
+		state.menu.levelSelect.handleControllerInput(gamepads[mostRecentGamepad]);
 		
 	if (state.currentLevel?.paused)
-		handlePauseScreenGamepadInput(gamepads[mostRecentGamepad]);
+		state.menu.pauseScreen.handleGamepadInput(gamepads[mostRecentGamepad]);
 	
 	for (let i = 0; i < gamepads[mostRecentGamepad].buttons.length && i < 18; i++) {
 		previousButtonState[i] = (gamepads[mostRecentGamepad].buttons[i].value > 0.5);

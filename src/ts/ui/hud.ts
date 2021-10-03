@@ -2,6 +2,7 @@ import { ResourceManager } from "../resources";
 import { state } from "../state";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
+import { Menu } from "./menu";
 
 const numberSources = {
 	"0": "0.png",
@@ -22,6 +23,7 @@ const numberSources = {
 const keybindRegex = /<func:bind (\w+)>/g;
 
 export abstract class Hud {
+	menu: Menu;
 	gemCountElement: HTMLDivElement;
 	clockCanvas: HTMLCanvasElement;
 	clockCtx: CanvasRenderingContext2D;
@@ -29,9 +31,8 @@ export abstract class Hud {
 	alertElement: HTMLDivElement;
 	centerElement: HTMLImageElement;
 
-	uiAssetPath: string;
-
-	constructor() {
+	constructor(menu: Menu) {
+		this.menu = menu;
 		this.gemCountElement = document.querySelector('#gem-count');
 		this.clockCanvas = document.querySelector('#clock');
 		this.clockCtx = this.clockCanvas.getContext('2d');
@@ -41,8 +42,8 @@ export abstract class Hud {
 	}
 
 	async load() {
-		await ResourceManager.loadImages(Object.values(numberSources).map(x => this.uiAssetPath + "game/numbers/" + x));
-		await ResourceManager.loadImages(["ready.png", "set.png", "go.png", "outofbounds.png", "powerup.png"].map(x => this.uiAssetPath + "game/" + x));
+		await ResourceManager.loadImages(Object.values(numberSources).map(x => this.menu.uiAssetPath + "game/numbers/" + x));
+		await ResourceManager.loadImages(["ready.png", "set.png", "go.png", "outofbounds.png", "powerup.png"].map(x => this.menu.uiAssetPath + "game/" + x));
 	}
 
 	/** Updates the game clock canvas. */
@@ -59,7 +60,7 @@ export abstract class Hud {
 		// Draw every symbol
 		for (let i = 0; i < string.length; i++) {
 			let char = string[i];
-			let path = this.uiAssetPath + "game/numbers/" + numberSources[char as keyof typeof numberSources];
+			let path = this.menu.uiAssetPath + "game/numbers/" + numberSources[char as keyof typeof numberSources];
 			let image = ResourceManager.getImageFromCache(path);
 
 			if (char === ':' || char === '.') currentX -= 3;
@@ -86,7 +87,7 @@ export abstract class Hud {
 			let char = string[i];
 			let node = this.gemCountElement.children[i] as HTMLImageElement;
 
-			node.src = this.uiAssetPath + "game/numbers/" + numberSources[char as keyof typeof numberSources];
+			node.src = this.menu.uiAssetPath + "game/numbers/" + numberSources[char as keyof typeof numberSources];
 		}
 	}
 
@@ -138,9 +139,9 @@ export abstract class Hud {
 		if (type === 'none') this.centerElement.style.display = 'none';
 		else this.centerElement.style.display = '';
 		
-		if (type === 'ready') this.centerElement.src = this.uiAssetPath + 'game/ready.png';
-		if (type === 'set') this.centerElement.src = this.uiAssetPath + 'game/set.png';
-		if (type === 'go') this.centerElement.src = this.uiAssetPath + 'game/go.png';
-		if (type === 'outofbounds') this.centerElement.src = this.uiAssetPath + 'game/outofbounds.png';
+		if (type === 'ready') this.centerElement.src = this.menu.uiAssetPath + 'game/ready.png';
+		if (type === 'set') this.centerElement.src = this.menu.uiAssetPath + 'game/set.png';
+		if (type === 'go') this.centerElement.src = this.menu.uiAssetPath + 'game/go.png';
+		if (type === 'outofbounds') this.centerElement.src = this.menu.uiAssetPath + 'game/outofbounds.png';
 	}
 }

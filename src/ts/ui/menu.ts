@@ -1,11 +1,13 @@
 import { AudioManager, AudioSource } from "../audio";
 import { ResourceManager } from "../resources";
+import { FinishScreen } from "./finish_screen";
 import { HelpScreen } from "./help";
 import { HomeScreen } from "./home";
 import { Hud } from "./hud";
 import { LevelSelect } from "./level_select";
 import { LoadingScreen } from "./loading";
 import { OptionsScreen } from "./options";
+import { PauseScreen } from "./pause_screen";
 
 export abstract class Menu {
 	home: HomeScreen;
@@ -14,6 +16,8 @@ export abstract class Menu {
 	optionsScreen: OptionsScreen;
 	helpScreen: HelpScreen;
 	hud: Hud;
+	pauseScreen: PauseScreen;
+	finishScreen: FinishScreen;
 
 	menuDiv: HTMLDivElement;
 	music: AudioSource;
@@ -32,6 +36,8 @@ export abstract class Menu {
 		this.optionsScreen = this.createOptionsScreen();
 		this.helpScreen = this.createHelpScreen();
 		this.hud = this.createHud();
+		this.pauseScreen = this.createPauseScreen();
+		this.finishScreen = this.createFinishScreen();
 	}
 
 	abstract createHome(): HomeScreen;
@@ -40,6 +46,8 @@ export abstract class Menu {
 	abstract createOptionsScreen(): OptionsScreen;
 	abstract createHelpScreen(): HelpScreen;
 	abstract createHud(): Hud;
+	abstract createPauseScreen(): PauseScreen;
+	abstract createFinishScreen(): FinishScreen;
 	abstract getMenuDiv(): HTMLDivElement;
 
 	setupButton(element: HTMLImageElement, path: string, onclick: () => any, loadDisabledImage = false, triggerOnMouseDown = false) {

@@ -34,7 +34,6 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { showPauseScreen, hidePauseScreen, showFinishScreen, stopAndExit, handleFinishScreenGamepadInput } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
@@ -861,7 +860,7 @@ export class Level extends Scheduler {
 
 		if (!playReplay && (isPressed('use') || this.useQueued) && getPressedFlag('use')) {
 			if (this.outOfBounds && !this.finishTime) {
-				// Skip the out of bounce "animation" and restart immediately
+				// Skip the out of bounds "animation" and restart immediately
 				this.clearSchedule();
 				this.restart();
 				return;
@@ -872,7 +871,7 @@ export class Level extends Scheduler {
 		}
 		this.useQueued = false;
 
-		handleFinishScreenGamepadInput();
+		state.menu.finishScreen.handleGamepadInput();
 
 		// Handle pressing of the gamepad pause button
 		if (!this.finishTime && isPressed('pause') && getPressedFlag('pause')) {
@@ -970,7 +969,7 @@ export class Level extends Scheduler {
 			else {
 				this.replay.playback();
 				if (this.replay.isPlaybackComplete()) {
-					stopAndExit();
+					this.stopAndExit();
 					return;
 				}
 			}
@@ -1239,7 +1238,7 @@ export class Level extends Scheduler {
 			if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => {
 				// Show the finish screen
 				document.exitPointerLock();
-				showFinishScreen();
+				state.menu.finishScreen.show();
 				resetPressedFlag('use');
 				resetPressedFlag('jump');
 				resetPressedFlag('restart');
@@ -1252,14 +1251,14 @@ export class Level extends Scheduler {
 		this.paused = true;
 		document.exitPointerLock();
 		releaseAllButtons(); // Safety measure to prevent keys from getting stuck
-		showPauseScreen();
+		state.menu.pauseScreen.show();
 	}
 
 	/** Unpauses the level. */
 	unpause() {
 		this.paused = false;
 		document.documentElement.requestPointerLock();
-		hidePauseScreen();
+		state.menu.pauseScreen.hide();
 		this.lastPhysicsTick = performance.now();
 	}
 
@@ -1284,6 +1283,21 @@ export class Level extends Scheduler {
 		this.marble.superBounceSound?.stop();
 
 		AudioManager.stopAllAudio();
+	}
+	
+	/** Stops and destroys the current level and returns back to the menu. */
+	stopAndExit() {
+		this.stop();
+		state.currentLevel = null;
+
+		state.menu.pauseScreen.hide();
+		state.menu.levelSelect.show();
+		state.menu.levelSelect.displayBestTimes(); // Potentially update best times having changed
+		state.menu.finishScreen.hide();
+		state.menu.hideGameUi();
+		state.menu.show();
+		
+		document.exitPointerLock();
 	}
 
 	/** Returns how much percent the level has finished loading. */
