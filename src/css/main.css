@@ -31,6 +31,10 @@ html, body {
 	height: 100%;
 	background: black;
 	cursor: url(../assets/ui/common/cur_3darrow.png) 0 0, auto;
+	overscroll-behavior: none;
+	position: fixed;
+	top: 0;
+	bottom: 0;
 }
 
 #menu {

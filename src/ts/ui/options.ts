@@ -199,7 +199,7 @@ let draggingSoundVolume = false;
 let draggingMouseSensitivity = false;
 let soundTestingSound: AudioSource = null;
 
-window.addEventListener('mouseup', () => {
+const endSliderDragging = () => {
 	if (!draggingMusicVolume && !draggingSoundVolume && !draggingMouseSensitivity) return;
 
 	// Release all dragging things
@@ -211,11 +211,18 @@ window.addEventListener('mouseup', () => {
 		soundTestingSound.node.loop = false;
 		soundTestingSound = null;
 	}
-});
+};
+
+window.addEventListener('mouseup', () => endSliderDragging());
+window.addEventListener('touchend', () => endSliderDragging());
 musicVolumeTrack.addEventListener('mousedown', () => draggingMusicVolume = true);
+musicVolumeTrack.addEventListener('touchstart', () => draggingMusicVolume = true);
 musicVolumeKnob.addEventListener('mousedown', () => draggingMusicVolume = true);
+musicVolumeKnob.addEventListener('touchstart', () => draggingMusicVolume = true);
 soundVolumeTrack.addEventListener('mousedown', () => draggingSoundVolume = true);
+soundVolumeTrack.addEventListener('touchstart', () => draggingSoundVolume = true);
 soundVolumeKnob.addEventListener('mousedown', () => draggingSoundVolume = true);
+soundVolumeKnob.addEventListener('touchstart', () => draggingSoundVolume = true);
 
 const updateSliders = async () => {
 	requestAnimationFrame(updateSliders);
@@ -449,8 +456,10 @@ const buttonCameraRightContent = document.querySelector('#button-camera-right-co
 const buttonCameraUpContent = document.querySelector('#button-camera-up-content') as HTMLParagraphElement;
 const buttonCameraDownContent = document.querySelector('#button-camera-down-content') as HTMLParagraphElement;
 
+// Technically, the drag also works on the track, but since the track is not a separate asset I won't bother implementing that.
 const mouseSensitivityKnob = document.querySelector('#sensitivity-knob') as HTMLImageElement;
 mouseSensitivityKnob.addEventListener('mousedown', () => draggingMouseSensitivity = true);
+mouseSensitivityKnob.addEventListener('touchstart', () => draggingMouseSensitivity = true);
 
 const invertY = document.querySelector('#invert-y') as HTMLImageElement;
 setupButton(invertY, 'options/cntrl_mous_invrt', () => {

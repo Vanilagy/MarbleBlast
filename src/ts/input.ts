@@ -2,6 +2,7 @@ import { state } from "./state";
 import { StorageManager } from "./storage";
 import { handlePauseScreenGamepadInput } from "./ui/game";
 import { levelSelectDiv, handleLevelSelectControllerInput } from "./ui/level_select";
+import { Util } from "./util";
 
 export const currentMousePosition = {
 	x: 0,
@@ -13,11 +14,21 @@ window.addEventListener('mousemove', (e) => {
 	currentMousePosition.y = e.clientY;
 	state.currentLevel?.onMouseMove(e);
 });
+window.addEventListener('touchstart', (e) => {
+	let touch = e.changedTouches[0];
+	currentMousePosition.x = touch.clientX;
+	currentMousePosition.y = touch.clientY;
+});
+window.addEventListener('touchmove', (e) => {
+	let touch = e.changedTouches[0];
+	currentMousePosition.x = touch.clientX;
+	currentMousePosition.y = touch.clientY;
+});
 
 window.addEventListener('mousedown', (e) => {
 	if (!StorageManager.data) return;
 	// Request pointer lock if we're currently in-game
-	if (state.currentLevel && !state.currentLevel.paused && !state.currentLevel.finishTime) document.documentElement.requestPointerLock();
+	if (state.currentLevel && !state.currentLevel.paused && !state.currentLevel.finishTime && !Util.isTouchDevice) document.documentElement.requestPointerLock();
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName && document.pointerLockElement) {
@@ -238,3 +249,132 @@ const updateGamepadInput = () => {
 };
 
 window.setInterval(updateGamepadInput, 4);
+
+const touchInputContainer = document.querySelector('#touch-input-container') as HTMLDivElement;
+const movementAreaElement = document.querySelector('#movement-area') as HTMLDivElement;
+const cameraAreaElement = document.querySelector('#camera-area') as HTMLDivElement;
+const movementJoystick = document.querySelector('#movement-joystick') as HTMLDivElement;
+const movementJoystickHandle = document.querySelector('#movement-joystick-handle') as HTMLDivElement;
+const jumpButton = document.querySelector('#jump-button') as HTMLImageElement;
+const useButton = document.querySelector('#use-button') as HTMLImageElement;
+const pauseButton = document.querySelector('#pause-button') as HTMLImageElement;
+
+const joystickSize = 300;
+const joystickHandleSize = 100;
+
+let joystickPosition: {x: number, y: number} = null;
+export let normalizedJoystickHandlePosition: {x: number, y: number} = null;
+let movementAreaTouchIdentifier: number = null;
+let cameraAreaTouchIdentifier: number = null;
+let jumpButtonTouchIdentifier: number = null;
+let useButtonTouchIdentifier: number = null;
+let lastCameraTouch: Touch = null;
+
+touchInputContainer.style.display = Util.isTouchDevice? 'block' : 'none';
+
+movementAreaElement.addEventListener('touchstart', (e) => {
+	let touch = e.changedTouches[0];
+	movementAreaTouchIdentifier = touch.identifier;
+
+	let x = Util.clamp(touch.clientX, joystickSize/2, (window.innerWidth - joystickSize)/2);
+	let y = Util.clamp(touch.clientY, joystickSize/2, window.innerHeight - joystickSize/2);
+
+	movementJoystick.style.display = 'block';
+	movementJoystick.style.left = x - joystickSize/2 + 'px';
+	movementJoystick.style.top = y - joystickSize/2 + 'px';
+	joystickPosition = {x: x, y: y};
+	normalizedJoystickHandlePosition = {x: 0, y: 0};
+	updateJoystickHandlePosition(touch);
+});
+
+movementAreaElement.addEventListener('touchmove', (e) => {
+	let touch = [...e.changedTouches].find(x => x.identifier === movementAreaTouchIdentifier);
+	if (!touch) return;
+
+	if (touch.identifier === movementAreaTouchIdentifier) {
+		updateJoystickHandlePosition(touch);
+	}
+});
+
+const updateJoystickHandlePosition = (touch: Touch) => {
+	let innerRadius = (joystickSize - joystickHandleSize) / 2;
+
+	normalizedJoystickHandlePosition.x = Util.clamp((touch.clientX - joystickPosition.x) / innerRadius, -1, 1);
+	normalizedJoystickHandlePosition.y = Util.clamp((touch.clientY - joystickPosition.y) / innerRadius, -1, 1);
+
+	movementJoystickHandle.style.left = (normalizedJoystickHandlePosition.x) * innerRadius + joystickSize/2 - joystickHandleSize/2 + 'px';
+	movementJoystickHandle.style.top = (normalizedJoystickHandlePosition.y) * innerRadius + joystickSize/2 - joystickHandleSize/2 + 'px';
+};
+
+window.addEventListener('touchend', (e) => {
+	for (let touch of e.changedTouches) {
+		if (touch.identifier === movementAreaTouchIdentifier) {
+			movementAreaTouchIdentifier = null;
+			movementJoystick.style.display = 'none';
+			normalizedJoystickHandlePosition = null;
+		}
+	
+		if (touch.identifier === cameraAreaTouchIdentifier) {
+			cameraAreaTouchIdentifier = null;
+		}
+	
+		if (touch.identifier === jumpButtonTouchIdentifier) {
+			jumpButtonTouchIdentifier = null;
+			jumpButton.style.opacity = '';
+			setPressed('jump', 'touch', false);
+		}
+	
+		if (touch.identifier === useButtonTouchIdentifier) {
+			useButtonTouchIdentifier = null;
+			useButton.style.opacity = '';
+			setPressed('use', 'touch', false);
+		}
+	}
+
+	setPressed('pause', 'touch', false);
+});
+
+cameraAreaElement.addEventListener('touchstart', (e) => {
+	let touch = e.changedTouches[0];
+	cameraAreaTouchIdentifier = touch.identifier;
+
+	lastCameraTouch = touch;
+});
+
+cameraAreaElement.addEventListener('touchmove', (e) => {
+	let touch = [...e.changedTouches].find(x => x.identifier === cameraAreaTouchIdentifier);
+	let level = state.currentLevel;
+
+	if (!touch) return;
+
+	if (touch.identifier === cameraAreaTouchIdentifier) {
+		let movementX = touch.clientX - lastCameraTouch.clientX;
+		let movementY = touch.clientY - lastCameraTouch.clientY;
+
+		let factor = Util.lerp(1 / 1500, 1 / 50, StorageManager.data.settings.mouseSensitivity);
+		let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;
+
+		level.yaw -= movementX * factor;
+		level.pitch += movementY * factor * yFactor;
+
+		lastCameraTouch = touch;
+	}
+});
+
+jumpButton.addEventListener('touchstart', (e) => {
+	let touch = e.changedTouches[0];
+	jumpButtonTouchIdentifier = touch.identifier;
+	jumpButton.style.opacity = '0.9';
+	setPressed('jump', 'touch', true);
+});
+
+useButton.addEventListener('touchstart', (e) => {
+	let touch = e.changedTouches[0];
+	useButtonTouchIdentifier = touch.identifier;
+	useButton.style.opacity = '0.9';
+	setPressed('use', 'touch', true);
+});
+
+pauseButton.addEventListener('touchstart', () => {
+	setPressed('pause', 'touch', true);
+});

@@ -11,6 +11,7 @@
 		<meta property="og:description" content="A full web port of Marble Blast Gold: Race your marble to the finish in more than 2000 diverse levels. Play Marble Blast Gold online.">
 		<meta property="og:image" content="https://marbleblast.vani.ga/assets/ui/title.jpg">
 		<meta name="twitter:card" content="summary_large_image">
+		<meta name="viewport" content="width=1400, user-scalable=no">
 		<link rel="shortcut icon" href="./assets/img/marble-blast-gold-logo.png">
 		
 		<link rel="stylesheet" href="./css/main.css">
@@ -37,6 +38,16 @@
 			<img id="center-text" src=""></img>
 			<canvas id="clock" height="50" width="300"></canvas>
 			<div id="gem-count"></div>
+			<div id="touch-input-container">
+				<div id="movement-area"></div>
+				<div id="movement-joystick">
+					<div id="movement-joystick-handle"></div>
+				</div>
+				<div id="camera-area"></div>
+				<img src="./assets/svg/north_black_24dp.svg" id="jump-button" class="touch-button">
+				<img src="./assets/svg/whatshot_black_24dp.svg" id="use-button" class="touch-button">
+				<img src="./assets/svg/pause_black_24dp.svg" id="pause-button" class="touch-button">
+			</div>
 			<div id="pause-screen" class="hidden">
 				<img src="./assets/ui/common/dialog.png">
 				<p>Exit from this Level?</p>

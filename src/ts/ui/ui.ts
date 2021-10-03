@@ -1,5 +1,6 @@
 import { AudioManager, AudioSource } from "../audio";
 import { ResourceManager } from "../resources";
+import { Util } from "../util";
 
 export const menuDiv = document.querySelector('#menu') as HTMLDivElement;
 
@@ -16,6 +17,8 @@ export const setupButton = (element: HTMLImageElement, path: string, onclick: ()
 
 	element.src = normal;
 	element.addEventListener('mouseenter', () => {
+		if (Util.isTouchDevice) return;
+
 		hovered = true;
 		element.setAttribute('data-hovered', '');
 		if (element.style.pointerEvents === 'none') return;
@@ -23,24 +26,42 @@ export const setupButton = (element: HTMLImageElement, path: string, onclick: ()
 		if (!held) AudioManager.play('buttonover.wav');
 	});
 	element.addEventListener('mouseleave', () => {
+		if (Util.isTouchDevice) return;
+
 		hovered = false;
 		element.removeAttribute('data-hovered');
 		if (element.style.pointerEvents === 'none') return;
 		if (!element.hasAttribute('data-locked')) element.src = normal;		
 	});
+	element.addEventListener('touchstart', (e) => {
+		onMouseDown({button: 0});
+	});
 	element.addEventListener('mousedown', (e) => {
+		if (!Util.isTouchDevice) onMouseDown(e);
+	});
+
+	const onMouseDown = (e: {button: number}) => {
 		if (element.style.pointerEvents === 'none') return;
 		if (e.button !== 0) return;
 		held = true;
 		if (!element.hasAttribute('data-locked')) element.src = down;
 		AudioManager.play('buttonpress.wav');
 		if (triggerOnMouseDown) onclick();
+	};
+
+	window.addEventListener('touchend', () => {
+		onMouseUp();
 	});
 	window.addEventListener('mouseup', () => {
+		if (!Util.isTouchDevice) onMouseUp();
+	});
+
+	const onMouseUp = () => {
 		held = false;
 		if (element.style.pointerEvents === 'none') return;
 		if (!element.hasAttribute('data-locked')) element.src = hovered? hover : normal;
-	});
+	};
+
 	if (!triggerOnMouseDown) element.addEventListener('click', (e) => e.button === 0 && onclick());
 
 	if (ogPath) {

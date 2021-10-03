@@ -249,7 +249,7 @@ setupButton(replayButton, 'endgame/replay', () => {
 	// Restart the level
 	finishScreenDiv.classList.add('hidden');
 	state.currentLevel.restart();
-	document.documentElement.requestPointerLock();
+	if (!Util.isTouchDevice) document.documentElement.requestPointerLock();
 });
 setupButton(continueButton, 'endgame/continue', () => stopAndExit());
 

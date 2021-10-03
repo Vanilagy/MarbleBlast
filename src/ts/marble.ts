@@ -1,7 +1,7 @@
 import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
-import { isPressed, gamepadAxes } from "./input";
+import { isPressed, gamepadAxes, normalizedJoystickHandlePosition } from "./input";
 import { PHYSICS_TICK_RATE, TimeState, Level, GO_TIME } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
@@ -171,6 +171,7 @@ export class Marble {
 		
 		// Add gamepad input and restrict if necessary
 		movementVec.add(new THREE.Vector3(-gamepadAxes.marbleY, -gamepadAxes.marbleX));
+		if (normalizedJoystickHandlePosition) movementVec.add(new THREE.Vector3(-normalizedJoystickHandlePosition.y, -normalizedJoystickHandlePosition.x));
 		if (movementVec.x > 1.0)
 			movementVec.x = 1.0;
 		if (movementVec.x < -1.0)

@@ -858,7 +858,7 @@ export class Level extends Scheduler {
 
 		if (!playReplay && (isPressed('use') || this.useQueued) && getPressedFlag('use')) {
 			if (this.outOfBounds && !this.finishTime) {
-				// Skip the out of bounce "animation" and restart immediately
+				// Skip the out of bounds "animation" and restart immediately
 				this.clearSchedule();
 				this.restart();
 				return;
@@ -953,8 +953,9 @@ export class Level extends Scheduler {
 			if (isPressed('cameraUp')) pitchChange -= 1.5;
 			if (isPressed('cameraDown')) pitchChange += 1.5;
 			
+			let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;
 			yawChange -= gamepadAxes.cameraX * 5.0;
-			pitchChange += gamepadAxes.cameraY * 5.0;
+			pitchChange += gamepadAxes.cameraY * 5.0 * yFactor;
 			
 			this.yaw += yawChange / PHYSICS_TICK_RATE;
 			this.pitch += pitchChange / PHYSICS_TICK_RATE;
@@ -1255,7 +1256,7 @@ export class Level extends Scheduler {
 	/** Unpauses the level. */
 	unpause() {
 		this.paused = false;
-		document.documentElement.requestPointerLock();
+		if (!Util.isTouchDevice) document.documentElement.requestPointerLock();
 		hidePauseScreen();
 		this.lastPhysicsTick = performance.now();
 	}
