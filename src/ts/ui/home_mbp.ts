@@ -11,6 +11,14 @@ export class MbpHomeScreen extends HomeScreen {
         this.helpButton = document.querySelector('#mbp-home-help');
         this.exitButton = document.querySelector('#mbp-home-quit');
 
+		// DESE ARE TEMPPPPPPPPP TEMP TEMP
+		this.showChangelogButton = document.querySelector('#show-changelog');
+        this.showChangelogText = document.querySelector('#show-changelog-text');
+        this.changelogContainer = document.querySelector('#changelog');
+        this.changelogBackButton = document.querySelector('#changelog-back');
+        this.changelogContent = document.querySelector('#changelog-content');
+        this.version = document.querySelector('#version');
+
         this.playSrc = 'menu/play';
         this.optionsSrc = 'menu/options';
         this.helpSrc = 'menu/help';

@@ -74,7 +74,7 @@ export abstract class MissionLibrary {
 			mbgMissions.push(mission);
 		}
 		for (let misFile of mbpMisFiles) {
-			let mission = Mission.fromMisFile(misFileToFilename.get(misFile), misFile);
+			let mission = Mission.fromMisFile('mbp/' + misFileToFilename.get(misFile), misFile);
 			mbpMissions.push(mission);
 		}
 
@@ -91,14 +91,14 @@ export abstract class MissionLibrary {
 
 		// Sort the missions into the correct array
 		for (let mission of mbgMissions) {
-			let missionType = mission.path.split('/')[0]; // We don't use the MissionInfo.type because some customs have that set up wrong
+			let missionType = mission.type;
 			if (missionType === 'beginner') this.goldBeginner.push(mission);
 			else if (missionType === 'intermediate') this.goldIntermediate.push(mission);
 			else if (missionType === 'advanced') this.goldAdvanced.push(mission);
 			else this.goldCustom.push(mission);
 		}
 		for (let mission of mbpMissions) {
-			let missionType = mission.path.split('/')[0];
+			let missionType = mission.type;
 			if (missionType === 'beginner') this.platinumBeginner.push(mission);
 			else if (missionType === 'intermediate') this.platinumIntermediate.push(mission);
 			else if (missionType === 'advanced') this.platinumAdvanced.push(mission);
@@ -123,5 +123,13 @@ export abstract class MissionLibrary {
 		for (let i = 0; i < this.platinumAdvanced.length; i++) this.platinumAdvanced[i].initSearchString(i);
 		for (let i = 0; i < this.platinumExpert.length; i++) this.platinumExpert[i].initSearchString(i);
 		for (let i = 0; i < this.platinumCustom.length; i++) this.platinumCustom[i].initSearchString(i);
+	}
+
+	static getModification(arr: Mission[]) {
+		return arr[0]?.modification ?? null;
+	}
+
+	static getDifficulty(arr: Mission[]) {
+		return arr[0]?.type ?? null;
 	}
 }

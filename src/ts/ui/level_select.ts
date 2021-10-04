@@ -1,7 +1,7 @@
 import { AudioManager } from "../audio";
 import { ResourceManager } from "../resources";
 import { Util } from "../util";
-import { StorageManager } from "../storage";
+import { BestTimes, StorageManager } from "../storage";
 import { Mission } from "../mission";
 import { Replay } from "../replay";
 import { previousButtonState } from "../input";
@@ -15,36 +15,28 @@ export abstract class LevelSelect {
 	div: HTMLDivElement;
 	homeButton: HTMLImageElement;
 	homeButtonSrc: string;
-	tabBeginner: HTMLImageElement;
-	tabIntermediate: HTMLImageElement;
-	tabAdvanced: HTMLImageElement;
-	tabCustom: HTMLImageElement;
 	scrollWindow: HTMLDivElement;
 	levelTitle: HTMLParagraphElement;
 	levelArtist: HTMLParagraphElement;
 	levelDescription: HTMLParagraphElement;
 	levelQualifyTime: HTMLParagraphElement;
-	bestTime1: HTMLDivElement;
-	bestTime2: HTMLDivElement;
-	bestTime3: HTMLDivElement;
+	localBestTimesContainer: HTMLDivElement;
 	leaderboardLoading: HTMLParagraphElement;
 	leaderboardScores: HTMLDivElement;
 	levelImage: HTMLImageElement;
-	notQualifiedOverlay: HTMLDivElement;
-	levelNumberElement: HTMLParagraphElement;
 	prevButton: HTMLImageElement;
 	playButton: HTMLImageElement;
 	nextButton: HTMLImageElement;
 	searchInput: HTMLInputElement;
-	newBadge: HTMLImageElement;
-	loadReplayButton: HTMLImageElement;
-	shuffleButton: HTMLImageElement;
 
 	setImagesTimeout: number = null;
 	clearImageTimeout: number = null;
 	/** The current words in the search query. Used for matching. */
 	currentQueryWords: string[] = [];
 	lastDisplayBestTimesId: string; // Used to prevent some async issues
+	abstract localScoresCount: number;
+	abstract scorePlaceholderName: string;
+	abstract scoreElementHeight: number;
 
 	currentMissionArray: Mission[];
 	currentMissionIndex: number;
@@ -67,49 +59,15 @@ export abstract class LevelSelect {
 	abstract initProperties(): void;
 
 	init() {
-		for (let elem of [this.bestTime1.children[3], this.bestTime2.children[3], this.bestTime3.children[3]]) {
-			let replayButton = elem as HTMLImageElement;
-			replayButton.addEventListener('click', async (e) => {
-				if (e.button !== 0) return;
-				let mission = this.currentMission;
-				if (!mission) return;
-
-				let attr = replayButton.getAttribute('data-score-id');
-				if (!attr) return;
-
-				let replayData = await StorageManager.databaseGet('replays', attr);
-				if (!replayData) return;
-
-				if (!e.altKey) {
-					this.playCurrentMission(replayData);
-				} else {
-					Replay.download(replayData, mission);
-				}
-			});
-
-			replayButton.addEventListener('mouseenter', () => {
-				AudioManager.play('buttonover.wav');
-			});
-			replayButton.addEventListener('mousedown', (e) => {
-				if (e.button === 0) AudioManager.play('buttonpress.wav');
-			});
+		// Create the elements for the local best times
+		for (let i = 0; i < this.localScoresCount; i++) {
+			let element = this.createScoreElement(true);
+			this.localBestTimesContainer.appendChild(element);
 		}
 
 		// Create the elements for the online leaderboard (will be reused)
 		for (let i = 0; i < 18; i++) {
-			let element = document.createElement('div');
-			element.classList.add('level-select-best-time');
-
-			let name = document.createElement('div');
-			element.appendChild(name);
-
-			let img = document.createElement('img');
-			img.src = "./assets/ui/play/goldscore.png";
-			element.appendChild(img);
-
-			let time = document.createElement('div');
-			element.appendChild(time);
-
+			let element = this.createScoreElement(false);
 			this.leaderboardScores.appendChild(element);
 		}
 
@@ -120,12 +78,12 @@ export abstract class LevelSelect {
 		
 			if (e.code === 'ArrowLeft') {
 				this.cycleMission(-1);
-				if (!this.prevButton.style.pointerEvents) this.prevButton.src = './assets/ui/play/prev_d.png';
+				if (!this.prevButton.style.pointerEvents) this.prevButton.src = this.menu.uiAssetPath + 'play/prev_d.png';
 			} else if (e.code === 'ArrowRight') {
 				this.cycleMission(1);
-				if (!this.nextButton.style.pointerEvents) this.nextButton.src = './assets/ui/play/next_d.png';
+				if (!this.nextButton.style.pointerEvents) this.nextButton.src = this.menu.uiAssetPath + 'play/next_d.png';
 			} else if (e.code === 'Escape') {
-				this.homeButton.src = './assets/ui/play/back_d.png';
+				this.homeButton.src = this.menu.uiAssetPath + this.homeButtonSrc + '_d.png';
 			}
 		});
 		
@@ -133,9 +91,9 @@ export abstract class LevelSelect {
 			if (this.div.classList.contains('hidden')) return;
 		
 			if (e.code === 'ArrowLeft') {
-				if (!this.prevButton.style.pointerEvents) this.prevButton.src = this.prevButton.hasAttribute('data-hovered')? './assets/ui/play/prev_h.png' : './assets/ui/play/prev_n.png';
+				if (!this.prevButton.style.pointerEvents) this.prevButton.src = this.prevButton.hasAttribute('data-hovered')? this.menu.uiAssetPath + 'play/prev_h.png' : this.menu.uiAssetPath + 'play/prev_n.png';
 			} else if (e.code === 'ArrowRight') {
-				if (!this.nextButton.style.pointerEvents) this.nextButton.src = this.nextButton.hasAttribute('data-hovered')? './assets/ui/play/next_h.png' : './assets/ui/play/next_n.png';
+				if (!this.nextButton.style.pointerEvents) this.nextButton.src = this.nextButton.hasAttribute('data-hovered')? this.menu.uiAssetPath + 'play/next_h.png' : this.menu.uiAssetPath + 'play/next_n.png';
 			} else if (e.code === 'Escape') {
 				this.homeButton.click();
 			}
@@ -149,63 +107,6 @@ export abstract class LevelSelect {
 			this.searchInput.value = '';
 			this.onSearchInputChange();
 		});
-
-		this.loadReplayButton.addEventListener('click', async (e) => {
-			// Show a file picker
-			let fileInput = document.createElement('input');
-			fileInput.setAttribute('type', 'file');
-			fileInput.setAttribute('accept', ".wrec");
-		
-			fileInput.onchange = async () => {
-				try {
-					let file = fileInput.files[0];
-					let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(file);
-					let replay = Replay.fromSerialized(arrayBuffer);
-		
-					let mission = [...MissionLibrary.goldBeginner, ...MissionLibrary.goldIntermediate, ...MissionLibrary.goldAdvanced, ...MissionLibrary.goldCustom].find(x => x.path === replay.missionPath);
-					if (!mission) throw new Error("Mission not found.");
-		
-					this.div.classList.add('hidden');
-					this.menu.loadingScreen.loadLevel(mission, () => replay);
-				} catch (e) {
-					alert("There was an error loading the replay.");
-					console.error(e);
-				}
-			};
-			fileInput.click();
-		});
-		
-		this.loadReplayButton.addEventListener('mouseenter', () => {
-			AudioManager.play('buttonover.wav');
-		});
-		this.loadReplayButton.addEventListener('mousedown', (e) => {
-			if (e.button === 0) AudioManager.play('buttonpress.wav');
-		});
-
-		this.shuffleButton.addEventListener('click', () => {
-			if (this.currentMissionArray.length <= 1) return;
-		
-			// Find a random mission that isn't the current one
-			let nextIndex = this.currentMissionIndex;
-			while (nextIndex === this.currentMissionIndex) {
-				nextIndex = Math.floor(Util.popRandomNumber() * this.currentMissionArray.length);
-			}
-		
-			this.currentMissionIndex = nextIndex;
-			this.displayMission();
-		});
-		this.shuffleButton.addEventListener('mouseenter', () => {
-			AudioManager.play('buttonover.wav');
-		});
-		this.shuffleButton.addEventListener('mousedown', (e) => {
-			if (e.button === 0) AudioManager.play('buttonpress.wav');
-		});
-
-		// Preload images and leaderboards
-		this.setMissionArray(MissionLibrary.goldCustom, false); // Make sure to disable the image timeouts so that no funky stuff happens
-		this.setMissionArray(MissionLibrary.goldAdvanced, false);
-		this.setMissionArray(MissionLibrary.goldIntermediate, false);
-		this.setMissionArray(MissionLibrary.goldBeginner, false);
 	}
 
 	show() {
@@ -224,66 +125,54 @@ export abstract class LevelSelect {
 		this.displayMission(doImageTimeout);
 	}
 
-	abstract getDefaultMissionIndex(): number;
+	getDefaultMissionIndex() {
+		if ([MissionLibrary.goldCustom, MissionLibrary.platinumCustom].includes(this.currentMissionArray)) {
+			// Always select the last custom level by default
+			return this.currentMissionArray.length - 1;
+		}
+
+		// Select the first level such that it and no other levels after it have local scores, or the last level if that's not possible
+		let last = 0;
+		for (let i = 0; i < this.currentMissionArray.length; i++) {
+			let mission = this.currentMissionArray[i];
+			if (StorageManager.data.bestTimes[mission.path]?.length) last = i+1;
+		}
+
+		return Math.min(last, this.currentMissionArray.length - 1);
+	}
 
 	displayMission(doImageTimeout = true) {
 		let mission = this.currentMission;
 
 		if (!mission) {
-			// There is no mission (likely custom tab), so hide most information.
-
-			this.notQualifiedOverlay.style.display = 'block';
+			// There is no mission, so hide most information. In reality, this case should never ever happen.
 			this.levelImage.style.display = 'none';
-			this.levelTitle.innerHTML = '<br>';
-			this.levelArtist.style.display = 'none';
-			this.levelDescription.innerHTML = '<br>';
-			this.levelQualifyTime.innerHTML = '';
-			this.levelNumberElement.textContent = `Level ${this.currentMissionIndex + 1}`;
-			this.playButton.src = './assets/ui/play/play_i.png';
+			this.playButton.src = this.menu.uiAssetPath + 'play/play_i.png';
 			this.playButton.style.pointerEvents = 'none';
-			this.newBadge.style.display = 'none';
+
+			this.displayEmptyMetadata();
 			this.displayBestTimes();
 		} else {
 			// Reenable the play button if it was disabled
 			if (this.playButton.style.pointerEvents === 'none') {
-				this.playButton.src = './assets/ui/play/play_n.png';
-				this.playButton.style.pointerEvents = '';
-			}
-
-			// Show or hide the "Not Qualified!" notice depending on the level unlocked state.
-			if (false /*unlockedLevels <= currentLevelIndex*/) {
-				this.notQualifiedOverlay.style.display = 'block';
-				this.playButton.src = './assets/ui/play/play_i.png';
-				this.playButton.style.pointerEvents = 'none';
-			} else {
-				this.notQualifiedOverlay.style.display = 'none';
-				this.playButton.src = './assets/ui/play/play_n.png';
+				this.playButton.src = this.menu.uiAssetPath + 'play/play_n.png';
 				this.playButton.style.pointerEvents = '';
 			}
 
 			this.levelImage.style.display = '';
-		
-			// Display metadata
-			this.levelTitle.textContent = mission.title;
-			this.levelArtist.textContent = 'by ' + mission.artist.trim();
-			this.levelArtist.style.display = (mission.type === 'custom')? 'block' : 'none'; // Only show the artist for custom levels
-			this.levelDescription.textContent = mission.description;
-			let qualifyTime = (mission.qualifyTime !== 0)? mission.qualifyTime : Infinity;
-			this.levelQualifyTime.textContent = isFinite(qualifyTime)? "Time to Qualify: " + Util.secondsToTimeString(qualifyTime / 1000) : '';
-
-			// Display best times
+			this.displayMetadata();
 			this.displayBestTimes();
 
 			if (!this.clearImageTimeout) this.clearImageTimeout = setTimeout(() => this.levelImage.src = '', 16) as any as number; // Clear the image after a very short time (if no image is loaded 'til then)
-
-			this.levelNumberElement.textContent = `${Util.uppercaseFirstLetter(mission.type)} Level ${this.currentMissionIndex + 1}`;
-			this.newBadge.style.display = mission.isNew? 'block' : 'none';
 		}
 
 		this.setImages(false, doImageTimeout);
 		this.updateNextPrevButtons();
 		Leaderboard.loadLocal();
 	}
+
+	abstract displayMetadata(): void;
+	abstract displayEmptyMetadata(): void;
 
 	playCurrentMission(replayData?: ArrayBuffer) {
 		let currentMission = this.currentMission;
@@ -343,19 +232,19 @@ export abstract class LevelSelect {
 	updateNextPrevButtons() {
 		// Enable or disable the next button based on if there are still missions to come
 		if (!this.canGoNext()) {
-			this.nextButton.src = './assets/ui/play/next_i.png';
+			this.nextButton.src = this.menu.uiAssetPath + 'play/next_i.png';
 			this.nextButton.style.pointerEvents = 'none';
 		} else {
-			if (this.nextButton.src.endsWith('i.png')) this.nextButton.src = './assets/ui/play/next_n.png';
+			if (this.nextButton.src.endsWith('i.png')) this.nextButton.src = this.menu.uiAssetPath + 'play/next_n.png';
 			this.nextButton.style.pointerEvents = '';
 		}
 	
 		// Enable or disable the prev button based on if there are still missions to come
 		if (!this.canGoPrev()) {
-			this.prevButton.src = './assets/ui/play/prev_i.png';
+			this.prevButton.src = this.menu.uiAssetPath + 'play/prev_i.png';
 			this.prevButton.style.pointerEvents = 'none';
 		} else {
-			if (this.prevButton.src.endsWith('i.png')) this.prevButton.src = './assets/ui/play/prev_n.png';
+			if (this.prevButton.src.endsWith('i.png')) this.prevButton.src = this.menu.uiAssetPath + 'play/prev_n.png';
 			this.prevButton.style.pointerEvents = '';
 		}
 	}
@@ -414,6 +303,19 @@ export abstract class LevelSelect {
 			});
 		}
 	}
+
+	shuffle() {
+		if (this.currentMissionArray.length <= 1) return;
+	
+		// Find a random mission that isn't the current one
+		let nextIndex = this.currentMissionIndex;
+		while (nextIndex === this.currentMissionIndex) {
+			nextIndex = Math.floor(Util.popRandomNumber() * this.currentMissionArray.length);
+		}
+	
+		this.currentMissionIndex = nextIndex;
+		this.displayMission();
+	}
 	
 	/** Returns the next few missions that would be selected by repeating pressing of the shuffle button. */
 	getNextShuffledMissions() {
@@ -440,52 +342,82 @@ export abstract class LevelSelect {
 		return missions;
 	}
 
+	abstract createScoreElement(includeReplayButton: boolean): HTMLDivElement;
+	abstract updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number): void;
+
 	displayBestTimes() {
-		let mission = this.currentMission;
-		let goldTime = 0;
 		let randomId = getRandomId();
 		this.lastDisplayBestTimesId = randomId;
-	
-		if (mission) goldTime = mission.goldTime;
-	
-		const updateReplayButton = async (bestTimeIndex: number) => {
-			let bestTime = bestTimes[bestTimeIndex];
-			let element = [this.bestTime1, this.bestTime2, this.bestTime3][bestTimeIndex].children[3] as HTMLImageElement;
-			element.style.display = 'none';
-			element.removeAttribute('data-score-id');
-			if (!bestTime[2]) return;
-	
-			let count = await StorageManager.databaseCount('replays', bestTime[2]);
-			if (randomId === this.lastDisplayBestTimesId && count > 0) {
-				element.style.display = 'block';
-				element.setAttribute('data-score-id', bestTime[2]);
+
+		let bestTimes = StorageManager.getBestTimesForMission(this.currentMission?.path, this.localScoresCount, this.scorePlaceholderName);
+		for (let i = 0; i < this.localScoresCount; i++) {
+			this.updateScoreElement(this.localBestTimesContainer.children[i] as HTMLDivElement, bestTimes[i], i+1);
+		}
+
+		if (!this.currentMission) {
+			this.leaderboardLoading.style.display = 'none';
+			this.leaderboardScores.style.paddingTop = '0px';
+			this.leaderboardScores.style.paddingBottom = '0px';
+			for (let element of this.leaderboardScores.children) (element as HTMLDivElement).style.display = 'none';
+		} else {
+			this.leaderboardLoading.style.display = Leaderboard.isLoading(this.currentMission.path)? 'block' : 'none';
+			this.updateOnlineLeaderboard();
+		}
+	}
+
+	createReplayButton() {
+		let icon = document.createElement('img');
+		icon.src = "./assets/img/round_videocam_black_18dp.png";
+		icon.title = "Alt-Click to download";
+
+		icon.addEventListener('click', async (e) => {
+			if (e.button !== 0) return;
+			let mission = this.currentMission;
+			if (!mission) return;
+
+			let attr = icon.getAttribute('data-score-id');
+			if (!attr) return;
+
+			let replayData = await StorageManager.databaseGet('replays', attr);
+			if (!replayData) return;
+
+			if (!e.altKey) {
+				this.playCurrentMission(replayData);
+			} else {
+				Replay.download(replayData, mission);
 			}
-		};
-	
-		let bestTimes = StorageManager.getBestTimesForMission(mission?.path);
-		this.bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
-		(this.bestTime1.children[1] as HTMLImageElement).style.opacity = (bestTimes[0][1] <= goldTime)? '' : '0';
-		this.bestTime1.children[2].textContent = Util.secondsToTimeString(bestTimes[0][1] / 1000);
-		updateReplayButton(0);
-		this.bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
-		(this.bestTime2.children[1] as HTMLImageElement).style.opacity = (bestTimes[1][1] <= goldTime)? '' : '0';
-		this.bestTime2.children[2].textContent = Util.secondsToTimeString(bestTimes[1][1] / 1000);
-		updateReplayButton(1);
-		this.bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
-		(this.bestTime3.children[1] as HTMLImageElement).style.opacity = (bestTimes[2][1] <= goldTime)? '' : '0';
-		this.bestTime3.children[2].textContent = Util.secondsToTimeString(bestTimes[2][1] / 1000);
-		updateReplayButton(2);
-	
-		this.leaderboardLoading.style.display = Leaderboard.isLoading(mission.path)? 'block' : 'none';
-	
-		this.updateOnlineLeaderboard();
+		});
+
+		icon.addEventListener('mouseenter', () => {
+			AudioManager.play('buttonover.wav');
+		});
+		icon.addEventListener('mousedown', (e) => {
+			if (e.button === 0) AudioManager.play('buttonpress.wav');
+		});
+
+		return icon;
+	}
+
+	async updateReplayButton(element: HTMLImageElement, score: BestTimes[number]) {
+		element.style.display = 'none';
+		element.removeAttribute('data-score-id');
+		if (!score[2]) return;
+
+		let randomId = this.lastDisplayBestTimesId;
+		let count = await StorageManager.databaseCount('replays', score[2]);
+
+		if (randomId === this.lastDisplayBestTimesId && count > 0) {
+			element.style.display = 'block';
+			element.setAttribute('data-score-id', score[2]);
+		}
 	}
 
 	/** Updates the elements in the online leaderboard. Updates only the visible elements and adds padding to increase performance. */
 	updateOnlineLeaderboard() {
 		let mission = this.currentMission;
+		if (!mission) return;
+
 		let onlineScores = Leaderboard.scores.get(mission.path) ?? [];
-		let goldTime = mission.goldTime;
 		let elements = this.leaderboardScores.children;
 		let index = 0;
 
@@ -497,16 +429,16 @@ export abstract class LevelSelect {
 		// Get the y of the top element
 		let currentY = (elements[0] as HTMLDivElement).offsetTop - this.scrollWindow.scrollTop;
 
-		this.leaderboardScores.style.height = onlineScores.length * 14 + 'px';
+		this.leaderboardScores.style.height = onlineScores.length * this.scoreElementHeight + 'px';
 
 		// As long as the top element is out of view, move to the next one. By doing this, we find the first element that's in view (from the top)
-		while (currentY < -14 && index < onlineScores.length) {
+		while (currentY < -this.scoreElementHeight && index < onlineScores.length) {
 			index++;
-			currentY += 14;
+			currentY += this.scoreElementHeight;
 		}
 
 		// Add padding to the top according to how many elements we've already passed at the top
-		this.leaderboardScores.style.paddingTop = index * 14 + 'px';
+		this.leaderboardScores.style.paddingTop = index * this.scoreElementHeight + 'px';
 
 		for (let i = 0; i < elements.length; i++) {
 			let element = elements[i] as HTMLDivElement;
@@ -515,9 +447,7 @@ export abstract class LevelSelect {
 				// If there's a score, apply it to the current element
 				let score = onlineScores[index];
 				element.style.display = 'block';
-				element.children[0].textContent = (index + 1) + '. ' + score[0];
-				(element.children[1] as HTMLImageElement).style.opacity = (score[1] <= goldTime)? '' : '0';
-				element.children[2].textContent = Util.secondsToTimeString(score[1] / 1000, 3);
+				this.updateScoreElement(element, score as any, index + 1);
 			} else {
 				// Hide the element otherwise
 				element.style.display = 'none';
@@ -527,7 +457,7 @@ export abstract class LevelSelect {
 		}
 
 		// Add padding to the bottom according to how many scores there are still left
-		this.leaderboardScores.style.paddingBottom = Math.max(onlineScores.length - index, 0) * 12 + 'px';
+		this.leaderboardScores.style.paddingBottom = Math.max(onlineScores.length - index, 0) * this.scoreElementHeight + 'px';
 	}
 
 	onSearchInputChange() {
@@ -554,6 +484,31 @@ export abstract class LevelSelect {
 				break;
 			}
 		}
+	}
+
+	showLoadReplayPrompt() {
+		// Show a file picker
+		let fileInput = document.createElement('input');
+		fileInput.setAttribute('type', 'file');
+		fileInput.setAttribute('accept', ".wrec");
+	
+		fileInput.onchange = async () => {
+			try {
+				let file = fileInput.files[0];
+				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(file);
+				let replay = Replay.fromSerialized(arrayBuffer);
+	
+				let mission = [...MissionLibrary.goldBeginner, ...MissionLibrary.goldIntermediate, ...MissionLibrary.goldAdvanced, ...MissionLibrary.goldCustom].find(x => x.path === replay.missionPath);
+				if (!mission) throw new Error("Mission not found.");
+	
+				this.div.classList.add('hidden');
+				this.menu.loadingScreen.loadLevel(mission, () => replay);
+			} catch (e) {
+				alert("There was an error loading the replay.");
+				console.error(e);
+			}
+		};
+		fileInput.click();
 	}
 
 	handleControllerInput(gamepad: Gamepad) {

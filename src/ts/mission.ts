@@ -49,7 +49,8 @@ export class Mission {
 	qualifyTime = Infinity;
 	goldTime = 0;
 	hasGoldTime = false; // Some customs don't have 'em
-	type: 'beginner' | 'intermediate' | 'advanced' | 'custom' = 'custom';
+	type: 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'custom' = 'custom';
+	modification: 'gold' | 'platinum';
 	zipDirectory: JSZip = null;
 	fileToBlobPromises = new Map<JSZip['files'][number], Promise<Blob>>();
 	difCache = new Map<string, Promise<DifFile>>();
@@ -72,6 +73,7 @@ export class Mission {
 		if (missionInfo.time && missionInfo.time !== "0") mission.qualifyTime = MisParser.parseNumber(missionInfo.time);
 		if (missionInfo.goldtime) mission.goldTime = MisParser.parseNumber(missionInfo.goldtime), mission.hasGoldTime = true;
 		mission.type = missionInfo.type.toLowerCase() as any;
+		mission.modification = path.startsWith('mbp/')? 'platinum' : 'gold';
 
 		return mission;
 	}
@@ -87,6 +89,7 @@ export class Mission {
 		if (entry.goldTime) mission.goldTime = entry.goldTime;
 		mission.id = entry.id;
 		mission.isNew = isNew;
+		mission.modification = entry.modification as ('gold' | 'platinum');
 
 		return mission;
 	}
@@ -143,12 +146,18 @@ export class Mission {
 			}
 		}
 	}
+ 
+	getDirectoryMissionPath() {
+		if (this.modification === 'gold') return 'missions/' + this.path;
+		return 'missions_mbp/' + this.path.slice(4);
+	}
 
 	/** Gets the path of the image of a mission. */
 	getImagePath() {
 		if (this.type !== 'custom') {
-			let withoutExtension = "missions/" + this.path.slice(0, -4);
-			let imagePaths = ResourceManager.getFullNamesOf(withoutExtension);
+			let directoryMissionPath = this.getDirectoryMissionPath();
+			let withoutExtension = directoryMissionPath.slice(0, -4);
+			let imagePaths = ResourceManager.getFullNamesOf(withoutExtension, this.modification !== 'gold');
 			let imagePath: string;
 			for (let path of imagePaths) {
 				if (!path.endsWith('.mis')) {
@@ -157,7 +166,9 @@ export class Mission {
 				}
 			}
 
-			return "./assets/data/missions/" + this.path.slice(0, this.path.lastIndexOf('/') + 1) + imagePath;
+			let res = directoryMissionPath.slice(0, directoryMissionPath.lastIndexOf('/') + 1) + imagePath;
+			if (this.modification === 'gold') return "./assets/data/" + res;
+			return "./assets/data_mbp/" + res;
 		} else {
 			// Request the bitmap
 			return `./api/custom/${this.id}.jpg`;
@@ -171,6 +182,8 @@ export class Mission {
 		rawElementPath = rawElementPath.toLowerCase();
 		let path = rawElementPath.slice(rawElementPath.indexOf('data/'));
 		if (path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
+
+		if (this.modification !== 'gold') path = path.replace('data/', 'data_mbp/');
 
 		let dif: DifFile = null;
 		if (this.difCache.get(path)) dif = await this.difCache.get(path); // We've already parsed the dif before
@@ -202,14 +215,16 @@ export class Mission {
 	async getDts(path: string) {
 		let dts: DtsFile = null;
 
-		if (this.zipDirectory && this.zipDirectory.files[path]) {
+		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
+
+		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
 			// Get it from the zip
-			let arrayBuffer = await this.zipDirectory.files[path].async('arraybuffer');
+			let arrayBuffer = await this.zipDirectory.files['data/' + path].async('arraybuffer');
 			let parser = new DtsParser(arrayBuffer);
 			let result = parser.parse();
 			dts = result;
 		} else {
-			dts = await DtsParser.loadFile('./assets/' + path);
+			dts = await DtsParser.loadFile('./assets/' + base + path);
 		}
 
 		return dts;
@@ -228,7 +243,7 @@ export class Mission {
 			}
 		}
 
-		result.push(...ResourceManager.getFullNamesOf(path));
+		result.push(...ResourceManager.getFullNamesOf(path, this.modification !== 'gold'));
 
 		return result;
 	}
@@ -251,12 +266,14 @@ export class Mission {
 	async getTexture(path: string, removeAlpha?: boolean) {
 		path = path.toLowerCase();
 
-		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
-			let blob = await this.getBlobForFile('data/' + path);
+		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
+
+		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
+			let blob = await this.getBlobForFile(base + path);
 			let url = ResourceManager.getUrlToBlob(blob);
 			return await ResourceManager.getTexture(url, removeAlpha, '');
 		} else {
-			return await ResourceManager.getTexture(path, removeAlpha);
+			return await ResourceManager.getTexture(path, removeAlpha, 'assets/' + base);
 		}
 	}
 

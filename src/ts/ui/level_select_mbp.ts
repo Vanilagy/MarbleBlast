@@ -1,10 +1,205 @@
+import { AudioManager } from "../audio";
+import { Mission } from "../mission";
+import { BestTimes } from "../storage";
+import { Util } from "../util";
 import { LevelSelect } from "./level_select";
+import { MissionLibrary } from "./mission_library";
 
 export class MbpLevelSelect extends LevelSelect {
+	loadReplayButton = document.querySelector('#mbp-load-replay-button') as HTMLImageElement;
+	shuffleButton = document.querySelector('#mbp-shuffle-button') as HTMLImageElement;
+	viewToggleButton = document.querySelector('#mbp-level-select-view-toggle') as HTMLImageElement;
+	metadataContainer = document.querySelector('#mbp-level-metadata') as HTMLDivElement;
+	scoresContainer = document.querySelector('#mbp-level-scores') as HTMLDivElement;
+
+	difficultySelectorCollapsed = document.querySelector('#mbp-difficulty-selector-collapsed') as HTMLImageElement;
+	difficultySelectorModificationIcon = document.querySelector('#mbp-difficulty-selector-modification-icon') as HTMLImageElement;
+	difficultySelectorWindow = document.querySelector('#mbp-difficulty-selector-window') as HTMLDivElement;
+	difficultySelectorContent = document.querySelector('#mbp-difficulty-selector-window > ._content') as HTMLDivElement;
+
+	localScoresCount = 5;
+	scorePlaceholderName = "Matan W.";
+	scoreElementHeight = 16;
+
 	initProperties() {
 		this.div = document.querySelector('#mbp-level-select');
 		this.homeButton = document.querySelector('#mbp-level-select-home-button');
-
 		this.homeButtonSrc = 'play/menu';
+
+		this.prevButton = document.querySelector('#mbp-level-select-prev') as HTMLImageElement;
+		this.playButton = document.querySelector('#mbp-level-select-play') as HTMLImageElement;
+		this.nextButton = document.querySelector('#mbp-level-select-next') as HTMLImageElement;
+		this.levelImage = document.querySelector('#mbp-level-image') as HTMLImageElement;
+		this.levelTitle = document.querySelector('#mbp-level-title') as HTMLParagraphElement;
+		this.levelArtist = document.querySelector('#mbp-level-artist') as HTMLParagraphElement;
+		this.levelDescription = document.querySelector('#mbp-level-description') as HTMLParagraphElement;
+		this.levelQualifyTime = document.querySelector('#mbp-level-qualify-time') as HTMLParagraphElement;
+		this.localBestTimesContainer = document.querySelector('#mbp-level-select-local-best-times') as HTMLDivElement;
+		this.leaderboardLoading = document.querySelector('#mbp-online-leaderboard-loading') as HTMLParagraphElement;
+		this.leaderboardScores = document.querySelector('#mbp-leaderboard-scores') as HTMLDivElement;
+		this.scrollWindow = document.querySelector('#mbp-level-select-text-window') as HTMLDivElement;
+		this.searchInput = document.querySelector('#mbp-search-input') as HTMLInputElement;
+	}
+
+	init() {
+		super.init();
+
+		this.menu.setupVaryingButton(this.difficultySelectorCollapsed, [
+			'play/difficulty_beginner', 'play/difficulty_intermediate', 'play/difficulty_advanced', 'play/difficulty_expert', 'play/difficulty_custom'
+		], () => {
+			if (this.difficultySelectorWindow.classList.contains('hidden')) {
+				this.difficultySelectorWindow.classList.remove('hidden');
+			} else {
+				this.difficultySelectorWindow.classList.add('hidden');
+			}
+		});
+
+		this.createDifficultySection('Gold', './assets/ui_mbp/play/marble_gold.png', [
+			{ name: 'Beginner', arr: MissionLibrary.goldBeginner },
+			{ name: 'Intermediate', arr: MissionLibrary.goldIntermediate },
+			{ name: 'Advanced', arr: MissionLibrary.goldAdvanced },
+			{ name: 'Custom', arr: MissionLibrary.goldCustom }
+		]);
+		this.createDifficultySection('Platinum', './assets/ui_mbp/play/marble_platinum.png', [
+			{ name: 'Beginner', arr: MissionLibrary.platinumBeginner },
+			{ name: 'Intermediate', arr: MissionLibrary.platinumIntermediate },
+			{ name: 'Advanced', arr: MissionLibrary.platinumAdvanced },
+			{ name: 'Expert', arr: MissionLibrary.platinumExpert },
+			{ name: 'Custom', arr: MissionLibrary.platinumCustom }
+		]);
+		this.createDifficultySection('Ultra', './assets/ui_mbp/play/marble_ultra.png', [
+			{ name: 'Beginner' },
+			{ name: 'Intermediate' },
+			{ name: 'Advanced' },
+			{ name: 'Custom' }
+		]);
+
+		this.difficultySelectorWindow.querySelector('._click-preventer').addEventListener('mousedown', () => {
+			AudioManager.play('buttonpress.wav');
+		});
+		this.difficultySelectorWindow.querySelector('._click-preventer').addEventListener('click', () => {
+			this.difficultySelectorWindow.classList.add('hidden');
+		});
+
+		this.menu.setupVaryingButton(this.viewToggleButton, ['mp/play/scoresactive', 'mp/play/settingsactive'], () => {
+			if (this.scoresContainer.classList.contains('hidden')) {
+				this.metadataContainer.classList.add('hidden');
+				this.scoresContainer.classList.remove('hidden');
+				this.levelQualifyTime.classList.add('hidden');
+				this.scrollWindow.style.height = '';
+				this.menu.setButtonVariant(this.viewToggleButton, 1);
+				this.viewToggleButton.title = "Show level information";
+			} else {
+				this.metadataContainer.classList.remove('hidden');
+				this.scoresContainer.classList.add('hidden');
+				this.levelQualifyTime.classList.remove('hidden');
+				this.scrollWindow.style.height = '150px';
+				this.menu.setButtonVariant(this.viewToggleButton, 0);
+				this.viewToggleButton.title = "Show scores";
+			}
+		});
+
+		this.menu.setupButton(this.loadReplayButton, 'play/replay', () => {
+			this.showLoadReplayPrompt();
+		});
+		this.menu.setupButton(this.shuffleButton, 'search/random', () => {
+			this.shuffle();
+		});
+
+		// Preload images and leaderboards
+		this.setMissionArray(MissionLibrary.goldCustom, false); // Make sure to disable the image timeouts so that no funky stuff happens
+		this.setMissionArray(MissionLibrary.goldAdvanced, false);
+		this.setMissionArray(MissionLibrary.goldIntermediate, false);
+		this.setMissionArray(MissionLibrary.goldBeginner, false);
+		this.setMissionArray(MissionLibrary.platinumCustom, false);
+		this.setMissionArray(MissionLibrary.platinumExpert, false);
+		this.setMissionArray(MissionLibrary.platinumAdvanced, false);
+		this.setMissionArray(MissionLibrary.platinumIntermediate, false);
+		this.setMissionArray(MissionLibrary.platinumBeginner, false);
+	}
+
+	createDifficultySection(title: string, img: string, difficulties: { name: string, arr?: Mission[] }[]) {
+		let div = document.createElement('div');
+		let header = document.createElement('p');
+		let icon = document.createElement('img');
+
+		div.classList.add('_section');
+		div.append(header, icon);
+
+		header.textContent = title;
+		icon.src = img;
+
+		for (let difficulty of difficulties) {
+			let container = document.createElement('div');
+			let nameElement = document.createElement('p');
+			let buttonElement = document.createElement('img');
+
+			container.append(nameElement, buttonElement);
+			div.append(container);
+
+			nameElement.textContent = difficulty.name;
+			this.menu.setupButton(buttonElement, 'play/difficulty_highlight-120', () => {
+				this.setMissionArray(difficulty.arr);
+				this.difficultySelectorWindow.classList.add('hidden');
+			});
+
+			if (!difficulty.arr) {
+				container.style.opacity = '0.333';
+				container.style.pointerEvents = 'none';
+			}
+		}
+
+		this.difficultySelectorContent.append(div);
+	}
+	
+	setMissionArray(arr: Mission[], doImageTimeout?: boolean) {
+		super.setMissionArray(arr, doImageTimeout);
+
+		if (arr.length > 0) {
+			this.menu.setButtonVariant(this.difficultySelectorCollapsed,
+				['beginner', 'intermediate', 'advanced', 'expert', 'custom'].indexOf(MissionLibrary.getDifficulty(arr))
+			);
+			this.difficultySelectorModificationIcon.src = "./assets/ui_mbp/play/" + ((MissionLibrary.getModification(arr) === 'gold')? "marble_gold.png" : "marble_platinum.png");
+		}
+	}
+
+	displayMetadata() {
+		let mission = this.currentMission;
+
+		this.levelTitle.textContent = `#${this.currentMissionIndex+1}: ${mission.title}`;
+		this.levelArtist.textContent = 'Author: ' + mission.artist.trim();
+		this.levelDescription.textContent = mission.description;
+		let qualifyTime = (mission.qualifyTime !== 0)? mission.qualifyTime : Infinity;
+		this.levelQualifyTime.innerHTML = `<span style="opacity: 0.8;">${mission.modification !== 'platinum'? 'Qualify' : 'Par'} Time: </span>` + (isFinite(qualifyTime)? Util.secondsToTimeString(qualifyTime / 1000) : 'N/A');
+	}
+
+	displayEmptyMetadata() {
+		this.levelTitle.innerHTML = '<br>';
+		this.levelArtist.innerHTML = '<br>'
+		this.levelDescription.innerHTML = '<br>';
+		this.levelQualifyTime.innerHTML = '';
+	}
+
+	createScoreElement(includeReplayButton: boolean) {
+		let element = document.createElement('div');
+		element.classList.add('mbp-level-select-best-time');
+
+		let name = document.createElement('div');
+		element.appendChild(name);
+
+		let time = document.createElement('div');
+		element.appendChild(time);
+
+		if (includeReplayButton) {
+			element.appendChild(this.createReplayButton());
+		}
+
+		return element;
+	}
+	
+	updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number) {
+		element.children[0].innerHTML = `<span>${rank}.</span> ${Util.htmlEscape(score[0])}`;
+		element.children[1].textContent = Util.secondsToTimeString(score[1] / 1000);
+		if (element.children[2]) this.updateReplayButton(element.children[2] as HTMLImageElement, score);
 	}
 }

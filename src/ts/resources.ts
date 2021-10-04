@@ -64,10 +64,10 @@ export abstract class ResourceManager {
 	}
 
 	/** Gets the full filenames (with extension) of the file located at the given path (without extension). */
-	static getFullNamesOf(path: string) {
+	static getFullNamesOf(path: string, mbp = false) {
 		let parts = path.split('/');
 
-		let current: DirectoryStructure = this.dataDirectoryStructure;
+		let current: DirectoryStructure = mbp? this.dataMbpDirectoryStructure : this.dataDirectoryStructure;
 		while (parts.length) {
 			let part = parts.shift();
 

@@ -1,0 +1,348 @@
+#mbp-level-select {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 800px;
+	height: 500px;
+	z-index: 0;
+}
+
+#mbp-level-select-home-button {
+	position: absolute;
+	display: block;
+	top: 325px;
+	left: 119px;
+}
+
+#mbp-level-select-view-toggle {
+	position: absolute;
+	display: block;
+	top: 325px;
+	left: 216px;
+	filter: hue-rotate(79deg) saturate(0.6) brightness(0.97);
+}
+
+#mbp-load-replay-button {
+	position: absolute;
+	display: block;
+	top: 325px;
+	left: 266px;
+}
+
+#mbp-shuffle-button {
+	position: absolute;
+	display: block;
+	top: 325px;
+	left: 314px;
+}
+
+#mbp-level-select-next {
+	position: absolute;
+	display: block;
+	top: 325px;
+	left: 605px;
+}
+
+#mbp-level-select-play {
+	position: absolute;
+	display: block;
+	top: 325px;
+	left: 511px;
+}
+
+#mbp-level-select-prev {
+	position: absolute;
+	display: block;
+	top: 325px;
+	left: 436px;
+}
+
+#mbp-level-image {
+	position: absolute;
+	display: block;
+	top: 96px;
+	left: 428px;
+	width: 256px;
+	height: 194px;
+	object-fit: fill;
+}
+
+#mbp-level-select-frame {
+	position: absolute;
+	display: block;
+	top: 96px;
+	left: 428px;
+}
+
+#mbp-difficulty-selector {
+	position: absolute;
+	display: block;
+	top: 0px;
+	left: 0px;
+}
+
+#mbp-difficulty-selector-collapsed {
+	position: absolute;
+	display: block;
+	top: 96px;
+	left: 169px;
+	z-index: 2;
+}
+
+#mbp-difficulty-selector-modification-icon {
+	position: absolute;
+	top: 107px;
+	left: 318px;
+	z-index: 3;
+	pointer-events: none;
+}
+
+#mbp-difficulty-selector ._click-preventer {
+	position: absolute;
+	top: -5000px;
+	left: -5000px;
+	width: 10000px;
+	height: 10000px;
+}
+
+#mbp-difficulty-selector-window {
+	position: absolute;
+	top: 114px;
+	left: 50px; 
+	height: 282px;
+	width: 438px;
+	border-style: solid;
+	border-image-source: url("/assets/ui_mbp/mp/menu/brown/joined.png");
+	border-image-slice: 45 48 62 48 fill;
+	border-image-width: 45px 48px 62px 48px;
+	border-image-repeat: stretch;
+	z-index: 1;
+}
+
+#mbp-difficulty-selector-window-tabt {
+	position: absolute;
+	top: -3px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+#mbp-difficulty-selector-window-divider {
+	border-style: solid;
+	border-image-source: url(/assets/ui_mbp/mp/menu/brown/divider-orange-joined.png);
+	border-image-slice: 0 12 0 12 fill;
+	border-image-repeat: stretch;
+	height: 12px;
+	width: 340px;
+	border-width: 12px;
+	position: absolute;
+	top: 48px;
+	left: 36px;
+}
+
+#mbp-difficulty-selector-window ._content {
+	display: flex;
+	position: absolute;
+	top: 32px;
+	left: 35px;
+}
+
+#mbp-difficulty-selector-window ._section {
+	width: 120px;
+	position: relative;
+}
+
+#mbp-difficulty-selector-window ._section > img {
+	position: absolute;
+	top: 5px;
+	right: 2px;
+}
+
+#mbp-difficulty-selector-window ._section p {
+	font-family: MarkerFelt;
+	margin: 0;
+	font-size: 20px;
+	padding-left: 5px;
+}
+
+#mbp-difficulty-selector-window ._section > p {
+	margin-bottom: 15px;
+}
+
+#mbp-difficulty-selector-window ._section > div {
+	position: relative;
+}
+
+#mbp-difficulty-selector-window ._section > div img {
+	display: block;
+}
+
+#mbp-difficulty-selector-window ._section > div p {
+	position: absolute;
+	top: 0;
+	left: 0;
+	pointer-events: none;
+}
+
+#mbp-level-select-text-window {
+	position: absolute;
+	top: 140px;
+	left: 112px;
+	width: 310px;
+	height: 176px;
+	overflow-x: hidden;
+	overflow-y: auto;
+	padding-bottom: 10px;
+	box-sizing: border-box;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#mbp-level-select-text-window::-webkit-scrollbar {
+	width: 5px;
+}
+
+#mbp-level-select-text-window::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#mbp-level-select-text-window::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+#mbp-level-title {
+	font-family: MarkerFelt;
+	margin: 0;
+	font-size: 22px;
+	white-space: pre-line;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+	text-align: center;
+}
+
+#mbp-level-artist {
+	font-family: MarkerFelt;
+	margin: 0;
+	font-size: 17px;
+	white-space: pre-line;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+	text-align: center;
+	opacity: 0.9;
+	margin-top: -2px;
+}
+
+#mbp-level-description {
+	font-family: MarkerFelt;
+	margin: 0;
+	font-size: 17px;
+	white-space: pre-line;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+	opacity: 0.8;
+	margin-top: -1px;
+}
+
+#mbp-level-qualify-time {
+	font-family: MarkerFelt;
+	margin: 0;
+	font-size: 19px;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+	text-align: center;
+	position: absolute;
+	top: 290px;
+	left: 118px;
+	width: 300px;
+}
+
+.mbp-level-select-best-time {
+	position: relative;
+	color: white;
+	font-size: 14px;
+	font-family: MarkerFelt;
+	text-shadow: 1px 1px 0px black;
+	height: 16px;
+}
+
+.mbp-level-select-best-time > div:nth-child(1) {
+	width: 230px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mbp-level-select-best-time > div:nth-child(1) span {
+	display: inline-block;
+	min-width: 15px;
+	opacity: 0.8;
+}
+
+.mbp-level-select-best-time > div:nth-child(2) {
+	position: absolute;
+	top: 0;
+	right: 25px;
+}
+
+.mbp-level-select-best-time > img {
+	display: block;
+	position: absolute;
+	top: 1px;
+	right: 0px;
+	opacity: 0.333;
+}
+
+.mbp-level-select-best-time > img:hover {
+	opacity: 0.666;
+}
+
+#mbp-online-leaderboard-heading {
+	margin: 0;
+	font-family: MarkerFelt;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+	margin-top: 10px;
+	font-size: 18px;
+}
+
+#mbp-online-leaderboard-loading {
+	display: block;
+	font-family: 'MarkerFelt';
+	color: white;
+	text-shadow: 1px 1px 0px black;
+	margin: 0;
+	font-size: 14px;
+	opacity: 0.8;
+}
+
+#mbp-search-bar {
+	position: absolute;
+	top: 289px;
+	left: 433px;
+	border-style: solid;
+	border-image-source: url(/assets/ui_mbp/options/textentry.png);
+	height: 32px;
+	width: 248px;
+	border-image-slice: 12 fill;
+	border-width: 10px;
+	box-sizing: border-box;
+}
+
+#mbp-search-input {
+	position: absolute;
+	top: 294px;
+	left: 439px;
+	background: none;
+	border: none;
+	font-family: 'MarkerFelt';
+	width: 230px;
+	padding-left: 5px;
+	font-size: 14px;
+}
+
+#mbp-search-input:focus {
+	outline: none;
+}

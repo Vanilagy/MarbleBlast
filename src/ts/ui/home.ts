@@ -47,13 +47,6 @@ export abstract class HomeScreen {
 			menu.optionsScreen.show();
 		});
 		menu.setupButton(this.exitButton, this.exitSrc, () => {}); // JavaScript can't close its own tab, so... don't do anything.
-
-		menu.setupButton(this.showChangelogButton, 'motd/motd_buttn_textless', () => {
-			this.changelogContainer.classList.remove('hidden');
-		});
-		menu.setupButton(this.changelogBackButton, 'play/back', () => {
-			this.changelogContainer.classList.add('hidden');
-		});
 	}
 
 	abstract initProperties(): void;

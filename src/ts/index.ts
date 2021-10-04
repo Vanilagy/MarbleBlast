@@ -9,6 +9,7 @@ import { Leaderboard } from './leaderboard';
 import { MbgMenu } from './ui/menu_mbg';
 import { MissionLibrary } from './ui/mission_library';
 import { state } from './state';
+import { MbpMenu } from './ui/menu_mbp';
 
 OIMO.Setting.defaultGJKMargin = 0.005; // Without this, the marble is very visibly floating above stuff.
 OIMO.Setting.defaultContactPositionCorrectionAlgorithm = OIMO.PositionCorrectionAlgorithm.NGS; // Slower, but there's really only one collision object anyway so
@@ -23,7 +24,7 @@ const init = async () => {
 	await ResourceManager.init();
 	await MissionLibrary.init();
 	AudioManager.init();
-	let menu = new MbgMenu();
+	let menu = new MbpMenu();
 	state.menu = menu;
 	await menu.init();
 	await Promise.all([Leaderboard.init()]);

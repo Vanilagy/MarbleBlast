@@ -15,9 +15,9 @@
 		
 		<link rel="stylesheet" href="./css/main.css">
 		<link rel="stylesheet" href="./css/home.css">
-		<link rel="stylesheet" href="./css/mbp_home.css">
+		<link rel="stylesheet" href="./css/home_mbp.css">
 		<link rel="stylesheet" href="./css/level_select.css">
-		<link rel="stylesheet" href="./css/mbp_level_select.css">
+		<link rel="stylesheet" href="./css/level_select_mbp.css">
 		<link rel="stylesheet" href="./css/loading.css">
 		<link rel="stylesheet" href="./css/help.css">
 		<link rel="stylesheet" href="./css/options.css">
@@ -106,16 +106,55 @@
 			<img src="./assets/ui_mbp/backgrounds/platinum/25.jpg" id="mbp-background-image">
 
 			<div id="mbp-home-screen">
-				<img src="./assets/ui_mbp/menu/play_n.png" id="mbp-home-play">
-				<img src="./assets/ui_mbp/menu/online_n.png" id="mbp-home-online">
-				<img src="./assets/ui_mbp/menu/options_n.png" id="mbp-home-options">
-				<img src="./assets/ui_mbp/menu/quit_n.png" id="mbp-home-quit">
-				<img src="./assets/ui_mbp/menu/help_n.png" id="mbp-home-help">
+				<div class="_inner">
+					<img src="./assets/ui_mbp/menu/play_n.png" id="mbp-home-play">
+					<img src="./assets/ui_mbp/menu/online_n.png" id="mbp-home-online">
+					<img src="./assets/ui_mbp/menu/options_n.png" id="mbp-home-options">
+					<img src="./assets/ui_mbp/menu/quit_n.png" id="mbp-home-quit">
+					<img src="./assets/ui_mbp/menu/help_n.png" id="mbp-home-help">
+				</div>
+				<img src="./assets/ui_mbp/menu/mbp.png" id="mbp-logo">
 			</div>
 
 			<div id="mbp-level-select" class="hidden">
 				<img src="./assets/ui_mbp/play/window.png" style="pointer-events: none; display: block;">
-				<img src="./assets/ui/play/back_n.png" id="mbp-level-select-home-button">
+				<img src="./assets/ui_mbp/play/menu_n.png" id="mbp-level-select-home-button">
+				<img src="./assets/ui_mbp/mp/play/scoresactive_n.png" id="mbp-level-select-view-toggle" title="Show scores">
+				<img src="./assets/ui_mbp/play/replay_n.png" id="mbp-load-replay-button" title="Load replay from file">
+				<img src="./assets/ui_mbp/search/random_n.png" id="mbp-shuffle-button" title="Go to random level">
+				<img src="./assets/ui_mbp/play/prev_n.png" id="mbp-level-select-prev">
+				<img src="./assets/ui_mbp/play/play_n.png" id="mbp-level-select-play">
+				<img src="./assets/ui_mbp/play/next_n.png" id="mbp-level-select-next">
+
+				<img id="mbp-level-image">
+				<img src="./assets/ui_mbp/play/levelframe.png" id="mbp-level-select-frame">
+				<div id="mbp-search-bar"></div>
+				<input id="mbp-search-input" maxlength="40" placeholder="Search Levels..." autocomplete="off" autocorrect="off" spellcheck="false">
+
+				<div id="mbp-difficulty-selector">
+					<img src="./assets/ui_mbp/play/difficulty_beginner_n.png" id="mbp-difficulty-selector-collapsed">
+					<img src="./assets/ui_mbp/play/marble_gold.png" id="mbp-difficulty-selector-modification-icon">
+					<div id="mbp-difficulty-selector-window" class="hidden">
+						<div class="_click-preventer"></div>
+						<img src="./assets/ui_mbp/mp/menu/brown/tabt.png" id="mbp-difficulty-selector-window-tabt">
+						<div id="mbp-difficulty-selector-window-divider"></div>
+						<div class="_content"></div>
+					</div>
+				</div>
+				<div id="mbp-level-select-text-window" style="height: 150px;">
+					<p id="mbp-level-title"></p>
+					<div id="mbp-level-metadata">
+						<p id="mbp-level-artist"></p>
+						<p id="mbp-level-description"></p>
+					</div>
+					<div id="mbp-level-scores" class="hidden">
+						<div id="mbp-level-select-local-best-times"></div>
+						<p id="mbp-online-leaderboard-heading">Online Leaderboard:</p>
+						<p id="mbp-online-leaderboard-loading">Loading scores...</p>
+						<div id="mbp-leaderboard-scores" style="box-sizing: border-box;"></div>
+					</div>
+				</div>
+				<p id="mbp-level-qualify-time"></p>
 			</div>
 		</div>
 
@@ -150,7 +189,6 @@
 				<img src="./assets/ui/play/back_n.png" id="changelog-back">
 			</div>
 
-			<div id="hidden-level-unlocker" class="hidden"></div>
 			<div id="level-select" class="hidden">
 				<img src="./assets/ui/play/playgui.png" style="pointer-events: none; display: block;">
 				<img src="./assets/ui/play/tab_begin.png" id="tab-beginner">
@@ -165,24 +203,7 @@
 						<p id="level-description"></p>
 						<p id="level-qualify-time"></p>
 						<p id="best-times-heading">Best Times:</p>
-						<div class="level-select-best-time" id="level-select-best-time-1">
-							<div></div>
-							<img src="./assets/ui/play/goldscore.png">
-							<div></div>
-							<img src="./assets/img/round_videocam_black_18dp.png" title="Alt-Click to download">
-						</div>
-						<div class="level-select-best-time" id="level-select-best-time-2">
-							<div></div>
-							<img src="./assets/ui/play/goldscore.png">
-							<div></div>
-							<img src="./assets/img/round_videocam_black_18dp.png" title="Alt-Click to download">
-						</div>
-						<div class="level-select-best-time" id="level-select-best-time-3">
-							<div></div>
-							<img src="./assets/ui/play/goldscore.png">
-							<div></div>
-							<img src="./assets/img/round_videocam_black_18dp.png" title="Alt-Click to download">
-						</div>
+						<div id="level-select-local-best-times"></div>
 						<p id="online-leaderboard-heading">Online Leaderboard:</p>
 						<p id="online-leaderboard-loading">Loading scores...</p>
 						<div id="leaderboard-scores" style="box-sizing: border-box;"></div>
@@ -192,11 +213,10 @@
 				<div id="level-select-level-window">
 					<img src="./assets/ui/play/level_window.png">
 					<img id="level-image">
-					<div id="not-qualified-overlay" style="display: none;">Not Qualified!</div>
 					<p id="level-number"></p>
 					<div id="search-bar"></div>
 					<input id="search-input" maxlength="40" placeholder="Search Levels..." autocomplete="off" autocorrect="off" spellcheck="false">
-					<p id="new-badge">New!</p>
+					<p id="new-badge" class="hidden">New!</p>
 				</div>
 				<img src="./assets/ui/play/prev_n.png" id="level-select-prev">
 				<img src="./assets/ui/play/play_n.png" id="level-select-play">

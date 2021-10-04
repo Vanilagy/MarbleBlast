@@ -586,6 +586,12 @@ export abstract class Util {
 
 		return 0;
 	}
+
+	static htmlEscapeElem = document.createElement('p');
+	static htmlEscape(raw: string) {
+		this.htmlEscapeElem.textContent = raw;
+		return this.htmlEscapeElem.innerHTML;
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

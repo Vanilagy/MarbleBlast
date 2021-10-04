@@ -96,7 +96,10 @@ export class Interior {
 				let mat = new THREE.MeshLambertMaterial();
 				materials.push(mat);
 				
-				let fullPath = this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length);
+				let fullPath = this.difPath.includes('data/')?
+					this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length)
+					: this.difPath.slice(this.difPath.indexOf('data_mbp/') + 'data_mbp/'.length);
+
 				const lookForTexture = async () => {
 					let currentPath = fullPath;
 	

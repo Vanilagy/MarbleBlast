@@ -36,8 +36,6 @@ interface StorageData {
 		reflectiveMarble: boolean
 	},
 	bestTimes: Record<string, BestTimes>,
-	/** Stores the amount of unlocked levels per category of level (beginner, intermediate, advanced) */
-	unlockedLevels: [number, number, number],
 	/** Used for the name entry in the post-game screen. */
 	lastUsedName: string,
 	/** A random ID to somewhat uniquely identify this user, even if they change their username. */
@@ -77,7 +75,6 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		reflectiveMarble: false
 	},
 	bestTimes: {},
-	unlockedLevels: [1, 1, 1],
 	lastUsedName: '',
 	randomId: getRandomId(),
 	bestTimeSubmissionQueue: {},
@@ -140,11 +137,12 @@ export abstract class StorageManager {
 			}
 		}
 
-		// Set some default values if they're missing
+		// Set some default values if they're missing and fix other stuff
 		if (!this.data.settings.gameButtonMapping.restart) this.data.settings.gameButtonMapping.restart = 'KeyR';
 		if (!this.data.randomId) this.data.randomId = getRandomId();
 		if (this.data.settings.reflectiveMarble === undefined) this.data.settings.reflectiveMarble = false;
 		if (!this.data.bestTimeSubmissionQueue) this.data.bestTimeSubmissionQueue = {};
+		delete (this.data as any).unlockedLevels; // Not needed anymore, all levels are now unlocked by default
 	}
 
 	/** Migrates from localStorage to IndexedDB. */
@@ -179,7 +177,7 @@ export abstract class StorageManager {
 	}
 
 	/** Get the three best times for a mission path. */
-	static getBestTimesForMission(path: string) {
+	static getBestTimesForMission(path: string, count: number, placeholderName: string) {
 		let result: BestTimes = [];
 		let stored = this.data.bestTimes[path];
 		if (stored) {
@@ -187,10 +185,10 @@ export abstract class StorageManager {
 		}
 		result.sort((a, b) => a[1] - b[1]); // Make sure they're in ascending order
 
-		let remaining = 3 - result.length;
+		let remaining = count - result.length;
 		for (let i = 0; i < remaining; i++) {
 			// Fill the remaining slots with Nardo Polo scores
-			result.push(["Nardo Polo", MAX_SCORE_TIME, "", 0]);
+			result.push([placeholderName, MAX_SCORE_TIME, "", 0]);
 		}
 
 		return result;

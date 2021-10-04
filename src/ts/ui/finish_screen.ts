@@ -7,7 +7,6 @@ import { state } from "../state";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
-import { MissionLibrary } from "./mission_library";
 
 export abstract class FinishScreen {
 	div:HTMLDivElement;
@@ -155,7 +154,7 @@ export abstract class FinishScreen {
 	
 		this.drawBestTimes();
 	
-		let bestTimes = StorageManager.getBestTimesForMission(level.mission.path);
+		let bestTimes = StorageManager.getBestTimesForMission(level.mission.path, 3, 'Nardo Polo');
 		let place = bestTimes.filter((time) => time[1] <= level.finishTime.gameplayClock).length; // The place is determined by seeing how many scores there currently are faster than the achieved time.
 	
 		if (place <= 2 && !failedToQualify) {
@@ -168,17 +167,9 @@ export abstract class FinishScreen {
 			this.nameEntryScreenDiv.classList.add('hidden');
 		}
 	
-		// Unlock the next level if qualified
 		if (!failedToQualify && level.mission.type !== 'custom') {
 			let levelSelect = state.menu.levelSelect;
-			let typeIndex = ['beginner', 'intermediate', 'advanced'].indexOf(level.mission.type);
-			let levelIndex = levelSelect.currentMissionArray.indexOf(level.mission);
-			let unlockedLevels = Math.min(Math.max(StorageManager.data.unlockedLevels[typeIndex], levelIndex + 1 + 1), [MissionLibrary.goldBeginner, MissionLibrary.goldIntermediate, MissionLibrary.goldAdvanced][typeIndex].length);
-			
-			StorageManager.data.unlockedLevels[typeIndex] = unlockedLevels;
-			StorageManager.store();
-	
-			if (levelSelect.currentMissionIndex === levelIndex) levelSelect.cycleMission(1); // Cycle to that next level, but only if it isn't already selected
+			if (levelSelect.currentMission === level.mission) levelSelect.cycleMission(1); // Cycle to that next level, but only if it isn't already selected
 		}
 	
 		// Hide the replay button if the replay's invalid
@@ -194,7 +185,7 @@ export abstract class FinishScreen {
 		let level = state.currentLevel;
 		let goldTime = level.mission.goldTime;
 
-		let bestTimes = StorageManager.getBestTimesForMission(level.mission.path);
+		let bestTimes = StorageManager.getBestTimesForMission(level.mission.path, 3, 'Nardo Polo');
 		this.bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
 		this.bestTime1.children[1].textContent = Util.secondsToTimeString(bestTimes[0][1] / 1000);
 		(this.bestTime1.children[1] as HTMLParagraphElement).style.color = (bestTimes[0][1] <= goldTime)? '#fff700' : '';
