@@ -1,9 +1,8 @@
 import { Shape } from "../shape";
 import * as THREE from "three";
-import { state } from "../state";
 import { Util, Scheduler } from "../util";
 import { ParticleEmitter } from "../particles";
-import { TimeState } from "../level";
+import { Level, TimeState } from "../level";
 import { AudioManager } from "../audio";
 import OIMO from "../declarations/oimo";
 
@@ -46,7 +45,7 @@ export class EndPad extends Shape {
 
 	/** Starts the finish celebration firework at a given time. */
 	spawnFirework(time: TimeState) {
-		let firework = new Firework(this.worldPosition, time.timeSinceLoad);
+		let firework = new Firework(this.level, this.worldPosition, time.timeSinceLoad);
 		this.fireworks.push(firework);
 
 		AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
@@ -200,19 +199,21 @@ interface Trail {
 
 /** Handles the firework animation that plays on the finish pad upon level completion. */
 class Firework extends Scheduler {
+	level: Level;
 	pos: THREE.Vector3;
 	spawnTime: number;
 	trails: Trail[] = [];
 	/** The fireworks are spawned in waves, this controls how many are left. */
 	wavesLeft = 4;
 
-	constructor(pos: THREE.Vector3, spawnTime: number) {
+	constructor(level: Level, pos: THREE.Vector3, spawnTime: number) {
 		super();
 
+		this.level = level;
 		this.pos = pos;
 		this.spawnTime = spawnTime;
 
-		state.currentLevel.particles.createEmitter(fireworkSmoke, this.pos); // Start the smoke
+		this.level.particles.createEmitter(fireworkSmoke, this.pos); // Start the smoke
 		this.doWave(this.spawnTime); // Start the first wave
 	}
 
@@ -231,13 +232,13 @@ class Firework extends Scheduler {
 
 			if (completion === 1) {
 				// The trail has reached its end, remove the emitter and spawn the explosion.
-				state.currentLevel.particles.removeEmitter(trail.smokeEmitter);
+				this.level.particles.removeEmitter(trail.smokeEmitter);
 				Util.removeFromArray(this.trails, trail);
 
 				if (trail.type === 'red') {
-					state.currentLevel.particles.createEmitter(redSpark, pos);
+					this.level.particles.createEmitter(redSpark, pos);
 				} else {
-					state.currentLevel.particles.createEmitter(blueSpark, pos);
+					this.level.particles.createEmitter(blueSpark, pos);
 				}
 			}
 		}
@@ -261,7 +262,7 @@ class Firework extends Scheduler {
 
 		let lifetime = 250 + Math.random() * 2000;
 		let distanceFac = 0.5 + lifetime / 5000; // Make sure the firework doesn't travel a great distance way too quickly
-		let emitter = state.currentLevel.particles.createEmitter((type === 'red')? redTrail : blueTrail, this.pos);
+		let emitter = this.level.particles.createEmitter((type === 'red')? redTrail : blueTrail, this.pos);
 		let randomPointInCircle = Util.randomPointInUnitCircle();
 		let targetPos = new THREE.Vector3(randomPointInCircle.x * 3, randomPointInCircle.y * 3, 1 + Math.sqrt(Math.random()) * 3).multiplyScalar(distanceFac).add(this.pos);
 

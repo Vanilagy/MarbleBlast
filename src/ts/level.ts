@@ -417,6 +417,8 @@ export class Level extends Scheduler {
 	async initSounds() {
 		let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
 		let musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The music choice is based off of level index
+		
+		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
 
 		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
 		this.music = AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
@@ -1288,7 +1290,7 @@ export class Level extends Scheduler {
 	/** Stops and destroys the current level and returns back to the menu. */
 	stopAndExit() {
 		this.stop();
-		state.currentLevel = null;
+		state.level = null;
 
 		state.menu.pauseScreen.hide();
 		state.menu.levelSelect.show();

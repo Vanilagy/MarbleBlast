@@ -1,6 +1,6 @@
-import * as THREE from "three";
-import { Util } from "../util";
+import THREE from "three";
 import { ResourceManager } from "../resources";
+import { Util } from "../util";
 
 export interface MisFile {
 	root: MissionElementSimGroup,
@@ -54,7 +54,31 @@ export interface MissionElementScriptObject extends MissionElementBase {
 	starthelptext: string,
 	level: string,
 	artist: string,
-	goldtime: string
+	goldtime: string,
+	platinumtime: string,
+	ultimatetime: string,
+	awesometime: string,
+	game: string,
+	modification: string,
+	gamemode: string,
+	music: string,
+	gametype: string,
+
+	score: any,
+	score0: any,
+	score1: any,
+	goldscore: any,
+	goldscore0: any,
+	goldscore1: any,
+	platinumscore: any,
+	platinumscore0: any,
+	platinumscore1: any,
+	ultimatescore: any,
+	ultimatescore0: any,
+	ultimatescore1: any,
+	awesomescore: any
+	awesomescore0: any
+	awesomescore1: any
 }
 
 export interface MissionElementMissionArea extends MissionElementBase {
@@ -219,7 +243,7 @@ export interface MissionElementParticleEmitterNode extends MissionElementBase {
 
 type MissionElement = MissionElementSimGroup | MissionElementScriptObject | MissionElementMissionArea | MissionElementSky | MissionElementSun | MissionElementInteriorInstance | MissionElementStaticShape | MissionElementItem | MissionElementPath | MissionElementMarker | MissionElementPathedInterior | MissionElementTrigger | MissionElementAudioProfile | MissionElementMessageVector | MissionElementTSStatic | MissionElementParticleEmitterNode;
 
-const elementHeadRegEx = /new (\w+)\((\w*)\) *{/g;
+const elementHeadRegEx = /new\s+(\w+)\((.*?)\)\s*{/g;
 const blockCommentRegEx = /\/\*(.|\n)*?\*\//g;
 const lineCommentRegEx = /\/\/.*/g;
 const assignmentRegEx = /(\$(?:\w|\d)+)\s*=\s*(.+?);/g;
@@ -289,12 +313,15 @@ export class MisParser {
 			if (!blockMatch && !lineMatch) break;
 			else if (!lineMatch || (blockMatch && lineMatch && blockMatch.index < lineMatch.index)) {
 				this.text = this.text.slice(0, blockMatch.index) + this.text.slice(blockMatch.index + blockMatch[0].length);
-				currentIndex += blockMatch.index;
+				currentIndex = blockMatch.index;
 			} else {
 				this.text = this.text.slice(0, lineMatch.index) + this.text.slice(lineMatch.index + lineMatch[0].length);
-				currentIndex += lineMatch.index;
+				currentIndex = lineMatch.index;
 			}
 		}
+
+		let indexOfMissionGroup = this.text.indexOf('new SimGroup(MissionGroup)');
+		if (indexOfMissionGroup !== -1) this.index = indexOfMissionGroup;
 
 		// Read out all elements (we're expecting exactly one!)
 		let elements = [];
@@ -605,13 +632,14 @@ export class MisParser {
 
 	/** Parses a numeric value. */
 	static parseNumber(string: string) {
-		if (!string) return 0;
+		if (!string || typeof string !== 'string') return 0;
 		// Strange thing here, apparently you can supply lists of numbers. In this case tho, we just take the first value.
 		let val = Number(string.split(',')[0]);
 		if (isNaN(val)) return 0;
 		return val;
 	}
 
+	
 	/** Parses a list of space-separated numbers. */
 	static parseNumberList(string: string) {
 		let parts = string.split(' ');

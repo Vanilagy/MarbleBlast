@@ -3,6 +3,7 @@ import { ResourceManager } from "./resources";
 import { DifParser, DifFile } from "./parsing/dif_parser";
 import { Util } from "./util";
 import { DtsFile, DtsParser } from "./parsing/dts_parser";
+import { state } from "./state";
 
 /** A custom levels archive entry. */
 export interface CLAEntry {
@@ -215,7 +216,7 @@ export class Mission {
 	async getDts(path: string) {
 		let dts: DtsFile = null;
 
-		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
+		let base = (state.modification === 'gold')? 'data/' : 'data_mbp/';
 
 		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
 			// Get it from the zip

@@ -126,13 +126,13 @@ export abstract class Hud {
 		if (message === 'MSG_RACETOTHEFINISH') message = "Race to the finish!";
 
 		this.helpElement.textContent = message;
-		state.currentLevel.helpTextTimeState = Util.jsonClone(state.currentLevel.timeState);
+		state.level.helpTextTimeState = Util.jsonClone(state.level.timeState);
 	}
 
 	/** Displays an alert at the bottom of the screen. */
 	displayAlert(message: string) {
 		this.alertElement.textContent = message;
-		state.currentLevel.alertTextTimeState = Util.jsonClone(state.currentLevel.timeState);
+		state.level.alertTextTimeState = Util.jsonClone(state.level.timeState);
 	}
 
 	setCenterText(type: 'none' | 'ready' | 'set' | 'go' | 'outofbounds') {

@@ -5,8 +5,6 @@ import { Replay } from "../replay";
 import { Mission } from "../mission";
 import { Menu } from "./menu";
 
-const MAX_PROGRESS_BAR_WIDTH = 252;
-
 export abstract class LoadingScreen {
 	menu: Menu;
 	div: HTMLDivElement;
@@ -15,6 +13,7 @@ export abstract class LoadingScreen {
 	progressBar: HTMLDivElement;
 	loadingIndex = 0;
 	refresher: number;
+	abstract maxProgressBarWidth: number;
 
 	constructor(menu: Menu) {
 		this.menu = menu;
@@ -57,7 +56,7 @@ export abstract class LoadingScreen {
 		this.refresher = setInterval(() => {
 			// Constantly refresh the loading bar's width
 			let completion = level.getLoadingCompletion();
-			this.progressBar.style.width = (completion * MAX_PROGRESS_BAR_WIDTH) + 'px';
+			this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
 		}) as unknown as number;
 
 		let level = new Level(mission);
@@ -82,7 +81,7 @@ export abstract class LoadingScreen {
 			let start = performance.now();
 			this.refresher = setInterval(() => {
 				let completion = Util.clamp((performance.now() - start) / 100, 0, 1);
-				this.progressBar.style.width = (completion * MAX_PROGRESS_BAR_WIDTH) + 'px';
+				this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
 			});
 
 			await Util.wait(150);
@@ -95,7 +94,7 @@ export abstract class LoadingScreen {
 
 			// Loading has finished, hop into gameplay.
 
-			state.currentLevel = level;
+			state.level = level;
 			level.start();
 
 			this.hide();

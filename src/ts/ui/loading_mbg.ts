@@ -1,6 +1,8 @@
 import { LoadingScreen } from "./loading";
 
 export class MbgLoadingScreen extends LoadingScreen {
+	maxProgressBarWidth = 252;
+
 	initProperties() {
 		this.div = document.querySelector('#loading') as HTMLDivElement;
 		this.levelNameElement = document.querySelector('#loading-level-name') as HTMLParagraphElement;

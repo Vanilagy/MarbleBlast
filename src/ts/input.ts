@@ -9,13 +9,13 @@ export const currentMousePosition = {
 window.addEventListener('mousemove', (e) => {
 	currentMousePosition.x = e.clientX;
 	currentMousePosition.y = e.clientY;
-	state.currentLevel?.onMouseMove(e);
+	state.level?.onMouseMove(e);
 });
 
 window.addEventListener('mousedown', (e) => {
 	if (!StorageManager.data) return;
 	// Request pointer lock if we're currently in-game
-	if (state.currentLevel && !state.currentLevel.paused && !state.currentLevel.finishTime) document.documentElement.requestPointerLock();
+	if (state.level && !state.level.paused && !state.level.finishTime) document.documentElement.requestPointerLock();
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName && document.pointerLockElement) {
@@ -26,9 +26,9 @@ window.addEventListener('mousedown', (e) => {
 	
 			setPressed(key, buttonName, true);
 			
-			if (state.currentLevel) {
-				if (key === 'jump' && isPressedOnce(key)) state.currentLevel.jumpQueued = true;
-				if (key === 'use' && isPressedOnce(key)) state.currentLevel.useQueued = true;
+			if (state.level) {
+				if (key === 'jump' && isPressedOnce(key)) state.level.jumpQueued = true;
+				if (key === 'use' && isPressedOnce(key)) state.level.useQueued = true;
 			}
 		}
 	}
@@ -58,9 +58,9 @@ window.addEventListener('keydown', (e) => {
 
 		setPressed(key, e.code, true);
 
-		if (state.currentLevel) {
-			if (key === 'jump' && isPressedOnce(key)) state.currentLevel.jumpQueued = true;
-			if (key === 'use' && isPressedOnce(key)) state.currentLevel.useQueued = true;
+		if (state.level) {
+			if (key === 'jump' && isPressedOnce(key)) state.level.jumpQueued = true;
+			if (key === 'use' && isPressedOnce(key)) state.level.useQueued = true;
 		}
 	}
 });
@@ -80,7 +80,7 @@ window.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable ri
 
 window.addEventListener('beforeunload', (e) => {
 	// Ask the user if they're sure about closing the tab if they're currently in game
-	if (state.currentLevel) {
+	if (state.level) {
 		e.preventDefault();
 		e.returnValue = '';
 	}
@@ -232,7 +232,7 @@ const updateGamepadInput = () => {
 	if (!state.menu.levelSelect.div.classList.contains('hidden')) 
 		state.menu.levelSelect.handleControllerInput(gamepads[mostRecentGamepad]);
 		
-	if (state.currentLevel?.paused)
+	if (state.level?.paused)
 		state.menu.pauseScreen.handleGamepadInput(gamepads[mostRecentGamepad]);
 	
 	for (let i = 0; i < gamepads[mostRecentGamepad].buttons.length && i < 18; i++) {

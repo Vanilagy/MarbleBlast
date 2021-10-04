@@ -15,18 +15,18 @@ export abstract class PauseScreen {
 		this.initProperties();
 
 		menu.setupButton(this.yesButton, 'common/yes', () => {
-			if (!state.currentLevel) return;
-			state.currentLevel.stopAndExit();
+			if (!state.level) return;
+			state.level.stopAndExit();
 		});
-		menu.setupButton(this.noButton, 'common/no', () => state.currentLevel.unpause());
+		menu.setupButton(this.noButton, 'common/no', () => state.level.unpause());
 		menu.setupButton(this.restartButton, 'common/restart', () => {
-			state.currentLevel.unpause();
-			state.currentLevel.restart();
+			state.level.unpause();
+			state.level.restart();
 		});
 
 		this.replayButton.addEventListener('click', async (e) => {
 			if (e.button !== 0) return;
-			let level = state.currentLevel;
+			let level = state.level;
 		
 			if (e.altKey) {
 				let serialized = await level.replay.serialize();
@@ -41,10 +41,10 @@ export abstract class PauseScreen {
 		});
 
 		window.addEventListener('keydown', (e) => {
-			if (!state.currentLevel) return;
+			if (!state.level) return;
 		
 			if (e.key === 'Escape') {
-				if (state.currentLevel?.paused) {
+				if (state.level?.paused) {
 					this.noButton.src = './assets/ui/common/no_d.png';
 				} else {
 					this.tryPause();
@@ -53,11 +53,11 @@ export abstract class PauseScreen {
 		});
 		
 		window.addEventListener('keyup', (e) => {
-			if (!state.currentLevel) return;
+			if (!state.level) return;
 		
-			if (state.currentLevel.paused && e.key === 'Escape' && this.noButton.src.endsWith('/assets/ui/common/no_d.png')) {
+			if (state.level.paused && e.key === 'Escape' && this.noButton.src.endsWith('/assets/ui/common/no_d.png')) {
 				this.noButton.src = './assets/ui/common/no_n.png';
-				state.currentLevel.unpause();
+				state.level.unpause();
 			}
 		});
 	}
@@ -73,34 +73,34 @@ export abstract class PauseScreen {
 	}
 
 	tryPause() {
-		if (!state.currentLevel
-			|| state.currentLevel.paused
-			|| (state.currentLevel.finishTime && state.currentLevel.replay.mode === 'record')) return;
+		if (!state.level
+			|| state.level.paused
+			|| (state.level.finishTime && state.level.replay.mode === 'record')) return;
 
-		state.currentLevel.pause();
+		state.level.pause();
 	}
 
 	handleGamepadInput(gamepad: Gamepad) {
 		// A button to exit
 		if (gamepad.buttons[0].value > 0.5 && !previousButtonState[0]) {
-			state.currentLevel.stopAndExit();
+			state.level.stopAndExit();
 			AudioManager.play('buttonpress.wav');
 		}
 		// B button or pause button to continue
 		if (gamepad.buttons[1].value > 0.5 && !previousButtonState[1]) {
-			state.currentLevel.unpause();
+			state.level.unpause();
 			AudioManager.play('buttonpress.wav');
 		}
 		if (gamepad.buttons[9].value > 0.5 && !previousButtonState[9]) {
-			state.currentLevel.unpause();
+			state.level.unpause();
 			resetPressedFlag('pause');
 			AudioManager.play('buttonpress.wav');
 		}
 		// Restart button to restart
 		if (gamepad.buttons[8].value > 0.5 && !previousButtonState[8]) {
-			state.currentLevel.unpause();
-			state.currentLevel.restart();
-			state.currentLevel.pressingRestart = true;
+			state.level.unpause();
+			state.level.restart();
+			state.level.pressingRestart = true;
 			AudioManager.play('buttonpress.wav');
 		}
 	}

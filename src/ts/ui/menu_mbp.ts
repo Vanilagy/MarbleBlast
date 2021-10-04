@@ -15,6 +15,7 @@ import { MbgOptionsScreen } from "./options_mbg";
 import { PauseScreen } from "./pause_screen";
 import { MbgPauseScreen } from "./pause_screen_mbg";
 import { MbgLoadingScreen } from "./loading_mbg";
+import { MbpLoadingScreen } from "./loading_mbp";
 
 export class MbpMenu extends Menu {
 	get uiAssetPath() {
@@ -32,7 +33,7 @@ export class MbpMenu extends Menu {
 	}
 
 	createLoadingScreen(): LoadingScreen {
-		return null;
+		return new MbpLoadingScreen(this);
 	}
 
 	createOptionsScreen(): OptionsScreen {
@@ -44,15 +45,15 @@ export class MbpMenu extends Menu {
 	}
 
 	createHud(): Hud {
-		return null;
+		return new MbgHud(this);
 	}
 
 	createPauseScreen(): PauseScreen {
-		return null;
+		return new MbgPauseScreen(this);
 	}
 
 	createFinishScreen(): FinishScreen {
-		return null;
+		return new MbgFinishScreen(this);
 	}
 
 	getMenuDiv() {

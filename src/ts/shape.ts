@@ -155,7 +155,7 @@ export class Shape {
 
 		this.id = id;
 		this.level = level;
-		this.dts = await ((this.level)? this.level.mission.getDts(this.dtsPath) : DtsParser.loadFile('./assets/data/' + this.dtsPath));
+		this.dts = await ((this.level)? this.level.mission.getDts(this.dtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.dtsPath));
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
 
 		this.group = new THREE.Group();
@@ -454,7 +454,7 @@ export class Shape {
 				}
 			} else if (fullName.endsWith('.ifl')) {
 				// Parse the .ifl file
-				let keyframes = await IflParser.loadFile('./assets/data/' + this.directoryPath + '/' + fullName);
+				let keyframes = await IflParser.loadFile(ResourceManager.mainDataPath + this.directoryPath + '/' + fullName);
 				this.materialInfo.set(material, { keyframes });
 
 				// Preload all frames of the material animation

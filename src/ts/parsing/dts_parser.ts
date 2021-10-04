@@ -389,7 +389,7 @@ class OldAlloc {
 
 /** A parser for .dts files, used for static shapes and items. Main resources are http://docs.garagegames.com/torque-3d/official/content/documentation/Artist%20Guide/Formats/dts_format.html#:~:text=DTS%20is%20the%20native%20binary,and%20(optionally)%20sequence%20data.&text=The%20DTS%20file%20format%20stores,loading%20on%20non%2DIntel%20platforms. and the Torque 3D source. */
 export class DtsParser extends BinaryFileParser {
-	parse(): DtsFile {
+	parse(stopAfterMaterials = false): DtsFile {
 		let version = this.readU16();
 		let exporterVersion = this.readU16();
 
@@ -429,8 +429,11 @@ export class DtsParser extends BinaryFileParser {
 			materialList = this.parseMaterialList(version);
 		}
 
-		let alloc = new Alloc(memBuffer, start32, start16, start8);
-		let shape = this.assembleShape(alloc, version);
+		let shape = {};
+		if (!stopAfterMaterials) {
+			let alloc = new Alloc(memBuffer, start32, start16, start8);
+			shape = this.assembleShape(alloc, version);
+		}
 
 		let obj = {
 			version,
@@ -618,12 +621,15 @@ export class DtsParser extends BinaryFileParser {
 
 		alloc.guard();
 
-		let meshes = Array(numMeshes).fill(null).map(() => {
+		let meshes: DtsFile["meshes"] = [];
+
+		for (let i = 0; i < numMeshes; i++) {
 			let type = alloc.readU32();
 			
 			if (type === MeshType.Null) {
 				// Null meshes are simply skipped
-				return null;
+				meshes.push(null);
+				continue;
 			}
 			
 			alloc.guard();
@@ -634,14 +640,15 @@ export class DtsParser extends BinaryFileParser {
 			let bounds = alloc.readBoxF();
 			let center = alloc.readPoint3F();
 			let radius = alloc.readF32();
-			let numVerts = alloc.readS32();
-			let verts = Array(numVerts).fill(null).map(() => alloc.readPoint3F());
-			let numTVerts = alloc.readS32();
-			let tverts = Array(numTVerts).fill(null).map(() => alloc.readPoint2F());
 
-			let norms = Array(numVerts).fill(null).map(() => alloc.readPoint3F());
+			let numVerts = alloc.readS32();
+			let verts = (parentMesh < 0)? Array(numVerts).fill(null).map(() => alloc.readPoint3F()) : meshes[parentMesh].verts;
+			let numTVerts = alloc.readS32();
+			let tverts = (parentMesh < 0)? Array(numTVerts).fill(null).map(() => alloc.readPoint2F()) : meshes[parentMesh].tverts;
+
+			let norms = (parentMesh < 0)? Array(numVerts).fill(null).map(() => alloc.readPoint3F()) : meshes[parentMesh].norms;
 			let encodedNorms: number[] = [];
-			if (version > 21) encodedNorms = Array(numVerts).fill(null).map(() => alloc.readU8());
+			if (version > 21) encodedNorms = (parentMesh < 0)? Array(numVerts).fill(null).map(() => alloc.readU8()) : meshes[parentMesh].encodedNorms;
 			let numPrimitives = alloc.readS32();
 			let primitives = Array(numPrimitives).fill(null).map(() => {
 				return {
@@ -707,8 +714,8 @@ export class DtsParser extends BinaryFileParser {
 				alloc.guard();
 			}
 
-			return mesh;
-		});
+			meshes.push(mesh);
+		}
 
 		alloc.guard();
 

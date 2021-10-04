@@ -111,7 +111,7 @@ export abstract class AudioManager {
 
 	/** Updates the pan and volume of positional audio sources based on the listener's location. */
 	static updatePositionalAudio(time: TimeState, listenerPos: THREE.Vector3, listenerYaw: number) {
-		let quat = state.currentLevel.getOrientationQuat(time);
+		let quat = state.level.getOrientationQuat(time);
 		quat.conjugate();
 
 		for (let source of this.audioSources) {

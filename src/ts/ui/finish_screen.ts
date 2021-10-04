@@ -34,14 +34,14 @@ export abstract class FinishScreen {
 		menu.setupButton(this.replayButton, 'endgame/replay', () => {
 			// Restart the level
 			this.div.classList.add('hidden');
-			state.currentLevel.restart();
+			state.level.restart();
 			document.documentElement.requestPointerLock();
 		});
-		menu.setupButton(this.continueButton, 'endgame/continue', () => state.currentLevel.stopAndExit());
+		menu.setupButton(this.continueButton, 'endgame/continue', () => state.level.stopAndExit());
 		
 		this.viewReplayButton.addEventListener('click', async (e) => {
 			if (e.button !== 0) return;
-			let level = state.currentLevel;
+			let level = state.level;
 
 			if (e.altKey) {
 				let serialized = await level.replay.serialize();
@@ -74,7 +74,7 @@ export abstract class FinishScreen {
 			StorageManager.store();
 		
 			// Store the time and close the dialog.
-			let level = state.currentLevel;
+			let level = state.level;
 			let inserted = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
 		
 			this.nameEntryScreenDiv.classList.add('hidden');
@@ -93,7 +93,7 @@ export abstract class FinishScreen {
 		});
 
 		window.addEventListener('keydown', (e) => {
-			if (!state.currentLevel) return;
+			if (!state.level) return;
 		
 			if (e.key === 'Enter') {
 				if (!this.nameEntryScreenDiv.classList.contains('hidden')) {
@@ -104,7 +104,7 @@ export abstract class FinishScreen {
 			}
 		});
 		window.addEventListener('keyup', (e) => {
-			if (!state.currentLevel) return;
+			if (!state.level) return;
 		
 			if (e.key === 'Enter') {
 				if (!this.nameEntryScreenDiv.classList.contains('hidden')) {
@@ -119,7 +119,7 @@ export abstract class FinishScreen {
 	abstract initProperties(): void;
 
 	show() {
-		let level = state.currentLevel;
+		let level = state.level;
 		this.div.classList.remove('hidden');
 	
 		let elapsedTime = Math.max(level.finishTime.currentAttemptTime - GO_TIME, 0);
@@ -182,7 +182,7 @@ export abstract class FinishScreen {
 
 	/** Updates the best times. */
 	drawBestTimes() {
-		let level = state.currentLevel;
+		let level = state.level;
 		let goldTime = level.mission.goldTime;
 
 		let bestTimes = StorageManager.getBestTimesForMission(level.mission.path, 3, 'Nardo Polo');
