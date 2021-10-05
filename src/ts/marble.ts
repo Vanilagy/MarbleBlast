@@ -2,7 +2,7 @@ import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { isPressed, gamepadAxes } from "./input";
-import { PHYSICS_TICK_RATE, TimeState, Level, GO_TIME } from "./level";
+import { PHYSICS_TICK_RATE, TimeState, Level } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
@@ -11,6 +11,7 @@ import { MisParser } from "./parsing/mis_parser";
 
 export const MARBLE_RADIUS = 0.2;
 export const MARBLE_ROLL_FORCE = 40 || 40;
+const TELEPORT_FADE_DURATION = 500;
 
 export const bounceParticleOptions = {
 	ejectionPeriod: 1,
@@ -42,6 +43,7 @@ export class Marble {
 	sphere: THREE.Mesh;
 	shape: OIMO.Shape;
 	body: OIMO.RigidBody;
+	marbleTexture: THREE.Texture;
 	/** The predicted position of the marble in the next tick. */
 	preemptivePosition: OIMO.Vec3;
 	/** The predicted orientation of the marble in the next tick. */
@@ -62,6 +64,8 @@ export class Marble {
 	helicopterSound: AudioSource = null;
 	shockAbsorberSound: AudioSource = null;
 	superBounceSound: AudioSource = null;
+	teleportEnableTime: number;
+	teleportDisableTime: number;
 
 	lastPos = new OIMO.Vec3();
 	lastVel = new OIMO.Vec3();
@@ -70,6 +74,7 @@ export class Marble {
 	lastContactNormal = new OIMO.Vec3(0, 0, 1);
 	/** Keep track of when the last collision happened to avoid handling collision with the same object twice in a row. */
 	collisionTimeout = 0;
+	slidingTimeout = 0;
 	
 	rollingSound: AudioSource;
 	slidingSound: AudioSource;
@@ -100,6 +105,7 @@ export class Marble {
 			marbleTexture = await ResourceManager.getTexture("shapes/balls/base.marble.png");
 		}
 		marbleTexture.flipY = true; // Because THREE.js UVs are different from what Torque would do
+		this.marbleTexture = marbleTexture;
 
 		// Create the 3D object
         let geometry = new THREE.SphereBufferGeometry(MARBLE_RADIUS, 32, 16);
@@ -222,6 +228,7 @@ export class Marble {
 		let movementRotationAxis = this.level.currentUp.cross(Util.vecThreeToOimo(movementVec));
 
 		this.collisionTimeout--;
+		this.slidingTimeout--;
 
 		if (current) {
 			let contact = current.getContact();
@@ -247,7 +254,7 @@ export class Marble {
 
 			// Implements sliding: If we hit the surface at an angle below 45°, and have movement keys pressed, we don't bounce.
 			let dot0 = -contactNormal.dot(lastSurfaceRelativeVelocity.clone().normalize());
-			if (dot0 > 0.001 && dot0 <= maxDotSlide && movementVec.length() > 0) {
+			if (this.slidingTimeout <= 0 && dot0 > 0.001 && dot0 <= maxDotSlide && movementVec.length() > 0) {
 				let dot = contactNormal.dot(surfaceRelativeVelocity);
 				let linearVelocity = this.body.getLinearVelocity();
 				let originalLength = linearVelocity.length();
@@ -273,7 +280,7 @@ export class Marble {
 			// Create a certain velocity boost on collisions with walls based on angular velocity. This assists in making wall-hits feel more natural.
 			outer:
 			if (this.collisionTimeout <= 0) {
-				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scale((1 - contactNormal.dot(this.level.currentUp)) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 15);
+				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scale((1 - Math.abs(contactNormal.dot(this.level.currentUp))) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 15);
 				if (angularBoost.length() < 0.01) break outer;
 
 				// Remove a bit of the current velocity so that the response isn't too extreme
@@ -336,14 +343,17 @@ export class Marble {
 			let penalty = Math.max(0, dot - Math.max(0, (surfaceShape.getFriction() - 1.0)));
 			movementRotationAxis = movementRotationAxis.scale(1 - penalty);
 
+			let combinedFriction = Math.sqrt(surfaceShape.getFriction() * this.shape.getFriction()); // Take the geometric mean
+
 			// Handle velocity slowdown
 			let angVel = this.body.getAngularVelocity();
 			let direction = movementRotationAxis.clone().normalize();
 			let dot2 = Math.max(0, angVel.dot(direction));
 			angVel = angVel.sub(direction.scale(dot2));
-			angVel = angVel.scale(0.02 ** (1 / PHYSICS_TICK_RATE));
+			angVel = angVel.scale(0.02 ** (combinedFriction / PHYSICS_TICK_RATE));
 			angVel = angVel.add(direction.scale(dot2));
-		 	if (time.currentAttemptTime >= GO_TIME)	this.body.setAngularVelocity(angVel);
+			if (angVel.length() > 285) angVel.scaleEq(285 / angVel.length()); // Absolute max angular speed
+		 	this.body.setAngularVelocity(angVel);
 
 			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot) {
 				// Cap the rolling velocity
@@ -459,13 +469,13 @@ export class Marble {
 		let dot = unitVelocity.dot(direction);
 		let directionalSpeed = dot * this.body.getLinearVelocity().length();
 
-		if ((directionalSpeed < magnitude || !onlyIncrease)) {
+		if (directionalSpeed < magnitude || !onlyIncrease) {
 			let velocity = this.body.getLinearVelocity();
 			velocity = velocity.sub(direction.scale(directionalSpeed));
 			velocity = velocity.add(direction.scale(magnitude));
 
 			this.body.setLinearVelocity(velocity);
-			onIncrease();
+			if (directionalSpeed < magnitude) onIncrease();
 		}
 	}
 
@@ -478,6 +488,34 @@ export class Marble {
 
 		this.forcefield.render(time);
 		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) this.helicopter.render(time);
+
+		// Update the teleporting look:
+
+		let mat = this.sphere.material as THREE.MeshLambertMaterial;
+		let teleportFadeCompletion = 0;
+
+		if (this.teleportEnableTime !== null) teleportFadeCompletion = Util.clamp((time.currentAttemptTime - this.teleportEnableTime) / TELEPORT_FADE_DURATION, 0, 1);
+		if (this.teleportDisableTime !== null) teleportFadeCompletion = Util.clamp(1 - (time.currentAttemptTime - this.teleportDisableTime) / TELEPORT_FADE_DURATION, 0, 1);
+
+		if (teleportFadeCompletion > 0) {
+			if (mat.map) {
+				mat.map = null;
+				mat.needsUpdate = true;
+			}
+			mat.opacity = Util.lerp(1, 0.25, teleportFadeCompletion);
+			mat.transparent = true;
+			mat.flatShading = true;
+			this.sphere.castShadow = false;
+		} else {
+			if (!mat.map) {
+				mat.map = this.marbleTexture;
+				mat.needsUpdate = true;
+			}
+			mat.opacity = 1;
+			mat.transparent = false;
+			mat.flatShading = false;
+			this.sphere.castShadow = true;
+		}
 	}
 
 	enableSuperBounce(time: TimeState) {
@@ -492,13 +530,32 @@ export class Marble {
 		this.helicopterEnableTime = time.currentAttemptTime;
 	}
 
+	enableTeleportingLook(time: TimeState) {
+		this.teleportEnableTime = time.currentAttemptTime;
+		this.teleportDisableTime = null;
+	}
+	
+	disableTeleportingLook(time: TimeState) {
+		let completion = Util.clamp((time.currentAttemptTime - this.teleportEnableTime) / TELEPORT_FADE_DURATION, 0, 1) ?? 1;
+		this.teleportDisableTime = time.currentAttemptTime - TELEPORT_FADE_DURATION * (1 - completion);
+		this.teleportEnableTime = null;
+	}
+
 	reset() {
 		this.body.setLinearVelocity(new OIMO.Vec3());
 		this.body.setAngularVelocity(new OIMO.Vec3());
 		this.superBounceEnableTime = -Infinity;
 		this.shockAbsorberEnableTime = -Infinity;
 		this.helicopterEnableTime = -Infinity;
+		this.teleportEnableTime = null;
+		this.teleportDisableTime = null;
 		this.lastContactNormal = new OIMO.Vec3(0, 0, 1);
 		this.lastVel = new OIMO.Vec3();
+		this.collisionTimeout = 0;
+		this.slidingTimeout = 0;
+
+		let mat = this.sphere.material as THREE.MeshLambertMaterial;
+		mat.map = this.marbleTexture;
+		mat.needsUpdate = true;
 	}
 }

@@ -246,6 +246,7 @@ export class Shape {
 						for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
 							let mesh = this.dts.meshes[i];
 							if (!mesh) continue;
+							if (mesh.parentMesh >= 0) continue; // If the node has a parent, skip it. Why? Don't know. Made teleport pad look correct.
 		
 							let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
 							let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
@@ -1026,7 +1027,7 @@ export class Shape {
 		for (let geometry of this.geometries) geometry.dispose();
 	}
 
-	onMarbleContact(time: TimeState, contact?: OIMO.Contact) {}
+	onMarbleContact(time: TimeState, contact?: OIMO.Contact): (boolean | void) {}
 	onMarbleInside(time: TimeState) {}
 	onMarbleEnter(time: TimeState) {}
 	onMarbleLeave(time: TimeState) {}

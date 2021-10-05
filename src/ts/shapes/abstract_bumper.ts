@@ -23,6 +23,7 @@ export abstract class AbstractBumper extends Shape {
 		
 		// Set the velocity along the contact normal, but make sure it's capped
 		marble.setLinearVelocityInDirection(contactNormal, 15, false);
+		marble.slidingTimeout = 2; // Make sure we don't slide on the bumper after bouncing off it
 
 		this.level.replay.recordMarbleContact(this);
 	}

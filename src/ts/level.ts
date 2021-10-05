@@ -44,6 +44,11 @@ import { Mission } from "./mission";
 import { PushButton } from "./shapes/push_button";
 import { DifFile } from "./parsing/dif_parser";
 import { state } from "./state";
+import { Sign } from "./shapes/sign";
+import { Magnet } from "./shapes/magnet";
+import { Nuke } from "./shapes/nuke";
+import { TeleportTrigger } from "./triggers/teleport_trigger";
+import { DestinationTrigger } from "./triggers/destination_trigger";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -476,7 +481,7 @@ export class Level extends Scheduler {
 		this.interiors.push(interior);
 
 		await Util.wait(10); // See shapes for the meaning of this hack
-		await interior.init();
+		await interior.init(element._id);
 
 		let interiorPosition = MisParser.parseVector3(element.position);
 		let interiorRotation = MisParser.parseRotation(element.rotation);
@@ -522,6 +527,9 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "trapdoor") shape = new TrapDoor(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "oilslick") shape = new Oilslick();
 		else if (dataBlockLowerCase === "pushbutton") shape = new PushButton();
+		else if (dataBlockLowerCase.startsWith("sign") || dataBlockLowerCase === "arrow") shape = new Sign(element as MissionElementStaticShape);
+		else if (dataBlockLowerCase === "magnet") shape = new Magnet();
+		else if (dataBlockLowerCase === "nuke") shape = new Nuke();
 
 		if (!shape) return;
 
@@ -550,12 +558,17 @@ export class Level extends Scheduler {
 		let trigger: Trigger;
 
 		// Create a trigger based on type
-		if (element.datablock === "OutOfBoundsTrigger") {
+		let dataBlockLowerCase = element.datablock?.toLowerCase();
+		if (dataBlockLowerCase === "outofboundstrigger") {
 			trigger = new OutOfBoundsTrigger(element, this);
-		} else if (element.datablock === "InBoundsTrigger") {
+		} else if (dataBlockLowerCase === "inboundstrigger") {
 			trigger = new InBoundsTrigger(element, this);
-		} else if (element.datablock === "HelpTrigger") {
+		} else if (dataBlockLowerCase === "helptrigger") {
 			trigger = new HelpTrigger(element, this);
+		} else if (dataBlockLowerCase === "teleporttrigger") {
+			trigger = new TeleportTrigger(element, this);
+		} else if (dataBlockLowerCase === "destinationtrigger") {
+			trigger = new DestinationTrigger(element, this);
 		}
 
 		if (!trigger) return;
@@ -635,6 +648,7 @@ export class Level extends Scheduler {
 
 		for (let shape of this.shapes) shape.reset();
 		for (let interior of this.interiors) interior.reset();
+		for (let trigger of this.triggers) trigger.reset();
 
 		// Reset the physics
 		this.currentUp = new OIMO.Vec3(0, 0, 1);
@@ -910,6 +924,7 @@ export class Level extends Scheduler {
 			// Update pathed interior velocities before running the simulation step
 			// Note: We do this even in replay playback mode, because pathed interior body position is relevant for the camera code.
 			for (let interior of this.interiors) interior.tick(this.timeState);
+			for (let trigger of this.triggers) trigger.tick(this.timeState);
 
 			// Step the physics
 			if (!playReplay) this.physics.step();

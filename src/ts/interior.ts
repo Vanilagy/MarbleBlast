@@ -13,14 +13,41 @@ const specialFriction: Record<string, number> = {
 	"friction_high": 1.5,
 	"friction_low": 0.025,
 	"friction_none": 0.001,
-	"friction_ramp_yellow": 2.0
+	"friction_ramp_yellow": 2.0,
+	"grass": 1.5,
+	"mmg_grass": 1.5,
+	"tarmac": 0.25,
+	"sand": 5.0,
+	"mmg_sand": 5.0,
+	"carpet": 10.0,
+	"rug": 10.0,
+	"water": 10.0,
+	"mmg_water": 10.0,
+	"ice1": 0.002,
+	"mmg_ice": 0.002,
+	"floor_bounce": 0.03,
+	"mbp_chevron_friction": 0.0,
+	"mbp_chevron_friction2": 0.0,
+	"mbp_chevron_friction3": 0.0
 };
 const specialResistutionFactor: Record<string, number> = {
 	"friction_high": 0.35,
 	"friction_low": 0.5,
-	"friction_none": 0.5
+	"friction_none": 0.5,
+	"grass": 0.5,
+	"mmg_grass": 0.5,
+	"tarmac": 0.7,
+	"sand": 0.1,
+	"mmg_sand": 0.1,
+	"carpet": 0.5,
+	"rug": 0.5,
+	"water": 0.0,
+	"mmg_water": 0.0,
+	"ice1": 0.95,
+	"mmg_ice": 0.95,
+	"floor_bounce": 0.0
 };
-const specialMaterials = new Set(Object.keys(specialFriction));
+const specialMaterials = new Set([...Object.keys(specialFriction), ...Object.keys(specialResistutionFactor)]);
 
 /** Stores a list of all vertices with similar face normal. */
 interface VertexBucket {
@@ -40,6 +67,8 @@ interface SharedInteriorData {
 
 /** Represents a Torque 3D Interior, used for the main surfaces and geometry of levels. */
 export class Interior {
+	/** The unique id of this interior. */
+	id: number;
 	level: Level;
 	dif: DifFile;
 	difPath: string;
@@ -53,10 +82,14 @@ export class Interior {
 	materialGeometry: MaterialGeometry = [];
 	/** Simply contains the file names of the materials without the path to them. */
 	materialNames: string[] = [];
+	bouncyFloors = new WeakSet<OIMO.Shape>();
+	randomForces = new WeakSet<OIMO.Shape>();
 	/** The data shared with other interiors with the same detail level (used for instancing). */
 	sharedData: SharedInteriorData;
 	/** Whether or not to use instancing. Usually true, but not for Macs. */
 	useInstancing = true;
+	/** Whether or not frictions and bouncy floors work on this interior. */
+	allowSpecialMaterials = true;
 	instanceIndex: number;
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
@@ -72,7 +105,9 @@ export class Interior {
 		this.useInstancing = !Util.isMac();
 	}
 
-	async init() {
+	async init(id: number) {
+		this.id = id;
+
 		// Check if there's already shared data from another interior
 		let sharedDataPromise = this.level.sharedInteriorData.get(this.detailLevel);
 		if (this.useInstancing && sharedDataPromise) {
@@ -275,9 +310,17 @@ export class Interior {
 			let geometry = new OIMO.ConvexHullGeometry(vertices);
 			let shapeConfig = new OIMO.ShapeConfig();
 			shapeConfig.geometry = geometry;
-			shapeConfig.restitution = INTERIOR_DEFAULT_RESTITUTION * (specialResistutionFactor[material] ?? 1);
-			shapeConfig.friction = INTERIOR_DEFAULT_FRICTION * (specialFriction[material] ?? 1);
+
+			if (this.allowSpecialMaterials) {
+				shapeConfig.restitution = INTERIOR_DEFAULT_RESTITUTION * (specialResistutionFactor[material] ?? 1);
+				shapeConfig.friction = INTERIOR_DEFAULT_FRICTION * (specialFriction[material] ?? 1);
+			}
+
 			let shape = new OIMO.Shape(shapeConfig);
+			shape.userData = this.id;
+			if (this.allowSpecialMaterials && material === 'floor_bounce') this.bouncyFloors.add(shape);
+			if (this.allowSpecialMaterials && material?.startsWith('mbp_chevron_friction')) this.randomForces.add(shape);
+
 			this.body.addShape(shape);
 		};
 
@@ -345,6 +388,34 @@ export class Interior {
 	dispose() {
 		if (this.materials) for (let material of this.materials) material.dispose();
 		if (this.mesh?.geometry) this.mesh.geometry.dispose();
+	}
+
+	onMarbleContact(time: TimeState, contact?: OIMO.Contact): boolean {
+		let contactShape = contact.getShape1();
+		if (contactShape === this.level.marble.shape) contactShape = contact.getShape2();
+
+		let marble = this.level.marble;
+		// Get the contact normal
+		let contactNormal = contact.getManifold().getNormal();
+		if (contact.getShape1().userData === this.id) contactNormal = contactNormal.scale(-1);
+
+		if (this.bouncyFloors.has(contactShape)) {
+			// Set the velocity along the contact normal, but make sure it's capped
+			marble.setLinearVelocityInDirection(contactNormal, 15, false);
+			marble.slidingTimeout = 2; // Make sure we don't slide on the interior after bouncing off it
+
+			return false;
+		} else if (this.randomForces.has(contactShape)) {
+			let angVel = marble.body.getAngularVelocity();
+			let movementVec = angVel.cross(contactNormal);
+			// Move the marble in the opposite direction
+			marble.body.addLinearVelocity(movementVec.scaleEq(-0.0015));
+			marble.body.setAngularVelocity(angVel.scaleEq(1.07));
+
+			return true;
+		}
+
+		return true;
 	}
 
 	tick(time: TimeState) {}

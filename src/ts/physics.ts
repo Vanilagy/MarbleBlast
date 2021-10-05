@@ -34,9 +34,10 @@ export class PhysicsHelper {
 	shapeColliderLookup = new Map<any, Shape>();
 	triggerLookup = new Map<any, Trigger>();
 	/** Shapes that recently were involved in a collision. */
-	shapeImmunity = new Set<Shape>();
+	objectImmunity = new Set<Shape | Interior>();
 	/** Remember which shapes or triggers we're currently inside. */
 	shapeOrTriggerInside = new Set<Shape | Trigger>();
+	interiorLookup = new Map<any, Interior>();
 
 	constructor(level: Level) {
 		this.level = level;
@@ -62,6 +63,7 @@ export class PhysicsHelper {
 
 	addInterior(interior: Interior) {
 		this.world.addRigidBody(interior.body);
+		this.interiorLookup.set(interior.id, interior);
 
 		if (interior instanceof PathedInterior) {
 			for (let trigger of interior.triggers) {
@@ -245,8 +247,8 @@ export class PhysicsHelper {
 	/** Checks collisions with objects and triggers and acts accordingly. */
 	callCollisionHandlers(movementDiff: OIMO.Vec3, movementDist: number) {
 		/** New shapes to be made immune */
-		let newImmunity: Shape[] = [];
-		let calledShapes = new Set<Shape>();
+		let newImmunity: (Shape | Interior)[] = [];
+		let calledObjects = new Set<Shape | Interior>();
 		let linkedList = this.level.marble.body.getContactLinkList();
 		while (linkedList) {
 			let contact = linkedList.getContact();
@@ -254,21 +256,22 @@ export class PhysicsHelper {
 			if (contactShape === this.level.marble.shape) contactShape = contact.getShape2();
 
 			if (contactShape.userData && contact.isTouching()) {
-				let shape = this.shapeLookup.get(contactShape.userData);
+				let object: Shape | Interior;
+				object = this.shapeLookup.get(contactShape.userData) ?? this.interiorLookup.get(contactShape.userData);
 
-				if (shape && !this.shapeImmunity.has(shape) && !calledShapes.has(shape)) {
-					// We found a valid collision with a shape
-					calledShapes.add(shape);
-					newImmunity.push(shape);
-					shape.onMarbleContact(this.level.timeState, contact);
+				if (object && !this.objectImmunity.has(object) && !calledObjects.has(object)) {
+					// We found a valid collision with an object
+					calledObjects.add(object);
+					let preventImmunity = object.onMarbleContact(this.level.timeState, contact);
+					if (!preventImmunity) newImmunity.push(object);
 				}
 			}
 
 			linkedList = linkedList.getNext();
 		}
 
-		this.shapeImmunity.clear();
-		for (let s of newImmunity) this.shapeImmunity.add(s);
+		this.objectImmunity.clear();
+		for (let s of newImmunity) this.objectImmunity.add(s);
 
 		let movementRot = new OIMO.Quat();
 		movementRot.setArc(new OIMO.Vec3(0, 1, 0), movementDiff.clone().normalize());
@@ -353,7 +356,7 @@ export class PhysicsHelper {
 	}
 
 	reset() {
-		this.shapeImmunity.clear();
+		this.objectImmunity.clear();
 		this.shapeOrTriggerInside.clear();
 	}
 

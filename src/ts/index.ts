@@ -24,9 +24,9 @@ const init = async () => {
 	await ResourceManager.init();
 	await MissionLibrary.init();
 	AudioManager.init();
+	state.modification = 'platinum';
 	let menu = new MbpMenu();
 	state.menu = menu;
-	state.modification = 'platinum';
 	await menu.init();
 	await Promise.all([Leaderboard.init()]);
 

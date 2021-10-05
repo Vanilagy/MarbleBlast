@@ -52,7 +52,7 @@ export abstract class Menu {
 	abstract createFinishScreen(): FinishScreen;
 	abstract getMenuDiv(): HTMLDivElement;
 
-	setupVaryingButton(element: HTMLImageElement, paths: string[], onclick: () => any, loadDisabledImage = false, triggerOnMouseDown = false) {
+	setupVaryingButton(element: HTMLImageElement, paths: string[], onclick: () => any, loadDisabledImage = false, triggerOnMouseDown = false, playHoverSound = true) {
 		let ogPaths = paths.slice();
 		paths = paths.map(x => this.uiAssetPath + x);
 		let held = false;
@@ -69,7 +69,7 @@ export abstract class Menu {
 			element.setAttribute('data-hovered', '');
 			if (element.style.pointerEvents === 'none') return;
 			if (!element.hasAttribute('data-locked')) element.src = held? down() : hover();
-			if (!held) AudioManager.play('buttonover.wav');
+			if (!held && playHoverSound) AudioManager.play('buttonover.wav');
 		});
 		element.addEventListener('mouseleave', () => {
 			hovered = false;
@@ -113,8 +113,8 @@ export abstract class Menu {
 		this.setButtonVariant(element, 0); // This will also set the button's default image
 	}
 
-	setupButton(element: HTMLImageElement, path: string, onclick: () => any, loadDisabledImage = false, triggerOnMouseDown = false) {
-		this.setupVaryingButton(element, [path], onclick, loadDisabledImage, triggerOnMouseDown);
+	setupButton(element: HTMLImageElement, path: string, onclick: () => any, loadDisabledImage?: boolean, triggerOnMouseDown?: boolean, playHoverSound?: boolean) {
+		this.setupVaryingButton(element, [path], onclick, loadDisabledImage, triggerOnMouseDown, playHoverSound);
 	}
 
 	setButtonVariant(element: HTMLImageElement, index: number) {

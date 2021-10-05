@@ -41,6 +41,8 @@ export class PathedInterior extends Interior {
 	prevPosition: THREE.Vector3;
 	currentPosition = new THREE.Vector3();
 
+	allowSpecialMaterials = false; // Frictions don't work on pathed interiors
+
 	/** Creates a PathedInterior from a sim group containing it and its path (and possible triggers). */
 	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
@@ -53,13 +55,13 @@ export class PathedInterior extends Interior {
 
 		level.interiors.push(pathedInterior);
 		await Util.wait(10); // See shapes for the meaning of this hack
-		await pathedInterior.init();
+		await pathedInterior.init(interiorElement._id);
 
 		return pathedInterior;
 	}
 
-	async init() {
-		await super.init();
+	async init(id: number) {
+		await super.init(id);
 
 		// Pathed interiors ignore the normal position, rotation, scale and use the base- variants instead.
 		this.basePosition = MisParser.parseVector3(this.element.baseposition);

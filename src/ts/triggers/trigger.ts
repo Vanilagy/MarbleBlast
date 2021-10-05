@@ -7,6 +7,7 @@ import * as THREE from "three";
 /** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
 export class Trigger {
 	id: number;
+	vertices: THREE.Vector3[];
 	body: OIMO.RigidBody;
 	level: Level;
 	element: MissionElementTrigger;
@@ -39,6 +40,7 @@ export class Trigger {
 		// Apply the transformation matrix to each vertex
 		let vertices = [p1, p2, p3, p4, p5, p6, p7, p8]
 			.map((vert) => Util.vecOimoToThree(vert).applyMatrix4(mat));
+		this.vertices = vertices;
 
 		// Triggers ignore the actual shape of the polyhedron and simply use its AABB.
 		let aabb = Util.createAabbFromVectors(vertices);
@@ -61,4 +63,6 @@ export class Trigger {
 	onMarbleInside(time: TimeState) {}
 	onMarbleEnter(time: TimeState) {}
 	onMarbleLeave(time: TimeState) {}
+	tick(time: TimeState) {}
+	reset() {}
 }

@@ -207,6 +207,16 @@ export interface MissionElementTrigger extends MissionElementBase {
 	targettime?: string,
 	instant?: string,
 	icontinuetottime?: string,
+
+	// teleport/destination trigger stuff:
+	destination?: string,
+	delay?: string,
+	centerdestpoint?: string,
+	keepvelocity?: string,
+	inversevelocity?: string,
+	keepangular?: string,
+	keepcamera?: string,
+	camerayaw?: string
 }
 
 /** Represents the song choice. */

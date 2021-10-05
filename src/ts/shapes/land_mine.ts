@@ -19,6 +19,7 @@ export class LandMine extends Shape {
 		// Add velocity to the marble
 		let explosionStrength = this.computeExplosionStrength(this.level.marble.body.getPosition().sub(minePos).length());
 		marble.body.addLinearVelocity(vec.scale(explosionStrength));
+		marble.slidingTimeout = 2;
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
 
