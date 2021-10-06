@@ -43,7 +43,9 @@ interface StorageData {
 	/** The queue of scores that are still to be sent to the server. */
 	bestTimeSubmissionQueue: Record<string, BestTimes[number]>,
 	/** The last-seen version of the game. */
-	lastSeenVersion: string
+	lastSeenVersion: string,
+	/** Mission paths whose eggs have been collected. */
+	collectedEggs: string[]
 }
 
 const DEFAULT_STORAGE_DATA: StorageData = {
@@ -78,7 +80,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	lastUsedName: '',
 	randomId: getRandomId(),
 	bestTimeSubmissionQueue: {},
-	lastSeenVersion: null
+	lastSeenVersion: null,
+	collectedEggs: []
 };
 
 /** Manages storage and persistence. */
@@ -142,6 +145,7 @@ export abstract class StorageManager {
 		if (!this.data.randomId) this.data.randomId = getRandomId();
 		if (this.data.settings.reflectiveMarble === undefined) this.data.settings.reflectiveMarble = false;
 		if (!this.data.bestTimeSubmissionQueue) this.data.bestTimeSubmissionQueue = {};
+		if (!this.data.collectedEggs) this.data.collectedEggs = [];
 		delete (this.data as any).unlockedLevels; // Not needed anymore, all levels are now unlocked by default
 	}
 

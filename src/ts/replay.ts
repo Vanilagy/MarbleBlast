@@ -10,6 +10,7 @@ import { executeOnWorker } from "./worker";
 import { PushButton } from "./shapes/push_button";
 import { Mission } from "./mission";
 import { Interior } from "./interior";
+import { Nuke } from "./shapes/nuke";
 
 /** Stores everything necessary for a correct replay of a playthrough. Instead of relying on replaying player inputs, the replay simply stores all necessary state. */
 export class Replay {
@@ -83,6 +84,11 @@ export class Replay {
 		id: number,
 		lastContactTime: number
 	}[] = [];
+	/** In order to replay nukes correctly, their visibility state upon attempt start must be reconstructed properly. */
+	nukeStartValues: {
+		id: number,
+		disappearTime: number
+	}[] = [];
 	/** The timeSinceLoad at the start of the play. */
 	timeSinceLoad: number;
 	/** The gain of the rolling sound for each physics tick. */
@@ -139,6 +145,7 @@ export class Replay {
 			this.trapdoorStartValues.length = 0;
 			this.landmineStartValues.length = 0;
 			this.pushButtonStartValues.length = 0;
+			this.nukeStartValues.length = 0;
 			this.rollingSoundGain.length = 0;
 			this.rollingSoundPlaybackRate.length = 0;
 			this.slidingSoundGain.length = 0;
@@ -164,6 +171,11 @@ export class Replay {
 					this.pushButtonStartValues.push({
 						id: shape.id,
 						lastContactTime: shape.lastContactTime
+					});
+				} else if (shape instanceof Nuke) {
+					this.nukeStartValues.push({
+						id: shape.id,
+						disappearTime: shape.disappearTime
 					});
 				}
 			}
@@ -193,6 +205,12 @@ export class Replay {
 
 					if (startValues.lastContactTime === null) startValues.lastContactTime = -Infinity;
 					shape.lastContactTime = startValues.lastContactTime - this.timeSinceLoad + this.level.timeState.timeSinceLoad;
+				} else if (shape instanceof Nuke) {
+					let startValues = this.nukeStartValues.find(x => x.id === shape.id);
+					if (!startValues) continue;
+
+					if (startValues.disappearTime === null) startValues.disappearTime = -Infinity;
+					shape.disappearTime = startValues.disappearTime - this.timeSinceLoad + this.level.timeState.timeSinceLoad;
 				}
 			}
 		}
@@ -368,6 +386,7 @@ export class Replay {
 			trapdoorStartValues: this.trapdoorStartValues,
 			landmineStartValues: this.landmineStartValues,
 			pushButtonStartValues: this.pushButtonStartValues,
+			nukeStartValues: this.nukeStartValues,
 			timeSinceLoad: this.timeSinceLoad,
 			rollingSoundGain: Util.arrayBufferToString(new Float32Array(this.rollingSoundGain).buffer),
 			rollingSoundPlaybackRate: Util.arrayBufferToString(new Float32Array(this.rollingSoundPlaybackRate).buffer),
@@ -421,6 +440,7 @@ export class Replay {
 		replay.trapdoorStartValues = serialized.trapdoorStartValues;
 		replay.landmineStartValues = serialized.landmineStartValues;
 		replay.pushButtonStartValues = serialized.pushButtonStartValues ?? []; // Might not be there in older versions
+		replay.nukeStartValues = serialized.nukeStartValues;
 		replay.timeSinceLoad = serialized.timeSinceLoad;
 		replay.rollingSoundGain = [...new Float32Array(Util.stringToArrayBuffer(serialized.rollingSoundGain))];
 		replay.rollingSoundPlaybackRate = [...new Float32Array(Util.stringToArrayBuffer(serialized.rollingSoundPlaybackRate))];
@@ -561,6 +581,10 @@ export interface SerializedReplay {
 	pushButtonStartValues: {
 		id: number,
 		lastContactTime: number
+	}[];
+	nukeStartValues: {
+		id: number,
+		disappearTime: number
 	}[];
 	timeSinceLoad: number;
 	rollingSoundGain: string;

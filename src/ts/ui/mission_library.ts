@@ -55,16 +55,6 @@ export abstract class MissionLibrary {
 			misFileToFilename.set(mbpMisFiles[i], mbpMissionFilenames[i]);
 		}
 
-		// Sort the missions by level index so they're in the right order
-		const sortFn = (a: MisFile, b: MisFile) => {
-			let missionInfo1 = a.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
-			let missionInfo2 = b.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
-
-			return MisParser.parseNumber(missionInfo1.level) - MisParser.parseNumber(missionInfo2.level);
-		};
-		mbgMisFiles.sort(sortFn);
-		mbpMisFiles.sort(sortFn);
-
 		let mbgMissions: Mission[] = [];
 		let mbpMissions: Mission[] = [];
 
@@ -77,6 +67,13 @@ export abstract class MissionLibrary {
 			let mission = Mission.fromMisFile('mbp/' + misFileToFilename.get(misFile), misFile);
 			mbpMissions.push(mission);
 		}
+
+		// Sort the missions by level index so they're in the right order
+		const sortFn = (a: Mission, b: Mission) => {
+			return MisParser.parseNumber(a.missionInfo.level) - MisParser.parseNumber(b.missionInfo.level);
+		};
+		mbgMissions.sort(sortFn);
+		mbpMissions.sort(sortFn);
 
 		// Read the custom level list
 		let customLevelList = await ResourceManager.readBlobAsJson(await customLevelListPromise) as CLAEntry[];

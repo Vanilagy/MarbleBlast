@@ -208,19 +208,14 @@ export class Level extends Scheduler {
 	/** Loads all necessary resources and builds the mission. */
 	async init() {
 		// Scan the mission for elements to determine required loading effort
-		const scanMission = (simGroup: MissionElementSimGroup) => {
-			for (let element of simGroup.elements) {
-				if ([MissionElementType.InteriorInstance, MissionElementType.Item, MissionElementType.PathedInterior, MissionElementType.StaticShape, MissionElementType.TSStatic].includes(element._type)) {
-					this.loadingState.total++;
+		for (let element of this.mission.allElements) {
+			if ([MissionElementType.InteriorInstance, MissionElementType.Item, MissionElementType.PathedInterior, MissionElementType.StaticShape, MissionElementType.TSStatic].includes(element._type)) {
+				this.loadingState.total++;
 
-					// Override the end pad element. We do this because only the last finish pad element will actually do anything.
-					if (element._type === MissionElementType.StaticShape && element.datablock?.toLowerCase() === 'endpad') this.endPadElement = element;
-				} else if (element._type === MissionElementType.SimGroup) {
-					scanMission(element);
-				}
+				// Override the end pad element. We do this because only the last finish pad element will actually do anything.
+				if (element._type === MissionElementType.StaticShape && element.datablock?.toLowerCase() === 'endpad') this.endPadElement = element;
 			}
-		};
-		scanMission(this.mission.root);
+		}
 		this.loadingState.total += 6 + 1 + 3 + 6; // For the scene, marble, UI and sounds (includes music!)
 
 		this.timeState = {
@@ -269,7 +264,7 @@ export class Level extends Scheduler {
 
 		let addedShadow = false;
 		// There could be multiple suns, so do it for all of them
-		for (let element of this.mission.root.elements) {
+		for (let element of this.mission.allElements) {
 			if (element._type !== MissionElementType.Sun) continue;
 
 			let directionalColor = MisParser.parseVector4(element.color);
@@ -308,7 +303,7 @@ export class Level extends Scheduler {
 			}
 		}
 
-		let skyElement = this.mission.root.elements.find((element) => element._type === MissionElementType.Sky) as MissionElementSky;
+		let skyElement = this.mission.allElements.find((element) => element._type === MissionElementType.Sky) as MissionElementSky;
 
 		let fogColor = MisParser.parseVector4(skyElement.fogcolor);
 		// Uber strange way Torque maps these values:
@@ -442,9 +437,13 @@ export class Level extends Scheduler {
 	}
 
 	async initSounds() {
-		let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
-		let musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The music choice is based off of level index
-		
+		let musicFileName: string;
+		if (this.mission.missionInfo.music) {
+			musicFileName = this.mission.missionInfo.music.toLowerCase();
+		} else {
+			let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
+			musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The default music choice is based off of level index
+		}
 		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
 
 		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName]);
@@ -684,7 +683,7 @@ export class Level extends Scheduler {
 		this.yaw = euler.z + Math.PI/2;
 		this.pitch = DEFAULT_PITCH;
 
-		let missionInfo = this.mission.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === "MissionInfo") as MissionElementScriptObject;
+		let missionInfo = this.mission.missionInfo;
 		if (missionInfo.starthelptext) state.menu.hud.displayHelp(missionInfo.starthelptext); // Show the start help text
 
 		for (let shape of this.shapes) shape.reset();
@@ -1126,7 +1125,7 @@ export class Level extends Scheduler {
 			euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
 		} else {
 			// Search for spawn points used for multiplayer
-			let spawnPoints = this.mission.root.elements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
+			let spawnPoints = this.mission.allElements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
 			if (spawnPoints) {
 				let first = spawnPoints.elements[0] as MissionElementTrigger;
 				position = MisParser.parseVector3(first.position);

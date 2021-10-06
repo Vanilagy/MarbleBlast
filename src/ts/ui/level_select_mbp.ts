@@ -1,6 +1,6 @@
 import { AudioManager } from "../audio";
 import { Mission } from "../mission";
-import { BestTimes } from "../storage";
+import { BestTimes, StorageManager } from "../storage";
 import { Util } from "../util";
 import { LevelSelect } from "./level_select";
 import { MissionLibrary } from "./mission_library";
@@ -11,6 +11,7 @@ export class MbpLevelSelect extends LevelSelect {
 	viewToggleButton = document.querySelector('#mbp-level-select-view-toggle') as HTMLImageElement;
 	metadataContainer = document.querySelector('#mbp-level-metadata') as HTMLDivElement;
 	scoresContainer = document.querySelector('#mbp-level-scores') as HTMLDivElement;
+	easterEggIcon = document.querySelector('#mbp-level-select-egg') as HTMLImageElement;
 
 	difficultySelectorCollapsed = document.querySelector('#mbp-difficulty-selector-collapsed') as HTMLImageElement;
 	difficultySelectorModificationIcon = document.querySelector('#mbp-difficulty-selector-modification-icon') as HTMLImageElement;
@@ -171,6 +172,13 @@ export class MbpLevelSelect extends LevelSelect {
 		this.levelDescription.textContent = mission.description;
 		let qualifyTime = (mission.qualifyTime !== 0)? mission.qualifyTime : Infinity;
 		this.levelQualifyTime.innerHTML = `<span style="opacity: 0.8;">${mission.modification !== 'platinum'? 'Qualify' : 'Par'} Time: </span>` + (isFinite(qualifyTime)? Util.secondsToTimeString(qualifyTime / 1000) : 'N/A');
+
+		if (mission.hasEasterEgg) {
+			this.easterEggIcon.classList.remove('hidden');
+			this.easterEggIcon.src = StorageManager.data.collectedEggs.includes(mission.path)? './assets/ui_mbp/play/eggfound.png' : './assets/ui_mbp/play/eggnotfound.png';
+		} else {
+			this.easterEggIcon.classList.add('hidden');
+		}
 	}
 
 	displayEmptyMetadata() {
@@ -178,6 +186,7 @@ export class MbpLevelSelect extends LevelSelect {
 		this.levelArtist.innerHTML = '<br>'
 		this.levelDescription.innerHTML = '<br>';
 		this.levelQualifyTime.innerHTML = '';
+		this.easterEggIcon.classList.add('hidden');
 	}
 
 	createScoreElement(includeReplayButton: boolean) {

@@ -23770,8 +23770,10 @@ oimo_dynamics_constraint_contact_ContactConstraint.prototype = {
 		binormalX = this._manifold._binormalX;
 		binormalY = this._manifold._binormalY;
 		binormalZ = this._manifold._binormalZ;
-		var friction = Math.sqrt(this._s1._friction * this._s2._friction);
-		var restitution = Math.sqrt(this._s1._restitution * this._s2._restitution);
+		//var friction = Math.sqrt(this._s1._friction * this._s2._friction);
+		//var restitution = Math.sqrt(this._s1._restitution * this._s2._restitution);
+		var friction = this._s1._friction * this._s2._friction; // Modification: OIMO takes the geometric mean, but Torque doesn't, so here's the correction.
+		var restitution = this._s1._restitution * this._s2._restitution;
 		var num = this._manifold._numPoints;
 		info.numRows = 0;
 		var posDiff;

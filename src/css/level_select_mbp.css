@@ -346,3 +346,10 @@
 #mbp-search-input:focus {
 	outline: none;
 }
+
+#mbp-level-select-egg {
+	position: absolute;
+	display: block;
+	top: 253px;
+	left: 656px;
+}

@@ -343,14 +343,14 @@ export class Marble {
 			let penalty = Math.max(0, dot - Math.max(0, (surfaceShape.getFriction() - 1.0)));
 			movementRotationAxis = movementRotationAxis.scale(1 - penalty);
 
-			let combinedFriction = Math.sqrt(surfaceShape.getFriction() * this.shape.getFriction()); // Take the geometric mean
+			let combinedFriction = surfaceShape.getFriction() * this.shape.getFriction();
 
 			// Handle velocity slowdown
 			let angVel = this.body.getAngularVelocity();
 			let direction = movementRotationAxis.clone().normalize();
 			let dot2 = Math.max(0, angVel.dot(direction));
 			angVel = angVel.sub(direction.scale(dot2));
-			angVel = angVel.scale(0.02 ** (combinedFriction / PHYSICS_TICK_RATE));
+			angVel = angVel.scale(0.02 ** (Math.min(1, combinedFriction) / PHYSICS_TICK_RATE));
 			angVel = angVel.add(direction.scale(dot2));
 			if (angVel.length() > 285) angVel.scaleEq(285 / angVel.length()); // Absolute max angular speed
 		 	this.body.setAngularVelocity(angVel);
@@ -399,7 +399,7 @@ export class Marble {
 		if (time.currentAttemptTime - this.shockAbsorberEnableTime < 5000) {
 			// Show the shock absorber (takes precedence over super bounce)
 			this.forcefield.setOpacity(1);
-			this.shape.setRestitution(0);
+			this.shape.setRestitution(0.01);  // Yep it's not actually zero
 
 			if (!this.shockAbsorberSound) {
 				this.shockAbsorberSound = AudioManager.createAudioSource('superbounceactive.wav');
@@ -409,7 +409,7 @@ export class Marble {
 		} else if (time.currentAttemptTime - this.superBounceEnableTime < 5000) {
 			// Show the super bounce
 			this.forcefield.setOpacity(1);
-			this.shape.setRestitution(1.6); // Found through experimentation
+			this.shape.setRestitution(0.9);
 
 			this.shockAbsorberSound?.stop();
 			this.shockAbsorberSound = null;

@@ -8,7 +8,7 @@ import { Util, MaterialGeometry } from "./util";
 import { TimeState, Level } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 import { AudioManager } from "./audio";
-import { MissionElementBase } from "./parsing/mis_parser";
+import { MissionElement } from "./parsing/mis_parser";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
@@ -77,7 +77,7 @@ export class Shape {
 	/** The unique id of this shape. */
 	id: number;
 	level: Level;
-	srcElement: MissionElementBase;
+	srcElement: MissionElement;
 	dtsPath: string;
 	dts: DtsFile;
 	directoryPath: string;
@@ -151,7 +151,7 @@ export class Shape {
 
 	sounds: string[] = [];
 
-	async init(level?: Level, srcElement: MissionElementBase = null) {
+	async init(level?: Level, srcElement: MissionElement = null) {
 		// Apparently, Macs have a huge issue displayed instanced shapes at the moment. This might be a graphics driver bug or a three bug, will have to investigate.
 		if (Util.isMac()) this.useInstancing = false;
 

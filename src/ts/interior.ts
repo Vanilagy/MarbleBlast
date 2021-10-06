@@ -6,35 +6,35 @@ import { Util, MaterialGeometry } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
-export const INTERIOR_DEFAULT_RESTITUTION = 0.5;
+export const INTERIOR_DEFAULT_RESTITUTION = 1;
 const SMOOTH_SHADING_ANGLE_THRESHOLD = Math.cos(Util.degToRad(15));
 
 const specialFriction: Record<string, number> = {
 	"friction_high": 1.5,
-	"friction_low": 0.025,
-	"friction_none": 0.001,
+	"friction_low": 0.2,
+	"friction_none": 0.01,
 	"friction_ramp_yellow": 2.0,
 	"grass": 1.5,
-	"mmg_grass": 1.5,
-	"tarmac": 0.25,
-	"sand": 5.0,
-	"mmg_sand": 5.0,
-	"carpet": 10.0,
-	"rug": 10.0,
-	"water": 10.0,
-	"mmg_water": 10.0,
-	"ice1": 0.002,
-	"mmg_ice": 0.002,
-	"floor_bounce": 0.03,
+	"mmg_grass": 0.9,
+	"tarmac": 0.35,
+	"sand": 4.0,
+	"mmg_sand": 6.0,
+	"carpet": 6.0,
+	"rug": 6.0,
+	"water": 6.0,
+	"mmg_water": 6.0,
+	"ice1": 0.03,
+	"mmg_ice": 0.03,
+	"floor_bounce": 0.2,
 	"mbp_chevron_friction": 0.0,
 	"mbp_chevron_friction2": 0.0,
 	"mbp_chevron_friction3": 0.0
 };
 const specialResistutionFactor: Record<string, number> = {
-	"friction_high": 0.35,
+	"friction_high": 0.5,
 	"friction_low": 0.5,
 	"friction_none": 0.5,
-	"grass": 0.5,
+	"grass": 0.35,
 	"mmg_grass": 0.5,
 	"tarmac": 0.7,
 	"sand": 0.1,

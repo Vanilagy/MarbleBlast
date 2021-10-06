@@ -1,4 +1,4 @@
-import { MissionElementSimGroup, MisParser, MissionElementType, MissionElementScriptObject, MisFile } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MisParser, MissionElementType, MissionElementScriptObject, MisFile, MissionElement } from "./parsing/mis_parser";
 import { ResourceManager } from "./resources";
 import { DifParser, DifFile } from "./parsing/dif_parser";
 import { Util } from "./util";
@@ -40,10 +40,13 @@ export class Mission {
 	misFile: MisFile;
 	/** The root sim group, MissionGroup. */
 	root: MissionElementSimGroup;
+	/** Contains all mission elements contained in the .mis, flattened out into one array. */
+	allElements: MissionElement[];
 	/** The custom level id. */
 	id: number;
 	/** The string used for searching missions. */
 	searchString: string;
+	missionInfo: MissionElementScriptObject;
 	title: string;
 	artist: string;
 	description: string;
@@ -56,18 +59,24 @@ export class Mission {
 	fileToBlobPromises = new Map<JSZip['files'][number], Promise<Blob>>();
 	difCache = new Map<string, Promise<DifFile>>();
 	isNew = false;
+	hasEasterEgg = false;
 
 	constructor(path: string, misFile?: MisFile) {
 		this.path = path;
 		this.misFile = misFile;
-		if (misFile) this.root = misFile.root;
+
+		if (misFile) {
+			this.root = misFile.root;
+			this.initAllElements();
+		}
 	}
 
 	/** Creates a new Mission from a .mis file. */
 	static fromMisFile(path: string, misFile: MisFile) {
 		let mission = new Mission(path, misFile);
-		let missionInfo = mission.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
+		let missionInfo = mission.allElements.find(element => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
 
+		mission.missionInfo = missionInfo;
 		mission.title = missionInfo.name;
 		mission.artist = missionInfo.artist ?? '';
 		mission.description = missionInfo.desc ?? '';
@@ -75,6 +84,7 @@ export class Mission {
 		if (missionInfo.goldtime) mission.goldTime = MisParser.parseNumber(missionInfo.goldtime), mission.hasGoldTime = true;
 		mission.type = missionInfo.type.toLowerCase() as any;
 		mission.modification = path.startsWith('mbp/')? 'platinum' : 'gold';
+		mission.hasEasterEgg = mission.allElements.some(element => element._type === MissionElementType.Item && element.datablock?.toLowerCase() === 'easteregg');
 
 		return mission;
 	}
@@ -91,8 +101,21 @@ export class Mission {
 		mission.id = entry.id;
 		mission.isNew = isNew;
 		mission.modification = entry.modification as ('gold' | 'platinum');
+		mission.hasEasterEgg = entry.hasEasterEgg;
 
 		return mission;
+	}
+
+	initAllElements() {
+		this.allElements = [];
+
+		const traverse = (simGroup: MissionElementSimGroup) => {
+			for (let element of simGroup.elements) {
+				this.allElements.push(element);		
+				if (element._type === MissionElementType.SimGroup) traverse(element);
+			}
+		};
+		traverse(this.root);
 	}
 
 	initSearchString(index: number) {
@@ -125,15 +148,16 @@ export class Mission {
 
 		// Read the .mis file
 		let missionFileName = Object.keys(zip.files).find(x => x.endsWith('.mis'));
-		let text = await ResourceManager.readBlobAsText(await zip.files[missionFileName].async('blob'), 'ISO-8859-1')
+		let text = await ResourceManager.readBlobAsText(await zip.files[missionFileName].async('blob'), 'ISO-8859-1');
 		let parser = new MisParser(text);
 		let misFile = parser.parse();
 
 		this.misFile = misFile;
 		this.root = misFile.root;
+		this.initAllElements();
 
 		// Set up some metadata
-		let missionInfo = this.root.elements.find(x => x._type === MissionElementType.ScriptObject && x._name === "MissionInfo") as MissionElementScriptObject;
+		let missionInfo = this.allElements.find(x => x._type === MissionElementType.ScriptObject && x._name === "MissionInfo") as MissionElementScriptObject;
 		if (missionInfo?.time) {
 			this.qualifyTime = MisParser.parseNumber(missionInfo.time);
 			if (!this.qualifyTime) this.qualifyTime = Infinity; // Catches both 0 and NaN cases
