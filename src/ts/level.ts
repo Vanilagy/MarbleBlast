@@ -46,7 +46,7 @@ import { DifFile } from "./parsing/dif_parser";
 import { state } from "./state";
 import { Sign } from "./shapes/sign";
 import { Magnet } from "./shapes/magnet";
-import { Nuke } from "./shapes/nuke";
+import { Nuke, nukeSmokeParticle, nukeSparksParticle } from "./shapes/nuke";
 import { TeleportTrigger } from "./triggers/teleport_trigger";
 import { DestinationTrigger } from "./triggers/destination_trigger";
 import { Checkpoint } from "./shapes/checkpoint";
@@ -85,6 +85,9 @@ const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
 	LandMineEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter,
 	LandMineSmokeEmitter: landMineSmokeParticle,
 	LandMineSparkEmitter: landMineSparksParticle,
+	NukeEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter, // It ain't any different
+	NukeSmokeEmitter: nukeSmokeParticle,
+	NukeSparkEmitter: nukeSparksParticle,
 	FireWorkSmokeEmitter: fireworkSmoke,
 	RedFireWorkSparkEmitter: redSpark,
 	RedFireWorkTrailEmitter: redTrail,
@@ -529,7 +532,7 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
 		else if (dataBlockLowerCase.startsWith("signplain")) shape = new SignPlain(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase.startsWith("gemitem")) shape = new Gem(element as MissionElementItem), this.totalGems++;
-		else if (dataBlockLowerCase === "superjumpitem") shape = new RandomPowerUp(element as MissionElementItem) ?? new SuperJump(element as MissionElementItem);
+		else if (dataBlockLowerCase === "superjumpitem") shape = new SuperJump(element as MissionElementItem);
 		else if (dataBlockLowerCase.startsWith("signcaution")) shape = new SignCaution(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "superbounceitem") shape = new SuperBounce(element as MissionElementItem);
 		else if (dataBlockLowerCase === "roundbumper") shape = new RoundBumper();

@@ -592,6 +592,15 @@ export abstract class Util {
 		this.htmlEscapeElem.textContent = raw;
 		return this.htmlEscapeElem.innerHTML;
 	}
+
+	/** Standard Normal variate using Box-Muller transform. */
+	// https://stackoverflow.com/questions/25582882/javascript-math-random-normal-distribution-gaussian-bell-curve
+	static randomGaussian() {
+		let u = 0, v = 0;
+		while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+		while (v === 0) v = Math.random();
+		return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

@@ -159,8 +159,8 @@ export class ParticleEmitter {
 		let pos = this.getPosAtTime(time).clone();
 		if (this.o.spawnOffset) pos.add(this.o.spawnOffset()); // Call the spawnOffset function if it's there
 
-		// This isn't necessarily uniform but it's fine for the purpose.
-		let randomPointOnSphere = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
+		// Generate a point uniformly chosen on a sphere's surface.
+		let randomPointOnSphere = new THREE.Vector3(Util.randomGaussian(), Util.randomGaussian(), Util.randomGaussian()).normalize();
 		// Compute the total velocity
 		let vel = this.vel.clone().multiplyScalar(this.o.inheritedVelFactor).add(randomPointOnSphere.multiplyScalar(this.o.ejectionVelocity + this.o.velocityVariance * (Math.random() * 2 - 1))).add(this.o.ambientVelocity);
 

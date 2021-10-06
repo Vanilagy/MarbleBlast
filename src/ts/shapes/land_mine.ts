@@ -14,7 +14,7 @@ export class LandMine extends Shape {
 	onMarbleContact(time: TimeState) {
 		let marble = this.level.marble;
 		let minePos = Util.vecThreeToOimo(this.worldPosition);
-		let vec = marble.lastPos.sub(Util.vecThreeToOimo(this.worldPosition)).normalize(); // Use the last pos so that it's a little less RNG
+		let vec = marble.lastPos.sub(minePos).normalize(); // Use the last pos so that it's a little less RNG
 
 		// Add velocity to the marble
 		let explosionStrength = this.computeExplosionStrength(this.level.marble.body.getPosition().sub(minePos).length());
