@@ -3,6 +3,7 @@ import OIMO from "../declarations/oimo";
 import { TimeState, Level } from "../level";
 import { Util } from "../util";
 import * as THREE from "three";
+import { AudioManager } from "../audio";
 
 /** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
 export class Trigger {
@@ -11,6 +12,7 @@ export class Trigger {
 	body: OIMO.RigidBody;
 	level: Level;
 	element: MissionElementTrigger;
+	sounds: string[] = [];
 
 	constructor(element: MissionElementTrigger, level: Level) {
 		this.id = element._id;
@@ -58,6 +60,13 @@ export class Trigger {
 		body.setPosition(new OIMO.Vec3(Util.avg(aabb.max.x, aabb.min.x), Util.avg(aabb.max.y, aabb.min.y), Util.avg(aabb.max.z, aabb.min.z)));
 
 		this.body = body;
+	}
+
+	async init() {
+		// Preload all sounds
+		for (let sound of this.sounds) {
+			await AudioManager.loadBuffer(sound);
+		}
 	}
 
 	onMarbleInside(time: TimeState) {}

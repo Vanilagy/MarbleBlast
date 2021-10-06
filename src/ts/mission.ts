@@ -235,10 +235,12 @@ export class Mission {
 	getFullNamesOf(path: string) {
 		path = path.toLowerCase();
 		let result: string[] = [];
+		let prepended = 'data/' + path;
 
 		if (this.zipDirectory) {
 			for (let filePath in this.zipDirectory.files) {
-				if (filePath.startsWith('data/' + path)) {
+				if (filePath.startsWith(prepended)) {
+					if (filePath.length !== prepended.length && prepended.length !== filePath.lastIndexOf('.')) continue;
 					result.push(filePath.slice(filePath.lastIndexOf('/') + 1));
 				}
 			}

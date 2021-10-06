@@ -156,7 +156,9 @@ export interface MissionElementItem extends MissionElementBase {
 	static: string,
 	rotate: string,
 	showhelponpickup: string,
-	timebonus?: string
+	timebonus?: string,
+	timepenalty?: string,
+	add?: string
 }
 
 /** Holds the markers used for the path of a pathed interior. */
@@ -207,6 +209,12 @@ export interface MissionElementTrigger extends MissionElementBase {
 	targettime?: string,
 	instant?: string,
 	icontinuetottime?: string,
+
+	// checkpoint stuff:
+	respawnpoint?: string,
+	add?: string,
+	gravity?: string,
+	disableOob?: string,
 
 	// teleport/destination trigger stuff:
 	destination?: string,
@@ -678,5 +686,12 @@ export class MisParser {
 		}
 
 		return result;
+	}
+
+	/** Parses a boolean value. */
+	static parseBoolean(string: string) {
+		if (!string) return false;
+		if (string === "0") return false;
+		return true;
 	}
 }

@@ -88,7 +88,10 @@ export abstract class ResourceManager {
 				let results: string[] = [];
 
 				for (let name in current) {
-					if (name.toLowerCase().startsWith(part.toLowerCase()) && (name.length === part.length || name[part.length] === '.')) results.push(name);
+					if (name.toLowerCase().startsWith(part.toLowerCase())
+						// Make sure nothing or only the extension follows
+						&& (name.length === part.length || part.length === name.lastIndexOf('.')))
+						results.push(name);
 				}
 
 				return results;

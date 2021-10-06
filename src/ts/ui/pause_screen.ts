@@ -21,7 +21,7 @@ export abstract class PauseScreen {
 		menu.setupButton(this.noButton, 'common/no', () => state.level.unpause());
 		menu.setupButton(this.restartButton, 'common/restart', () => {
 			state.level.unpause();
-			state.level.restart();
+			state.level.restart(true);
 		});
 
 		this.replayButton.addEventListener('click', async (e) => {
@@ -99,7 +99,7 @@ export abstract class PauseScreen {
 		// Restart button to restart
 		if (gamepad.buttons[8].value > 0.5 && !previousButtonState[8]) {
 			state.level.unpause();
-			state.level.restart();
+			state.level.restart(true);
 			state.level.pressingRestart = true;
 			AudioManager.play('buttonpress.wav');
 		}

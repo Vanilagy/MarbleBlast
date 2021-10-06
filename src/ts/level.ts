@@ -49,6 +49,9 @@ import { Magnet } from "./shapes/magnet";
 import { Nuke } from "./shapes/nuke";
 import { TeleportTrigger } from "./triggers/teleport_trigger";
 import { DestinationTrigger } from "./triggers/destination_trigger";
+import { Checkpoint } from "./shapes/checkpoint";
+import { CheckpointTrigger } from "./triggers/checkpoint_trigger";
+import { EasterEgg } from "./shapes/easter_egg";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -63,7 +66,7 @@ const SHAPE_OVERLAY_OFFSETS = {
 /** The time in milliseconds when the marble is released from the start pad. */
 export const GO_TIME = 3500;
 /** Default camera pitch */
-const DEFAULT_PITCH = 0.45;
+export const DEFAULT_PITCH = 0.45;
 const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should be large enough
 
 /** The map used to get particle emitter options for a ParticleEmitterNode. */
@@ -178,6 +181,15 @@ export class Level extends Scheduler {
 	helpTextTimeState: TimeState = null;
 	/** The time state at the last point the alert text was updated. */
 	alertTextTimeState: TimeState = null;
+
+	/** Stores the shape that is the destination of the current checkpoint. */
+	currentCheckpoint: Shape = null;
+	/** If the checkpoint was triggered by a trigger, this field stores that trigger. */
+	currentCheckpointTrigger: CheckpointTrigger = null;
+	checkpointCollectedGems = new Set<Gem>();
+	checkpointHeldPowerUp: PowerUp = null;
+	/** Up vector at the point of checkpointing */
+	checkpointUp: OIMO.Vec3 = null;
 	
 	timeTravelSound: AudioSource;
 	music: AudioSource;
@@ -234,7 +246,7 @@ export class Level extends Scheduler {
 	async start() {
 		if (this.stopped) return;
 
-		this.restart();
+		this.restart(true);
 		for (let interior of this.interiors) await interior.onLevelStart();
 		for (let shape of this.shapes) await shape.onLevelStart();
 		AudioManager.normalizePositionalAudioVolume();
@@ -379,6 +391,7 @@ export class Level extends Scheduler {
 		let hudOverlayShapePaths = new Set<string>();
 		for (let shape of this.shapes) {
 			if (shape instanceof PowerUp || shape instanceof Gem) {
+				if (shape instanceof PowerUp && shape.autoUse) continue; // Can't collect these aye
 				// We need to display the gem and powerup shapes in the HUD
 				hudOverlayShapePaths.add(shape.dtsPath);
 			}
@@ -425,7 +438,7 @@ export class Level extends Scheduler {
 		
 		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
 
-		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
+		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName]);
 		this.music = AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
 		this.music.node.loop = true;
 		await this.music.promise;
@@ -459,7 +472,7 @@ export class Level extends Scheduler {
 					promises.push(this.addShape(element));
 				}; break;
 				case MissionElementType.Trigger: {
-					this.addTrigger(element);
+					promises.push(this.addTrigger(element));
 				}; break;
 				case MissionElementType.TSStatic: {
 					promises.push(this.addTSStatic(element));
@@ -522,7 +535,7 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "landmine") shape = new LandMine();
 		else if (dataBlockLowerCase === "shockabsorberitem") shape = new ShockAbsorber(element as MissionElementItem);
 		else if (dataBlockLowerCase === "superspeeditem") shape = new SuperSpeed(element as MissionElementItem);
-		else if (dataBlockLowerCase === "timetravelitem") shape = new TimeTravel(element as MissionElementItem);
+		else if (["timetravelitem", "timepenaltyitem"].includes(dataBlockLowerCase)) shape = new TimeTravel(element as MissionElementItem);
 		else if (dataBlockLowerCase === "tornado") shape = new Tornado();
 		else if (dataBlockLowerCase === "trapdoor") shape = new TrapDoor(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "oilslick") shape = new Oilslick();
@@ -530,13 +543,15 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase.startsWith("sign") || dataBlockLowerCase === "arrow") shape = new Sign(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "magnet") shape = new Magnet();
 		else if (dataBlockLowerCase === "nuke") shape = new Nuke();
+		else if (dataBlockLowerCase === "checkpoint") shape = new Checkpoint();
+		else if (dataBlockLowerCase === "easteregg") shape = new EasterEgg(element as MissionElementItem);
 
 		if (!shape) return;
 
 		this.shapes.push(shape);
 		// This is a bit hacky, but wait a short amount so that all shapes will have been created by the time this codepath continues. This is necessary for correct sharing of data between shapes.
 		await Util.wait(10);
-		await shape.init(this, element._id);
+		await shape.init(this, element);
 
 		// Set the shape's transform
 		let shapePosition = MisParser.parseVector3(element.position);
@@ -554,7 +569,7 @@ export class Level extends Scheduler {
 		this.physics.addShape(shape);
 	}
 
-	addTrigger(element: MissionElementTrigger) {
+	async addTrigger(element: MissionElementTrigger) {
 		let trigger: Trigger;
 
 		// Create a trigger based on type
@@ -569,12 +584,16 @@ export class Level extends Scheduler {
 			trigger = new TeleportTrigger(element, this);
 		} else if (dataBlockLowerCase === "destinationtrigger") {
 			trigger = new DestinationTrigger(element, this);
+		} else if (dataBlockLowerCase === "checkpointtrigger") {
+			trigger = new CheckpointTrigger(element, this);
 		}
 
 		if (!trigger) return;
 
 		this.triggers.push(trigger);
 		this.physics.addTrigger(trigger);
+
+		await trigger.init();
 	}
 
 	/** Adds a TSStatic (totally static shape) to the world. */
@@ -593,7 +612,7 @@ export class Level extends Scheduler {
 		this.shapes.push(shape);
 		await Util.wait(10); // Same hack as for regular shapes
 		try {
-			await shape.init(this);
+			await shape.init(this, element);
 		} catch (e) {
 			console.error("Error in creating TSStatic, skipping it for now.", e);
 			Util.removeFromArray(this.shapes, shape);
@@ -615,7 +634,13 @@ export class Level extends Scheduler {
 	}
 
 	/** Restarts and resets the level. */
-	restart() {
+	restart(forceHardRestart: boolean) {
+		if (!forceHardRestart && this.currentCheckpoint) {
+			// There's a checkpoint, so load its state instead of restarting the whole level
+			this.loadCheckpointState();
+			return;
+		}
+
 		let hud = state.menu.hud;
 
 		this.timeState.currentAttemptTime = 0;
@@ -629,6 +654,12 @@ export class Level extends Scheduler {
 			this.gemCount = 0;
 			hud.displayGemCount(this.gemCount, this.totalGems);
 		}
+
+		this.currentCheckpoint = null;
+		this.currentCheckpointTrigger = null;
+		this.checkpointCollectedGems.clear();
+		this.checkpointHeldPowerUp = null;
+		this.checkpointUp = null;
 
 		this.finishTime = null;
 
@@ -877,8 +908,7 @@ export class Level extends Scheduler {
 		if (!playReplay && (isPressed('use') || this.useQueued) && getPressedFlag('use')) {
 			if (this.outOfBounds && !this.finishTime) {
 				// Skip the out of bounds "animation" and restart immediately
-				this.clearSchedule();
-				this.restart();
+				this.restart(false);
 				return;
 			} else if (this.heldPowerUp) {
 				this.replay.recordUsePowerUp(this.heldPowerUp);
@@ -1024,7 +1054,7 @@ export class Level extends Scheduler {
 
 		// Handle pressing of the restart button
 		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
-			this.restart();
+			this.restart(false);
 			this.pressingRestart = true;
 		} else if (!isPressed('restart')) {
 			this.pressingRestart = false;
@@ -1056,7 +1086,7 @@ export class Level extends Scheduler {
 	}
 
 	/** Sets the current up vector and gravity with it. */
-	setUp(vec: OIMO.Vec3, time: TimeState) {
+	setUp(vec: OIMO.Vec3, time: TimeState, instant = false) {
 		this.currentUp = vec;
 		this.physics.world.setGravity(vec.scale(-1 * this.physics.world.getGravity().length()));
 
@@ -1070,7 +1100,7 @@ export class Level extends Scheduler {
 
 		this.newOrientationQuat = quatChange.multiply(currentQuat);
 		this.oldOrientationQuat = currentQuat;
-		this.orientationChangeTime = time.currentAttemptTime;
+		this.orientationChangeTime = instant? -Infinity : time.currentAttemptTime;
 	}
 
 	/** Gets the position and orientation of the player spawn point. */
@@ -1078,7 +1108,7 @@ export class Level extends Scheduler {
 		// The player is spawned at the last start pad in the mission file.
 		let startPad = Util.findLast(this.shapes, (shape) => shape instanceof StartPad);
 		let position: THREE.Vector3;
-		let euler: THREE.Euler = new THREE.Euler();
+		let euler = new THREE.Euler();
 
 		if (startPad) {
 			// If there's a start pad, start there
@@ -1126,6 +1156,7 @@ export class Level extends Scheduler {
 	}
 
 	pickUpPowerUp(powerUp: PowerUp) {
+		if (!powerUp) return;
 		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
 		this.heldPowerUp = powerUp;
 
@@ -1204,7 +1235,82 @@ export class Level extends Scheduler {
 		state.menu.hud.setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
 
-		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart(), 'oobRestart');
+		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart(false), 'oobRestart');
+	}
+
+	/** Sets a new active checkpoint. */
+	saveCheckpointState(shape: Shape, trigger?: CheckpointTrigger) {
+		if (this.currentCheckpoint === shape) return;
+
+		let disableOob = (shape.srcElement as any)?.disableOob || trigger?.element.disableOob;
+		if (MisParser.parseBoolean(disableOob) && this.outOfBounds) return; // The checkpoint is configured to not work when the player is already OOB
+
+		this.currentCheckpoint = shape;
+		this.currentCheckpointTrigger = trigger;
+		this.checkpointCollectedGems.clear();
+		this.checkpointUp = this.currentUp.clone();
+
+		// Remember all gems that were collected up to this point
+		for (let shape of this.shapes) {
+			if (!(shape instanceof Gem)) continue;
+			if (shape.pickedUp) this.checkpointCollectedGems.add(shape);
+		}
+
+		this.checkpointHeldPowerUp = this.heldPowerUp;
+
+		state.menu.hud.displayAlert("Checkpoint reached!");
+		AudioManager.play('checkpoint.wav');
+	}
+
+	/** Resets to the last stored checkpoint state. */
+	loadCheckpointState() {
+		let marble = this.marble;
+
+		// Determine where to spawn the marble
+		let offset = new OIMO.Vec3(0, 0, 3);
+		let add = (this.currentCheckpoint.srcElement as any)?.add || this.currentCheckpointTrigger?.element.add;
+		if (add) offset = Util.vecThreeToOimo(MisParser.parseVector3(add));
+
+		marble.body.setPosition(Util.vecThreeToOimo(this.currentCheckpoint.worldPosition).add(offset));
+		marble.body.setLinearVelocity(new OIMO.Vec3());
+		marble.body.setAngularVelocity(new OIMO.Vec3());
+
+		// Set camera orienation
+		let euler: THREE.Euler = new THREE.Euler();
+		euler.setFromQuaternion(this.currentCheckpoint.worldOrientation, "ZXY");
+		this.yaw = euler.z + Math.PI/2;
+		this.pitch = DEFAULT_PITCH;
+
+		let gravityField = (this.currentCheckpoint.srcElement as any)?.gravity || this.currentCheckpointTrigger?.element.gravity;
+		if (MisParser.parseBoolean(gravityField)) {
+			// In this case, we set the gravity to the relative "up" vector of the checkpoint shape.
+			let up = new THREE.Vector3(0, 0, 1);
+			up.applyQuaternion(this.currentCheckpoint.worldOrientation);
+			this.setUp(Util.vecThreeToOimo(up), this.timeState, true);
+		} else {
+			// Otherwise, we restore gravity to what was stored.
+			this.setUp(this.checkpointUp, this.timeState, true);
+		}
+
+		// Restore gem states
+		for (let shape of this.shapes) {
+			if (!(shape instanceof Gem)) continue;
+			if (shape.pickedUp && !this.checkpointCollectedGems.has(shape)) {
+				shape.reset();
+				this.gemCount--;
+			}
+		}
+		state.menu.hud.displayGemCount(this.gemCount, this.totalGems);
+		state.menu.hud.setCenterText('none');
+
+		this.clearSchedule();
+		this.outOfBounds = false;
+
+		this.deselectPowerUp(); // Always deselect first
+		// Wait a bit to select the powerup to prevent immediately using it incase the user skipped the OOB screen by clicking
+		if (this.heldPowerUp) this.schedule(this.timeState.currentAttemptTime + 500, () => this.pickUpPowerUp(this.heldPowerUp));
+
+		AudioManager.play('spawn.wav');
 	}
 
 	touchFinish(completionOfImpactOverride?: number) {

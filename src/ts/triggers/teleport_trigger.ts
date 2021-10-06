@@ -1,6 +1,6 @@
 import { AudioManager } from "../audio";
 import OIMO from "../declarations/oimo";
-import { Level, TimeState } from "../level";
+import { DEFAULT_PITCH, Level, TimeState } from "../level";
 import { MisParser, MissionElementTrigger } from "../parsing/mis_parser";
 import { state } from "../state";
 import { Util } from "../util";
@@ -51,18 +51,18 @@ export class TeleportTrigger extends Trigger {
 		}
 		body.setPosition(position);
 
-		if (!this.element.keepvelocity && !destination.element.keepvelocity) body.setLinearVelocity(new OIMO.Vec3());
-		if (this.element.inversevelocity || destination.element.inversevelocity) body.setLinearVelocity(body.getLinearVelocity().scaleEq(-1));
-		if (!this.element.keepangular && !destination.element.keepangular) body.setAngularVelocity(new OIMO.Vec3());
+		if (!MisParser.parseBoolean(this.element.keepvelocity || destination.element.keepvelocity)) body.setLinearVelocity(new OIMO.Vec3());
+		if (MisParser.parseBoolean(this.element.inversevelocity || destination.element.inversevelocity)) body.setLinearVelocity(body.getLinearVelocity().scaleEq(-1));
+		if (!MisParser.parseBoolean(this.element.keepangular || destination.element.keepangular)) body.setAngularVelocity(new OIMO.Vec3());
 
-		if (!this.element.keepcamera && !destination.element.keepcamera) {
+		if (!MisParser.parseBoolean(this.element.keepcamera || destination.element.keepcamera)) {
 			let yaw: number;
 			if (this.element.camerayaw) yaw = Util.degToRad(MisParser.parseNumber(this.element.camerayaw));
 			else if (destination.element.camerayaw) yaw = Util.degToRad(MisParser.parseNumber(destination.element.camerayaw));
 			else yaw = 0;
 			
 			this.level.yaw = yaw + Math.PI/2;
-			this.level.pitch = 0.45;
+			this.level.pitch = DEFAULT_PITCH;
 		}
 
 		AudioManager.play('spawn.wav');

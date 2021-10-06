@@ -310,10 +310,12 @@ export class Interior {
 			let geometry = new OIMO.ConvexHullGeometry(vertices);
 			let shapeConfig = new OIMO.ShapeConfig();
 			shapeConfig.geometry = geometry;
+			shapeConfig.restitution = INTERIOR_DEFAULT_RESTITUTION;
+			shapeConfig.friction = INTERIOR_DEFAULT_FRICTION;
 
 			if (this.allowSpecialMaterials) {
-				shapeConfig.restitution = INTERIOR_DEFAULT_RESTITUTION * (specialResistutionFactor[material] ?? 1);
-				shapeConfig.friction = INTERIOR_DEFAULT_FRICTION * (specialFriction[material] ?? 1);
+				shapeConfig.restitution *= specialResistutionFactor[material] ?? 1;
+				shapeConfig.friction *= specialFriction[material] ?? 1;
 			}
 
 			let shape = new OIMO.Shape(shapeConfig);

@@ -17,6 +17,9 @@ export class TimeTravel extends PowerUp {
 		if (element.timebonus) {
 			this.timeBonus = MisParser.parseNumber(element.timebonus);
 		}
+		if (element.timepenalty) {
+			this.timeBonus = -MisParser.parseNumber(element.timepenalty);
+		}
 
 		this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;
 	}

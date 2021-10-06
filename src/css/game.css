@@ -21,7 +21,7 @@
 	color: white;
 	font-size: 24px;
 	text-shadow: 1px 1px 0px black, 1px 1px 0px black;
-	white-space: pre;
+	white-space: pre-line;
 }
 
 #alert-text {
@@ -32,7 +32,7 @@
 	color: #ffe240;
 	font-size: 24px;
 	text-shadow: 1px 1px 0px black, 1px 1px 0px black;
-	white-space: pre;
+	white-space: pre-line;
 }
 
 #clock {

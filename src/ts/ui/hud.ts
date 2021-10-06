@@ -72,6 +72,8 @@ export abstract class Hud {
 
 	/** Updates the gem count display. */
 	displayGemCount(count: number, total: number) {
+		if (total === 0) return;
+
 		let string = Util.leftPadZeroes(count.toString(), 2) + '/' + Util.leftPadZeroes(total.toString(), 2);
 
 		// Generate the appropriate number of image elements
