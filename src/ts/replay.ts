@@ -9,6 +9,7 @@ import { LandMine } from "./shapes/land_mine";
 import { executeOnWorker } from "./worker";
 import { PushButton } from "./shapes/push_button";
 import { Mission } from "./mission";
+import { Interior } from "./interior";
 
 /** Stores everything necessary for a correct replay of a playthrough. Instead of relying on replaying player inputs, the replay simply stores all necessary state. */
 export class Replay {
@@ -45,7 +46,7 @@ export class Replay {
 		tickIndex: number,
 		id: number
 	}[] = [];
-	/** Stores the times the marble collidede with a shape. */
+	/** Stores the times the marble collided with a shape. */
 	marbleContact: {
 		tickIndex: number,
 		id: number
@@ -98,6 +99,8 @@ export class Replay {
 		volume: number,
 		showParticles: boolean
 	}[] = [];
+	/** Which powerups were selected at random. */
+	randomPowerUpChoices = new Map<number, number[]>();
 
 	/** The current tick index to write to / read from. */
 	currentTickIndex = 0;
@@ -141,6 +144,7 @@ export class Replay {
 			this.slidingSoundGain.length = 0;
 			this.jumpSoundTimes.length = 0;
 			this.bounceTimes.length = 0;
+			this.randomPowerUpChoices.clear();
 
 			// Remember trapdoor, mine and push button states
 			for (let shape of this.level.shapes) {
@@ -242,12 +246,12 @@ export class Replay {
 		});
 	}
 
-	recordMarbleContact(shape: Shape) {
+	recordMarbleContact(object: Shape | Interior) {
 		if (this.mode === 'playback' || !this.canStore) return;
 
 		this.marbleContact.push({
 			tickIndex: this.currentTickIndex,
-			id: shape.id
+			id: object.id
 		});
 	}
 
@@ -266,7 +270,7 @@ export class Replay {
 	}
 
 	/** Apply the replay's stored state to the world. */
-	playback() {
+	playBack() {
 		let i = this.currentTickIndex;
 
 		for (let obj of this.marbleInside) {
@@ -293,8 +297,8 @@ export class Replay {
 		for (let obj of this.marbleContact) {
 			if (obj.tickIndex !== i) continue;
 
-			let shape = this.level.shapes.find(x => x.id === obj.id);
-			shape.onMarbleContact(this.level.timeState, null);
+			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.interiors.find(x => x.id === obj.id);
+			object.onMarbleContact(this.level.timeState, null);
 		}
 
 		for (let use of this.uses) {
@@ -369,7 +373,8 @@ export class Replay {
 			rollingSoundPlaybackRate: Util.arrayBufferToString(new Float32Array(this.rollingSoundPlaybackRate).buffer),
 			slidingSoundGain: Util.arrayBufferToString(new Float32Array(this.slidingSoundGain).buffer),
 			jumpSoundTimes: this.jumpSoundTimes,
-			bounceTimes: this.bounceTimes
+			bounceTimes: this.bounceTimes,
+			randomPowerUpChoices: [...this.randomPowerUpChoices.entries()]
 		};
 
 		// Then compress the whole th ing. As this step is the most expensive, run it in another thread.
@@ -422,6 +427,7 @@ export class Replay {
 		replay.slidingSoundGain = [...new Float32Array(Util.stringToArrayBuffer(serialized.slidingSoundGain))];
 		replay.jumpSoundTimes = serialized.jumpSoundTimes;
 		replay.bounceTimes = serialized.bounceTimes;
+		replay.randomPowerUpChoices = serialized.randomPowerUpChoices.reduce((prev, next) => (prev.set(next[0], next[1]), prev), new Map<number, number[]>());
 
 		return replay;
 	}
@@ -566,4 +572,5 @@ export interface SerializedReplay {
 		volume: number,
 		showParticles: boolean
 	}[];
+	randomPowerUpChoices: [number, number[]][]
 }

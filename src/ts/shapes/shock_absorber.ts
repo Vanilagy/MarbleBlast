@@ -6,6 +6,7 @@ import { state } from "../state";
 export class ShockAbsorber extends PowerUp {
 	dtsPath = "shapes/items/shockabsorber.dts";
 	pickUpName = (state.modification === 'gold')? "Shock Absorber PowerUp" : "Anti-Recoil PowerUp";
+	an = state.modification !== 'gold';
 	sounds = ["pushockabsorbervoice.wav", "superbounceactive.wav"];
 
 	pickUp(): boolean {

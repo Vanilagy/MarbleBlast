@@ -52,6 +52,7 @@ import { DestinationTrigger } from "./triggers/destination_trigger";
 import { Checkpoint } from "./shapes/checkpoint";
 import { CheckpointTrigger } from "./triggers/checkpoint_trigger";
 import { EasterEgg } from "./shapes/easter_egg";
+import { RandomPowerUp } from "./shapes/random_power_up";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -392,8 +393,13 @@ export class Level extends Scheduler {
 		for (let shape of this.shapes) {
 			if (shape instanceof PowerUp || shape instanceof Gem) {
 				if (shape instanceof PowerUp && shape.autoUse) continue; // Can't collect these aye
+
 				// We need to display the gem and powerup shapes in the HUD
-				hudOverlayShapePaths.add(shape.dtsPath);
+				if (shape instanceof RandomPowerUp) {
+					for (let path of shape.getAllDtsPaths()) hudOverlayShapePaths.add(path);
+				} else {
+					hudOverlayShapePaths.add(shape.dtsPath);
+				}
 			}
 		}
 
@@ -523,7 +529,7 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
 		else if (dataBlockLowerCase.startsWith("signplain")) shape = new SignPlain(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase.startsWith("gemitem")) shape = new Gem(element as MissionElementItem), this.totalGems++;
-		else if (dataBlockLowerCase === "superjumpitem") shape = new SuperJump(element as MissionElementItem);
+		else if (dataBlockLowerCase === "superjumpitem") shape = new RandomPowerUp(element as MissionElementItem) ?? new SuperJump(element as MissionElementItem);
 		else if (dataBlockLowerCase.startsWith("signcaution")) shape = new SignCaution(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "superbounceitem") shape = new SuperBounce(element as MissionElementItem);
 		else if (dataBlockLowerCase === "roundbumper") shape = new RoundBumper();
@@ -545,6 +551,7 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "nuke") shape = new Nuke();
 		else if (dataBlockLowerCase === "checkpoint") shape = new Checkpoint();
 		else if (dataBlockLowerCase === "easteregg") shape = new EasterEgg(element as MissionElementItem);
+		else if (dataBlockLowerCase === "randompowerupitem") shape = new RandomPowerUp(element as MissionElementItem);
 
 		if (!shape) return;
 
@@ -1014,7 +1021,7 @@ export class Level extends Scheduler {
 			// Record or playback the replay
 			if (!playReplay) this.replay.record();
 			else {
-				this.replay.playback();
+				this.replay.playBack();
 				if (this.replay.isPlaybackComplete()) {
 					this.stopAndExit();
 					return;
@@ -1156,7 +1163,7 @@ export class Level extends Scheduler {
 	}
 
 	pickUpPowerUp(powerUp: PowerUp) {
-		if (!powerUp) return;
+		if (!powerUp) return false;
 		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
 		this.heldPowerUp = powerUp;
 

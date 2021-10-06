@@ -19,6 +19,8 @@ export abstract class PowerUp extends Shape {
 	pickUpName: string;
 	/** Overrides the full pick up alert string. */
 	customPickUpAlert: string = null;
+	/** If 'an' should be used instead of 'a' in the pickup alert. */
+	an = false;
 
 	constructor(element: MissionElementItem) {
 		super();
@@ -35,7 +37,7 @@ export abstract class PowerUp extends Shape {
 			this.lastPickUpTime = time.currentAttemptTime;
 			if (this.autoUse) this.use(time);
 
-			state.menu.hud.displayAlert(this.customPickUpAlert ?? `You picked up a ${this.pickUpName}!`);
+			state.menu.hud.displayAlert(this.customPickUpAlert ?? `You picked up ${this.an? 'an' : 'a'} ${this.pickUpName}!`);
 			if (this.element.showhelponpickup === "1" && !this.autoUse) state.menu.hud.displayHelp(`Press <func:bind mousefire> to use the ${this.pickUpName}!`);
 		}
 	}

@@ -1,8 +1,9 @@
 import { PowerUp } from "./power_up";
 import { MissionElementItem, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
-import { PHYSICS_TICK_RATE } from "../level";
+import { PHYSICS_TICK_RATE, TimeState } from "../level";
 import { state } from "../state";
+import OIMO from "../declarations/oimo";
 
 /** Temporarily pauses the game clock. */
 export class TimeTravel extends PowerUp {
@@ -34,8 +35,8 @@ export class TimeTravel extends PowerUp {
 		return true;
 	}
 
-	use() {
-		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(this.bodies[0], 2);
+	use(time: TimeState, bodyOverride?: OIMO.RigidBody) {
+		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(bodyOverride ?? this.bodies[0], 2);
 		let timeToRevert = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 
 		if (this.level.replay.mode === 'playback') timeToRevert = this.level.replay.timeTravelTimeToRevert.get(this.id);
