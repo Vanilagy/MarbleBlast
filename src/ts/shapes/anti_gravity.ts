@@ -3,12 +3,13 @@ import * as THREE from "three";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
+import { state } from "../state";
 
 /** Changes the gravity on pickup. */
 export class AntiGravity extends PowerUp {
 	dtsPath = "shapes/items/antigravity.dts";
 	autoUse = true;
-	pickUpName = "Gravity Modifier";
+	pickUpName = (state.modification === 'gold')? "Gravity Modifier" : "Gravity Defier";
 	sounds = ["gravitychange.wav"];
 
 	pickUp() {

@@ -2,6 +2,7 @@ import { PowerUp } from "./power_up";
 import { MissionElementItem, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
 import { PHYSICS_TICK_RATE } from "../level";
+import { state } from "../state";
 
 /** Temporarily pauses the game clock. */
 export class TimeTravel extends PowerUp {
@@ -21,7 +22,11 @@ export class TimeTravel extends PowerUp {
 			this.timeBonus = -MisParser.parseNumber(element.timepenalty);
 		}
 
-		this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;
+		if (state.modification === 'gold') {
+			this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;
+		} else {
+			this.pickUpName = `${Math.abs(this.timeBonus/1000)} second Time ${this.timeBonus > 0 ? 'Modifier' : 'Penalty'}`;
+		}
 	}
 
 	pickUp() {

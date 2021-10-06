@@ -1,10 +1,11 @@
 import { PowerUp } from "./power_up";
 import { TimeState } from "../level";
+import { state } from "../state";
 
 /** Temporarily reduces marble restitution. */
 export class ShockAbsorber extends PowerUp {
 	dtsPath = "shapes/items/shockabsorber.dts";
-	pickUpName = "Shock Absorber PowerUp";
+	pickUpName = (state.modification === 'gold')? "Shock Absorber PowerUp" : "Anti-Recoil PowerUp";
 	sounds = ["pushockabsorbervoice.wav", "superbounceactive.wav"];
 
 	pickUp(): boolean {

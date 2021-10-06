@@ -1,10 +1,11 @@
 import { PowerUp } from "./power_up";
 import { TimeState } from "../level";
+import { state } from "../state";
 
 /** Temporarily increase marble restitution. */
 export class SuperBounce extends PowerUp {
 	dtsPath = "shapes/items/superbounce.dts";
-	pickUpName = "Super Bounce PowerUp";
+	pickUpName = (state.modification === 'gold')? "Super Bounce PowerUp" : "Marble Recoil PowerUp";
 	sounds = ["pusuperbouncevoice.wav", "forcefield.wav"];
 
 	pickUp(): boolean {

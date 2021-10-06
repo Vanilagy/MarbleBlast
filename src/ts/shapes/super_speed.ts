@@ -3,11 +3,12 @@ import * as THREE from "three";
 import { Util } from "../util";
 import OIMO from "../declarations/oimo";
 import { AudioManager } from "../audio";
+import { state } from "../state";
 
 /** Accelerates the marble. */
 export class SuperSpeed extends PowerUp {
 	dtsPath = "shapes/items/superspeed.dts";
-	pickUpName = "Super Speed PowerUp";
+	pickUpName = (state.modification === 'gold')? "Super Speed PowerUp" : "Speed Booster PowerUp";
 	sounds = ["pusuperspeedvoice.wav", "dosuperspeed.wav"];
 
 	pickUp(): boolean {
@@ -29,7 +30,7 @@ export class SuperSpeed extends PowerUp {
 		quat2.setArc(this.level.currentUp, marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
 		movementVector.applyQuaternion(new THREE.Quaternion(quat2.x, quat2.y, quat2.z, quat2.w)); // ...then rotate the movement bonus vector by that amount.
 		
-		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirligig's determined value
+		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)
 
 		AudioManager.play(this.sounds[1]);
 		this.level.particles.createEmitter(superSpeedParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
