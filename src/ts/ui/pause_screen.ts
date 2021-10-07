@@ -15,6 +15,8 @@ export abstract class PauseScreen {
 	noSrc: string;
 	restartSrc: string;
 
+	preventClose = false;
+
 	constructor(menu: Menu) {
 		this.initProperties();
 
@@ -32,7 +34,7 @@ export abstract class PauseScreen {
 			if (!state.level) return;
 		
 			if (e.key === 'Escape') {
-				if (state.level?.paused) {
+				if (state.level?.paused && !this.preventClose) {
 					this.noButton.src = menu.uiAssetPath + this.noSrc + '_d.png';
 				} else {
 					this.tryPause();

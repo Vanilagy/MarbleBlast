@@ -53,6 +53,7 @@ import { Checkpoint } from "./shapes/checkpoint";
 import { CheckpointTrigger } from "./triggers/checkpoint_trigger";
 import { EasterEgg } from "./shapes/easter_egg";
 import { RandomPowerUp } from "./shapes/random_power_up";
+import { MbpPauseScreen } from "./ui/pause_screen_mbp";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -197,6 +198,7 @@ export class Level extends Scheduler {
 	
 	timeTravelSound: AudioSource;
 	music: AudioSource;
+	originalMusicName: string;
 	replay: Replay;
 
 	constructor(mission: Mission) {
@@ -434,21 +436,26 @@ export class Level extends Scheduler {
 			if (shape.dtsPath.includes('gem')) continue;
 			this.overlayScene.remove(shape.group);
 		}
+
+		if (state.menu.pauseScreen instanceof MbpPauseScreen) state.menu.pauseScreen.jukebox.reset();
 	}
 
 	async initSounds() {
 		let musicFileName: string;
 		if (this.mission.missionInfo.music) {
 			musicFileName = this.mission.missionInfo.music.toLowerCase();
+			this.originalMusicName = musicFileName;
 		} else {
 			let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
 			musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The default music choice is based off of level index
+			// Yes, the extra space is intentional
+			this.originalMusicName = ['groove police.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
 		}
 		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
 
 		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName]);
 		this.music = AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
-		this.music.node.loop = true;
+		this.music.setLoop(true);
 		await this.music.promise;
 	}
 
@@ -1038,7 +1045,7 @@ export class Level extends Scheduler {
 	
 					if (!this.timeTravelSound) {
 						this.timeTravelSound = AudioManager.createAudioSource('timetravelactive.wav');
-						this.timeTravelSound.node.loop = true;
+						this.timeTravelSound.setLoop(true);
 						this.timeTravelSound.play();
 					}
 				} else {

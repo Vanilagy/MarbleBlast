@@ -150,12 +150,12 @@ export class Marble {
 		this.rollingSound = AudioManager.createAudioSource('rolling_hard.wav');
 		this.rollingSound.play();
 		this.rollingSound.gain.gain.value = 0;
-		this.rollingSound.node.loop = true;
+		this.rollingSound.setLoop(true);
 
 		this.slidingSound = AudioManager.createAudioSource('sliding.wav');
 		this.slidingSound.play();
 		this.slidingSound.gain.gain.value = 0;
-		this.slidingSound.node.loop = true;
+		this.slidingSound.setLoop(true);
 
 		await Promise.all([this.rollingSound.promise, this.slidingSound.promise]);
 
@@ -331,7 +331,7 @@ export class Marble {
 					let pitch = Util.clamp(surfaceRelativeVelocity.length() / 15, 0, 1) * 0.75 + 0.75;
 
 					this.rollingSound.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02);
-					this.rollingSound.node.playbackRate.value = pitch;
+					this.rollingSound.setPlaybackRate(pitch);
 				}
 			} else {
 				this.slidingSound.gain.gain.value = 0;
@@ -390,7 +390,7 @@ export class Marble {
 		let r = this.level.replay;
 		if (r.canStore) {
 			r.rollingSoundGain.push(this.rollingSound.gain.gain.value);
-			r.rollingSoundPlaybackRate.push(this.rollingSound.node.playbackRate.value);
+			r.rollingSoundPlaybackRate.push((this.rollingSound.node as AudioBufferSourceNode).playbackRate.value);
 			r.slidingSoundGain.push(this.slidingSound.gain.gain.value);
 		}	
 	}
@@ -403,7 +403,7 @@ export class Marble {
 
 			if (!this.shockAbsorberSound) {
 				this.shockAbsorberSound = AudioManager.createAudioSource('superbounceactive.wav');
-				this.shockAbsorberSound.node.loop = true;
+				this.shockAbsorberSound.setLoop(true);
 				this.shockAbsorberSound.play();
 			}
 		} else if (time.currentAttemptTime - this.superBounceEnableTime < 5000) {
@@ -426,7 +426,7 @@ export class Marble {
 		if (time.currentAttemptTime - this.superBounceEnableTime < 5000 && !this.superBounceSound) {
 			// Play the super bounce sound
 			this.superBounceSound = AudioManager.createAudioSource('forcefield.wav');
-			this.superBounceSound.node.loop = true;
+			this.superBounceSound.setLoop(true);
 			this.superBounceSound.play();
 		}
 
@@ -438,7 +438,7 @@ export class Marble {
 			
 			if (!this.helicopterSound) {
 				this.helicopterSound = AudioManager.createAudioSource('use_gyrocopter.wav');
-				this.helicopterSound.node.loop = true;
+				this.helicopterSound.setLoop(true);
 				this.helicopterSound.play();
 			}
 		} else {

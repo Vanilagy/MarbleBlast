@@ -347,7 +347,7 @@ export class Replay {
 			}
 		}
 		this.level.marble.rollingSound.gain.gain.value = this.rollingSoundGain[i];
-		this.level.marble.rollingSound.node.playbackRate.value = this.rollingSoundPlaybackRate[i];
+		this.level.marble.rollingSound.setPlaybackRate(this.rollingSoundPlaybackRate[i]);
 		this.level.marble.slidingSound.gain.gain.value = this.slidingSoundGain[i];
 
 		this.currentTickIndex = Math.min(this.marblePositions.length - 1, this.currentTickIndex + 1); // Make sure to stop at the last tick
