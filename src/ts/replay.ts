@@ -367,7 +367,7 @@ export class Replay {
 
 		// First, create a more compact object by utilizing typed arrays.
 		let serialized: SerializedReplay = {
-			version: 2,
+			version: 3,
 			timestamp: Date.now(),
 			missionPath: this.missionPath,
 			marblePositions: Util.arrayBufferToString(Replay.vec3sToBuffer(this.marblePositions).buffer),

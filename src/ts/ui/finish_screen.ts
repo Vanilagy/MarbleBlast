@@ -4,7 +4,7 @@ import { Leaderboard } from "../leaderboard";
 import { GO_TIME } from "../level";
 import { Replay } from "../replay";
 import { state } from "../state";
-import { StorageManager } from "../storage";
+import { BestTimes, StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
 
@@ -12,13 +12,7 @@ export abstract class FinishScreen {
 	div:HTMLDivElement;
 	time: HTMLParagraphElement;
 	message: HTMLParagraphElement;
-	qualifyTimeElement: HTMLParagraphElement;
-	goldTimeElement: HTMLParagraphElement;
-	elapsedTimeElement: HTMLParagraphElement;
-	bonusTimeElement: HTMLParagraphElement;
-	bestTime1: HTMLParagraphElement;
-	bestTime2: HTMLParagraphElement;
-	bestTime3: HTMLParagraphElement;
+	bestTimeContainer: HTMLDivElement;
 	replayButton: HTMLImageElement;
 	continueButton: HTMLImageElement;
 	viewReplayButton: HTMLImageElement;
@@ -27,6 +21,11 @@ export abstract class FinishScreen {
 	nameEntryText: HTMLParagraphElement;
 	nameEntryInput: HTMLInputElement;
 	nameEntryButton: HTMLImageElement;
+	nameEntryButtonSrc: string;
+
+	abstract bestTimeCount: number;
+	abstract scorePlaceholderName: string;
+	abstract storeNotQualified: boolean;
 
 	constructor(menu: Menu) {
 		this.initProperties();
@@ -38,26 +37,8 @@ export abstract class FinishScreen {
 			document.documentElement.requestPointerLock();
 		});
 		menu.setupButton(this.continueButton, 'endgame/continue', () => state.level.stopAndExit());
-		
-		this.viewReplayButton.addEventListener('click', async (e) => {
-			if (e.button !== 0) return;
-			let level = state.level;
 
-			if (e.altKey) {
-				let serialized = await level.replay.serialize();
-				Replay.download(serialized, level.mission, false);
-			} else {
-				let confirmed = confirm("Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top 3 local scores.");
-				if (!confirmed) return;
-			
-				level.replay.mode = 'playback';
-				this.replayButton.click();
-			}
-		});
-		this.viewReplayButton.addEventListener('mouseenter', () => AudioManager.play('buttonover.wav'));
-		this.viewReplayButton.addEventListener('mousedown', () => AudioManager.play('buttonpress.wav'));
-
-		menu.setupButton(this.nameEntryButton, 'common/ok', async () => {
+		menu.setupButton(this.nameEntryButton, this.nameEntryButtonSrc, async () => {
 			let trimmed = this.nameEntryInput.value.trim();
 		
 			if (trimmed.length < 2) {
@@ -78,6 +59,7 @@ export abstract class FinishScreen {
 			let inserted = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
 		
 			this.nameEntryScreenDiv.classList.add('hidden');
+			this.div.style.pointerEvents = '';
 			this.drawBestTimes();
 		
 			if (inserted) {
@@ -88,7 +70,8 @@ export abstract class FinishScreen {
 					await StorageManager.databasePut('replays', serialized, inserted.score[2]);
 				}
 		
-				if (inserted.index === 0) Leaderboard.submitBestTime(level.mission.path, inserted.score);
+				// Submit the score to the leaderboard but only if it's the local top time and qualified
+				if (inserted.index === 0 && level.finishTime.gameplayClock <= level.mission.qualifyTime) Leaderboard.submitBestTime(level.mission.path, inserted.score);
 			}
 		});
 
@@ -97,9 +80,9 @@ export abstract class FinishScreen {
 		
 			if (e.key === 'Enter') {
 				if (!this.nameEntryScreenDiv.classList.contains('hidden')) {
-					this.nameEntryButton.src = './assets/ui/common/ok_d.png';
+					this.nameEntryButton.src = menu.uiAssetPath + this.nameEntryButtonSrc + '_d.png';
 				} else if (!this.div.classList.contains('hidden')) {
-					this.continueButton.src = './assets/ui/endgame/continue_d.png';
+					this.continueButton.src = menu.uiAssetPath + 'endgame/continue_d.png';
 				}
 			}
 		});
@@ -116,7 +99,19 @@ export abstract class FinishScreen {
 		});
 	}
 
+	async init() {
+		for (let i = 0; i < this.bestTimeCount; i++) {
+			let element = this.createBestTimeElement();
+			this.bestTimeContainer.appendChild(element);
+		}
+	}
+
 	abstract initProperties(): void;
+	abstract showMessage(type: 'failed' | 'qualified' | 'gold' | 'ultimate'): void;
+	abstract updateTimeElements(elapsedTime: number, bonusTime: number, failedToQualify: boolean): void;
+	abstract createBestTimeElement(): HTMLDivElement;
+	abstract updateBestTimeElement(element: HTMLDivElement, score: BestTimes[number], rank: number): void;
+	abstract generateNameEntryText(place: number): string;
 
 	show() {
 		let level = state.level;
@@ -124,47 +119,37 @@ export abstract class FinishScreen {
 	
 		let elapsedTime = Math.max(level.finishTime.currentAttemptTime - GO_TIME, 0);
 		let bonusTime = Math.max(0, elapsedTime - level.finishTime.gameplayClock);
-		let goldTime = level.mission.goldTime;
 		let failedToQualify = false;
 	
 		// Change the message based on having achieve gold time, qualified time or not having qualified.
-		this.message.style.color = '';
-		if (level.finishTime.gameplayClock <= goldTime) {
-			this.message.innerHTML = 'You beat the <span style="color: #fff700;">GOLD</span> time!';
+		if (level.finishTime.gameplayClock > level.mission.qualifyTime) {
+			this.showMessage('failed');
+			failedToQualify = true;
+		} else if (level.finishTime.gameplayClock <= level.mission.ultimateTime) {
+			this.showMessage('ultimate');
+		} else if (level.finishTime.gameplayClock <= level.mission.goldTime) {
+			this.showMessage('gold');
 		} else {
-			if (level.finishTime.gameplayClock <= level.mission.qualifyTime) {
-				this.message.innerHTML = "You've qualified!";
-			} else {
-				this.message.innerHTML = "You failed to qualify!";
-				this.message.style.color = 'red';
-				failedToQualify = true;
-			}
+			this.showMessage('qualified');
 		}
-	
-		// Update the time elements
-		this.time.textContent = Util.secondsToTimeString(level.finishTime.gameplayClock / 1000);
-		this.qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? Util.secondsToTimeString(level.mission.qualifyTime / 1000) : '99:59.999';
-		this.qualifyTimeElement.style.color = failedToQualify? 'red' : '';
-		this.qualifyTimeElement.style.textShadow = failedToQualify? '1px 1px 0px black' : '';
-		
-		this.goldTimeElement.textContent = Util.secondsToTimeString(goldTime / 1000);
-		this.goldTimeElement.parentElement.style.display = level.mission.hasGoldTime? '' : 'none';
-		this.elapsedTimeElement.textContent = Util.secondsToTimeString(elapsedTime / 1000);
-		this.bonusTimeElement.textContent = Util.secondsToTimeString(bonusTime / 1000);
+
+		this.updateTimeElements(elapsedTime, bonusTime, failedToQualify);
 	
 		this.drawBestTimes();
 	
-		let bestTimes = StorageManager.getBestTimesForMission(level.mission.path, 3, 'Nardo Polo');
+		let bestTimes = StorageManager.getBestTimesForMission(level.mission.path, this.bestTimeCount, this.scorePlaceholderName);
 		let place = bestTimes.filter((time) => time[1] <= level.finishTime.gameplayClock).length; // The place is determined by seeing how many scores there currently are faster than the achieved time.
 	
-		if (place <= 2 && !failedToQualify) {
+		if (place < this.bestTimeCount && (!failedToQualify || this.storeNotQualified)) {
 			// Prompt the user to enter their name
 			this.nameEntryScreenDiv.classList.remove('hidden');
-			this.nameEntryText.textContent = `You got the ${['best', '2nd best', '3rd best'][place]} time!`;
+			this.nameEntryText.textContent = this.generateNameEntryText(place);
 			this.nameEntryInput.value = StorageManager.data.lastUsedName;
+			this.div.style.pointerEvents = 'none';
 			//nameEntryInput.select(); // Don't select, since we want to avoid renames for leaderboard consistency
 		} else {
 			this.nameEntryScreenDiv.classList.add('hidden');
+			this.div.style.pointerEvents = '';
 		}
 	
 		if (!failedToQualify && level.mission.type !== 'custom') {
@@ -182,22 +167,25 @@ export abstract class FinishScreen {
 
 	/** Updates the best times. */
 	drawBestTimes() {
-		let level = state.level;
-		let goldTime = level.mission.goldTime;
+		let bestTimes = StorageManager.getBestTimesForMission(state.level.mission.path, this.bestTimeCount, 'Nardo Polo');
+		for (let i = 0; i < this.bestTimeCount; i++) {
+			this.updateBestTimeElement(this.bestTimeContainer.children[i] as HTMLDivElement, bestTimes[i], i+1);
+		}
+	}
 
-		let bestTimes = StorageManager.getBestTimesForMission(level.mission.path, 3, 'Nardo Polo');
-		this.bestTime1.children[0].textContent = '1. ' + bestTimes[0][0];
-		this.bestTime1.children[1].textContent = Util.secondsToTimeString(bestTimes[0][1] / 1000);
-		(this.bestTime1.children[1] as HTMLParagraphElement).style.color = (bestTimes[0][1] <= goldTime)? '#fff700' : '';
-		(this.bestTime1.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[0][1] <= goldTime)? '1px 1px 0px black' : '';
-		this.bestTime2.children[0].textContent = '2. ' + bestTimes[1][0];
-		this.bestTime2.children[1].textContent = Util.secondsToTimeString(bestTimes[1][1] / 1000);
-		(this.bestTime2.children[1] as HTMLParagraphElement).style.color = (bestTimes[1][1] <= goldTime)? '#fff700' : '';
-		(this.bestTime2.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[1][1] <= goldTime)? '1px 1px 0px black' : '';
-		this.bestTime3.children[0].textContent = '3. ' + bestTimes[2][0];
-		this.bestTime3.children[1].textContent = Util.secondsToTimeString(bestTimes[2][1] / 1000);
-		(this.bestTime3.children[1] as HTMLParagraphElement).style.color = (bestTimes[2][1] <= goldTime)? '#fff700' : '';
-		(this.bestTime3.children[1] as HTMLParagraphElement).style.textShadow = (bestTimes[2][1] <= goldTime)? '1px 1px 0px black' : '';
+	async onViewReplayButtonClick(e: MouseEvent) {
+		let level = state.level;
+
+		if (e.altKey) {
+			let serialized = await level.replay.serialize();
+			Replay.download(serialized, level.mission, false);
+		} else {
+			let confirmed = confirm(`Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top ${this.bestTimeCount} local scores.`);
+			if (!confirmed) return;
+		
+			level.replay.mode = 'playback';
+			this.replayButton.click();
+		}
 	}
 
 	handleGamepadInput() {

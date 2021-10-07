@@ -22,8 +22,11 @@
 		<link rel="stylesheet" href="./css/loading_mbp.css">
 		<link rel="stylesheet" href="./css/help.css">
 		<link rel="stylesheet" href="./css/options.css">
-		<link rel="stylesheet" href="./css/game.css">
-		<link rel="stylesheet" href="./css/game_mbp.css">
+		<link rel="stylesheet" href="./css/hud.css">
+		<link rel="stylesheet" href="./css/pause_screen.css">
+		<link rel="stylesheet" href="./css/pause_screen_mbp.css">
+		<link rel="stylesheet" href="./css/finish_screen.css">
+		<link rel="stylesheet" href="./css/finish_screen_mbp.css">
 	</head>
 	<body>
 		<canvas id="main-canvas"></canvas>
@@ -104,18 +107,7 @@
 					<p>Best Times:</p>
 					<p></p>
 				</div>
-				<div class="finish-row" id="best-time-1">
-					<p></p>
-					<p></p>
-				</div>
-				<div class="finish-row" id="best-time-2">
-					<p></p>
-					<p></p>
-				</div>
-				<div class="finish-row" id="best-time-3">
-					<p></p>
-					<p></p>
-				</div>
+				<div id="finish-best-times" style="clear: both; position: relative;"></div>
 				<img src="./assets/ui/endgame/replay_n.png" id="finish-replay">
 				<img src="./assets/ui/endgame/continue_n.png" id="finish-continue">
 				<img src="./assets/img/round_videocam_black_18dp.png" id="finish-view-replay" title="Click to view replay, Alt-Click to download it">
@@ -127,6 +119,28 @@
 				<img src="./assets/ui/common/window.png" id="name-entry-input-background">
 				<input type="text" id="name-entry-input" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false">
 				<img src="./assets/ui/common/ok_n.png" id="name-entry-confirm">
+			</div>
+
+			<div id="mbp-finish-screen" class="hidden">
+				<img src="./assets/ui_mbp/endgame/base.png">
+				<p id="mbp-finish-screen-time">Your Time: <span id="mbp-finish-screen-time-time"></span></p>
+				<p id="mbp-finish-message"></p>
+				<div id="mbp-finish-time-rows"></div>
+				<p id="mbp-finish-screen-top-times-heading">Top 5 Times:</p>
+				<div id="mbp-finish-screen-top-times"></div>
+				<img src="./assets/ui_mbp/endgame/replay_n.png" id="mbp-finish-replay">
+				<img src="./assets/ui_mbp/endgame/continue_n.png" id="mbp-finish-continue">
+				<img src="./assets/data_mbp/missions_mbp/advanced/beachparty.jpg" id="mbp-finish-next-level-image">
+				<img src="./assets/ui_mbp/endgame/level_window_n.png" id="mbp-finish-next-level">
+				<img src="./assets/ui_mbp/play/replay_n.png" id="mbp-finish-view-replay" title="Click to view replay, Alt-Click to download it">
+			</div>
+			<div id="mbp-name-entry-screen" class="hidden">
+				<img src="./assets/ui_mbp/endgame/enternamebox.png">
+				<p>Well Done!</p>
+				<p></p>
+				<img src="./assets/ui_mbp/endgame/window.png" id="mbp-name-entry-input-background">
+				<input type="text" id="mbp-name-entry-input" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false">
+				<img src="./assets/ui_mbp/endgame/ok_n.png" id="mbp-name-entry-confirm">
 			</div>
 		</div>
 

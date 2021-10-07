@@ -198,8 +198,9 @@ export abstract class StorageManager {
 		return result;
 	}
 
+	static maxScoresPerLevel = 5;
 	/** Register a new time for a mission.
-	 * @returns The inserted score and the index at which at was inserted. Returns null, if the score wasn't inserted (so, not in the top 3 best times).
+	 * @returns The inserted score and the index at which at was inserted. Returns null, if the score wasn't inserted (so, not in the top maxScoresPerLevel best times).
 	 */
 	static insertNewTime(path: string, name: string, time: number) {
 		let stored = this.data.bestTimes[path] ?? [];
@@ -214,9 +215,9 @@ export abstract class StorageManager {
 		stored.splice(index, 0, toInsert);
 
 		// Shorten the array if needed
-		if (stored.length > 3) {
-			let lost = stored[3];
-			stored = stored.slice(0, 3);
+		if (stored.length > this.maxScoresPerLevel) {
+			let lost = stored[this.maxScoresPerLevel];
+			stored = stored.slice(0, this.maxScoresPerLevel);
 
 			if (lost[2]) {
 				this.databaseGet('replays', lost[2]).then(replayData => {
@@ -229,7 +230,7 @@ export abstract class StorageManager {
 
 		this.storeBestTimes();
 
-		if (index === 3) return null;
+		if (index === this.maxScoresPerLevel) return null;
 		return {
 			index,
 			score: toInsert

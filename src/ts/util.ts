@@ -541,7 +541,7 @@ export abstract class Util {
 	static secondsToTimeString(seconds: number, decimalDigits = 3) {
 		let abs = Math.abs(seconds);
 		let minutes = Math.floor(abs / 60);
-		let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(abs % 1 * 10**decimalDigits).toString(), decimalDigits);
+		let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(abs * 10**decimalDigits % 10**decimalDigits).toString(), decimalDigits);
 		if (seconds < 0) string = '-' + string;
 		
 		return string;

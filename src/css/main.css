@@ -38,6 +38,15 @@ html, body {
 	cursor: url(../assets/ui/common/cur_3darrow.png) 0 0, auto;
 }
 
+#game-ui {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	text-align: center;
+}
+
 #menu {
 	position: absolute;
 	top: 0;

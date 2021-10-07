@@ -8,7 +8,7 @@ import { previousButtonState } from "../input";
 import { getRandomId } from "../state";
 import { Leaderboard } from "../leaderboard";
 import { Menu } from "./menu";
-import { MissionLibrary } from "./mission_library";
+import { MissionLibrary } from "../mission_library";
 
 export abstract class LevelSelect {
 	menu: Menu;

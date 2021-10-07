@@ -51,8 +51,8 @@ export class Mission {
 	artist: string;
 	description: string;
 	qualifyTime = Infinity;
-	goldTime = 0;
-	hasGoldTime = false; // Some customs don't have 'em
+	goldTime = -Infinity; // Doubles as platinum time
+	ultimateTime = -Infinity;
 	type: 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'custom' = 'custom';
 	modification: 'gold' | 'platinum';
 	zipDirectory: JSZip = null;
@@ -81,7 +81,9 @@ export class Mission {
 		mission.artist = missionInfo.artist ?? '';
 		mission.description = missionInfo.desc ?? '';
 		if (missionInfo.time && missionInfo.time !== "0") mission.qualifyTime = MisParser.parseNumber(missionInfo.time);
-		if (missionInfo.goldtime) mission.goldTime = MisParser.parseNumber(missionInfo.goldtime), mission.hasGoldTime = true;
+		if (missionInfo.goldtime) mission.goldTime = MisParser.parseNumber(missionInfo.goldtime);
+		if (missionInfo.platinumtime) mission.goldTime = MisParser.parseNumber(missionInfo.platinumtime);
+		if (missionInfo.ultimatetime) mission.ultimateTime = MisParser.parseNumber(missionInfo.ultimatetime);
 		mission.type = missionInfo.type.toLowerCase() as any;
 		mission.modification = path.startsWith('mbp/')? 'platinum' : 'gold';
 		mission.hasEasterEgg = mission.allElements.some(element => element._type === MissionElementType.Item && element.datablock?.toLowerCase() === 'easteregg');
@@ -98,6 +100,8 @@ export class Mission {
 		mission.description = entry.desc ?? '';
 		if (entry.qualifyingTime) mission.qualifyTime = entry.qualifyingTime;
 		if (entry.goldTime) mission.goldTime = entry.goldTime;
+		if (entry.platinumTime) mission.goldTime = entry.platinumTime;
+		if (entry.ultimateTime) mission.ultimateTime = entry.ultimateTime;
 		mission.id = entry.id;
 		mission.isNew = isNew;
 		mission.modification = entry.modification as ('gold' | 'platinum');
@@ -164,10 +168,16 @@ export class Mission {
 		}
 		if (missionInfo?.goldtime) {
 			this.goldTime = MisParser.parseNumber(missionInfo.goldtime);
-			this.hasGoldTime = true;
+			if (missionInfo?.platinumtime) this.goldTime = MisParser.parseNumber(missionInfo.platinumtime);
+
 			if (!this.goldTime) { // Again, catches both 0 and NaN cases
-				this.hasGoldTime = false;
-				this.goldTime = 0;
+				this.goldTime = -Infinity;
+			}
+		}
+		if (missionInfo?.ultimatetime) {
+			this.ultimateTime = MisParser.parseNumber(missionInfo.ultimatetime);
+			if (!this.ultimateTime) { // Again again, catches both 0 and NaN cases
+				this.ultimateTime = -Infinity;
 			}
 		}
 	}

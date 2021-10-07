@@ -125,7 +125,7 @@ export abstract class Menu {
 	show() {
 		this.menuDiv.classList.remove('hidden');
 		this.music = AudioManager.createAudioSource(this.menuMusicSrc, AudioManager.musicGain);
-		this.music.node.loop = true;
+		this.music.setLoop(true);
 		this.music.play();
 	}
 
@@ -145,6 +145,6 @@ export abstract class Menu {
 	async init() {
 		AudioManager.setAssetPath(this.audioAssetPath);
 		await AudioManager.loadBuffers([this.menuMusicSrc, 'buttonover.wav', 'buttonpress.wav']);
-		await Promise.all([this.home.init(), this.levelSelect.init(), this.optionsScreen.init()]);
+		await Promise.all([this.home.init(), this.levelSelect.init(), this.finishScreen.init(), this.optionsScreen.init()]);
 	}
 }

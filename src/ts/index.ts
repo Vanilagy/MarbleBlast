@@ -7,7 +7,7 @@ import { StorageManager } from './storage';
 import { Util } from './util';
 import { Leaderboard } from './leaderboard';
 import { MbgMenu } from './ui/menu_mbg';
-import { MissionLibrary } from './ui/mission_library';
+import { MissionLibrary } from './mission_library';
 import { state } from './state';
 import { MbpMenu } from './ui/menu_mbp';
 

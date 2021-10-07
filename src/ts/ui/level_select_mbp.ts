@@ -3,7 +3,8 @@ import { Mission } from "../mission";
 import { BestTimes, StorageManager } from "../storage";
 import { Util } from "../util";
 import { LevelSelect } from "./level_select";
-import { MissionLibrary } from "./mission_library";
+import { MissionLibrary } from "../mission_library";
+import { MBP_GOLD_COLOR, MBP_PLATINUM_COLOR, MBP_ULTIMATE_COLOR } from "./finish_screen_mbp";
 
 export class MbpLevelSelect extends LevelSelect {
 	loadReplayButton = document.querySelector('#mbp-load-replay-button') as HTMLImageElement;
@@ -210,5 +211,11 @@ export class MbpLevelSelect extends LevelSelect {
 		element.children[0].innerHTML = `<span>${rank}.</span> ${Util.htmlEscape(score[0])}`;
 		element.children[1].textContent = Util.secondsToTimeString(score[1] / 1000);
 		if (element.children[2]) this.updateReplayButton(element.children[2] as HTMLImageElement, score);
+
+		element.style.color = '';
+		if (!this.currentMission) return;
+		
+		if (score[1] <= this.currentMission.goldTime) element.style.color = (this.currentMission.modification === 'gold')? MBP_GOLD_COLOR : MBP_PLATINUM_COLOR;
+		if (score[1] <= this.currentMission.ultimateTime) element.style.color = MBP_ULTIMATE_COLOR;
 	}
 }

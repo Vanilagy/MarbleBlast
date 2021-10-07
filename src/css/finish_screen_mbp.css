@@ -1,0 +1,201 @@
+#mbp-finish-screen {
+	position: absolute;
+	margin: auto;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	width: 584px;
+	height: 440px;
+	color: white;
+	font-family: 'DomCasualRegular';
+	text-align: left;
+	text-shadow: 1px 1px 0px #1a1a1a;
+}
+
+#mbp-finish-screen-time {
+	position: absolute;
+	top: 33px;
+	left: 34px;
+	width: 515px;
+	font-size: 55px;
+	margin: 0;
+}
+
+#mbp-finish-screen-time span {
+	float: right;
+}
+
+#mbp-finish-message {
+	position: absolute;
+	top: 116px;
+	left: 13px;
+	text-align: center;
+	font-size: 26px;
+	width: 310px;
+	margin: 0;
+}
+
+#mbp-finish-time-rows {
+	position: absolute;
+	top: 160px;
+	left: 27px;
+	width: 290px;
+}
+
+#mbp-finish-time-rows p {
+	margin: 0;
+	font-size: 20px;
+}
+
+#mbp-finish-time-rows span {
+	float: right;
+}
+
+#mbp-finish-screen-top-times-heading {
+	margin: 0;
+	position: absolute;
+	top: 116px;
+	left: 340px;
+	font-size: 26px;
+}
+
+#mbp-finish-screen-top-times {
+	position: absolute;
+    top: 152px;
+    left: 341px;
+    width: 205px;
+}
+
+#mbp-finish-screen-top-times > div {
+	position: relative;
+	font-size: 20px;
+	margin-bottom: 3px;
+}
+
+#mbp-finish-screen-top-times > div > div:first-child {
+	width: 124px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#mbp-finish-screen-top-times > div > div:last-child {
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+
+#mbp-finish-screen-top-times > div:nth-child(1) span {
+	color: rgb(238, 200, 132);
+}
+#mbp-finish-screen-top-times > div:nth-child(2) span {
+	color: rgb(205, 205, 205);
+}
+#mbp-finish-screen-top-times > div:nth-child(3) span {
+	color: rgb(201, 175, 160);
+}
+#mbp-finish-screen-top-times > div:nth-child(4) span {
+	color: rgb(164, 164, 164);
+}
+#mbp-finish-screen-top-times > div:nth-child(5) span {
+	color: rgb(148, 148, 148);
+}
+
+#mbp-finish-replay {
+	position: absolute;
+	display: block;
+	top: 363px;
+	left: 460px;
+}
+
+#mbp-finish-continue {
+	position: absolute;
+	display: block;
+	top: 307px;
+	left: 460px;
+}
+
+#mbp-finish-next-level-image {
+	position: absolute;
+	display: block;
+	top: 307px;
+	left: 325px;
+	width: 130px;
+	height: 110px;
+	object-fit: fill;
+}
+
+#mbp-finish-next-level {
+	position: absolute;
+	display: block;
+	top: 307px;
+	left: 325px;
+}
+
+#mbp-finish-view-replay {
+	position: absolute;
+	display: block;
+	top: 374px;
+	left: 24px;
+}
+
+#mbp-name-entry-screen {
+	position: absolute;
+	display: block;
+	margin: auto;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	width: 420px; /* blaze */
+	height: 256px;
+	color: white;
+	font-family: DomCasualRegular;
+	text-shadow: 1px 1px 0px #1a1a1a;
+}
+
+#mbp-name-entry-screen > p:first-of-type {
+	position: absolute;
+	top: 23px;
+	left: 0;
+	margin: 0;
+	width: 420px;
+	font-size: 40px;
+}
+
+#mbp-name-entry-screen > p:last-of-type {
+	position: absolute;
+	top: 76px;
+	left: 0;
+	margin: 0;
+	width: 420px;
+	font-size: 26px;
+}
+
+#mbp-name-entry-input-background {
+	position: absolute;
+	top: 121px;
+	left: 14px;
+}
+
+#mbp-name-entry-input {
+	position: absolute;
+	top: 132px;
+	left: 27px;
+	background: none;
+	border: none;
+	font-family: inherit;
+	font-size: 26px;
+}
+
+#mbp-name-entry-input:focus {
+	outline: none;
+}
+
+#mbp-name-entry-confirm {
+	position: absolute;
+	display: block;
+	top: 185px;
+	left: 154px;
+}

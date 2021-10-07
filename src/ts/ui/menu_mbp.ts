@@ -18,6 +18,7 @@ import { MbgLoadingScreen } from "./loading_mbg";
 import { MbpLoadingScreen } from "./loading_mbp";
 import { MbpPauseScreen } from "./pause_screen_mbp";
 import { MbpHud } from "./hud_mbp";
+import { MbpFinishScreen } from "./finish_screen_mbp";
 
 export class MbpMenu extends Menu {
 	get uiAssetPath() {
@@ -55,7 +56,7 @@ export class MbpMenu extends Menu {
 	}
 
 	createFinishScreen(): FinishScreen {
-		return new MbgFinishScreen(this);
+		return new MbpFinishScreen(this);
 	}
 
 	getMenuDiv() {

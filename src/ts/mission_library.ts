@@ -1,7 +1,7 @@
-import { Mission, CLAEntry } from "../mission";
-import { MisFile, MisParser, MissionElementType, MissionElementScriptObject } from "../parsing/mis_parser";
-import { ResourceManager, DirectoryStructure } from "../resources";
-import { Util } from "../util";
+import { Mission, CLAEntry } from "./mission";
+import { MisFile, MisParser } from "./parsing/mis_parser";
+import { ResourceManager, DirectoryStructure } from "./resources";
+import { Util } from "./util";
 
 export abstract class MissionLibrary {
 	static goldBeginner: Mission[] = [];

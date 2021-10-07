@@ -1,8 +1,8 @@
 import { AudioManager } from "../audio";
 import { Mission } from "../mission";
-import { BestTimes, StorageManager } from "../storage";
+import { BestTimes } from "../storage";
 import { Util } from "../util";
-import { MissionLibrary } from "./mission_library";
+import { MissionLibrary } from "../mission_library";
 import { LevelSelect } from "./level_select";
 
 export class MbgLevelSelect extends LevelSelect {
