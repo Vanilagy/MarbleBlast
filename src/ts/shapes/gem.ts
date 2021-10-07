@@ -20,7 +20,7 @@ export class Gem extends Shape {
 
 		// Determine the color of the gem:
 		let color = element.datablock.slice("GemItem".length);
-		if (color.length === 0) color = Util.randomFromArray(GEM_COLORS); // Random if no color specified
+		if (color.length === 0) color = Gem.pickRandomColor(); // Random if no color specified
 
 		this.matNamesOverride["base.gem"] = color.toLowerCase() + ".gem";
 	}
@@ -37,5 +37,9 @@ export class Gem extends Shape {
 	reset() {
 		this.pickedUp = false;
 		this.setOpacity(1);
+	}
+
+	static pickRandomColor() {
+		return Util.randomFromArray(GEM_COLORS);
 	}
 }

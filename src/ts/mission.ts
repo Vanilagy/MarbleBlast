@@ -336,4 +336,14 @@ export class Mission {
 		}
 		return true;
 	}
+
+	/** Computes the clock time in MBP when the user should be warned that they're about to exceed the par time. */
+	computeAlarmStartTime() {
+		let alarmStart = this.qualifyTime;
+		if (this.missionInfo.alarmstarttime) alarmStart -= MisParser.parseNumber(this.missionInfo.alarmstarttime) * 1000;
+		else alarmStart -= 2 * 1000 ?? 15 * 1000;
+		alarmStart = Math.max(0, alarmStart);
+
+		return alarmStart;
+	}
 }

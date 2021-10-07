@@ -34,7 +34,7 @@ export abstract class FinishScreen {
 		menu.setupButton(this.replayButton, 'endgame/replay', () => {
 			// Restart the level
 			this.div.classList.add('hidden');
-			state.level.restart();
+			state.level.restart(true);
 			document.documentElement.requestPointerLock();
 		});
 		menu.setupButton(this.continueButton, 'endgame/continue', () => state.level.stopAndExit());

@@ -54,6 +54,7 @@ import { CheckpointTrigger } from "./triggers/checkpoint_trigger";
 import { EasterEgg } from "./shapes/easter_egg";
 import { RandomPowerUp } from "./shapes/random_power_up";
 import { MbpPauseScreen } from "./ui/pause_screen_mbp";
+import { MbpHud } from "./ui/hud_mbp";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -197,6 +198,8 @@ export class Level extends Scheduler {
 	checkpointUp: OIMO.Vec3 = null;
 	
 	timeTravelSound: AudioSource;
+	/** The alarm that plays in MBP when the player is about to pass the "par time". */
+	alarmSound: AudioSource;
 	music: AudioSource;
 	originalMusicName: string;
 	replay: Replay;
@@ -237,9 +240,10 @@ export class Level extends Scheduler {
 		await this.initMarble(); this.loadingState.loaded += 1;
 		this.particles = new ParticleManager(this);
 		await this.particles.init();
+		let soundPromise = this.initSounds();
 		await this.addSimGroup(this.mission.root);
 		await this.initUi(); this.loadingState.loaded += 3;
-		await this.initSounds(); this.loadingState.loaded += 6;
+		await soundPromise; this.loadingState.loaded += 6;
 
 		this.replay = new Replay(this);
 	}
@@ -412,6 +416,9 @@ export class Level extends Scheduler {
 			shape.dtsPath = path;
 			shape.ambientRotate = true;
 			shape.showSequences = false;
+			// MBP's UI gem color is randomized
+			if (path.includes("gem") && state.menu.hud instanceof MbpHud) shape.matNamesOverride['base.gem'] = Gem.pickRandomColor() + '.gem';
+
 			await shape.init();
 
 			this.overlayShapes.push(shape);
@@ -453,7 +460,10 @@ export class Level extends Scheduler {
 		}
 		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
 
-		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName]);
+		let toLoad = ["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName];
+		if (isFinite(this.mission.qualifyTime) && state.modification === 'platinum') toLoad.push("alarm.wav", "alarm_timeout.wav", "infotutorial.wav");
+
+		await AudioManager.loadBuffers(toLoad);
 		this.music = AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
 		this.music.setLoop(true);
 		await this.music.promise;
@@ -710,6 +720,8 @@ export class Level extends Scheduler {
 
 		this.timeTravelSound?.stop();
 		this.timeTravelSound = null;
+		this.alarmSound?.stop();
+		this.alarmSound = null;
 
 		this.replay.init();
 
@@ -797,7 +809,7 @@ export class Level extends Scheduler {
 		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
 
 		let hud = state.menu.hud;
-		hud.displayTime(timeToDisplay / 1000);
+		hud.displayTime(timeToDisplay / 1000, this.determineClockColor(timeToDisplay));
 
 		// Update help and alert text visibility
 		let helpTextTime = this.helpTextTimeState?.timeSinceLoad ?? -Infinity;
@@ -811,6 +823,23 @@ export class Level extends Scheduler {
 		hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
 
 		requestAnimationFrame(() => this.render());
+	}
+
+	determineClockColor(timeToDisplay: number) {
+		if (state.modification === 'gold') return;
+
+		if (this.timeState.currentAttemptTime < GO_TIME || this.currentTimeTravelBonus > 0) return 'green';
+		if (timeToDisplay >= this.mission.qualifyTime) return 'red';
+
+		if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum') {
+			// Create the flashing effect
+			let alarmStart = this.mission.computeAlarmStartTime();
+			let elapsed = timeToDisplay - alarmStart;
+			if (elapsed < 0) return;
+			if (Math.floor(elapsed / 1000) % 2 === 0) return 'red';
+		}
+
+		return; // Default yellow
 	}
 
 	/** Updates the position of the camera based on marble position and orientation. */
@@ -1037,6 +1066,8 @@ export class Level extends Scheduler {
 				}
 			}
 
+			let prevGameplayClock = this.timeState.gameplayClock;
+
 			// Note: It is incorrect that this TT code here runs after physics and shape updating, it should run at the top of this loop's body. However, changing this code's position now would make all TT catches about ~8 milliseconds later, giving an unfair advantage to those who have already set leaderboard scores using the previous calculation. So, for the sake of score integrity, we're keeping it this way.
 			if (this.timeState.currentAttemptTime >= GO_TIME) {
 				if (this.currentTimeTravelBonus > 0) {
@@ -1060,6 +1091,26 @@ export class Level extends Scheduler {
 					// If we slightly undershot the zero mark of the remaining time travel bonus, add the "lost time" back onto the gameplay clock:
 					this.timeState.gameplayClock += -this.currentTimeTravelBonus;
 					this.currentTimeTravelBonus = 0;
+				}
+			}
+
+			// Handle alarm warnings (that the user is about to exceed the par time)
+			if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum') {
+				let alarmStart = this.mission.computeAlarmStartTime();
+
+				if (prevGameplayClock < alarmStart && this.timeState.gameplayClock >= alarmStart) {
+					// Start the alarm
+					this.alarmSound = AudioManager.createAudioSource('alarm.wav');
+					this.alarmSound.setLoop(true);
+					this.alarmSound.play();
+					state.menu.hud.displayHelp(`You have ${(this.mission.qualifyTime - alarmStart) / 1000} seconds remaining.`, true);
+				}
+				if (prevGameplayClock < this.mission.qualifyTime && this.timeState.gameplayClock >= this.mission.qualifyTime) {
+					// Stop the alarm
+					this.alarmSound?.stop();
+					this.alarmSound = null;
+					state.menu.hud.displayHelp("The clock has passed the Par Time.", true);
+					AudioManager.play('alarm_timeout.wav');
 				}
 			}
 		}

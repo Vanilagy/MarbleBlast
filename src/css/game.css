@@ -24,6 +24,10 @@
 	white-space: pre-line;
 }
 
+#game-ui.platinum #help-text {
+	text-shadow: 1px 1px 0px #777777;
+}
+
 #alert-text {
 	width: 100%;
 	text-align: center;
@@ -35,9 +39,26 @@
 	white-space: pre-line;
 }
 
+#game-ui.platinum #alert-text {
+	color: rgb(228, 211, 129);
+	text-shadow: 1px 1px 0px rgb(119, 102, 34);
+}
+
 #clock {
 	font-size: 0;
 	display: inline-block;
+	position: relative;
+}
+
+#clock-background {
+	position: absolute;
+    margin: auto;
+    left: 0px;
+    right: 0;
+    top: -10px;
+    width: 220px;
+    height: 79px;
+    transform: translateX(3px);
 }
 
 #gem-count {

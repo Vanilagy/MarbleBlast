@@ -1,3 +1,4 @@
+import { AudioManager } from "../audio";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
 import { StorageManager } from "../storage";
@@ -30,6 +31,12 @@ export abstract class Hud {
 	helpElement: HTMLDivElement;
 	alertElement: HTMLDivElement;
 	centerElement: HTMLImageElement;
+	powerUpBorder: HTMLImageElement;
+	clockBackground: HTMLImageElement;
+
+	abstract gemCountMinDigits: number;
+	abstract showClockBackground: boolean;
+	abstract supportNumberColors: boolean;
 
 	constructor(menu: Menu) {
 		this.menu = menu;
@@ -39,15 +46,33 @@ export abstract class Hud {
 		this.helpElement = document.querySelector('#help-text');
 		this.alertElement = document.querySelector('#alert-text');
 		this.centerElement = document.querySelector('#center-text');
+		this.powerUpBorder = document.querySelector('#powerup-border');
+		this.clockBackground = document.querySelector('#clock-background');
 	}
 
 	async load() {
-		await ResourceManager.loadImages(Object.values(numberSources).map(x => this.menu.uiAssetPath + "game/numbers/" + x));
+		await ResourceManager.loadImages(Object.values(numberSources).map(x => {
+			let files = [x];
+			if (this.supportNumberColors && !x.includes('slash') && !x.includes('dash')) {
+				// Also load the colored variants
+				files.push(x.slice(0, x.lastIndexOf('.')) + '_red.png');
+				files.push(x.slice(0, x.lastIndexOf('.')) + '_green.png');
+			}
+			return files.map(y => this.menu.uiAssetPath + "game/numbers/" + y);
+		}).flat());
 		await ResourceManager.loadImages(["ready.png", "set.png", "go.png", "outofbounds.png", "powerup.png"].map(x => this.menu.uiAssetPath + "game/" + x));
+		this.powerUpBorder.src = this.menu.uiAssetPath + 'game/powerup.png';
+		if (this.showClockBackground) this.clockBackground.classList.remove('hidden');
+		else this.clockBackground.classList.add('hidden');
+
+		this.menu.gameUiDiv.classList.remove('gold', 'platinum');
+		this.menu.gameUiDiv.classList.add(state.modification);
 	}
 
 	/** Updates the game clock canvas. */
-	displayTime(seconds: number) {
+	displayTime(seconds: number, specialColor?: 'red' | 'green') {
+		if (!this.supportNumberColors) specialColor = undefined;
+
 		let string = Util.secondsToTimeString(seconds);
 		const defaultWidth = 43;
 		const defaultMarginRight = -19;
@@ -61,6 +86,7 @@ export abstract class Hud {
 		for (let i = 0; i < string.length; i++) {
 			let char = string[i];
 			let path = this.menu.uiAssetPath + "game/numbers/" + numberSources[char as keyof typeof numberSources];
+			if (this.supportNumberColors && specialColor) path = path.slice(0, path.lastIndexOf('.')) + '_' + specialColor + '.png';
 			let image = ResourceManager.getImageFromCache(path);
 
 			if (char === ':' || char === '.') currentX -= 3;
@@ -74,7 +100,7 @@ export abstract class Hud {
 	displayGemCount(count: number, total: number) {
 		if (total === 0) return;
 
-		let string = Util.leftPadZeroes(count.toString(), 2) + '/' + Util.leftPadZeroes(total.toString(), 2);
+		let string = Util.leftPadZeroes(count.toString(), this.gemCountMinDigits) + '/' + Util.leftPadZeroes(total.toString(), this.gemCountMinDigits);
 
 		// Generate the appropriate number of image elements
 		while (string.length > this.gemCountElement.children.length) {
@@ -98,7 +124,7 @@ export abstract class Hud {
 	}
 
 	/** Displays a help message in the middle of the screen. */
-	displayHelp(message: string) {
+	displayHelp(message: string, playSound = false) {
 		keybindRegex.lastIndex = 0;
 		let match: RegExpMatchArray;
 
@@ -129,6 +155,7 @@ export abstract class Hud {
 
 		this.helpElement.textContent = message;
 		state.level.helpTextTimeState = Util.jsonClone(state.level.timeState);
+		if (playSound) AudioManager.play('infotutorial.wav');
 	}
 
 	/** Displays an alert at the bottom of the screen. */

@@ -1,5 +1,7 @@
 import { Hud } from "./hud";
 
 export class MbgHud extends Hud {
-	uiAssetPath = './assets/ui/';
+	gemCountMinDigits = 2;
+	showClockBackground = false;
+	supportNumberColors = false;
 }
