@@ -11,33 +11,21 @@ export abstract class PauseScreen {
 	restartButton: HTMLImageElement;
 	replayButton: HTMLImageElement;
 
+	yesSrc: string;
+	noSrc: string;
+	restartSrc: string;
+
 	constructor(menu: Menu) {
 		this.initProperties();
 
-		menu.setupButton(this.yesButton, 'common/yes', () => {
+		menu.setupButton(this.yesButton, this.yesSrc, () => {
 			if (!state.level) return;
 			state.level.stopAndExit();
 		});
-		menu.setupButton(this.noButton, 'common/no', () => state.level.unpause());
-		menu.setupButton(this.restartButton, 'common/restart', () => {
+		menu.setupButton(this.noButton, this.noSrc, () => state.level.unpause());
+		menu.setupButton(this.restartButton, this.restartSrc, () => {
 			state.level.unpause();
 			state.level.restart(true);
-		});
-
-		this.replayButton.addEventListener('click', async (e) => {
-			if (e.button !== 0) return;
-			let level = state.level;
-		
-			if (e.altKey) {
-				let serialized = await level.replay.serialize();
-				Replay.download(serialized, level.mission, false, true);
-			} else {
-				let confirmed = confirm("Note that you can only watch this replay once. If you want to watch it more often, download it first. (alt-click)");
-				if (!confirmed) return;
-			
-				level.replay.mode = 'playback';
-				this.restartButton.click();
-			}
 		});
 
 		window.addEventListener('keydown', (e) => {
@@ -45,7 +33,7 @@ export abstract class PauseScreen {
 		
 			if (e.key === 'Escape') {
 				if (state.level?.paused) {
-					this.noButton.src = './assets/ui/common/no_d.png';
+					this.noButton.src = menu.uiAssetPath + this.noSrc + '_d.png';
 				} else {
 					this.tryPause();
 				}
@@ -55,8 +43,8 @@ export abstract class PauseScreen {
 		window.addEventListener('keyup', (e) => {
 			if (!state.level) return;
 		
-			if (state.level.paused && e.key === 'Escape' && this.noButton.src.endsWith('/assets/ui/common/no_d.png')) {
-				this.noButton.src = './assets/ui/common/no_n.png';
+			if (state.level.paused && e.key === 'Escape' && this.noButton.src.endsWith('_d.png')) {
+				this.noButton.src = menu.uiAssetPath + this.noSrc + '_n.png';
 				state.level.unpause();
 			}
 		});
@@ -78,6 +66,21 @@ export abstract class PauseScreen {
 			|| (state.level.finishTime && state.level.replay.mode === 'record')) return;
 
 		state.level.pause();
+	}
+
+	async onReplayButtonClick(e: MouseEvent) {
+		let level = state.level;
+	
+		if (e.altKey) {
+			let serialized = await level.replay.serialize();
+			Replay.download(serialized, level.mission, false, true);
+		} else {
+			let confirmed = confirm("Note that you can only watch this replay once. If you want to watch it more often, download it first. (alt-click)");
+			if (!confirmed) return;
+		
+			level.replay.mode = 'playback';
+			this.restartButton.click();
+		}
 	}
 
 	handleGamepadInput(gamepad: Gamepad) {

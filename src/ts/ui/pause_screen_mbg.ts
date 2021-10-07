@@ -1,3 +1,4 @@
+import { Menu } from "./menu";
 import { PauseScreen } from "./pause_screen";
 
 export class MbgPauseScreen extends PauseScreen {
@@ -7,5 +8,18 @@ export class MbgPauseScreen extends PauseScreen {
 		this.noButton = document.querySelector('#pause-no');
 		this.restartButton = document.querySelector('#pause-restart');
 		this.replayButton = document.querySelector('#pause-replay');
+
+		this.yesSrc = 'common/yes';
+		this.noSrc = 'common/no';
+		this.restartSrc = 'common/restart';
+	}
+
+	constructor(menu: Menu) {
+		super(menu);
+
+		this.replayButton.addEventListener('click', async (e) => {
+			if (e.button !== 0) return;
+			this.onReplayButtonClick(e);
+		});
 	}
 }

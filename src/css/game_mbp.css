@@ -1,0 +1,64 @@
+#mbp-pause-screen {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 422px;
+    height: 250px;
+}
+
+#mbp-pause-screen ._background {
+	position: absolute;
+	top: -5000px;
+	left: -5000px;
+	width: 10000px;
+	height: 10000px;
+	background: rgba(0, 0, 0, 0.4);
+}
+
+#mbp-pause-screen > img:first-of-type {
+	width: 422px;
+    height: 250px;
+	position: relative;
+}
+
+#mbp-pause-screen > p {
+	position: absolute;
+	font-family: MarkerFelt;
+	font-size: 27px;
+	top: 29px;
+	left: 106px;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+}
+
+#mbp-pause-yes {
+	display: block;
+	position: absolute;
+	top: 142px;
+	left: 60px;
+}
+
+#mbp-pause-no {
+	display: block;
+	position: absolute;
+	top: 142px;
+	left: 148px;
+}
+
+#mbp-pause-restart {
+	display: block;
+	position: absolute;
+	top: 142px;
+	left: 277px;
+}
+
+#mbp-pause-replay {
+	display: block;
+	position: absolute;
+	top: 141px;
+	left: 234px;
+}

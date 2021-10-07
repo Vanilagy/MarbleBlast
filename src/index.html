@@ -23,6 +23,7 @@
 		<link rel="stylesheet" href="./css/help.css">
 		<link rel="stylesheet" href="./css/options.css">
 		<link rel="stylesheet" href="./css/game.css">
+		<link rel="stylesheet" href="./css/game_mbp.css">
 	</head>
 	<body>
 		<canvas id="main-canvas"></canvas>
@@ -40,6 +41,7 @@
 			<img id="center-text" src=""></img>
 			<canvas id="clock" height="60" width="300"></canvas>
 			<div id="gem-count"></div>
+
 			<div id="pause-screen" class="hidden">
 				<img src="./assets/ui/common/dialog.png">
 				<p>Exit from this Level?</p>
@@ -48,6 +50,17 @@
 				<img src="./assets/ui/common/restart_n.png" id="pause-restart">
 				<img src="./assets/img/round_videocam_black_18dp.png" id="pause-replay" title="Click to view replay up until this point, Alt-Click to download it">
 			</div>
+
+			<div id="mbp-pause-screen" class="hidden">
+				<div class="_background"></div>
+				<img src="./assets/ui_mbp/play/window.png">
+				<p>Exit from this Level?</p>
+				<img src="./assets/ui_mbp/exit/yes_n.png" id="mbp-pause-yes">
+				<img src="./assets/ui_mbp/exit/no_n.png" id="mbp-pause-no">
+				<img src="./assets/ui_mbp/exit/restart_n.png" id="mbp-pause-restart">
+				<img src="./assets/ui_mbp/play/replay_n.png" id="mbp-pause-replay" title="Click to view replay up until this point, Alt-Click to download it">
+			</div>
+
 			<div id="finish-screen" class="hidden">
 				<img src="./assets/ui/play/playgui.png">
 				<div id="finish-screen-time">

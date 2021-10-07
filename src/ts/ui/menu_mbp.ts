@@ -16,6 +16,7 @@ import { PauseScreen } from "./pause_screen";
 import { MbgPauseScreen } from "./pause_screen_mbg";
 import { MbgLoadingScreen } from "./loading_mbg";
 import { MbpLoadingScreen } from "./loading_mbp";
+import { MbpPauseScreen } from "./pause_screen_mbp";
 
 export class MbpMenu extends Menu {
 	get uiAssetPath() {
@@ -49,7 +50,7 @@ export class MbpMenu extends Menu {
 	}
 
 	createPauseScreen(): PauseScreen {
-		return new MbgPauseScreen(this);
+		return new MbpPauseScreen(this);
 	}
 
 	createFinishScreen(): FinishScreen {

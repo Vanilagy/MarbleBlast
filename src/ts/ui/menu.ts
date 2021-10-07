@@ -52,7 +52,7 @@ export abstract class Menu {
 	abstract createFinishScreen(): FinishScreen;
 	abstract getMenuDiv(): HTMLDivElement;
 
-	setupVaryingButton(element: HTMLImageElement, paths: string[], onclick: () => any, loadDisabledImage = false, triggerOnMouseDown = false, playHoverSound = true) {
+	setupVaryingButton(element: HTMLImageElement, paths: string[], onclick: (ev?: MouseEvent) => any, loadDisabledImage = false, triggerOnMouseDown = false, playHoverSound = true) {
 		let ogPaths = paths.slice();
 		paths = paths.map(x => this.uiAssetPath + x);
 		let held = false;
@@ -83,14 +83,14 @@ export abstract class Menu {
 			held = true;
 			if (!element.hasAttribute('data-locked')) element.src = down();
 			AudioManager.play('buttonpress.wav');
-			if (triggerOnMouseDown) onclick();
+			if (triggerOnMouseDown) onclick(e);
 		});
 		window.addEventListener('mouseup', () => {
 			held = false;
 			if (element.style.pointerEvents === 'none') return;
 			if (!element.hasAttribute('data-locked')) element.src = hovered? hover() : normal();
 		});
-		if (!triggerOnMouseDown) element.addEventListener('click', (e) => e.button === 0 && onclick());
+		if (!triggerOnMouseDown) element.addEventListener('click', (e) => e.button === 0 && onclick(e));
 	
 		for (let ogPath of ogPaths) {
 			if (!ogPath) continue;
@@ -113,7 +113,7 @@ export abstract class Menu {
 		this.setButtonVariant(element, 0); // This will also set the button's default image
 	}
 
-	setupButton(element: HTMLImageElement, path: string, onclick: () => any, loadDisabledImage?: boolean, triggerOnMouseDown?: boolean, playHoverSound?: boolean) {
+	setupButton(element: HTMLImageElement, path: string, onclick: (ev?: MouseEvent) => any, loadDisabledImage?: boolean, triggerOnMouseDown?: boolean, playHoverSound?: boolean) {
 		this.setupVaryingButton(element, [path], onclick, loadDisabledImage, triggerOnMouseDown, playHoverSound);
 	}
 
