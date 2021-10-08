@@ -1,0 +1,98 @@
+Credits
+
+In some games and mods, credits come last. Not here. The following people have helped develop Marble Blast Platinum over the last years both directly and indirectly. Their contribution has made this mod what it is today, and we cannot thank them enough. Whether you want to praise them, or just say a Thank You next time you see them, make sure they feel good about their hard work.
+
+The developers of Marble Blast Gold (the game that this mod is based on):
+Alex Swanson, Mark Frohnmayer, Jeff Tunnell, Brian Hahn, Liam Ryan, Tim Gift, Rick Overman, Kevin Ryan, Timothy Clarke, Jay Moore, Pat Wilson and John Quigley. Special thanks to Kurtis Seebaldt for integrating Ogg/Vorbis streaming into the Torque engine, and to the Ogg/Vorbis team. Special thanks also go to Markus F.X.J. Oberhumer, Laszlo Molnar and the UPX team for the UPX executable packer.
+
+<just:center><spush><font:Marker Felt:24>The Marble Blast Platinum team<spop>
+<spush><font:Marker Felt:24>Project Founders<spop>
+Phil
+Matan
+Jase
+
+<spush><font:Marker Felt:24>Marble Blast Platinum 1.50+ Project Leaders<spop>
+Matan
+HiGuy
+Jeff
+
+<spush><font:Marker Felt:24>Core Programming<spop>
+<spush><font:Marker Felt:18>Engine Modifications<spop>
+amd42
+HiGuy
+Jeff
+
+<spush><font:Marker Felt:18>Gameplay and Features<spop>
+HiGuy
+Jeff
+Seizure22
+Whirligig
+Spy47
+ShadowMarble
+
+<spush><font:Marker Felt:24>Online & Leaderboards<spop>
+<spush><font:Marker Felt:18>Programming and Protocol Design<spop>
+HiGuy
+Jeff
+Aayrl
+Spy47
+
+<spush><font:Marker Felt:18>Multiplayer & Challenges<spop>
+Matan
+HiGuy
+Jeff
+
+<spush><font:Marker Felt:24>Graphics & User Interface<spop>
+HiGuy
+Phil
+Jase
+Spy47
+MadMarioSkills
+
+<spush><font:Marker Felt:24>Level Design<spop>
+Matan
+Phil
+Pablo
+Ian
+Technostick
+Andrew Sears
+Perishingflames
+Lonestar
+Oaky
+Jase
+Moshe
+
+<spush><font:Marker Felt:18>Additional Level Design<spop>
+Xelna
+Darkness Shadow
+
+<spush><font:Marker Felt:24>Texture Design<spop>
+Phil
+Jase
+Ian
+Mkbul
+Lonestar
+
+<spush><font:Marker Felt:24>3D Modeling<spop>
+CyberFox
+Phil
+RDs.Empire
+
+<spush><font:Marker Felt:24>Music and Effects<spop>
+Beau
+Phil
+Matan
+Buzzmusic
+
+<spush><font:Marker Felt:24>Community Hype-ist<spop>
+Aayrl
+
+<just:center><spush><font:Marker Felt:24>Special thanks to:<spop>
+
+GarageGames
+Alex Swanson
+Ben
+Our parents and friends
+Tsuf
+Thistle
+The Marble Blast community

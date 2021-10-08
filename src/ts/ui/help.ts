@@ -16,6 +16,8 @@ export abstract class HelpScreen {
 	}
 
 	abstract initProperties(): void;
+	
+	async init() {}
 
 	show() {
 		this.div.classList.remove('hidden');

@@ -147,6 +147,8 @@ export abstract class Hud {
 
 			let keyName = Util.getKeyForButtonCode(StorageManager.data.settings.gameButtonMapping[gameButton as keyof typeof StorageManager.data.settings.gameButtonMapping]);
 			message = message.slice(0, match.index) + keyName + message.slice(match.index + match[0].length);
+
+			keybindRegex.lastIndex -= match[0].length;
 		}
 
 		// A few hardcoded messages from Marble Blast Mobile

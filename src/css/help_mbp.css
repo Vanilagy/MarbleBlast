@@ -1,0 +1,75 @@
+#mbp-help {
+	position: absolute;
+	margin: auto;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	width: 640px;
+	height: 480px;
+	font-family: Arial, sans-serif;
+	font-size: 11px;
+}
+
+#mbp-help-home {
+	position: absolute;
+	display: block;
+	top: 384px;
+	left: 276px;
+}
+
+#mbp-help-picker {
+	position: absolute;
+	top: 24px;
+	left: 30px;
+	width: 175px;
+}
+
+#mbp-help-picker > div {
+	padding: 1px 5px;
+	white-space: nowrap;
+}
+
+#mbp-help-picker > div:hover {
+	color: rgb(20, 66, 104);
+}
+
+#mbp-help-picker > div.selected {
+	background: white;
+	color: rgb(20, 66, 104);
+}
+
+#mbp-help ._page {
+	position: absolute;
+	top: 24px;
+	left: 213px;
+	width: 396px;
+	height: 349px;
+	overflow: auto;
+	white-space: pre-line;
+	font-size: 14px;
+	padding: 7px;
+	padding-bottom: 20px;
+	box-sizing: border-box;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#mbp-help ._page::-webkit-scrollbar {
+	width: 5px;
+}
+
+#mbp-help ._page::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#mbp-help ._page::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+#mbp-help ._page h1 {
+	margin: 0;
+	font-family: 'MarkerFelt';
+	font-weight: normal;
+	text-align: center;
+}

@@ -14,6 +14,7 @@ import { MbpPauseScreen } from "./pause_screen_mbp";
 import { MbpHud } from "./hud_mbp";
 import { MbpFinishScreen } from "./finish_screen_mbp";
 import { MbpOptionsScreen } from "./options_mbp";
+import { MbpHelpScreen } from "./help_mbp";
 
 export class MbpMenu extends Menu {
 	get uiAssetPath() {
@@ -39,7 +40,7 @@ export class MbpMenu extends Menu {
 	}
 
 	createHelpScreen(): HelpScreen {
-		return null;
+		return new MbpHelpScreen(this);
 	}
 
 	createHud(): Hud {

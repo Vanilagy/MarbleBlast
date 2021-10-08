@@ -4,12 +4,22 @@
 }
 
 @font-face {
+	font-family: "Dom Casual";
+	src: url("../assets/font/DomCasualRegular/DomCasualRegular.otf");
+}
+
+@font-face {
 	font-family: "Expo";
 	src: url("../assets/font/Expo/EXPON.TTF");
 }
 
 @font-face {
 	font-family: "MarkerFelt";
+	src: url("../assets/font/MarkerFelt/Marker\ Felt.ttf");
+}
+
+@font-face {
+	font-family: "Marker Felt";
 	src: url("../assets/font/MarkerFelt/Marker\ Felt.ttf");
 }
 

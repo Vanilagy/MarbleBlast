@@ -71,11 +71,12 @@ export class MbpOptionsScreen extends OptionsScreen {
 		});
 
 		// Add all the option elements
-		this.addDropdown(this.generalContainer, 'resolution', 'Screen Resolution', ['640x480', '800x600', '1024x768']);
-		this.addDropdown(this.generalContainer, 'videoDriver', 'Video Driver', ['OpenGL', 'Direct3D']);
-		this.addDropdown(this.generalContainer, 'screenStyle', 'Screen Style', ['Windowed', 'Full']);
-		this.addDropdown(this.generalContainer, 'shadows', 'Shadows', ['Disabled', 'Enabled'], true);
-		this.addDropdown(this.generalContainer, 'colorDepth', 'Color Depth', ['16 Bit', '32 Bit']);
+		// These here are commented out because, really, they're all no-ops.
+		//this.addDropdown(this.generalContainer, 'resolution', 'Screen Resolution', ['640x480', '800x600', '1024x768']);
+		//this.addDropdown(this.generalContainer, 'videoDriver', 'Video Driver', ['OpenGL', 'Direct3D']);
+		//this.addDropdown(this.generalContainer, 'screenStyle', 'Screen Style', ['Windowed', 'Full']);
+		//this.addDropdown(this.generalContainer, 'shadows', 'Shadows', ['Disabled', 'Enabled'], true);
+		//this.addDropdown(this.generalContainer, 'colorDepth', 'Color Depth', ['16 Bit', '32 Bit']);
 		this.addDropdown(this.generalContainer, 'showFrameRate', 'Frame Rate', ['Hidden', 'Visible'], true);
 		this.addDropdown(this.generalContainer, 'alwaysFreeLook', 'Free-Look', ['Disabled', 'Enabled'], true);
 		this.addDropdown(this.generalContainer, 'invertMouse', 'Invert Mouse', ['None', 'X Only', 'Y only', 'X and Y']);
