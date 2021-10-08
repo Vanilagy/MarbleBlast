@@ -121,7 +121,7 @@ html, body {
 	color: white;
 }
 
-#version {
+#version, #mbp-version {
 	position: absolute;
 	top: 0;
 	left: 0;

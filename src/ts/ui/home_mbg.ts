@@ -1,5 +1,4 @@
 import { HomeScreen } from "./home";
-import { Menu } from "./menu";
 
 export class MbgHomeScreen extends HomeScreen {
     onlineButton: HTMLImageElement;
@@ -21,16 +20,7 @@ export class MbgHomeScreen extends HomeScreen {
         this.optionsSrc = 'home/options';
         this.helpSrc = 'home/help';
         this.exitSrc = 'home/exit';
-    }
-
-    constructor(menu: Menu) {
-        super(menu);
-
-		menu.setupButton(this.showChangelogButton, 'motd/motd_buttn_textless', () => {
-			this.changelogContainer.classList.remove('hidden');
-		});
-		menu.setupButton(this.changelogBackButton, 'play/back', () => {
-			this.changelogContainer.classList.add('hidden');
-		});
+		this.showChangelogSrc = 'motd/motd_buttn_textless';
+		this.changelogBackSrc = 'play/back';
     }
 }

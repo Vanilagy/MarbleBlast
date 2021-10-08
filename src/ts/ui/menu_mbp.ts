@@ -58,8 +58,4 @@ export class MbpMenu extends Menu {
 	getMenuDiv() {
 		return document.querySelector('#mbp-menu') as HTMLDivElement;
 	}
-
-	async init() {
-		super.init();
-	}
 }

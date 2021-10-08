@@ -52,6 +52,13 @@
 	display: block;
 	position: absolute;
 	top: 450px;
+	left: 496px;
+}
+
+#mbp-show-changelog {
+	display: block;
+	position: absolute;
+	top: 450px;
 	left: 651px;
 }
 
@@ -59,4 +66,95 @@
 	position: absolute;
 	top: 10px;
 	right: 10px;
+}
+
+#mbp-changelog {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 480px;
+	width: 640px;
+}
+
+#mbp-changelog ._click-preventer {
+	position: absolute;
+	top: -5000px;
+	left: -5000px;
+	height: 10000px;
+	width: 10000px;
+}
+
+#mbp-changelog > img:nth-child(2) {
+	display: block;
+	position: absolute;
+	height: 438px;
+	width: 600px;
+	image-rendering: pixelated;
+}
+
+#mbp-changelog > div:nth-child(3) {
+	display: block;
+	position: absolute;
+	top: 42px;
+	left: 44px;
+	width: 545px;
+	height: 328px;
+	box-sizing: border-box;
+	font-family: MarkerFelt;
+}
+
+#mbp-changelog-back {
+	display: block;
+	position: absolute;
+	top: 358px;
+	left: 471px;
+}
+
+.mbp-changelog-h1, .mbp-changelog-h2, .mbp-changelog-h3 {
+	font-weight: normal;
+	margin: 0;
+}
+
+.mbp-changelog-h1 {
+	font-size: 32px;
+	text-align: center;
+	display: block;
+	margin-bottom: -20px;
+}
+
+.mbp-changelog-h2 {
+	font-size: 22px;
+}
+
+.mbp-changelog-h3 {
+	font-size: 20px;
+}
+
+#mbp-changelog-content {
+	overflow-y: auto;
+	overflow-x: hidden;
+	height: 307px;
+	margin: -20px -17px;
+	padding: 20px;
+	box-sizing: border-box;
+	white-space: pre-line;
+	font-size: 16px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#mbp-changelog-content::-webkit-scrollbar {
+	width: 5px;
+}
+
+#mbp-changelog-content::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#mbp-changelog-content::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
 }
