@@ -602,6 +602,13 @@ export abstract class Util {
 		while (v === 0) v = Math.random();
 		return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
 	}
+
+	/** Gets a unique id. */
+	static getRandomId() {
+		// This might seem cheap, but Math.random can return 2^52 different values, so the chance of collisions here is still ridiculously low.
+		// https://v8.dev/blog/math-random
+		return Math.random().toString();
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

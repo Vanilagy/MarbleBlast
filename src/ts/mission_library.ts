@@ -4,6 +4,8 @@ import { ResourceManager, DirectoryStructure } from "./resources";
 import { Util } from "./util";
 
 export abstract class MissionLibrary {
+	static allMissions: Mission[] = [];
+
 	static goldBeginner: Mission[] = [];
 	static goldIntermediate: Mission[] = [];
 	static goldAdvanced: Mission[] = [];
@@ -93,6 +95,7 @@ export abstract class MissionLibrary {
 			else if (missionType === 'intermediate') this.goldIntermediate.push(mission);
 			else if (missionType === 'advanced') this.goldAdvanced.push(mission);
 			else this.goldCustom.push(mission);
+			this.allMissions.push(mission);
 		}
 		for (let mission of mbpMissions) {
 			let missionType = mission.type;
@@ -101,6 +104,7 @@ export abstract class MissionLibrary {
 			else if (missionType === 'advanced') this.platinumAdvanced.push(mission);
 			else if (missionType === 'expert') this.platinumExpert.push(mission);
 			else this.platinumCustom.push(mission);
+			this.allMissions.push(mission);
 		}
 
 		// Strange case, but these two levels are in opposite order in the original game.

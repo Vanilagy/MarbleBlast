@@ -123,6 +123,7 @@ export abstract class Menu {
 	}
 
 	show() {
+		AudioManager.setAssetPath(this.audioAssetPath);
 		this.menuDiv.classList.remove('hidden');
 		this.music = AudioManager.createAudioSource(this.menuMusicSrc, AudioManager.musicGain);
 		this.music.setLoop(true);

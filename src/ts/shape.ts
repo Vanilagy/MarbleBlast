@@ -3,7 +3,6 @@ import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
-import { getRandomId } from "./state";
 import { Util, MaterialGeometry } from "./util";
 import { TimeState, Level } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
@@ -939,7 +938,7 @@ export class Shape {
 			let shapeConfig = new OIMO.ShapeConfig();
 			shapeConfig.geometry = collider.generateGeometry(this.worldScale);
 			let shape = new OIMO.Shape(shapeConfig);
-			shape.userData = getRandomId();
+			shape.userData = Util.getRandomId();
 			collider.body.addShape(shape);
 			collider.id = shape.userData;
 

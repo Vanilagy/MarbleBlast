@@ -184,7 +184,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 	addSlider(container: HTMLDivElement, setting: keyof StorageData['settings'], label: string, min: number, max: number, onChange?: () => any, onDragStart?: () => any) {
 		const updateThumb = () => {
 			let completion = ((StorageManager.data.settings[setting] as number) - min) / (max - min);
-			thumb.style.left = Util.lerp(SLIDER_KNOB_LEFT, SLIDER_KNOB_RIGHT, completion) + 'px';
+			thumb.style.left = Math.floor(Util.lerp(SLIDER_KNOB_LEFT, SLIDER_KNOB_RIGHT, completion)) + 'px';
 		};
 
 		let element = document.createElement('div');

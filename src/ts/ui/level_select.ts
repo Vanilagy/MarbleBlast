@@ -5,10 +5,10 @@ import { BestTimes, StorageManager } from "../storage";
 import { Mission } from "../mission";
 import { Replay } from "../replay";
 import { previousButtonState } from "../input";
-import { getRandomId } from "../state";
 import { Leaderboard } from "../leaderboard";
 import { Menu } from "./menu";
 import { MissionLibrary } from "../mission_library";
+import { state } from "../state";
 
 export abstract class LevelSelect {
 	menu: Menu;
@@ -347,7 +347,7 @@ export abstract class LevelSelect {
 	abstract updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number): void;
 
 	displayBestTimes() {
-		let randomId = getRandomId();
+		let randomId = Util.getRandomId();
 		this.lastDisplayBestTimesId = randomId;
 
 		let bestTimes = StorageManager.getBestTimesForMission(this.currentMission?.path, this.localScoresCount, this.scorePlaceholderName);
@@ -499,8 +499,13 @@ export abstract class LevelSelect {
 				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(file);
 				let replay = Replay.fromSerialized(arrayBuffer);
 	
-				let mission = [...MissionLibrary.goldBeginner, ...MissionLibrary.goldIntermediate, ...MissionLibrary.goldAdvanced, ...MissionLibrary.goldCustom].find(x => x.path === replay.missionPath);
+				let mission = MissionLibrary.allMissions.find(x => x.path === replay.missionPath);
 				if (!mission) throw new Error("Mission not found.");
+
+				if (state.modification === 'gold' && mission.path.startsWith('mbp')) {
+					alert("You can't watch replays of Platinum level inside Marble Blast Gold.");
+					return;
+				}
 	
 				this.div.classList.add('hidden');
 				this.menu.loadingScreen.loadLevel(mission, () => replay);

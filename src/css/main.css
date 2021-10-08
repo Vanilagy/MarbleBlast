@@ -91,7 +91,7 @@ html, body {
 	object-fit: cover;
 }
 
-#loading-message {
+#loading-message, #switching-message {
 	position: absolute;
 	margin: auto;
 	top: 0;
@@ -123,10 +123,29 @@ html, body {
 
 #version, #mbp-version {
 	position: absolute;
-	top: 0;
+	bottom: 0;
 	left: 0;
 	margin: 0;
 	font-family: Arial;
 	padding: 2px;
 	font-size: 10px;
+}
+
+.modification-switcher {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 40px;
+	height: 40px;
+	padding: 10px;
+	background: #00000031;
+	border-bottom-right-radius: 10px;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+
+.modification-switcher:hover {
+	width: 50px;
+	height: 50px;
+	background: #00000050;
 }

@@ -1,4 +1,12 @@
 #home-screen {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+#home-screen ._inner {
 	display: block;
 	margin: auto;
 	position: absolute;
@@ -40,13 +48,13 @@
 
 #show-changelog {
 	position: absolute;
-	bottom: 5px;
+	bottom: 15px;
 	left: 5px;
 }
 
 #show-changelog-text {
 	position: absolute;
-	bottom: 38px;
+	bottom: 48px;
 	left: 26px;
 	font-size: 19px;
 	font-family: 'DomCasualRegular';

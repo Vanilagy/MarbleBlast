@@ -1,4 +1,3 @@
-import { getRandomId } from "./state";
 import { Util } from "./util";
 import { executeOnWorker } from "./worker";
 
@@ -48,7 +47,9 @@ export interface StorageData {
 	/** The last-seen version of the game. */
 	lastSeenVersion: string,
 	/** Mission paths whose eggs have been collected. */
-	collectedEggs: string[]
+	collectedEggs: string[],
+	/** Which modification was last used. */
+	modification: 'gold' | 'platinum'
 }
 
 const DEFAULT_STORAGE_DATA: StorageData = {
@@ -84,10 +85,11 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	},
 	bestTimes: {},
 	lastUsedName: '',
-	randomId: getRandomId(),
+	randomId: Util.getRandomId(),
 	bestTimeSubmissionQueue: {},
 	lastSeenVersion: null,
-	collectedEggs: []
+	collectedEggs: [],
+	modification: 'platinum'
 };
 
 /** Manages storage and persistence. */
@@ -206,7 +208,7 @@ export abstract class StorageManager {
 	 */
 	static insertNewTime(path: string, name: string, time: number) {
 		let stored = this.data.bestTimes[path] ?? [];
-		let scoreId = getRandomId();
+		let scoreId = Util.getRandomId();
 		let toInsert: BestTimes[number] = [name, time, scoreId, Date.now()];
 
 		// Determine the correct index to insert the time at

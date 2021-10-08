@@ -4,6 +4,7 @@ import { state } from "../state";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
+import { setMenu } from "./menu_setter";
 
 export abstract class HomeScreen {
 	div: HTMLDivElement;
@@ -52,20 +53,20 @@ export abstract class HomeScreen {
 		menu.setupButton(this.changelogBackButton, this.changelogBackSrc, () => {
 			this.changelogContainer.classList.add('hidden');
 		});
+
+		this.div.querySelector('.modification-switcher').addEventListener('click', () => {
+			setMenu((state.modification === 'gold')? 'platinum' : 'gold');
+		});
 	}
 
 	abstract initProperties(): void;
 
 	show() {
 		this.div.classList.remove('hidden');
-		this.showChangelogButton.classList.remove('hidden');
-		this.showChangelogText?.classList.remove('hidden');
 	}
 
 	hide() {
 		this.div.classList.add('hidden');
-		this.showChangelogButton.classList.add('hidden');
-		this.showChangelogText?.classList.add('hidden');
 	}
 
 	async init() {

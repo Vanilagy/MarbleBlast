@@ -1391,7 +1391,7 @@ export class Level extends Scheduler {
 
 		if (completionOfImpactOverride === undefined && this.gemCount < this.totalGems) {
 			AudioManager.play('missinggems.wav');
-			state.menu.hud.displayAlert("You can't finish without all the gems!!");
+			state.menu.hud.displayAlert((state.modification === 'gold')? "You can't finish without all the gems!!" : "You may not finish without all the diamonds!");
 		} else {
 			let completionOfImpact: number;
 			if (completionOfImpactOverride === undefined) {
