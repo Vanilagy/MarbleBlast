@@ -167,7 +167,7 @@ export abstract class FinishScreen {
 
 	/** Updates the best times. */
 	drawBestTimes() {
-		let bestTimes = StorageManager.getBestTimesForMission(state.level.mission.path, this.bestTimeCount, 'Nardo Polo');
+		let bestTimes = StorageManager.getBestTimesForMission(state.level.mission.path, this.bestTimeCount, this.scorePlaceholderName);
 		for (let i = 0; i < this.bestTimeCount; i++) {
 			this.updateBestTimeElement(this.bestTimeContainer.children[i] as HTMLDivElement, bestTimes[i], i+1);
 		}

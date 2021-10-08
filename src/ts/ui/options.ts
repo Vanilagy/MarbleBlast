@@ -1,8 +1,9 @@
+import { state } from "../state";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
 
-const buttonToDisplayName: Record<keyof typeof StorageManager.data.settings.gameButtonMapping, string> = {
+export const buttonToDisplayNameMbg: Record<keyof typeof StorageManager.data.settings.gameButtonMapping, string> = {
 	up: 'Move Forward',
 	down: 'Move Backward',
 	left: 'Move Left',
@@ -16,8 +17,23 @@ const buttonToDisplayName: Record<keyof typeof StorageManager.data.settings.game
 	freeLook: 'Free Look',
 	restart: 'Restart'
 };
+export const buttonToDisplayNameMbp: Record<keyof typeof StorageManager.data.settings.gameButtonMapping, string> = {
+	up: 'Move Forward',
+	down: 'Move Backward',
+	left: 'Move Left',
+	right: 'Move Right',
+	use: 'Use PowerUp',
+	jump: 'Jump',
+	cameraUp: 'Look Up',
+	cameraDown: 'Look Down',
+	cameraLeft: 'Look Left',
+	cameraRight: 'Look Right',
+	freeLook: 'Free Look',
+	restart: 'Respawn'
+};
 
 export abstract class OptionsScreen {
+	menu: Menu;
 	div: HTMLDivElement;
 	homeButton: HTMLImageElement;
 	homeButtonSrc: string;
@@ -33,7 +49,10 @@ export abstract class OptionsScreen {
 	rebindConfirmYesSrc: string;
 	rebindConfirmNoSrc: string;
 
+	rebindConfirmWarningEnding = `Do you want to undo this<br>mapping?`;
+
 	constructor(menu: Menu) {
+		this.menu = menu;
 		this.initProperties();
 
 		menu.setupButton(this.homeButton, this.homeButtonSrc, () => {
@@ -108,12 +127,15 @@ export abstract class OptionsScreen {
 	}
 
 	changeKeybinding(button: keyof typeof StorageManager.data.settings.gameButtonMapping) {
+		let map = (state.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
 		this.rebindDialog.classList.remove('hidden');
-		this.rebindDialog.children[1].innerHTML = `Press a new key or button for<br>"${buttonToDisplayName[button]}"`;
+		this.rebindDialog.children[1].innerHTML = `Press a new key or button for<br>"${map[button]}"`;
 		this.currentlyRebinding = button;
 	}
 	
 	setKeybinding(button: keyof typeof StorageManager.data.settings.gameButtonMapping, value: string) {
+		let map = (state.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
+
 		// Check for collisions with other bindings
 		for (let key in StorageManager.data.settings.gameButtonMapping) {
 			let typedKey = key as keyof typeof StorageManager.data.settings.gameButtonMapping;
@@ -123,7 +145,7 @@ export abstract class OptionsScreen {
 				// We found another binding that binds to the same key, bring up the conflict dialog.
 				this.rebindDialog.classList.add('hidden');
 				this.rebindConfirm.classList.remove('hidden');
-				this.rebindConfirm.children[1].innerHTML = `"${this.formatKeybinding(typedKey)}" is already bound to "${buttonToDisplayName[typedKey]}"!<br>Do you want to undo this<br>mapping?`;
+				this.rebindConfirm.children[1].innerHTML = `"${this.formatKeybinding(typedKey)}" is already bound to "${map[typedKey]}"!<br>` + this.rebindConfirmWarningEnding;
 				this.rebindValue = value;
 	
 				return;

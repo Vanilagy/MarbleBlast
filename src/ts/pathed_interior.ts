@@ -101,7 +101,7 @@ export class PathedInterior extends Interior {
 		if (this.element.datablock?.toLowerCase() === 'pathedmovingblock') {
 			this.soundPosition = new THREE.Vector3(); // This position will be modified
 			this.soundSource = AudioManager.createAudioSource('movingblockloop.wav', AudioManager.soundGain, this.soundPosition);
-			this.soundSource.node.loop = true;
+			this.soundSource.setLoop(true);
 
 			await this.soundSource.promise;
 		}

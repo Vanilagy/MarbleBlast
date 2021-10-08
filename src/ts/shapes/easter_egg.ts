@@ -1,4 +1,5 @@
 import { AudioManager } from "../audio";
+import { state } from "../state";
 import { StorageManager } from "../storage";
 import { PowerUp } from "./power_up";
 
@@ -13,6 +14,7 @@ export class EasterEgg extends PowerUp {
 		if (!alreadyFound) {
 			StorageManager.data.collectedEggs.push(this.level.mission.path);
 			StorageManager.store();
+			state.menu.levelSelect.displayMission(); // To refresh the icon
 		}
 
 		AudioManager.play(this.sounds[Number(alreadyFound)]); // Holy shit this cast is nasty

@@ -828,6 +828,7 @@ export class Level extends Scheduler {
 	determineClockColor(timeToDisplay: number) {
 		if (state.modification === 'gold') return;
 
+		if (this.finishTime) return 'green'; // Even if not qualified
 		if (this.timeState.currentAttemptTime < GO_TIME || this.currentTimeTravelBonus > 0) return 'green';
 		if (timeToDisplay >= this.mission.qualifyTime) return 'red';
 
@@ -1042,10 +1043,11 @@ export class Level extends Scheduler {
 
 			let yawChange = 0.0;
 			let pitchChange = 0.0;
-			if (isPressed('cameraLeft')) yawChange += 1.5;
-			if (isPressed('cameraRight')) yawChange -= 1.5;
-			if (isPressed('cameraUp')) pitchChange -= 1.5;
-			if (isPressed('cameraDown')) pitchChange += 1.5;
+			let amount = Util.lerp(1, 6, StorageManager.data.settings.keyboardSensitivity);
+			if (isPressed('cameraLeft')) yawChange += amount;
+			if (isPressed('cameraRight')) yawChange -= amount;
+			if (isPressed('cameraUp')) pitchChange -= amount;
+			if (isPressed('cameraDown')) pitchChange += amount;
 			
 			yawChange -= gamepadAxes.cameraX * 5.0;
 			pitchChange += gamepadAxes.cameraY * 5.0;
@@ -1215,11 +1217,12 @@ export class Level extends Scheduler {
 		this.previousMouseMovementDistance = totalDistance;
 
 		let factor = Util.lerp(1 / 2500, 1 / 100, StorageManager.data.settings.mouseSensitivity);
-		let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;
+		let xFactor = (StorageManager.data.settings.invertMouse & 0b01)? -1 : 1;
+		let yFactor = (StorageManager.data.settings.invertMouse & 0b10)? -1 : 1;
 		let freeLook = StorageManager.data.settings.alwaysFreeLook || isPressed('freeLook');
 
 		if (freeLook) this.pitch += e.movementY * factor * yFactor;
-		this.yaw -= e.movementX * factor;
+		this.yaw -= e.movementX * factor * xFactor;
 	}
 
 	pickUpPowerUp(powerUp: PowerUp) {
@@ -1253,10 +1256,11 @@ export class Level extends Scheduler {
 	pickUpGem(gem: Gem) {
 		this.gemCount++;
 		let string: string;
+		let gemWord = (state.modification === 'gold')? 'gem' : 'diamond';
 
 		// Show a notification (and play a sound) based on the gems remaining
 		if (this.gemCount === this.totalGems) {
-			string = "You have all the gems, head for the finish!";
+			string = `You have all the ${gemWord}s, head for the finish!`;
 			AudioManager.play('gotallgems.wav');
 			
 			// Some levels with this package end immediately upon collection of all gems
@@ -1265,13 +1269,13 @@ export class Level extends Scheduler {
 				this.touchFinish(completionOfImpact);
 			}
 		} else {
-			string = "You picked up a gem.  ";
+			string = `You picked up a ${gemWord}${state.modification === 'gold' ? '.' : '!'}  `;
 
 			let remaining = this.totalGems - this.gemCount;
 			if (remaining === 1) {
-				string += "Only one gem to go!";
+				string += `Only one ${gemWord} to go!`;
 			} else {
-				string += `${remaining} gems to go!`;
+				string += `${remaining} ${gemWord}s to go!`;
 			}
 
 			AudioManager.play('gotgem.wav');

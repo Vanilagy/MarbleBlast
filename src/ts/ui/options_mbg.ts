@@ -219,7 +219,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		
 			if (this.soundTestingSound) {
 				// Stop the sound
-				this.soundTestingSound.node.loop = false;
+				this.soundTestingSound.setLoop(true);
 				this.soundTestingSound = null;
 			}
 		});
@@ -249,7 +249,8 @@ export class MbgOptionsScreen extends OptionsScreen {
 		this.mouseSensitivityKnob.addEventListener('mousedown', () => this.draggingMouseSensitivity = true);
 
 		menu.setupButton(this.invertY, 'options/cntrl_mous_invrt', () => {
-			StorageManager.data.settings.invertYAxis = !this.invertY.hasAttribute('data-locked');
+			StorageManager.data.settings.invertMouse &= ~0b10;
+			StorageManager.data.settings.invertMouse |= Number(!this.invertY.hasAttribute('data-locked')) << 1;
 			StorageManager.store();
 		
 			// Toggle the checkbox
@@ -332,7 +333,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 
 		this.refreshKeybindings();
 
-		if (StorageManager.data.settings.invertYAxis) this.invertY.click();
+		if (StorageManager.data.settings.invertMouse & 0b10) this.invertY.click();
 		if (StorageManager.data.settings.alwaysFreeLook) this.alwaysFreeLook.click();
 		if (StorageManager.data.settings.reflectiveMarble) this.reflectiveMarbleCheckbox.click();
 
@@ -461,7 +462,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 	
 			if (!this.soundTestingSound) {
 				this.soundTestingSound = AudioManager.createAudioSource('testing.wav');
-				this.soundTestingSound.node.loop = true;
+				this.soundTestingSound.setLoop(true);
 				this.soundTestingSound.play();
 			}
 		}

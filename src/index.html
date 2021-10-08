@@ -22,6 +22,7 @@
 		<link rel="stylesheet" href="./css/loading_mbp.css">
 		<link rel="stylesheet" href="./css/help.css">
 		<link rel="stylesheet" href="./css/options.css">
+		<link rel="stylesheet" href="./css/options_mbp.css">
 		<link rel="stylesheet" href="./css/hud.css">
 		<link rel="stylesheet" href="./css/pause_screen.css">
 		<link rel="stylesheet" href="./css/pause_screen_mbp.css">
@@ -150,7 +151,7 @@
 			<div id="mbp-home-screen">
 				<div class="_inner">
 					<img src="./assets/ui_mbp/menu/play_n.png" id="mbp-home-play">
-					<img src="./assets/ui_mbp/menu/online_n.png" id="mbp-home-online">
+					<img src="./assets/ui_mbp/menu/online_i.png" id="mbp-home-online">
 					<img src="./assets/ui_mbp/menu/options_n.png" id="mbp-home-options">
 					<img src="./assets/ui_mbp/menu/quit_n.png" id="mbp-home-quit">
 					<img src="./assets/ui_mbp/menu/help_n.png" id="mbp-home-help">
@@ -206,6 +207,29 @@
 				<img src="./assets/ui_mbp/loading/overlay.png" id="mbp-loading-overlay">
 				<img src="./assets/ui_mbp/loading/cancel_n.png" id="mbp-loading-cancel">
 				<p id="mbp-loading-level-name"></p>
+			</div>
+
+			<div id="mbp-options" class="hidden">
+				<img src="./assets/ui_mbp/options/window.png">
+				<img src="./assets/ui_mbp/options/home_n.png" id="mbp-options-home">
+				<img src="./assets/ui_mbp/options/apply_n.png" id="mbp-options-apply">
+				<img src="./assets/ui_mbp/options/general_n.png" id="mbp-options-general">
+				<img src="./assets/ui_mbp/options/hotkeys_n.png" id="mbp-options-hotkeys">
+				<img src="./assets/ui_mbp/options/online_i.png" id="mbp-options-online">
+				<div class="_container" id="mbp-options-general-container"></div>
+				<div class="_container" id="mbp-options-hotkeys-container"></div>
+
+				<div id="mbp-rebind-dialog" class="hidden">
+					<img src="./assets/ui_mbp/play/window.png">
+					<p></p>
+				</div>
+				<div id="mbp-rebind-confirm" class="hidden">
+					<img src="./assets/ui_mbp/play/text_window.png">
+					<p></p>
+					<h6>WARNING</h6>
+					<img src="./assets/ui_mbp/exit/yes_n.png" id="mbp-rebind-confirm-yes">
+					<img src="./assets/ui_mbp/exit/no_n.png" id="mbp-rebind-confirm-no">
+				</div>
 			</div>
 		</div>
 
@@ -425,6 +449,7 @@
 				<img src="./assets/ui/play/back_n.png" id="help-back">
 				<img src="./assets/ui/play/next_n.png" id="help-next">
 			</div>
+
 			<div id="options" class="hidden">
 				<img src="./assets/ui/options/options_base.png" style="pointer-events: none; display: block;">
 				<img src="./assets/ui/options/graf_tab.png" id="tab-graphics">

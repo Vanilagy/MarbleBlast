@@ -126,6 +126,11 @@ export class Marble {
 		body.addShape(shape);
 		body.setAutoSleep(false);
 
+		// Set the marble's default orientation to be close to actual MBP
+		let mat3 = body.getRotation();
+		mat3.fromEulerXyz(new OIMO.Vec3(Math.PI/2, Math.PI * 7/6));
+		body.setRotation(mat3);
+
 		this.body = body;
 		this.shape = shape;
 

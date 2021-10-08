@@ -5,20 +5,15 @@ import { MbpHomeScreen } from "./home_mbp";
 import { Menu } from "./menu";
 import { LoadingScreen } from "./loading";
 import { FinishScreen } from "./finish_screen";
-import { MbgFinishScreen } from "./finish_screen_mbg";
 import { HelpScreen } from "./help";
-import { MbgHelpScreen } from "./help_mbg";
 import { Hud } from "./hud";
-import { MbgHud } from "./hud_mbg";
 import { OptionsScreen } from "./options";
-import { MbgOptionsScreen } from "./options_mbg";
 import { PauseScreen } from "./pause_screen";
-import { MbgPauseScreen } from "./pause_screen_mbg";
-import { MbgLoadingScreen } from "./loading_mbg";
 import { MbpLoadingScreen } from "./loading_mbp";
 import { MbpPauseScreen } from "./pause_screen_mbp";
 import { MbpHud } from "./hud_mbp";
 import { MbpFinishScreen } from "./finish_screen_mbp";
+import { MbpOptionsScreen } from "./options_mbp";
 
 export class MbpMenu extends Menu {
 	get uiAssetPath() {
@@ -40,7 +35,7 @@ export class MbpMenu extends Menu {
 	}
 
 	createOptionsScreen(): OptionsScreen {
-		return null;
+		return new MbpOptionsScreen(this);
 	}
 
 	createHelpScreen(): HelpScreen {

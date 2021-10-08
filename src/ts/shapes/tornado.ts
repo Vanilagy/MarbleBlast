@@ -20,7 +20,7 @@ export class Tornado extends ForceShape {
 
 	async onLevelStart() {
 		this.soundSource = AudioManager.createAudioSource(this.sounds[0], AudioManager.soundGain, this.worldPosition);
-		this.soundSource.node.loop = true;
+		this.soundSource.setLoop(true);
 		this.soundSource.play();
 		await this.soundSource.promise;
 	}

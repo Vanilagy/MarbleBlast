@@ -7,7 +7,7 @@ export type BestTimes = [string, number, string, number][];
 
 const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999.99; // The 99:59.999 thing
 
-interface StorageData {
+export interface StorageData {
 	settings: {
 		resolution: number,
 		videoDriver: number,
@@ -31,9 +31,12 @@ interface StorageData {
 			"restart": string
 		},
 		mouseSensitivity: number,
-		invertYAxis: boolean,
+		keyboardSensitivity: number,
+		invertMouse: number,
 		alwaysFreeLook: boolean,
-		reflectiveMarble: boolean
+		reflectiveMarble: boolean,
+		showFrameRate: boolean,
+		showThousandths: boolean
 	},
 	bestTimes: Record<string, BestTimes>,
 	/** Used for the name entry in the post-game screen. */
@@ -72,9 +75,12 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 			"restart": "KeyR"
 		},
 		mouseSensitivity: 0.2,
-		invertYAxis: false,
-		alwaysFreeLook: false,
-		reflectiveMarble: false
+		keyboardSensitivity: 0.1,
+		invertMouse: 0,
+		alwaysFreeLook: true,
+		reflectiveMarble: false,
+		showFrameRate: false,
+		showThousandths: true
 	},
 	bestTimes: {},
 	lastUsedName: '',
@@ -124,8 +130,12 @@ export abstract class StorageManager {
 
 		// Get the storage data
 		let storageData = await this.databaseGet('keyvalue', 'storageData');
-		if (storageData) this.data = storageData;
-		else this.data = DEFAULT_STORAGE_DATA;
+		if (storageData) {
+			// Correct fields incase the stored data is stale / from an older version
+			this.data = this.correctFields(DEFAULT_STORAGE_DATA, storageData);
+		} else {
+			this.data = DEFAULT_STORAGE_DATA;
+		}
 
 		// Get the best times and uncompress them
 		this.data.bestTimes = {};
@@ -139,14 +149,6 @@ export abstract class StorageManager {
 				console.error("Error decoding best times!", e);
 			}
 		}
-
-		// Set some default values if they're missing and fix other stuff
-		if (!this.data.settings.gameButtonMapping.restart) this.data.settings.gameButtonMapping.restart = 'KeyR';
-		if (!this.data.randomId) this.data.randomId = getRandomId();
-		if (this.data.settings.reflectiveMarble === undefined) this.data.settings.reflectiveMarble = false;
-		if (!this.data.bestTimeSubmissionQueue) this.data.bestTimeSubmissionQueue = {};
-		if (!this.data.collectedEggs) this.data.collectedEggs = [];
-		delete (this.data as any).unlockedLevels; // Not needed anymore, all levels are now unlocked by default
 	}
 
 	/** Migrates from localStorage to IndexedDB. */
@@ -277,5 +279,22 @@ export abstract class StorageManager {
 
 		await new Promise(resolve => request.onsuccess = resolve);
 		return request.result ?? null;
+	}
+
+	/** Makes sure the second parameter has the same deep structure as the first. */
+	static correctFields<T>(truth: T, obj: T) {
+		// Look for all fields present in the truth but not present in the object
+		for (let key in truth) {
+			if (!(key in obj)) obj[key] = truth[key]; // Copy the value
+			// If it's a non-empty non-array object, recurse
+			if (truth[key] && typeof truth[key] === 'object' && !Array.isArray(truth[key]) && Object.keys(truth[key]).length) this.correctFields(truth[key], obj[key]);
+		}
+
+		// Look for all fields not present in the truth but present in the object
+		for (let key in obj) {
+			if (!(key in truth)) delete obj[key];
+		}
+
+		return obj;
 	}
 }
