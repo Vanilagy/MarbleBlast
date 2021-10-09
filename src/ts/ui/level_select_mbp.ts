@@ -5,6 +5,8 @@ import { Util } from "../util";
 import { LevelSelect } from "./level_select";
 import { MissionLibrary } from "../mission_library";
 import { MBP_GOLD_COLOR, MBP_PLATINUM_COLOR, MBP_ULTIMATE_COLOR } from "./finish_screen_mbp";
+import { state } from "../state";
+import { MbpMenu } from "./menu_mbp";
 
 export class MbpLevelSelect extends LevelSelect {
 	loadReplayButton = document.querySelector('#mbp-load-replay-button') as HTMLImageElement;
@@ -163,6 +165,8 @@ export class MbpLevelSelect extends LevelSelect {
 			);
 			this.difficultySelectorModificationIcon.src = "./assets/ui_mbp/play/" + ((MissionLibrary.getModification(arr) === 'gold')? "marble_gold.png" : "marble_platinum.png");
 		}
+
+		state.menu.backgroundImage.src = (MissionLibrary.getModification(arr) === 'gold')? (state.menu as MbpMenu).mbgBg : (state.menu as MbpMenu).mbpBg;
 	}
 
 	displayMetadata() {

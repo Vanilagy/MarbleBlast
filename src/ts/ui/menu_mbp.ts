@@ -15,6 +15,15 @@ import { MbpHud } from "./hud_mbp";
 import { MbpFinishScreen } from "./finish_screen_mbp";
 import { MbpOptionsScreen } from "./options_mbp";
 import { MbpHelpScreen } from "./help_mbp";
+import { Util } from "../util";
+import { ResourceManager } from "../resources";
+
+const BACKGROUNDS = {
+	'gold': 12,
+	'platinum': 28,
+	'ultra': 9,
+	'multi': 13
+};
 
 export class MbpMenu extends Menu {
 	get uiAssetPath() {
@@ -22,6 +31,10 @@ export class MbpMenu extends Menu {
 	}
 	audioAssetPath = './assets/data_mbp/sound/';
 	menuMusicSrc = 'music/pianoforte.ogg';
+
+	homeBg: string;
+	mbgBg: string;
+	mbpBg: string;
 
 	createHome(): HomeScreen {
 		return new MbpHomeScreen(this);
@@ -57,5 +70,25 @@ export class MbpMenu extends Menu {
 
 	getMenuDiv() {
 		return document.querySelector('#mbp-menu') as HTMLDivElement;
+	}
+
+	getBackgroundImage() {
+		return document.querySelector('#mbp-background-image') as HTMLImageElement;
+	}
+
+	async init() {
+		// Preselect random backgrounds
+		let homeCategory = Util.randomFromArray(Object.keys(BACKGROUNDS));
+		let homeIndex = Math.floor(Math.random() * BACKGROUNDS[homeCategory as keyof typeof BACKGROUNDS]) + 1;
+		let mbgIndex = Math.floor(Math.random() * BACKGROUNDS['gold']) + 1;
+		let mbpIndex = Math.floor(Math.random() * BACKGROUNDS['platinum']) + 1;
+
+		this.homeBg = './assets/ui_mbp/backgrounds/' + homeCategory + '/' + homeIndex + '.jpg';
+		this.mbgBg = './assets/ui_mbp/backgrounds/' + 'gold/' + mbgIndex + '.jpg';
+		this.mbpBg = './assets/ui_mbp/backgrounds/' + 'platinum/' + mbpIndex + '.jpg';
+
+		await ResourceManager.loadImages([this.homeBg, this.mbgBg, this.mbpBg]);
+
+		await super.init();
 	}
 }

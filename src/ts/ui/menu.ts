@@ -20,6 +20,7 @@ export abstract class Menu {
 	finishScreen: FinishScreen;
 
 	menuDiv: HTMLDivElement;
+	backgroundImage: HTMLImageElement;
 	music: AudioSource;
 	gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 
@@ -32,6 +33,7 @@ export abstract class Menu {
 
 	constructor() {
 		this.menuDiv = this.getMenuDiv();
+		this.backgroundImage = this.getBackgroundImage();
 		this.home = this.createHome();
 		this.levelSelect = this.createLevelSelect();
 		this.loadingScreen = this.createLoadingScreen();
@@ -51,6 +53,7 @@ export abstract class Menu {
 	abstract createPauseScreen(): PauseScreen;
 	abstract createFinishScreen(): FinishScreen;
 	abstract getMenuDiv(): HTMLDivElement;
+	abstract getBackgroundImage(): HTMLImageElement;
 
 	setupVaryingButton(element: HTMLImageElement, paths: string[], onclick: (ev?: MouseEvent) => any, loadDisabledImage = false, triggerOnMouseDown = false, playHoverSound = true) {
 		let ogPaths = paths.slice();
@@ -147,5 +150,6 @@ export abstract class Menu {
 		AudioManager.setAssetPath(this.audioAssetPath);
 		await AudioManager.loadBuffers([this.menuMusicSrc, 'buttonover.wav', 'buttonpress.wav']);
 		await Promise.all([this.home.init(), this.levelSelect.init(), this.finishScreen.init(), this.optionsScreen.init(), this.helpScreen.init()]);
+		this.home.show();
 	}
 }

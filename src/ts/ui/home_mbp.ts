@@ -1,5 +1,7 @@
+import { state } from "../state";
 import { HomeScreen } from "./home";
 import { Menu } from "./menu";
+import { MbpMenu } from "./menu_mbp";
 
 export class MbpHomeScreen extends HomeScreen {
     onlineButton: HTMLImageElement;
@@ -30,4 +32,9 @@ export class MbpHomeScreen extends HomeScreen {
 
         this.onlineButton = document.querySelector('#mbp-home-online'); // Doesn't do anything yet :)
     }
+
+	show() {
+		super.show();
+		state.menu.backgroundImage.src = (state.menu as MbpMenu).homeBg;
+	}
 }

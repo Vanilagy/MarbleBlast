@@ -58,4 +58,8 @@ export class MbgMenu extends Menu {
 	getMenuDiv() {
 		return document.querySelector('#menu') as HTMLDivElement;
 	}
+
+	getBackgroundImage() {
+		return document.querySelector('#background-image') as HTMLImageElement;
+	}
 }
