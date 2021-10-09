@@ -35,7 +35,8 @@ export interface StorageData {
 		alwaysFreeLook: boolean,
 		reflectiveMarble: boolean,
 		showFrameRate: boolean,
-		showThousandths: boolean
+		showThousandths: boolean,
+		fov: number
 	},
 	bestTimes: Record<string, BestTimes>,
 	/** Used for the name entry in the post-game screen. */
@@ -80,8 +81,9 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		invertMouse: 0,
 		alwaysFreeLook: true,
 		reflectiveMarble: false,
-		showFrameRate: false,
-		showThousandths: true
+		showFrameRate: true,
+		showThousandths: true,
+		fov: 60
 	},
 	bestTimes: {},
 	lastUsedName: '',

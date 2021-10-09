@@ -324,6 +324,7 @@ export class Level extends Scheduler {
 		renderer.setClearColor(new THREE.Color(fogColor.x, fogColor.y, fogColor.z), 1);
 
 		camera.far = MisParser.parseNumber(skyElement.visibledistance);
+		camera.fov = StorageManager.data.settings.fov;
 		camera.updateProjectionMatrix();
 
 		if (skyElement.useskytextures === "1") {
@@ -810,6 +811,7 @@ export class Level extends Scheduler {
 
 		let hud = state.menu.hud;
 		hud.displayTime(timeToDisplay / 1000, this.determineClockColor(timeToDisplay));
+		hud.displayFps();
 
 		// Update help and alert text visibility
 		let helpTextTime = this.helpTextTimeState?.timeSinceLoad ?? -Infinity;

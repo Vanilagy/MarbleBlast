@@ -75,3 +75,19 @@
 	right: 0;
 	top: 30%;
 }
+
+#fps-meter {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+}
+
+#fps-meter-value {
+	position: absolute;
+	bottom: 3px;
+	right: -14px;
+	font-family: 'DomCasualRegular';
+	font-size: 20px;
+	width: 100px;
+	text-align: left;
+}

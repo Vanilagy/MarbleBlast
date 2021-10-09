@@ -94,6 +94,7 @@ export class Mission {
 	/** Creates a new mission from a CLA entry. */
 	static fromCLAEntry(entry: CLAEntry, isNew: boolean) {
 		let path = 'custom/' + entry.id;
+		if (entry.modification === 'platinum') path = 'mbp/' + path;
 		let mission = new Mission(path);
 		mission.title = entry.name.trim();
 		mission.artist = entry.artist ?? '';

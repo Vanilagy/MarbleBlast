@@ -37,7 +37,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 	}
 
 	async init() {
-		this.menu.setupButton(this.applyButton, 'options/apply', () => {}); // no-op
+		this.menu.setupButton(this.applyButton, 'options/apply', () => {}, undefined, undefined, false); // no-op
 		this.menu.setupButton(this.generalButton, 'options/general', () => {
 			this.generalContainer.classList.remove('hidden')
 			this.hotkeysContainer.classList.add('hidden');
@@ -47,7 +47,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 			this.generalButton.setAttribute('data-locked', '');
 			this.hotkeysButton.src = this.hotkeysButton.src.slice(0, -5) + 'n.png';
 			this.hotkeysButton.removeAttribute('data-locked');
-		});
+		}, undefined, undefined, false);
 		this.menu.setupButton(this.hotkeysButton, 'options/hotkeys', () => {
 			this.generalContainer.classList.add('hidden')
 			this.hotkeysContainer.classList.remove('hidden');
@@ -57,7 +57,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 			this.hotkeysButton.setAttribute('data-locked', '');
 			this.generalButton.src = this.generalButton.src.slice(0, -5) + 'n.png';
 			this.generalButton.removeAttribute('data-locked');
-		});
+		}, undefined, undefined, false);
 		this.generalButton.click();
 
 		this.updateSliders();
@@ -81,7 +81,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.addDropdown(this.generalContainer, 'alwaysFreeLook', 'Free-Look', ['Disabled', 'Enabled'], true);
 		this.addDropdown(this.generalContainer, 'invertMouse', 'Invert Mouse', ['None', 'X Only', 'Y only', 'X and Y']);
 		this.addDropdown(this.generalContainer, 'showThousandths', 'Thousandths', ['Disabled', 'Enabled'], true);
-		this.addSlider(this.generalContainer, 'musicVolume', 'Music Volume', 0, 1, () => AudioManager.updateVolumes());
+		this.addSlider(this.generalContainer, 'musicVolume', 'Music Volume', 0, 1, () => AudioManager.updateVolumes(), undefined, undefined, x => Math.ceil(x * 100).toString());
 		this.addSlider(this.generalContainer, 'mouseSensitivity', 'Mouse Speed', 0, 1);
 		this.addSlider(this.generalContainer, 'soundVolume', 'Sound Volume', 0, 1, () => AudioManager.updateVolumes(), () => {
 			if (!this.soundTestingSound) {
@@ -90,8 +90,9 @@ export class MbpOptionsScreen extends OptionsScreen {
 				this.soundTestingSound.setLoop(true);
 				this.soundTestingSound.play();
 			}
-		});
+		}, undefined, x => Math.ceil(x * 100).toString());
 		this.addSlider(this.generalContainer, 'keyboardSensitivity', 'Keyboard Speed', 0, 1);
+		this.addSlider(this.generalContainer, 'fov', 'Field of View', 30, 120, undefined, undefined, 1, x => x.toString());
 
 		this.addHotkey(this.hotkeysContainer, 'up');
 		this.addHotkey(this.hotkeysContainer, 'left');
@@ -181,10 +182,11 @@ export class MbpOptionsScreen extends OptionsScreen {
 	}
 
 	/** Adds a slider element for a given option. */
-	addSlider(container: HTMLDivElement, setting: keyof StorageData['settings'], label: string, min: number, max: number, onChange?: () => any, onDragStart?: () => any) {
+	addSlider(container: HTMLDivElement, setting: keyof StorageData['settings'], label: string, min: number, max: number, onChange?: () => any, onDragStart?: () => any, step = 0, showValue?: (val: number) => string) {
 		const updateThumb = () => {
 			let completion = ((StorageManager.data.settings[setting] as number) - min) / (max - min);
 			thumb.style.left = Math.floor(Util.lerp(SLIDER_KNOB_LEFT, SLIDER_KNOB_RIGHT, completion)) + 'px';
+			if (showValue) valueElem.textContent = showValue(StorageManager.data.settings[setting] as number);
 		};
 
 		let element = document.createElement('div');
@@ -198,7 +200,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		bar.addEventListener('mousedown', () => {
 			this.currentSliderElement = element;
 			this.currentSliderCallback = (completion: number) => {
-				StorageManager.data.settings[setting] = Util.lerp(min, max, completion) as never;
+				StorageManager.data.settings[setting] = Util.roundToMultiple(Util.lerp(min, max, completion), step) as never;
 				updateThumb();
 				onChange?.();
 			};
@@ -208,7 +210,10 @@ export class MbpOptionsScreen extends OptionsScreen {
 		let thumb = document.createElement('img');
 		thumb.src = './assets/ui_mbp/options/slider.png';
 
+		let valueElem = document.createElement('p');
+
 		element.append(p, bar, thumb);
+		if (showValue) element.append(valueElem);
 		container.appendChild(element);
 
 		this.updateFuncs.push(updateThumb);

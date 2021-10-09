@@ -66,7 +66,7 @@ export class MbpFinishScreen extends FinishScreen {
 			levelSelect.setMissionArray(nextLevel.array);
 			levelSelect.currentMissionIndex = nextLevel.index;
 			levelSelect.playCurrentMission();
-		});
+		}, undefined, undefined, false);
 	}
 
 	createTimeRow(label: string) {

@@ -159,6 +159,18 @@
 	pointer-events: none;
 }
 
+.mbp-options-element._slider > p:last-child {
+	color: white;
+	font-family: MarkerFelt;
+	text-shadow: 1px 1px 0px black;
+	font-size: 26px;
+	margin: 0;
+	position: absolute;
+	top: 10px;
+	right: 166px;
+	padding-left: 5px;
+}
+
 .mbp-options-element._hotkey > img:first-of-type {
 	position: absolute;
 	display: block;

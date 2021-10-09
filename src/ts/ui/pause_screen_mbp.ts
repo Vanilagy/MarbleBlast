@@ -27,7 +27,7 @@ export class MbpPauseScreen extends PauseScreen {
 		this.jukebox = new Jukebox(menu);
 		menu.setupButton(this.jukeboxButton, 'jukebox/jb_pausemenu', () => {
 			this.jukebox.show();
-		});
+		}, undefined, undefined, false);
 	}
 }
 

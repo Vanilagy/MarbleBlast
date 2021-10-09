@@ -58,7 +58,7 @@ export abstract class OptionsScreen {
 		menu.setupButton(this.homeButton, this.homeButtonSrc, () => {
 			this.hide();
 			menu.home.show();
-		});
+		}, undefined, undefined, state.modification === 'gold');
 
 		window.addEventListener('keydown', (e) => {
 			if (!this.currentlyRebinding || this.rebindValue) return;

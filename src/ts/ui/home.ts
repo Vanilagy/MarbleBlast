@@ -39,7 +39,7 @@ export abstract class HomeScreen {
 			// Show the help screen
 			this.hide();
 			menu.helpScreen.show();
-		});
+		}, undefined, undefined, state.modification === 'gold');
 		menu.setupButton(this.optionsButton, this.optionsSrc, () => {
 			// Show the options screen
 			this.hide();
@@ -49,7 +49,7 @@ export abstract class HomeScreen {
 
 		menu.setupButton(this.showChangelogButton, this.showChangelogSrc, () => {
 			this.changelogContainer.classList.remove('hidden');
-		});
+		}, undefined, undefined, state.modification === 'gold');
 		menu.setupButton(this.changelogBackButton, this.changelogBackSrc, () => {
 			this.changelogContainer.classList.add('hidden');
 		});

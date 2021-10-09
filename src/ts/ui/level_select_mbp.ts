@@ -54,7 +54,7 @@ export class MbpLevelSelect extends LevelSelect {
 			} else {
 				this.difficultySelectorWindow.classList.add('hidden');
 			}
-		});
+		}, undefined, undefined, false);
 
 		this.createDifficultySection('Gold', './assets/ui_mbp/play/marble_gold.png', [
 			{ name: 'Beginner', arr: MissionLibrary.goldBeginner },
@@ -99,14 +99,14 @@ export class MbpLevelSelect extends LevelSelect {
 				this.menu.setButtonVariant(this.viewToggleButton, 0);
 				this.viewToggleButton.title = "Show scores";
 			}
-		});
+		}, undefined, undefined, false);
 
 		this.menu.setupButton(this.loadReplayButton, 'play/replay', () => {
 			this.showLoadReplayPrompt();
-		});
+		}, undefined, undefined, false);
 		this.menu.setupButton(this.shuffleButton, 'search/random', () => {
 			this.shuffle();
-		});
+		}, undefined, undefined, false);
 
 		// Preload images and leaderboards
 		this.setMissionArray(MissionLibrary.goldCustom, false); // Make sure to disable the image timeouts so that no funky stuff happens

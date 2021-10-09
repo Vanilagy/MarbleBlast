@@ -49,11 +49,11 @@ export abstract class LevelSelect {
 		menu.setupButton(this.homeButton, this.homeButtonSrc, () => {
 			this.hide();
 			menu.home.show();
-		});
+		}, undefined, undefined, state.modification === 'gold');
 
-		menu.setupButton(this.prevButton, 'play/prev', () => this.cycleMission(-1), true, true);
-		menu.setupButton(this.playButton, 'play/play', () => this.playCurrentMission(), true);
-		menu.setupButton(this.nextButton, 'play/next', () => this.cycleMission(1), true, true);
+		menu.setupButton(this.prevButton, 'play/prev', () => this.cycleMission(-1), true, true, state.modification === 'gold');
+		menu.setupButton(this.playButton, 'play/play', () => this.playCurrentMission(), true, undefined, state.modification === 'gold');
+		menu.setupButton(this.nextButton, 'play/next', () => this.cycleMission(1), true, true, state.modification === 'gold');
 	}
 
 	abstract initProperties(): void;

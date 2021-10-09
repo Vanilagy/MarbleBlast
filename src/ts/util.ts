@@ -609,6 +609,11 @@ export abstract class Util {
 		// https://v8.dev/blog/math-random
 		return Math.random().toString();
 	}
+
+	static roundToMultiple(val: number, fac: number) {
+		if (!fac) return val;
+		return Math.round(val / fac) * fac;
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

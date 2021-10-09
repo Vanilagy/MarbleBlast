@@ -33,10 +33,14 @@ export abstract class Hud {
 	centerElement: HTMLImageElement;
 	powerUpBorder: HTMLImageElement;
 	clockBackground: HTMLImageElement;
+	fpsMeter: HTMLImageElement;
+	fpsMeterValue: HTMLDivElement;
+	frameTimeStore: number[] = [];
 
 	abstract gemCountMinDigits: number;
 	abstract showClockBackground: boolean;
 	abstract supportNumberColors: boolean;
+	abstract supportFpsMeter: boolean;
 
 	constructor(menu: Menu) {
 		this.menu = menu;
@@ -48,6 +52,8 @@ export abstract class Hud {
 		this.centerElement = document.querySelector('#center-text');
 		this.powerUpBorder = document.querySelector('#powerup-border');
 		this.clockBackground = document.querySelector('#clock-background');
+		this.fpsMeter = document.querySelector('#fps-meter');
+		this.fpsMeterValue = document.querySelector('#fps-meter-value');
 	}
 
 	async load() {
@@ -67,6 +73,14 @@ export abstract class Hud {
 
 		this.menu.gameUiDiv.classList.remove('gold', 'platinum');
 		this.menu.gameUiDiv.classList.add(state.modification);
+
+		if (StorageManager.data.settings.showFrameRate && this.supportFpsMeter) {
+			this.fpsMeter.classList.remove('hidden');
+			this.fpsMeterValue.classList.remove('hidden');
+		} else {
+			this.fpsMeter.classList.add('hidden');
+			this.fpsMeterValue.classList.add('hidden');
+		}
 	}
 
 	/** Updates the game clock canvas. */
@@ -174,5 +188,22 @@ export abstract class Hud {
 		if (type === 'set') this.centerElement.src = this.menu.uiAssetPath + 'game/set.png';
 		if (type === 'go') this.centerElement.src = this.menu.uiAssetPath + 'game/go.png';
 		if (type === 'outofbounds') this.centerElement.src = this.menu.uiAssetPath + 'game/outofbounds.png';
+	}
+
+	displayFps() {
+		if (!(StorageManager.data.settings.showFrameRate && this.supportFpsMeter)) return;
+
+		let now = performance.now();
+		this.frameTimeStore.push(now);
+
+		while (this.frameTimeStore.length && this.frameTimeStore[0] + 1000 <= now) this.frameTimeStore.shift();
+
+		let value = this.frameTimeStore.length;
+		value /= Math.min(1, state.level.timeState.timeSinceLoad / 1000 ?? 1); // Hack to make it reach the final frame rate faster
+		value = value | 0;
+		if (value === 59 || value === 119 || value === 143 || value === 239) value++; // Snap to the most common frame rates
+		if (value === 61 || value === 121 || value === 145 || value === 241) value--;
+
+		this.fpsMeterValue.textContent = 'FPS: ' + value;
 	}
 }
