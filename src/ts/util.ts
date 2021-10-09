@@ -614,6 +614,32 @@ export abstract class Util {
 		if (!fac) return val;
 		return Math.round(val / fac) * fac;
 	}
+
+	/** Checks if a ray intersects an AABB. Uses the algorithm described at https://tavianator.com/2011/ray_box.html. */
+	static rayIntersectsBox(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, box: THREE.Box3, intersectionPoint?: THREE.Vector3) {
+		let tx1 = (box.min.x - rayOrigin.x) / rayDirection.x;
+		let tx2 = (box.max.x - rayOrigin.x) / rayDirection.x;
+
+		let tmin = Math.min(tx1, tx2);
+		let tmax = Math.max(tx1, tx2);
+
+		let ty1 = (box.min.y - rayOrigin.y) / rayDirection.y;
+		let ty2 = (box.max.y - rayOrigin.y) / rayDirection.y;
+
+		tmin = Math.max(tmin, Math.min(ty1, ty2));
+		tmax = Math.min(tmax, Math.max(ty1, ty2));
+
+		let tz1 = (box.min.z - rayOrigin.z) / rayDirection.z;
+		let tz2 = (box.max.z - rayOrigin.z) / rayDirection.z;
+
+		tmin = Math.max(tmin, Math.min(tz1, tz2));
+		tmax = Math.min(tmax, Math.max(tz1, tz2));
+
+		if (intersectionPoint && tmax >= tmin)
+			intersectionPoint.copy(rayOrigin).addScaledVector(rayDirection, (tmin >= 0)? tmin : tmax); // use tmax if the ray starts inside the box
+
+		return tmax >= tmin;
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

@@ -1006,6 +1006,7 @@ export class Level extends Scheduler {
 			for (let trigger of this.triggers) trigger.tick(this.timeState);
 
 			// Step the physics
+			for (let interior of this.interiors) interior.buildCollisionGeometry(); // Update collision geometry for interiors
 			if (!playReplay) this.physics.step();
 
 			for (let shape of this.shapes) if (!shape.isTSStatic) shape.tick(this.timeState);

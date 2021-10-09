@@ -272,13 +272,15 @@ export class Marble {
 				this.body.setLinearVelocity(linearVelocity);
 			}
 
-			// If we're using a shock absorber, give the marble a velocity boost on contact based on its angular velocity.
+			let combinedRestitution = surfaceShape.getRestitution() * this.shape.getRestitution();
+
+			// If we're using a shock absorber or we're on a low-restitution surface, give the marble a velocity boost on contact based on its angular velocity.
 			outer:
-			if (time.currentAttemptTime - this.shockAbsorberEnableTime < 5000) {
+			if (combinedRestitution < 0.5) {
 				let dot = -this.lastVel.dot(contactNormal);
 				if (dot < 0) break outer;
 
-				let boost = this.lastAngVel.cross(contactNormal).scale(dot / 300);
+				let boost = this.lastAngVel.cross(contactNormal).scale(2 * (0.5 - combinedRestitution) * dot / 300 / 0.98); // 0.98 fac because shock absorber used to have 0 rest but now 0.01
 				this.body.addLinearVelocity(boost);
 			}
 

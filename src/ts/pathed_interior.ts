@@ -42,6 +42,7 @@ export class PathedInterior extends Interior {
 	currentPosition = new THREE.Vector3();
 
 	allowSpecialMaterials = false; // Frictions don't work on pathed interiors
+	canMove = true;
 
 	/** Creates a PathedInterior from a sim group containing it and its path (and possible triggers). */
 	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {
@@ -74,7 +75,7 @@ export class PathedInterior extends Interior {
 		if (this.baseScale.y === 0) this.baseScale.y = 0.0001;
 		if (this.baseScale.z === 0) this.baseScale.z = 0.0001;
 
-		this.buildCollisionGeometry(this.baseScale);
+		for (let i = 0; i < this.detailLevel.convexHulls.length; i++) this.addConvexHull(i, this.baseScale);
 		this.body.setOrientation(new OIMO.Quat(this.baseOrientation.x, this.baseOrientation.y, this.baseOrientation.z, this.baseOrientation.w));
 		this.path = this.simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 

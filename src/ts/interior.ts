@@ -1,9 +1,10 @@
 import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
 import * as THREE from "three";
 import OIMO from "./declarations/oimo";
-import { TimeState, Level } from "./level";
+import { TimeState, Level, PHYSICS_TICK_RATE } from "./level";
 import { Util, MaterialGeometry } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
+import { Octree, OctreeObject } from "./octree";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -45,7 +46,7 @@ const specialResistutionFactor: Record<string, number> = {
 	"mmg_water": 0.0,
 	"ice1": 0.95,
 	"mmg_ice": 0.95,
-	"floor_bounce": 0.0
+	//"floor_bounce": 0.0
 };
 const specialMaterials = new Set([...Object.keys(specialFriction), ...Object.keys(specialResistutionFactor)]);
 
@@ -65,6 +66,10 @@ interface SharedInteriorData {
 	instanceIndex: number
 }
 
+interface ConvexHullOctreeObject extends OctreeObject {
+	hullIndex: number
+}
+
 /** Represents a Torque 3D Interior, used for the main surfaces and geometry of levels. */
 export class Interior {
 	/** The unique id of this interior. */
@@ -78,6 +83,7 @@ export class Interior {
 	/** The relevant detail level to read from (non-default for pathed interiors) */
 	detailLevel: DifFile["detailLevels"][number];
 	worldMatrix = new THREE.Matrix4();
+	scale: THREE.Vector3;
 	materials: THREE.Material[];
 	materialGeometry: MaterialGeometry = [];
 	/** Simply contains the file names of the materials without the path to them. */
@@ -91,6 +97,10 @@ export class Interior {
 	/** Whether or not frictions and bouncy floors work on this interior. */
 	allowSpecialMaterials = true;
 	instanceIndex: number;
+	/** An octree containing all Torque convex hulls of this interior. Used to build OIMO collision geometry quickly and on-demand. */
+	convexHullOctree = new Octree();
+	addedHulls = new Set<number>();
+	canMove = false;
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
 		this.dif = file;
@@ -303,77 +313,79 @@ export class Interior {
 		}
 	}
 
-	/** Builds the collision geometry of this interior based on convex hull descriptions. */
-	buildCollisionGeometry(scale: THREE.Vector3) {
-		/** Adds a convex hull collision shape. */
-		const addShape = (vertices: OIMO.Vec3[], material: string) => {
-			let geometry = new OIMO.ConvexHullGeometry(vertices);
-			let shapeConfig = new OIMO.ShapeConfig();
-			shapeConfig.geometry = geometry;
-			shapeConfig.restitution = INTERIOR_DEFAULT_RESTITUTION;
-			shapeConfig.friction = INTERIOR_DEFAULT_FRICTION;
+	/** Adds a convex hull collision shape. */
+	addShape(vertices: OIMO.Vec3[], material: string) {
+		let geometry = new OIMO.ConvexHullGeometry(vertices);
+		let shapeConfig = new OIMO.ShapeConfig();
+		shapeConfig.geometry = geometry;
+		shapeConfig.restitution = INTERIOR_DEFAULT_RESTITUTION;
+		shapeConfig.friction = INTERIOR_DEFAULT_FRICTION;
 
-			if (this.allowSpecialMaterials) {
-				shapeConfig.restitution *= specialResistutionFactor[material] ?? 1;
-				shapeConfig.friction *= specialFriction[material] ?? 1;
+		if (this.allowSpecialMaterials) {
+			shapeConfig.restitution *= specialResistutionFactor[material] ?? 1;
+			shapeConfig.friction *= specialFriction[material] ?? 1;
+		}
+
+		let shape = new OIMO.Shape(shapeConfig);
+		shape.userData = this.id;
+		if (this.allowSpecialMaterials && material === 'floor_bounce') this.bouncyFloors.add(shape);
+		if (this.allowSpecialMaterials && material?.startsWith('mbp_chevron_friction')) this.randomForces.add(shape);
+
+		this.body.addShape(shape);
+	}
+
+	addConvexHull(hullIndex: number, scale: THREE.Vector3) {
+		let hull = this.detailLevel.convexHulls[hullIndex];
+		let materials = new Set();
+		let firstMaterial: string;
+
+		// Add all materials
+		for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
+			let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
+			if (!surface) continue;
+			
+			let material = this.materialNames[surface.textureIndex];
+			if (!material) continue;
+
+			materials.add(material);
+			firstMaterial = material;
+		}
+
+		// In case there is more than one material and one of them is special, generate geometry directly from the surfaces instead of from the convex hull.
+		if (materials.size > 1 && Util.setsHaveOverlap(materials, specialMaterials)) {
+			for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
+				let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
+				if (!surface) continue;
+
+				let material = this.materialNames[surface.textureIndex];
+				if (!material) continue;
+				let vertices: OIMO.Vec3[] = [];
+
+				for (let k = surface.windingStart; k < surface.windingStart + surface.windingCount; k++) {
+					let point = this.detailLevel.points[this.detailLevel.windings[k]];
+					vertices.push(new OIMO.Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
+				}
+
+				this.addShape(vertices, material);
 			}
-
-			let shape = new OIMO.Shape(shapeConfig);
-			shape.userData = this.id;
-			if (this.allowSpecialMaterials && material === 'floor_bounce') this.bouncyFloors.add(shape);
-			if (this.allowSpecialMaterials && material?.startsWith('mbp_chevron_friction')) this.randomForces.add(shape);
-
-			this.body.addShape(shape);
-		};
-
-		for (let i = 0; i < this.detailLevel.convexHulls.length; i++) {
-			let hull = this.detailLevel.convexHulls[i];
+		} else {
+			// Otherwise, just add one shape for the entire convex hull.
 			let vertices: OIMO.Vec3[] = [];
- 
+
 			// Get the vertices
 			for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
 				let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
 				vertices.push(new OIMO.Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
 			}
 
-			let materials = new Set();
-			let firstMaterial: string;
-
-			// Add all materials
-			for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
-				let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
-				if (!surface) continue;
-				
-				let material = this.materialNames[surface.textureIndex];
-				materials.add(material);
-				firstMaterial = material;
-			}
-
-			// In case there is more than one material and one of them is special, generate geometry directly from the surfaces instead of from the convex hull.
-			if (materials.size > 1 && Util.setsHaveOverlap(materials, specialMaterials)) {
-				for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
-					let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
-					if (!surface) continue;
-
-					let material = this.materialNames[surface.textureIndex];
-					let vertices: OIMO.Vec3[] = [];
-
-					for (let k = surface.windingStart; k < surface.windingStart + surface.windingCount; k++) {
-						let point = this.detailLevel.points[this.detailLevel.windings[k]];
-						vertices.push(new OIMO.Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
-					}
-
-					addShape(vertices, material);
-				}
-			} else {
-				// Otherwise, just add one shape for the entire convex hull.
-				addShape(vertices, firstMaterial);
-			}
+			if (firstMaterial) this.addShape(vertices, firstMaterial);
 		}
 	}
 
 	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
 		this.worldMatrix.compose(position, orientation, scale);
+		this.scale = scale;
+
 		if (this.useInstancing) {
 			this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, this.worldMatrix);
 			this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
@@ -381,10 +393,54 @@ export class Interior {
 			this.mesh.matrix.copy(this.worldMatrix);
 		}
 
-		this.buildCollisionGeometry(scale);
+		this.initConvexHullOctree();
 
 		this.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
 		this.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
+	}
+
+	/** Initiates the octree with all convex hull collision geometries for fast querying later. */
+	initConvexHullOctree() {
+		for (let i = 0; i < this.detailLevel.convexHulls.length; i++) {
+			let hull = this.detailLevel.convexHulls[i];
+			let vertices: THREE.Vector3[] = [];
+ 
+			// Get the vertices
+			for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
+				let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
+				vertices.push(new THREE.Vector3(point.x, point.y, point.z).applyMatrix4(this.worldMatrix));
+			}
+
+			let aabb = new THREE.Box3();
+			aabb.setFromPoints(vertices);
+
+			let object: ConvexHullOctreeObject = { boundingBox: aabb, isIntersectedByRay: null, hullIndex: i };
+			this.convexHullOctree.insert(object);
+		}
+	}
+
+	/** Adds collision geometry for nearby convex hulls. */
+	buildCollisionGeometry() {
+		if (this.canMove) return; // We already added everything
+
+		let marble = this.level.marble;
+
+		// Create a sphere that includes all geometry possibly reachable by the marble
+		let sphere = new THREE.Sphere();
+		sphere.center.copy(Util.vecOimoToThree(marble.body.getPosition()));
+		sphere.radius = 5 + marble.body.getLinearVelocity().length() / PHYSICS_TICK_RATE * 2; // Should be plenty (constant summand because of camera)
+
+		let added = 0;
+
+		let intersects = this.convexHullOctree.intersectSphere(sphere) as ConvexHullOctreeObject[];
+		for (let intersect of intersects) {
+			if (this.addedHulls.has(intersect.hullIndex)) continue; // We already added this convex hull, skip it
+			this.addConvexHull(intersect.hullIndex, this.scale);
+			this.addedHulls.add(intersect.hullIndex);
+			added++
+		}
+
+		if (added) console.log(added)
 	}
 
 	dispose() {
@@ -399,7 +455,7 @@ export class Interior {
 		let marble = this.level.marble;
 		// Get the contact normal
 		let contactNormal = contact.getManifold().getNormal();
-		if (contact.getShape1().userData === this.id) contactNormal = contactNormal.scale(-1);
+		if (contact.getShape1().userData === this.id) contactNormal = contactNormal.scale(-1);;
 
 		if (this.bouncyFloors.has(contactShape)) {
 			// Set the velocity along the contact normal, but make sure it's capped
