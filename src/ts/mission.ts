@@ -145,7 +145,7 @@ export class Mission {
 			delete zip.files[filename];
 			zip.files[filename.toLowerCase()] = val;
 
-			if (filename.includes('interiors_mbg/')) {
+			if (state.modification === 'gold' && filename.includes('interiors_mbg/')) {
 				// Create an alias in interiors
 				zip.files[filename.replace('interiors_mbg/', 'interiors/')] = val;
 			}
@@ -217,7 +217,7 @@ export class Mission {
 	async getDif(rawElementPath: string) {
 		rawElementPath = rawElementPath.toLowerCase();
 		let path = rawElementPath.slice(rawElementPath.indexOf('data/'));
-		if (path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
+		if (state.modification === 'gold' && path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
 
 		if (this.modification !== 'gold') path = path.replace('data/', 'data_mbp/');
 
