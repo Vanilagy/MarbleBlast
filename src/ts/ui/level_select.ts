@@ -111,7 +111,7 @@ export abstract class LevelSelect {
 
 	show() {
 		this.div.classList.remove('hidden');
-		this.setMissionArray(this.currentMissionArray); // To be sure everything is refreshed
+		this.displayMission();
 	}
 
 	hide() {

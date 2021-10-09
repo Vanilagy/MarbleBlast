@@ -222,4 +222,9 @@ export class MbpLevelSelect extends LevelSelect {
 		if (score[1] <= this.currentMission.goldTime) element.style.color = (this.currentMission.modification === 'gold')? MBP_GOLD_COLOR : MBP_PLATINUM_COLOR;
 		if (score[1] <= this.currentMission.ultimateTime) element.style.color = MBP_ULTIMATE_COLOR;
 	}
+
+	show() {
+		super.show();
+		state.menu.backgroundImage.src = (MissionLibrary.getModification(this.currentMissionArray) === 'gold')? (state.menu as MbpMenu).mbgBg : (state.menu as MbpMenu).mbpBg;
+	}
 }

@@ -1130,7 +1130,7 @@ export class Level extends Scheduler {
 
 		AudioManager.updatePositionalAudio(this.timeState, camera.position, this.yaw);
 		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
-		if (tickDone) this.calculatePreemptiveTransforms();
+		if (tickDone) this.marble.calculatePreemptiveTransforms();
 
 		// Handle pressing of the restart button
 		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
@@ -1139,24 +1139,6 @@ export class Level extends Scheduler {
 		} else if (!isPressed('restart')) {
 			this.pressingRestart = false;
 		}
-	}
-
-	/** Predicts the position of the marble in the next physics tick to allow for smooth, interpolated rendering. */
-	calculatePreemptiveTransforms() {
-		let vel = this.marble.body.getLinearVelocity();
-		// Naive: Just assume the marble moves as if nothing was in its way and it continued with its current velocity.
-		let predictedPosition = this.marble.body.getPosition().add(vel.scale(1 / PHYSICS_TICK_RATE)).add(this.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
-
-		let angVel = this.marble.body.getAngularVelocity();
-		let orientation = this.marble.body.getOrientation();
-		let threeOrientation = new THREE.Quaternion(orientation.x, orientation.y, orientation.z, orientation.w);
-		let changeQuat = new THREE.Quaternion();
-		changeQuat.setFromAxisAngle(Util.vecOimoToThree(angVel).normalize(), angVel.length() / PHYSICS_TICK_RATE);
-		changeQuat.multiply(threeOrientation);
-		let predictedOrientation = new OIMO.Quat(threeOrientation.x, threeOrientation.y, threeOrientation.z, threeOrientation.w);
-
-		this.marble.preemptivePosition = predictedPosition;
-		this.marble.preemptiveOrientation = predictedOrientation;
 	}
 
 	/** Get the current interpolated orientation quaternion. */

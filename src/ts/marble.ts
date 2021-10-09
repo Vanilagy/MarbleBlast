@@ -486,6 +486,46 @@ export class Marble {
 		}
 	}
 
+	/** Predicts the position of the marble in the next physics tick to allow for smooth, interpolated rendering. */
+	calculatePreemptiveTransforms() {
+		let vel = this.body.getLinearVelocity();
+		let pos = this.body.getPosition();
+
+		// Naive: Just assume the marble moves as if nothing was in its way and it continued with its current velocity.
+		let predictedPosition = pos.add(vel.scale(1 / PHYSICS_TICK_RATE)).add(this.level.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
+		let finalPredictedPosition = predictedPosition;
+		let movementDiff = predictedPosition.sub(pos);
+
+		let physics = this.level.physics;
+		let minFraction = Infinity;
+		let transform = this.body.getTransform();
+		transform.setPosition(transform.getPosition().sub(movementDiff));
+
+		// To prevent interpolating the marble into surfaces, perform a convex cast and check for any intersections.
+		physics.world.convexCast(physics.marbleGeometry, transform, movementDiff.scale(10), {
+			process(shape, hit) {
+				if (shape.getRigidBody().getType() !== OIMO.RigidBodyType.STATIC) return;
+				let fraction = hit.fraction * 10 - 1; // Readjust the fraction to the correct interval
+				if (fraction < -1 || fraction > 1) return; // We also allow negative fractions here because oftentimes, in collision, the marble will first be inside an object until it's popped out from it again. With negative fractions, we can interpolate towards the popped-out state.
+				if (fraction >= minFraction) return;
+
+				minFraction = fraction;
+				finalPredictedPosition = Util.lerpOimoVectors(pos, predictedPosition, fraction);
+			}
+		});
+
+		let angVel = this.body.getAngularVelocity();
+		let orientation = this.body.getOrientation();
+		let threeOrientation = new THREE.Quaternion(orientation.x, orientation.y, orientation.z, orientation.w);
+		let changeQuat = new THREE.Quaternion();
+		changeQuat.setFromAxisAngle(Util.vecOimoToThree(angVel).normalize(), angVel.length() / PHYSICS_TICK_RATE);
+		changeQuat.multiply(threeOrientation);
+		let predictedOrientation = new OIMO.Quat(threeOrientation.x, threeOrientation.y, threeOrientation.z, threeOrientation.w);
+
+		this.preemptivePosition = finalPredictedPosition;
+		this.preemptiveOrientation = predictedOrientation;
+	}
+
 	render(time: TimeState) {
 		// Position based on current and predicted position and orientation
 		let bodyPosition = Util.lerpOimoVectors(this.body.getPosition(), this.preemptivePosition, time.physicsTickCompletion);
