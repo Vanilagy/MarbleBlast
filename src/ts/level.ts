@@ -455,10 +455,17 @@ export class Level extends Scheduler {
 			musicFileName = this.mission.missionInfo.music.toLowerCase();
 			this.originalMusicName = musicFileName;
 		} else {
-			let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
-			musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The default music choice is based off of level index
-			// Yes, the extra space is intentional
-			this.originalMusicName = ['groove police.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
+			if (this.mission.modification === 'gold') {
+				// Play the song based on the level index
+				let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
+				musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The default music choice is based off of level index
+				// Yes, the extra space is intentional
+				this.originalMusicName = ['groove police.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
+			} else {
+				// Play a random *MBP* song
+				musicFileName = Util.randomFromArray(['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'metropolis.ogg', 'pianoforte.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg']);
+				this.originalMusicName = musicFileName;
+			}
 		}
 		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
 

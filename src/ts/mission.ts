@@ -144,6 +144,7 @@ export class Mission {
 			let val = zip.files[filename];
 			delete zip.files[filename];
 			zip.files[filename.toLowerCase()] = val;
+			zip.files[filename.toLowerCase().replace('data/', 'data_mbp/')] = val;
 
 			if (state.modification === 'gold' && filename.includes('interiors_mbg/')) {
 				// Create an alias in interiors
@@ -181,6 +182,7 @@ export class Mission {
 				this.ultimateTime = -Infinity;
 			}
 		}
+		this.missionInfo = missionInfo;
 	}
  
 	getDirectoryMissionPath() {

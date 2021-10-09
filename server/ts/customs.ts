@@ -58,6 +58,7 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 		let buffer = await response.buffer();
 		let zip = await JSZip.loadAsync(buffer);
 		let promises: Promise<void>[] = [];
+		let modification = shared.claList.find(x => x.id === id).modification;
 
 		// Clean up the archive a bit:
 		zip.forEach((_, entry) => {
@@ -67,8 +68,8 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 				if (!entry.name.includes('data/')) entry.name = 'data/' + entry.name; // Ensure they got data/ in 'em
 				zip.files[entry.name] = entry;
 			
-				// Check if the asset is already part of the standard MBG assets. If yes, remove it from the archive.
-				let filePath = path.join(shared.directoryPath, 'assets', entry.name).toLowerCase(); // Case-insensitive paths
+				// Check if the asset is already part of the standard assets. If yes, remove it from the archive.
+				let filePath = path.join(shared.directoryPath, 'assets', (modification === 'gold')? entry.name : entry.name.replace('data/', 'data_mbp/')).toLowerCase(); // Case-insensitive paths
 				let exists = await fs.pathExists(filePath);
 				if (exists) zip.remove(entry.name);
 

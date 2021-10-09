@@ -41,7 +41,7 @@ const SONGS = {
 	'flanked.ogg': 'Flanked',
 	'groove police.ogg': 'Groove Police',
 	'grudge.ogg': 'Grudge',
-	'mbpoldshell.ogg': 'MBP Old Shell',
+	'mbp old shell.ogg': 'MBP Old Shell',
 	'metropolis.ogg': 'Metropolis',
 	'pianoforte.ogg': 'Pianoforte',
 	'quiet lab.ogg': 'Quiet Lab',

@@ -89,7 +89,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 			if (shared.config.discordWebhookUrl) {
 				// Broadcast a world record message to the webhook URL
 				let allowed = true;
-				if (missionPath.startsWith('custom')) {
+				if (missionPath.includes('custom/')) {
 					let scoreCount: number = shared.getMissionScoreCount.pluck().get(missionPath);
 					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) allowed = false; // Not enough scores yet, don't broadcast
 				}
@@ -108,8 +108,11 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 const broadcastToWebhook = (missionPath: string, score: [string, number]) => {
 	let missionName = escapeDiscord(getMissionNameFromMissionPath(missionPath)).trim();
 	let timeString = secondsToTimeString(score[1] / 1000);
+	let modification = missionPath.startsWith('mbp')? 'platinum': 'gold';
+	if (modification === 'platinum') missionPath = missionPath.slice(4);
 	let category = uppercaseFirstLetter(missionPath.slice(0, missionPath.indexOf('/')));
-	let message = `${escapeDiscord(score[0])} has just achieved a world record on "${missionName}" (Web ${category}) of ${timeString}`;
+	
+	let message = `${escapeDiscord(score[0])} has just achieved a world record on "${missionName}" (Web ${uppercaseFirstLetter(modification)} ${category}) of ${timeString}`;
 
 	fetch(shared.config.discordWebhookUrl, {
 		method: 'POST',
@@ -124,9 +127,9 @@ const broadcastToWebhook = (missionPath: string, score: [string, number]) => {
 
 /** Gets the mission name from a given mission path. */
 const getMissionNameFromMissionPath = (missionPath: string) => {
-	if (missionPath.startsWith('custom')) {
+	if (missionPath.includes('custom/')) {
 		// Find the corresponding CLA entry
-		let claEntry = shared.claList.find(x => x.id === Number(missionPath.slice(7)));
+		let claEntry = shared.claList.find(x => x.id === Number(missionPath.slice(missionPath.lastIndexOf('/') + 1)));
 		return claEntry.name;
 	} else {
 		return shared.levelNameMap[missionPath];

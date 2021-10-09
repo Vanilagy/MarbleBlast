@@ -84,7 +84,7 @@ export abstract class Leaderboard {
 			payloadBestTimes[missionPath] = [score[0], score[1]];
 
 			let onlineScore = this.scores.get(missionPath)?.[0];
-			if ((!onlineScore || (score[1] < onlineScore[1])) && !missionPath.startsWith('custom')) {
+			if ((!onlineScore || (score[1] < onlineScore[1])) && !missionPath.includes('custom/')) {
 				// This score is better than the top online score, therefore assume this is a new world record and prepare the replay for upload.
 				let replayData = await StorageManager.databaseGet('replays', score[2]) as ArrayBuffer;
 				if (!replayData) continue;

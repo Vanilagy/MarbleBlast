@@ -124,6 +124,7 @@ const init = () => {
 	shared.directoryPath = path.join(__dirname, '..', shared.config.useDist? 'dist' : 'src');
 	shared.levelNameMap = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'level_name_map.json')).toString());
 	shared.claList = JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'gold_levels.json')).toString());
+	shared.claList.push(...JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'platinum_levels.json')).toString()));
 	let port = Number(shared.config.port);
 
 	// Ensure certain directories and files exist

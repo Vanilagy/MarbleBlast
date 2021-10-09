@@ -195,6 +195,7 @@ export class PhysicsHelper {
 		for (let interior of this.level.interiors) {
 			if (!(interior instanceof PathedInterior)) continue;
 			if (interior.body.getType() === OIMO.RigidBodyType.STATIC) continue;
+			if (!interior.hasCollision) continue;
 
 			let interiorMovement =  Util.vecThreeToOimo(interior.currentPosition.clone().sub(interior.prevPosition));
 			let body = this.pathedInteriorBodies.get(interior);

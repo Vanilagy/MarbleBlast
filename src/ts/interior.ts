@@ -430,17 +430,12 @@ export class Interior {
 		sphere.center.copy(Util.vecOimoToThree(marble.body.getPosition()));
 		sphere.radius = 5 + marble.body.getLinearVelocity().length() / PHYSICS_TICK_RATE * 2; // Should be plenty (constant summand because of camera)
 
-		let added = 0;
-
 		let intersects = this.convexHullOctree.intersectSphere(sphere) as ConvexHullOctreeObject[];
 		for (let intersect of intersects) {
 			if (this.addedHulls.has(intersect.hullIndex)) continue; // We already added this convex hull, skip it
 			this.addConvexHull(intersect.hullIndex, this.scale);
 			this.addedHulls.add(intersect.hullIndex);
-			added++
 		}
-
-		if (added) console.log(added)
 	}
 
 	dispose() {

@@ -45,7 +45,8 @@ export abstract class MissionLibrary {
 		}
 
 		// Get the list of all custom levels in the CLA
-		let customLevelListPromise = ResourceManager.loadResource('./assets/gold_levels.json');
+		let goldCustomLevelListPromise = ResourceManager.loadResource('./assets/gold_levels.json');
+		let platinumCustomLevelListPromise = ResourceManager.loadResource('./assets/platinum_levels.json');
 
 		let mbgMisFiles = await Promise.all(mbgPromises);
 		let mbpMisFiles = await Promise.all(mbpPromises);
@@ -78,14 +79,16 @@ export abstract class MissionLibrary {
 		mbpMissions.sort(sortFn);
 
 		// Read the custom level list
-		let customLevelList = await ResourceManager.readBlobAsJson(await customLevelListPromise) as CLAEntry[];
+		let customLevelList = await ResourceManager.readBlobAsJson(await goldCustomLevelListPromise) as CLAEntry[];
+		customLevelList.push(...await ResourceManager.readBlobAsJson(await platinumCustomLevelListPromise));
 		let oldIdsList = await ResourceManager.readBlobAsJson(await ResourceManager.loadResource('./assets/old_ids.json')) as number[];
 		let oldIds = new Set(oldIdsList);
 
 		// Create all custom missions
 		for (let custom of customLevelList) {
 			let mission = Mission.fromCLAEntry(custom, !oldIds.has(custom.id));
-			mbgMissions.push(mission);
+			if (mission.modification === 'gold') mbgMissions.push(mission);
+			else mbpMissions.push(mission);
 		}
 
 		// Sort the missions into the correct array
@@ -113,6 +116,7 @@ export abstract class MissionLibrary {
 		// Sort all custom levels alphabetically
 		const sortFn2 = (a: Mission, b: Mission) => Util.normalizeString(a.title).localeCompare(Util.normalizeString(b.title), undefined, { numeric: true, sensitivity: 'base' });
 		this.goldCustom.sort(sortFn2);
+		this.platinumCustom.sort(sortFn2);
 
 		for (let i = 0; i < this.goldBeginner.length; i++) this.goldBeginner[i].initSearchString(i);
 		for (let i = 0; i < this.goldIntermediate.length; i++) this.goldIntermediate[i].initSearchString(i);
