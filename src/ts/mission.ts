@@ -192,8 +192,10 @@ export class Mission {
 	getImagePath() {
 		if (this.type !== 'custom') {
 			let directoryMissionPath = this.getDirectoryMissionPath();
+			if (state.modification !== 'gold') directoryMissionPath = directoryMissionPath.replace('missions/', 'missions_mbg/');
+
 			let withoutExtension = directoryMissionPath.slice(0, -4);
-			let imagePaths = ResourceManager.getFullNamesOf(withoutExtension, this.modification !== 'gold');
+			let imagePaths = ResourceManager.getFullNamesOf(withoutExtension, state.modification !== 'gold');
 			let imagePath: string;
 			for (let path of imagePaths) {
 				if (!path.endsWith('.mis')) {
@@ -203,7 +205,7 @@ export class Mission {
 			}
 
 			let res = directoryMissionPath.slice(0, directoryMissionPath.lastIndexOf('/') + 1) + imagePath;
-			if (this.modification === 'gold') return "./assets/data/" + res;
+			if (state.modification === 'gold') return "./assets/data/" + res;
 			return "./assets/data_mbp/" + res;
 		} else {
 			// Request the bitmap

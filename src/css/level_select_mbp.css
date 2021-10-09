@@ -68,7 +68,7 @@
 	left: 428px;
 	width: 256px;
 	height: 194px;
-	object-fit: fill;
+	object-fit: cover;
 }
 
 #mbp-level-select-frame {

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasElement;
+export const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasElement;
 
 const resize = () => {
 	mainCanvas.setAttribute('width', window.innerWidth.toString());

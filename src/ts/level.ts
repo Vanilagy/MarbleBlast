@@ -1,6 +1,6 @@
 import { Interior } from "./interior";
 import * as THREE from "three";
-import { renderer, camera, orthographicCamera } from "./rendering";
+import { renderer, camera, orthographicCamera, mainCanvas } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble, MARBLE_RADIUS, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
@@ -256,6 +256,7 @@ export class Level extends Scheduler {
 		for (let shape of this.shapes) await shape.onLevelStart();
 		AudioManager.normalizePositionalAudioVolume();
 
+		mainCanvas.classList.remove('hidden');
 		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick for correct positional audio playback
 		this.render(); // This will also do a tick
 		this.tickInterval = setInterval(() => this.tick());
@@ -1485,6 +1486,7 @@ export class Level extends Scheduler {
 	stopAndExit() {
 		this.stop();
 		state.level = null;
+		mainCanvas.classList.add('hidden');
 
 		state.menu.pauseScreen.hide();
 		state.menu.levelSelect.show();
