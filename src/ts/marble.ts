@@ -44,10 +44,12 @@ export class Marble {
 	shape: OIMO.Shape;
 	body: OIMO.RigidBody;
 	marbleTexture: THREE.Texture;
+	currentVisualPosition: OIMO.Vec3;
+	currentVisualOrientation: OIMO.Quat;
 	/** The predicted position of the marble in the next tick. */
-	preemptivePosition: OIMO.Vec3;
+	predictedPosition: OIMO.Vec3;
 	/** The predicted orientation of the marble in the next tick. */
-	preemptiveOrientation: OIMO.Quat;
+	predictedOrientation: OIMO.Quat;
 
 	/** The default jump impulse of the marble. */
 	jumpImpulse = 7.3; // For now, seems to fit more.
@@ -352,13 +354,27 @@ export class Marble {
 
 			let combinedFriction = surfaceShape.getFriction() * this.shape.getFriction();
 
-			// Handle velocity slowdown
+			// Apply angular velocity changes
 			let angVel = this.body.getAngularVelocity();
+
+			// Subtract the movement axis so it doesn't get slowed down
 			let direction = movementRotationAxis.clone().normalize();
 			let dot2 = Math.max(0, angVel.dot(direction));
 			angVel = angVel.sub(direction.scale(dot2));
-			angVel = angVel.scale(0.02 ** (Math.min(1, combinedFriction) / PHYSICS_TICK_RATE));
+
+			// Subtract the "surface rotation axis", this ensures we can roll down hills quickly
+			let surfaceRotationAxis = this.level.currentUp.cross(contactNormal);
+			let degenerate = surfaceRotationAxis.length() < 1e-8;
+			surfaceRotationAxis.normalize();
+			let dot3 = degenerate? 0 : Math.max(angVel.dot(surfaceRotationAxis), 0);
+			angVel = angVel.sub(surfaceRotationAxis.scale(dot3));
+
+			angVel = angVel.scale(0.02 ** (Math.min(1, combinedFriction) / PHYSICS_TICK_RATE)); // Handle velocity slowdown
+
+			// Add them back
+			angVel = angVel.add(surfaceRotationAxis.scale(dot3));
 			angVel = angVel.add(direction.scale(dot2));
+
 			if (angVel.length() > 285) angVel.scaleEq(285 / angVel.length()); // Absolute max angular speed
 		 	this.body.setAngularVelocity(angVel);
 
@@ -399,7 +415,7 @@ export class Marble {
 			r.rollingSoundGain.push(this.rollingSound.gain.gain.value);
 			r.rollingSoundPlaybackRate.push((this.rollingSound.node as AudioBufferSourceNode).playbackRate.value);
 			r.slidingSoundGain.push(this.slidingSound.gain.gain.value);
-		}	
+		}
 	}
 
 	updatePowerUpStates(time: TimeState) {
@@ -487,9 +503,13 @@ export class Marble {
 	}
 
 	/** Predicts the position of the marble in the next physics tick to allow for smooth, interpolated rendering. */
-	calculatePreemptiveTransforms() {
+	calculatePredictiveTransforms() {
 		let vel = this.body.getLinearVelocity();
 		let pos = this.body.getPosition();
+		let orientation = this.body.getOrientation();
+
+		this.currentVisualPosition = this.predictedPosition;
+		this.currentVisualOrientation = this.predictedOrientation;
 
 		// Naive: Just assume the marble moves as if nothing was in its way and it continued with its current velocity.
 		let predictedPosition = pos.add(vel.scale(1 / PHYSICS_TICK_RATE)).add(this.level.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
@@ -506,7 +526,7 @@ export class Marble {
 			process(shape, hit) {
 				if (shape.getRigidBody().getType() !== OIMO.RigidBodyType.STATIC) return;
 				let fraction = hit.fraction * 10 - 1; // Readjust the fraction to the correct interval
-				if (fraction < -1 || fraction > 1) return; // We also allow negative fractions here because oftentimes, in collision, the marble will first be inside an object until it's popped out from it again. With negative fractions, we can interpolate towards the popped-out state.
+				if (fraction < 0 || fraction > 1) return;
 				if (fraction >= minFraction) return;
 
 				minFraction = fraction;
@@ -515,21 +535,20 @@ export class Marble {
 		});
 
 		let angVel = this.body.getAngularVelocity();
-		let orientation = this.body.getOrientation();
 		let threeOrientation = new THREE.Quaternion(orientation.x, orientation.y, orientation.z, orientation.w);
 		let changeQuat = new THREE.Quaternion();
 		changeQuat.setFromAxisAngle(Util.vecOimoToThree(angVel).normalize(), angVel.length() / PHYSICS_TICK_RATE);
 		changeQuat.multiply(threeOrientation);
 		let predictedOrientation = new OIMO.Quat(threeOrientation.x, threeOrientation.y, threeOrientation.z, threeOrientation.w);
 
-		this.preemptivePosition = finalPredictedPosition;
-		this.preemptiveOrientation = predictedOrientation;
+		this.predictedPosition = finalPredictedPosition;
+		this.predictedOrientation = predictedOrientation;
 	}
 
 	render(time: TimeState) {
 		// Position based on current and predicted position and orientation
-		let bodyPosition = Util.lerpOimoVectors(this.body.getPosition(), this.preemptivePosition, time.physicsTickCompletion);
-		let bodyOrientation = this.body.getOrientation().slerp(this.preemptiveOrientation, time.physicsTickCompletion);
+		let bodyPosition = Util.lerpOimoVectors(this.currentVisualPosition, this.predictedPosition, time.physicsTickCompletion);
+		let bodyOrientation = this.currentVisualOrientation.slerp(this.predictedOrientation, time.physicsTickCompletion);
 		this.group.position.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
 		this.sphere.quaternion.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
 
@@ -600,6 +619,10 @@ export class Marble {
 		this.lastVel = new OIMO.Vec3();
 		this.collisionTimeout = 0;
 		this.slidingTimeout = 0;
+		this.currentVisualPosition = this.body.getPosition();
+		this.currentVisualOrientation = this.body.getOrientation();
+		this.predictedPosition = this.body.getPosition();
+		this.predictedOrientation = this.body.getOrientation();
 
 		let mat = this.sphere.material as THREE.MeshLambertMaterial;
 		mat.map = this.marbleTexture;

@@ -58,6 +58,7 @@ import { MbpHud } from "./ui/hud_mbp";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
+const PLAYBACK_SPEED = 1; // Major attack surface for cheaters here 😟
 /** The vertical offsets of overlay shapes to get them all visually centered. */
 const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/images/helicopter.dts": -67,
@@ -762,7 +763,7 @@ export class Level extends Scheduler {
 		let time = performance.now();
 		this.tick(time);
 
-		let physicsTickLength = 1000 / PHYSICS_TICK_RATE;
+		let physicsTickLength = 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
 		let completion = Util.clamp((time - this.lastPhysicsTick) / physicsTickLength, 0, 1);
 		// Set up an intermediate time state for smoother rendering
 		let tempTimeState: TimeState = {
@@ -986,11 +987,12 @@ export class Level extends Scheduler {
 
 		if (this.lastPhysicsTick === null) {
 			// If there hasn't been a physics tick yet, ensure there is one now
-			this.lastPhysicsTick = time - 1000 / PHYSICS_TICK_RATE * 1.1;
+			this.lastPhysicsTick = time - 1000 / PHYSICS_TICK_RATE * 1.1 / PLAYBACK_SPEED;
 		}
 
 		/** Time since the last physics tick */
 		let elapsed = time - this.lastPhysicsTick;
+		elapsed *= PLAYBACK_SPEED;
 		if (elapsed >= 1000) {
 			elapsed = 1000;
 			this.lastPhysicsTick = time - 1000;
@@ -1002,7 +1004,7 @@ export class Level extends Scheduler {
 			// By ticking we advance time, so advance time.
 			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
 			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
-			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
+			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
 			elapsed -= 1000 / PHYSICS_TICK_RATE;
 
 			this.tickSchedule(this.timeState.currentAttemptTime);
@@ -1130,7 +1132,7 @@ export class Level extends Scheduler {
 
 		AudioManager.updatePositionalAudio(this.timeState, camera.position, this.yaw);
 		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
-		if (tickDone) this.marble.calculatePreemptiveTransforms();
+		if (tickDone) this.marble.calculatePredictiveTransforms();
 
 		// Handle pressing of the restart button
 		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {

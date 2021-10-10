@@ -28,6 +28,7 @@ export class PhysicsHelper {
 	auxWorld: OIMO.World;
 	auxMarbleShape: OIMO.Shape;
 	auxMarbleBody: OIMO.RigidBody;
+	capsules = new WeakMap<OIMO.World, OIMO.RigidBody>();
 
 	/** Maps userdata to a shape */
 	shapeLookup = new Map<any, Shape>();
@@ -111,52 +112,69 @@ export class PhysicsHelper {
 	}
 
 	step() {
-		let prevMarblePosition = this.level.marble.body.getPosition().clone();
-		let prevMarbleTransform = this.level.marble.body.getTransform().clone();
+		let marble = this.level.marble;
 
 		let gravityBefore = this.world.getGravity().clone();
 		if (this.level.finishTime) {
 			// Slow down the marble when it's in the finish and disable gravity
-			let vel = this.level.marble.body.getLinearVelocity();
+			let vel = marble.body.getLinearVelocity();
 			vel.scaleEq(0.9);
-			this.level.marble.body.setLinearVelocity(vel);
+			marble.body.setLinearVelocity(vel);
 
 			this.world.setGravity(new OIMO.Vec3());
 		}
 
+		// Before we tick the physics, perform a CCD step to potentially move the marble to the next exact collision point
+		let { stepSize, collisionFound } = this.performStaticCcd();
+		let prevMarblePosition = marble.body.getPosition().clone();
+		let prevMarbleTransform = marble.body.getTransform().clone();
+		let prevMarbleVelocity = marble.body.getLinearVelocity();
+
+		let normalsBefore = [];
+		if (stepSize === 1) {
+			// To prevent internal edge hits later, remember all contact normals before stepping the physics
+			let contactList = marble.body.getContactLinkList();
+			while (contactList) {
+				let contact = contactList.getContact();
+				if (contact.isTouching()) normalsBefore.push(contact.getManifold().getNormal());
+				contactList = contactList.getNext();
+			}
+		}
+
 		this.world.step(1 / PHYSICS_TICK_RATE);
 		this.world.setGravity(gravityBefore);
+		marble.body.setPosition(Util.lerpOimoVectors(prevMarblePosition, marble.body.getPosition(), stepSize)); // Because OIMO is weird, we perform a full-size timestep and then revert the position back to fit the step size. Oof.
+		
+		// Now, we try to detect internal edge hits and correct them. An internal edge hit is hitting an edge that is not visible to the outside, i.e. the surface there is continuous
+		if (stepSize === 1 && !collisionFound) {
+			let biggestAngle = -Infinity;
+			let contactList = marble.body.getContactLinkList();
+			while (contactList) {
+				let contact = contactList.getContact();
+				if (contact.isTouching()) {
+					// Find the vector with the largest angle (smallest dot product)
+					let dot = Math.min(...normalsBefore.map(x => x.dot(contact.getManifold().getNormal())));
+					let angle = Math.acos(Util.clamp(dot, -1, 1));
+					biggestAngle = Math.max(angle, biggestAngle);
+				}
+				
+				contactList = contactList.getNext();
+			}
+	
+			if (biggestAngle > 0.05 && biggestAngle < 1.5) {
+				// When we're here, we assume we've hit an internal edge. So, override the stepped marble with a simple linear extrapolation of the previous position.
+				marble.body.setPosition(prevMarblePosition.add(prevMarbleVelocity.scale(1 / PHYSICS_TICK_RATE).add(this.world.getGravity().scale(0.2 * -0.5 / PHYSICS_TICK_RATE**2))));
+				marble.body.setLinearVelocity(prevMarbleVelocity.normalize().scale(marble.body.getLinearVelocity().length()));
+			}
+		}
 
-		let currentMarblePosition = this.level.marble.body.getPosition();
-		let currentMarbleVelocity = this.level.marble.body.getLinearVelocity();
+		let currentMarblePosition = marble.body.getPosition();
 		let movementDiff = currentMarblePosition.sub(prevMarblePosition);
 		let movementDist = movementDiff.length();
 
 		/** A list of collision events that happened between the last and current tick. */
 		let collisionCorrectionEvents: CollisionCorrectionEvent[] = [];
-
-		// Because OimoPhysics' simulation is discrete, but we cannot allow the marble to glitch through anything, we need to perform some sort of continuous collision detection (CCD). In our case, we perform a convex cast of the marble geometry from its last point to its current point and see what we intersect along the way.
-		this.world.convexCast(this.marbleGeometry, prevMarbleTransform, movementDiff, {
-			process(shape, hit) {
-				if (shape.getRigidBody().getType() !== OIMO.RigidBodyType.STATIC) return; // Ignore pathed interiors
-
-				let movementDot = hit.normal.dot(currentMarbleVelocity);
-				if (movementDot < 0) {
-					hit.normal = hit.normal.scale(-1);
-					movementDot *= -1;
-				}
-
-				if (movementDot < MARBLE_RADIUS * PHYSICS_TICK_RATE) return; // The marble impacted the surface slow enough that discrete collision detection is enough to handle it.
-				
-				// Nudge the position back a bit so that it *just* touches the surface.
-				let position = hit.position.clone().sub(hit.normal.scale(MARBLE_RADIUS * 0.9));
-				let fraction = position.sub(prevMarblePosition).length() / movementDist;
-				if (fraction < 0 || fraction > 1) return;
-
-				collisionCorrectionEvents.push({ fraction: hit.fraction, position });
-			}
-		});
-		// Now do CCD with pathed interiors
+		// Do CCD with pathed interiors
 		this.checkPathedInteriorCollision(prevMarblePosition, prevMarbleTransform, collisionCorrectionEvents);
 
 		// Pick the earliest collision event
@@ -172,19 +190,47 @@ export class PhysicsHelper {
 				collisionEvent.interior.body.setPosition(intPos);
 
 				let marblePos = collisionEvent.position.add(collisionEvent.interiorMovement.scale(collisionEvent.fraction));
-				this.level.marble.body.setPosition(marblePos);
+				marble.body.setPosition(marblePos);
 
 				this.world.step(1 / PHYSICS_TICK_RATE * 1); // Alright, the fact that we do a full physics step here is quite unrealistic, but with the small step, the marble was often sticking to the interior. That's a much greater inaccuracy than the one caused from a large timestep.
 			} else {
+				// TODO: I think this... case can't be hit anymore? lol
 				// We hit static geometry; move the marble to the point of impact and perform a small simulation step.
 				let stepFraction = Util.clamp(1 - collisionEvent.fraction, 0.05, 0.95);
 
-				this.level.marble.body.setPosition(collisionEvent.position);
+				marble.body.setPosition(collisionEvent.position);
 				this.world.step(1 / PHYSICS_TICK_RATE * stepFraction);
 			}
 		}
 
 		this.callCollisionHandlers(movementDiff, movementDist);
+	}
+
+	/** Performs continuous collision detect with static objects. */
+	performStaticCcd() {
+		let marble = this.level.marble;
+		let movementDiff = marble.body.getLinearVelocity().scale(1 / PHYSICS_TICK_RATE);
+
+		let stepSize = 1;
+		let reduction = 0.1; // To avoid finding a collision with the surface the marble is currently rolling on
+		// Search for the first intersect if we were to move the marble in a straight line given its current position and velocity
+		let { mid, collisionNormal } = this.findSweptSphereIntersection(this.world, MARBLE_RADIUS * (1 - reduction), marble.body.getPosition(), movementDiff, 24,
+			(x) => x !== marble.shape && x.getRigidBody().getType() === OIMO.RigidBodyType.STATIC // Make sure to ignore pathed interiors
+		, MARBLE_RADIUS * reduction);
+
+		outer:
+		if (mid > 0 && mid < 1) {
+			let dot = Math.abs(movementDiff.dot(collisionNormal));
+			//if (dot < 0.05) break outer; // Not needed?
+
+			// Snap the marble to the exact point of collision
+			let pos = marble.body.getPosition().add(movementDiff.scale(mid));
+			this.level.marble.body.setPosition(pos);
+
+			stepSize = 1 - mid;
+		}
+
+		return { stepSize, collisionFound: !!collisionNormal };
 	}
 
 	checkPathedInteriorCollision(prevMarblePosition: OIMO.Vec3, prevMarbleTransform: OIMO.Transform, collisionCorrectionEvents: CollisionCorrectionEvent[]) {
@@ -222,9 +268,9 @@ export class PhysicsHelper {
 						movementDot *= -1;
 					}
 
-					if (movementDot < MARBLE_RADIUS * PHYSICS_TICK_RATE) return; // Same as with static objects
+					if (movementDot < MARBLE_RADIUS * PHYSICS_TICK_RATE) return; // The marble impacted the surface slow enough that discrete collision detection is enough to handle it.
 
-					// Same as with static objects
+					// Nudge the position back a bit so that it *just* touches the surface.
 					let position = hit.position.clone().sub(hit.normal.scale(MARBLE_RADIUS * 0.95));
 
 					collisionCorrectionEvents.push({
@@ -361,48 +407,64 @@ export class PhysicsHelper {
 		this.shapeOrTriggerInside.clear();
 	}
 
-	/** Computes the completion between the last and current tick that the marble touched the given shapes in the aux world. */
-	computeCompletionOfImpactWithShapes(shapes: Set<OIMO.Shape>, radiusFactor: number) {
-		let movementDiff = this.level.marble.body.getPosition().sub(this.level.marble.lastPos);
-		let movementDist = movementDiff.length();
+	/** Performs a swept-sphere intersection test and finds the first point of collision. */
+	findSweptSphereIntersection(world: OIMO.World, radius: number, start: OIMO.Vec3, translation: OIMO.Vec3, iterations: number, collisionCondition: (contactShape: OIMO.Shape) => boolean, addedLength = 0) {
+		let capsuleBody = this.capsules.get(world);
+		let capsuleGeom: OIMO.CapsuleGeometry;
+		let capsuleShape: OIMO.Shape;
+
+		if (!capsuleBody) {
+			// Create the capsule shape
+			capsuleGeom = new OIMO.CapsuleGeometry(radius, 0); // Radius will be changed on the fly anyway
+			capsuleShape = new OIMO.Shape(new OIMO.ShapeConfig());
+			capsuleShape._geom = capsuleGeom;
+			capsuleBody = new OIMO.RigidBody(new OIMO.RigidBodyConfig());
+			capsuleBody.addShape(capsuleShape);
+			this.capsules.set(world, capsuleBody);
+		} else {
+			capsuleGeom = capsuleBody.getShapeList().getGeometry() as OIMO.CapsuleGeometry;
+			capsuleShape = capsuleBody.getShapeList();
+		}
 
 		let movementRot = new OIMO.Quat();
-		movementRot.setArc(new OIMO.Vec3(0, 1, 0), movementDiff.clone().normalize());
+		movementRot.setArc(new OIMO.Vec3(0, 1, 0), translation.clone().normalize());
+		capsuleBody.setOrientation(movementRot);
+		capsuleGeom._radius = radius;
+		capsuleGeom._gjkMargin = radius; // We gotta update this value too
 
-		// Initialize the capsule geometry
-		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._radius = MARBLE_RADIUS * radiusFactor;
-		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._gjkMargin = MARBLE_RADIUS * radiusFactor; // We gotta update this value too
-		this.auxMarbleBody.setOrientation(movementRot);
+		let alreadyInWorld = capsuleBody._world === world;
+		if (!alreadyInWorld) world.addRigidBody(capsuleBody);
 
-		let iterations = 5; // These are more than enough iterations for sub-millisecond accuracy, the value of 5 results in a time granularity of ~0.27 ms.
 		let low = -1 / (2**iterations - 2); // Hack the binary search a bit to allow results of 0 and 1 as well
 		let high = 1 - low;
 		let mid: number;
+		let translationLength = translation.length();
+		let collisionNormal: OIMO.Vec3 = null;
 
-		// Perform a binary search on the length of the capsule to find the moment of impact.
 		for (let i = 0; i < iterations; i++) {
 			mid = low + (high - low) / 2;
-			let height = movementDist * mid;
 
-			// Construct the capsule geometry in a way where it represents the swept volume of the marble during the last tick.
-			(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._halfHeight = height/2;
-			
-			let marblePosition = this.level.marble.body.getPosition().sub(movementDiff.scale(1 - mid/2));
+			// Construct the capsule geometry in a way where it represents a swept volume of a sphere
+			let height = translationLength * mid + addedLength
+			capsuleGeom._halfHeight = height/2;
+			let capsulePosition = start.add(translation.scale(mid / 2));
+			capsuleBody.setPosition(capsulePosition);
+			this.world.getContactManager()._updateContacts(); // Update contacts
 
-			this.auxMarbleBody.setPosition(marblePosition);
-			this.auxWorld.getContactManager()._updateContacts(); // Update contacts
-
-			let current = this.auxMarbleBody.getContactLinkList();
+			let current = capsuleBody.getContactLinkList();
 			let hit = false;
 			while (current) {
 				let contact = current.getContact();
 				contact._updateManifold();
 				let contactShape = contact.getShape1();
-				if (contactShape === this.auxMarbleShape) contactShape = contact.getShape2();
+				if (contactShape === capsuleShape) contactShape = contact.getShape2();
 
-				if (contact.isTouching() && shapes.has(contactShape)) {
+				if (contact.isTouching() && collisionCondition(contactShape)) {
 					// We've hit one of the shapes, we don't need to continue searching
 					hit = true;
+					collisionNormal = contact.getManifold().getNormal();
+					if (contactShape = contact.getShape2()) collisionNormal.scaleEq(-1);
+
 					break;
 				}
 
@@ -418,7 +480,15 @@ export class PhysicsHelper {
 			}
 		}
 
-		return mid;
+		if (!alreadyInWorld) world.removeRigidBody(capsuleBody);
+
+		return { mid, collisionNormal };
+	}
+
+	/** Computes the completion between the last and current tick that the marble touched the given shapes in the aux world. */
+	computeCompletionOfImpactWithShapes(shapes: Set<OIMO.Shape>, radiusFactor: number) {
+		let movementDiff = this.level.marble.body.getPosition().sub(this.level.marble.lastPos);
+		return this.findSweptSphereIntersection(this.auxWorld, MARBLE_RADIUS * radiusFactor, this.level.marble.lastPos, movementDiff, 5, (x) => shapes.has(x)).mid;
 	}
 
 	/** Computes the completion between the last and current tick that the marble touched the given rigid body in the aux world. */
