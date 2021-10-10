@@ -432,8 +432,7 @@ export class PhysicsHelper {
 		capsuleGeom._radius = radius;
 		capsuleGeom._gjkMargin = radius; // We gotta update this value too
 
-		let alreadyInWorld = capsuleBody._world === world;
-		if (!alreadyInWorld) world.addRigidBody(capsuleBody);
+		world.addRigidBody(capsuleBody);
 
 		let low = -1 / (2**iterations - 2); // Hack the binary search a bit to allow results of 0 and 1 as well
 		let high = 1 - low;
@@ -449,7 +448,7 @@ export class PhysicsHelper {
 			capsuleGeom._halfHeight = height/2;
 			let capsulePosition = start.add(translation.scale(mid / 2));
 			capsuleBody.setPosition(capsulePosition);
-			this.world.getContactManager()._updateContacts(); // Update contacts
+			world.getContactManager()._updateContacts(); // Update contacts
 
 			let current = capsuleBody.getContactLinkList();
 			let hit = false;
@@ -480,7 +479,7 @@ export class PhysicsHelper {
 			}
 		}
 
-		if (!alreadyInWorld) world.removeRigidBody(capsuleBody);
+		world.removeRigidBody(capsuleBody);
 
 		return { mid, collisionNormal };
 	}
@@ -488,6 +487,7 @@ export class PhysicsHelper {
 	/** Computes the completion between the last and current tick that the marble touched the given shapes in the aux world. */
 	computeCompletionOfImpactWithShapes(shapes: Set<OIMO.Shape>, radiusFactor: number) {
 		let movementDiff = this.level.marble.body.getPosition().sub(this.level.marble.lastPos);
+		// 5 iters are enough to ensure ~0.26ms accuracy
 		return this.findSweptSphereIntersection(this.auxWorld, MARBLE_RADIUS * radiusFactor, this.level.marble.lastPos, movementDiff, 5, (x) => shapes.has(x)).mid;
 	}
 
