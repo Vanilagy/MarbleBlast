@@ -350,7 +350,7 @@ export class Marble {
 			// Weaken the marble's angular power based on the friction and steepness of the surface
 			let dot = Util.vecThreeToOimo(movementVec).normalize().dot(inverseContactNormal);
 			let penalty = Math.max(0, dot - Math.max(0, (surfaceShape.getFriction() - 1.0)));
-			movementRotationAxis = movementRotationAxis.scale(1 - penalty);
+			movementRotationAxis.scaleEq(1 - penalty);
 
 			let combinedFriction = surfaceShape.getFriction() * this.shape.getFriction();
 
@@ -360,20 +360,20 @@ export class Marble {
 			// Subtract the movement axis so it doesn't get slowed down
 			let direction = movementRotationAxis.clone().normalize();
 			let dot2 = Math.max(0, angVel.dot(direction));
-			angVel = angVel.sub(direction.scale(dot2));
+			angVel.subEq(direction.scale(dot2));
 
 			// Subtract the "surface rotation axis", this ensures we can roll down hills quickly
 			let surfaceRotationAxis = this.level.currentUp.cross(contactNormal);
 			let degenerate = surfaceRotationAxis.length() < 1e-8;
 			surfaceRotationAxis.normalize();
 			let dot3 = degenerate? 0 : Math.max(angVel.dot(surfaceRotationAxis), 0);
-			angVel = angVel.sub(surfaceRotationAxis.scale(dot3));
+			angVel.subEq(surfaceRotationAxis.scale(dot3));
 
-			angVel = angVel.scale(0.02 ** (Math.min(1, combinedFriction) / PHYSICS_TICK_RATE)); // Handle velocity slowdown
+			angVel.scaleEq(0.02 ** (Math.min(1, combinedFriction) / PHYSICS_TICK_RATE)); // Handle velocity slowdown
 
 			// Add them back
-			angVel = angVel.add(surfaceRotationAxis.scale(dot3));
-			angVel = angVel.add(direction.scale(dot2));
+			angVel.addEq(surfaceRotationAxis.scale(dot3));
+			angVel.addEq(direction.scale(dot2));
 
 			if (angVel.length() > 285) angVel.scaleEq(285 / angVel.length()); // Absolute max angular speed
 		 	this.body.setAngularVelocity(angVel);
