@@ -44,8 +44,8 @@ export class MbgLevelSelect extends LevelSelect {
 		this.shuffleButton = document.querySelector('#shuffle-button') as HTMLImageElement;
 	}
 
-	init() {
-		super.init();
+	async init() {
+		await super.init();
 
 		const setupTab = (element: HTMLImageElement, levels: Mission[]) => {
 			element.addEventListener('mousedown', (e) => {

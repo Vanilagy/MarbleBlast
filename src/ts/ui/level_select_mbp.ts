@@ -7,6 +7,7 @@ import { MissionLibrary } from "../mission_library";
 import { MBP_GOLD_COLOR, MBP_PLATINUM_COLOR, MBP_ULTIMATE_COLOR } from "./finish_screen_mbp";
 import { state } from "../state";
 import { MbpMenu } from "./menu_mbp";
+import { ResourceManager } from "../resources";
 
 export class MbpLevelSelect extends LevelSelect {
 	loadReplayButton = document.querySelector('#mbp-load-replay-button') as HTMLImageElement;
@@ -45,8 +46,8 @@ export class MbpLevelSelect extends LevelSelect {
 		this.searchInput = document.querySelector('#mbp-search-input') as HTMLInputElement;
 	}
 
-	init() {
-		super.init();
+	async init() {
+		await super.init();
 
 		this.menu.setupVaryingButton(this.difficultySelectorCollapsed, [
 			'play/difficulty_beginner', 'play/difficulty_intermediate', 'play/difficulty_advanced', 'play/difficulty_expert', 'play/difficulty_custom'
@@ -120,6 +121,8 @@ export class MbpLevelSelect extends LevelSelect {
 		this.setMissionArray(MissionLibrary.platinumAdvanced, false);
 		this.setMissionArray(MissionLibrary.platinumIntermediate, false);
 		this.setMissionArray(MissionLibrary.platinumBeginner, false);
+
+		await ResourceManager.loadImages(['play/eggnotfound.png', 'play/eggfound.png', 'play/marble_gold.png', 'play/marble_platinum.png', 'play/marble_ultra.png', 'mp/menu/brown/joined.png', 'mp/menu/brown/divider-orange-joined.png', 'options/textentry.png'].map(x => './assets/ui_mbp/' + x));
 	}
 
 	createDifficultySection(title: string, img: string, difficulties: { name: string, arr?: Mission[] }[]) {

@@ -58,7 +58,7 @@ export abstract class LevelSelect {
 
 	abstract initProperties(): void;
 
-	init() {
+	async init() {
 		// Create the elements for the local best times
 		for (let i = 0; i < this.localScoresCount; i++) {
 			let element = this.createScoreElement(true);

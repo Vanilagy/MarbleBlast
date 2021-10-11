@@ -41,7 +41,7 @@
 		</div>
 
 		<div id="game-ui" class="hidden">
-			<img src="./assets/ui/game/powerup.png" id="powerup-border">
+			<img id="powerup-border">
 			<div style="font-family: DomCasualRegular;" id="help-text"></div>
 			<div style="font-family: DomCasualRegular;" id="alert-text"></div>
 			<img id="center-text" src=""></img>
@@ -54,9 +54,9 @@
 			<div id="pause-screen" class="hidden">
 				<img src="./assets/ui/common/dialog.png">
 				<p>Exit from this Level?</p>
-				<img src="./assets/ui/common/yes_n.png" id="pause-yes">
-				<img src="./assets/ui/common/no_n.png" id="pause-no">
-				<img src="./assets/ui/common/restart_n.png" id="pause-restart">
+				<img id="pause-yes">
+				<img id="pause-no">
+				<img id="pause-restart">
 				<img src="./assets/img/round_videocam_black_18dp.png" id="pause-replay" title="Click to view replay up until this point, Alt-Click to download it">
 			</div>
 
@@ -65,10 +65,10 @@
 				<div class="_center">
 					<img src="./assets/ui_mbp/play/window.png">
 					<p>Exit from this Level?</p>
-					<img src="./assets/ui_mbp/exit/yes_n.png" id="mbp-pause-yes">
-					<img src="./assets/ui_mbp/exit/no_n.png" id="mbp-pause-no">
-					<img src="./assets/ui_mbp/exit/restart_n.png" id="mbp-pause-restart">
-					<img src="./assets/ui_mbp/play/replay_n.png" id="mbp-pause-replay" title="Click to view replay up until this point, Alt-Click to download it">
+					<img id="mbp-pause-yes">
+					<img id="mbp-pause-no">
+					<img id="mbp-pause-restart">
+					<img id="mbp-pause-replay" title="Click to view replay up until this point, Alt-Click to download it">
 				</div>
 				<img src="./assets/ui_mbp/jukebox/jb_pausemenu_n.png" id="mbp-pause-jukebox">
 
@@ -76,10 +76,10 @@
 					<img src="./assets/ui_mbp/jukebox/window.png">
 					<div id="jukebox-songs"></div>
 					<p id="jukebox-text"></p>
-					<img src="./assets/ui_mbp/jukebox/close_n.png" id="jukebox-close">
-					<img src="./assets/ui_mbp/play/prev_n.png" id="jukebox-prev">
-					<img src="./assets/ui_mbp/jukebox/play_n.png" id="jukebox-play">
-					<img src="./assets/ui_mbp/play/next_n.png" id="jukebox-next">
+					<img id="jukebox-close">
+					<img id="jukebox-prev">
+					<img id="jukebox-play">
+					<img id="jukebox-next">
 				</div>
 			</div>
 
@@ -113,8 +113,8 @@
 					<p></p>
 				</div>
 				<div id="finish-best-times" style="clear: both; position: relative;"></div>
-				<img src="./assets/ui/endgame/replay_n.png" id="finish-replay">
-				<img src="./assets/ui/endgame/continue_n.png" id="finish-continue">
+				<img id="finish-replay">
+				<img id="finish-continue">
 				<img src="./assets/img/round_videocam_black_18dp.png" id="finish-view-replay" title="Click to view replay, Alt-Click to download it">
 			</div>
 			<div id="name-entry-screen" class="hidden">
@@ -123,7 +123,7 @@
 				<p></p>
 				<img src="./assets/ui/common/window.png" id="name-entry-input-background">
 				<input type="text" id="name-entry-input" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false">
-				<img src="./assets/ui/common/ok_n.png" id="name-entry-confirm">
+				<img id="name-entry-confirm">
 			</div>
 
 			<div id="mbp-finish-screen" class="hidden">
@@ -133,11 +133,11 @@
 				<div id="mbp-finish-time-rows"></div>
 				<p id="mbp-finish-screen-top-times-heading">Top 5 Times:</p>
 				<div id="mbp-finish-screen-top-times"></div>
-				<img src="./assets/ui_mbp/endgame/replay_n.png" id="mbp-finish-replay">
-				<img src="./assets/ui_mbp/endgame/continue_n.png" id="mbp-finish-continue">
-				<img src="./assets/data_mbp/missions_mbp/advanced/beachparty.jpg" id="mbp-finish-next-level-image">
-				<img src="./assets/ui_mbp/endgame/level_window_n.png" id="mbp-finish-next-level">
-				<img src="./assets/ui_mbp/play/replay_n.png" id="mbp-finish-view-replay" title="Click to view replay, Alt-Click to download it">
+				<img id="mbp-finish-replay">
+				<img id="mbp-finish-continue">
+				<img id="mbp-finish-next-level-image">
+				<img id="mbp-finish-next-level">
+				<img id="mbp-finish-view-replay" title="Click to view replay, Alt-Click to download it">
 			</div>
 			<div id="mbp-name-entry-screen" class="hidden">
 				<img src="./assets/ui_mbp/endgame/enternamebox.png">
@@ -145,7 +145,7 @@
 				<p></p>
 				<img src="./assets/ui_mbp/endgame/window.png" id="mbp-name-entry-input-background">
 				<input type="text" id="mbp-name-entry-input" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false">
-				<img src="./assets/ui_mbp/endgame/ok_n.png" id="mbp-name-entry-confirm">
+				<img id="mbp-name-entry-confirm">
 			</div>
 		</div>
 
@@ -156,12 +156,12 @@
 
 			<div id="mbp-home-screen">
 				<div class="_inner">
-					<img src="./assets/ui_mbp/menu/play_n.png" id="mbp-home-play">
+					<img id="mbp-home-play">
 					<img src="./assets/ui_mbp/menu/online_i.png" id="mbp-home-online">
-					<img src="./assets/ui_mbp/menu/options_n.png" id="mbp-home-options">
-					<img src="./assets/ui_mbp/menu/quit_n.png" id="mbp-home-quit">
-					<img src="./assets/ui_mbp/menu/totd_n.png" id="mbp-show-changelog">
-					<img src="./assets/ui_mbp/menu/help_n.png" id="mbp-home-help">
+					<img id="mbp-home-options">
+					<img id="mbp-home-quit">
+					<img id="mbp-show-changelog">
+					<img id="mbp-home-help">
 				</div>
 				<img src="./assets/ui_mbp/menu/mbp.png" id="mbp-logo">
 				<img src="./assets/img/marble-blast-gold-logo.png" class="modification-switcher" title="Switch to Marble Blast Gold">
@@ -171,28 +171,28 @@
 				<div class="_click-preventer"></div>
 				<img src="./assets/ui_mbp/motd/messagewindow.png">
 				<div id="mbp-changelog-content"></div>
-				<img src="./assets/ui_mbp/motd/ok_n.png" id="mbp-changelog-back">
+				<img id="mbp-changelog-back">
 			</div>
 
 			<div id="mbp-level-select" class="hidden">
 				<img src="./assets/ui_mbp/play/window.png" style="pointer-events: none; display: block;">
-				<img src="./assets/ui_mbp/play/menu_n.png" id="mbp-level-select-home-button">
-				<img src="./assets/ui_mbp/mp/play/scoresactive_n.png" id="mbp-level-select-view-toggle" title="Show scores">
-				<img src="./assets/ui_mbp/play/replay_n.png" id="mbp-load-replay-button" title="Load replay from file">
-				<img src="./assets/ui_mbp/search/random_n.png" id="mbp-shuffle-button" title="Go to random level">
-				<img src="./assets/ui_mbp/play/prev_n.png" id="mbp-level-select-prev">
-				<img src="./assets/ui_mbp/play/play_n.png" id="mbp-level-select-play">
-				<img src="./assets/ui_mbp/play/next_n.png" id="mbp-level-select-next">
+				<img id="mbp-level-select-home-button">
+				<img id="mbp-level-select-view-toggle" title="Show scores">
+				<img id="mbp-load-replay-button" title="Load replay from file">
+				<img id="mbp-shuffle-button" title="Go to random level">
+				<img id="mbp-level-select-prev">
+				<img id="mbp-level-select-play">
+				<img id="mbp-level-select-next">
 
 				<img id="mbp-level-image">
 				<img src="./assets/ui_mbp/play/levelframe.png" id="mbp-level-select-frame">
-				<img src="./assets/ui_mbp/play/eggnotfound.png" id="mbp-level-select-egg" class="hidden">
+				<img id="mbp-level-select-egg" class="hidden">
 				<div id="mbp-search-bar"></div>
 				<input id="mbp-search-input" maxlength="40" placeholder="Search levels" autocomplete="off" autocorrect="off" spellcheck="false">
 
 				<div id="mbp-difficulty-selector">
-					<img src="./assets/ui_mbp/play/difficulty_beginner_n.png" id="mbp-difficulty-selector-collapsed">
-					<img src="./assets/ui_mbp/play/marble_gold.png" id="mbp-difficulty-selector-modification-icon">
+					<img id="mbp-difficulty-selector-collapsed">
+					<img id="mbp-difficulty-selector-modification-icon">
 					<div id="mbp-difficulty-selector-window" class="hidden">
 						<div class="_click-preventer"></div>
 						<img src="./assets/ui_mbp/mp/menu/brown/tabt.png" id="mbp-difficulty-selector-window-tabt">
@@ -220,16 +220,16 @@
 				<div id="mbp-loading-progress"></div>
 				<img src="./assets/ui_mbp/loading/loadinggui.png">
 				<img src="./assets/ui_mbp/loading/overlay.png" id="mbp-loading-overlay">
-				<img src="./assets/ui_mbp/loading/cancel_n.png" id="mbp-loading-cancel">
+				<img id="mbp-loading-cancel">
 				<p id="mbp-loading-level-name"></p>
 			</div>
 
 			<div id="mbp-options" class="hidden">
 				<img src="./assets/ui_mbp/options/window.png">
-				<img src="./assets/ui_mbp/options/home_n.png" id="mbp-options-home">
-				<img src="./assets/ui_mbp/options/apply_n.png" id="mbp-options-apply">
-				<img src="./assets/ui_mbp/options/general_n.png" id="mbp-options-general">
-				<img src="./assets/ui_mbp/options/hotkeys_n.png" id="mbp-options-hotkeys">
+				<img id="mbp-options-home">
+				<img id="mbp-options-apply">
+				<img id="mbp-options-general">
+				<img id="mbp-options-hotkeys">
 				<img src="./assets/ui_mbp/options/online_i.png" id="mbp-options-online">
 				<div class="_container" id="mbp-options-general-container"></div>
 				<div class="_container" id="mbp-options-hotkeys-container"></div>
@@ -242,14 +242,14 @@
 					<img src="./assets/ui_mbp/play/text_window.png">
 					<p></p>
 					<h6>WARNING</h6>
-					<img src="./assets/ui_mbp/exit/yes_n.png" id="mbp-rebind-confirm-yes">
-					<img src="./assets/ui_mbp/exit/no_n.png" id="mbp-rebind-confirm-no">
+					<img id="mbp-rebind-confirm-yes">
+					<img id="mbp-rebind-confirm-no">
 				</div>
 			</div>
 
 			<div id="mbp-help" class="hidden">
 				<img src="./assets/ui_mbp/manual/window.png">
-				<img src="./assets/ui_mbp/manual/home_n.png" id="mbp-help-home">
+				<img id="mbp-help-home">
 				<div id="mbp-help-picker"></div>
 			</div>
 		</div>
@@ -271,9 +271,9 @@
 			<div id="home-screen">
 				<div class="_inner">
 					<img src="./assets/ui/home/homegui.png">
-					<img src="./assets/ui/home/play_n.png" id="home-play">
-					<img src="./assets/ui/home/help_n.png" id="home-help">
-					<img src="./assets/ui/home/options_n.png" id="home-options">
+					<img id="home-play">
+					<img id="home-help">
+					<img id="home-options">
 					<img src="./assets/ui/home/exit_n.png" id="home-exit">
 				</div>
 				<img id="show-changelog">
@@ -286,7 +286,7 @@
 				<div>
 					<div id="changelog-content"></div>
 				</div>
-				<img src="./assets/ui/play/back_n.png" id="changelog-back">
+				<img id="changelog-back">
 			</div>
 
 			<div id="level-select" class="hidden">
@@ -318,9 +318,9 @@
 					<input id="search-input" maxlength="40" placeholder="Search levels" autocomplete="off" autocorrect="off" spellcheck="false">
 					<p id="new-badge" class="hidden">New!</p>
 				</div>
-				<img src="./assets/ui/play/prev_n.png" id="level-select-prev">
-				<img src="./assets/ui/play/play_n.png" id="level-select-play">
-				<img src="./assets/ui/play/next_n.png" id="level-select-next">
+				<img id="level-select-prev">
+				<img id="level-select-play">
+				<img id="level-select-next">
 				<img src="./assets/img/round_play_circle_outline_black_18dp.png" id="load-replay-button" title="Load replay from file">
 				<img src="./assets/img/shuffle.png" id="shuffle-button" title="Go to random level">
 			</div>
@@ -328,7 +328,7 @@
 			<div id="loading" class="hidden">
 				<div id="loading-progress"></div>
 				<img src="./assets/ui/loading/loadinggui.png">
-				<img src="./assets/ui/loading/cancel_n.png" id="loading-cancel">
+				<img id="loading-cancel">
 				<p id="loading-level-name"></p>
 			</div>
 
@@ -470,9 +470,9 @@
 						<div class="help-paragraph">This web port of Marble Blast Gold was done by Vanilagy - all the code is free to access on <a href="https://github.com/Vanilagy/MarbleBlast" target="_blank">GitHub</a>. Full rights go to GarageGames and other creators of this game. Special thanks to the maintainers of three.js and OimoPhysics for making this project possible!</div>
 					</div>
 				</div>
-				<img src="./assets/ui/play/prev_n.png" id="help-prev">
-				<img src="./assets/ui/play/back_n.png" id="help-back">
-				<img src="./assets/ui/play/next_n.png" id="help-next">
+				<img id="help-prev">
+				<img id="help-back">
+				<img id="help-next">
 			</div>
 
 			<div id="options" class="hidden">
@@ -484,24 +484,24 @@
 
 				<div id="options-graphics">
 					<img src="./assets/ui/options/graf_txt.png" id="graphics-text">
-					<img src="./assets/ui/options/graf640_n.png" id="graphics-640">
-					<img src="./assets/ui/options/graf800_n.png" id="graphics-800">
-					<img src="./assets/ui/options/graf1024_n.png" id="graphics-1024">
-					<img src="./assets/ui/options/grafopgl_n.png" id="graphics-opengl">
-					<img src="./assets/ui/options/grafdir3d_n.png" id="graphics-direct3d">
-					<img src="./assets/ui/options/grafwindo_n.png" id="graphics-windowed">
-					<img src="./assets/ui/options/grafful_n.png" id="graphics-full">
-					<img src="./assets/ui/options/graf16bt_n.png" id="graphics-depth16">
-					<img src="./assets/ui/options/graf32bt_n.png" id="graphics-depth32">
-					<img src="./assets/ui/options/graf_chkbx_n.png" id="graphics-shadows">
-					<img src="./assets/ui/options/grafapply_n.png" id="graphics-apply">
+					<img id="graphics-640">
+					<img id="graphics-800">
+					<img id="graphics-1024">
+					<img id="graphics-opengl">
+					<img id="graphics-direct3d">
+					<img id="graphics-windowed">
+					<img id="graphics-full">
+					<img id="graphics-depth16">
+					<img id="graphics-depth32">
+					<img id="graphics-shadows">
+					<img id="graphics-apply">
 					<div id="graphics-marble-texture-heading">Custom Marble Texture:</div>
-					<img src="./assets/ui/options/cntr_cam_up_n.png" id="graphics-marble-texture-choose">
+					<img id="graphics-marble-texture-choose">
 					<div id="graphics-marble-texture-choose-text">Choose</div>
-					<img src="./assets/ui/options/cntr_cam_dwn_n.png" id="graphics-marble-texture-reset">
+					<img id="graphics-marble-texture-reset">
 					<div id="graphics-marble-texture-reset-text">Reset</div>
 					<p id="graphics-reflective-marble-heading">Reflective Marble:</p>
-					<img src="./assets/ui/options/cntrl_mous_freel_d.png" id="graphics-reflective-marble">
+					<img id="graphics-reflective-marble">
 				</div>
 
 				<div id="options-audio">
@@ -531,17 +531,17 @@
 					<div id="rebind-confirm" class="hidden">
 						<img src="./assets/ui/common/dialog.png">
 						<p></p>
-						<img src="./assets/ui/common/yes_n.png" id="rebind-confirm-yes">
-						<img src="./assets/ui/common/no_n.png" id="rebind-confirm-no">
+						<img id="rebind-confirm-yes">
+						<img id="rebind-confirm-no">
 					</div>
 
 					<div id="controls-marble">
-						<img src="./assets/ui/options/cntr_mrb_lft_n.png" id="button-marble-left">
-						<img src="./assets/ui/options/cntr_mrb_rt_n.png" id="button-marble-right">
-						<img src="./assets/ui/options/cntr_mrb_fw_n.png" id="button-marble-up">
-						<img src="./assets/ui/options/cntr_mrb_bak_n.png" id="button-marble-down">
-						<img src="./assets/ui/options/cntr_mrb_pwr_n.png" id="button-marble-use">
-						<img src="./assets/ui/options/cntr_mrb_jmp_n.png" id="button-marble-jump">
+						<img id="button-marble-left">
+						<img id="button-marble-right">
+						<img id="button-marble-up">
+						<img id="button-marble-down">
+						<img id="button-marble-use">
+						<img id="button-marble-jump">
 						<p id="button-marble-left-content"></p>
 						<p id="button-marble-right-content"></p>
 						<p id="button-marble-up-content"></p>
@@ -550,10 +550,10 @@
 						<p id="button-marble-jump-content"></p>
 					</div>
 					<div id="controls-camera">
-						<img src="./assets/ui/options/cntr_cam_lft_n.png" id="button-camera-left">
-						<img src="./assets/ui/options/cntr_cam_rt_n.png" id="button-camera-right">
-						<img src="./assets/ui/options/cntr_cam_up_n.png" id="button-camera-up">
-						<img src="./assets/ui/options/cntr_cam_dwn_n.png" id="button-camera-down">
+						<img id="button-camera-left">
+						<img id="button-camera-right">
+						<img id="button-camera-up">
+						<img id="button-camera-down">
 						<p id="button-camera-left-content"></p>
 						<p id="button-camera-right-content"></p>
 						<p id="button-camera-up-content"></p>
@@ -561,14 +561,14 @@
 					</div>
 					<div id="controls-mouse">
 						<img src="./assets/ui/options/cntrl_mous_knb.png" id="sensitivity-knob">
-						<img src="./assets/ui/options/cntrl_mous_invrt_n.png" id="invert-y">
-						<img src="./assets/ui/options/cntrl_mous_freel_n.png" id="always-free-look">
-						<img src="./assets/ui/options/cntrl_mous_bttn_n.png" id="free-look-key">
+						<img id="invert-y">
+						<img id="always-free-look">
+						<img id="free-look-key">
 						<p id="free-look-key-content"></p>
 					</div>
 
 					<div id="button-restart-level-label">Restart Key</div>
-					<img src="./assets/ui/options/cntr_cam_dwn_n.png" id="button-restart-level">
+					<img id="button-restart-level">
 					<p id="button-restart-level-content"></p>
 				</div>
 			</div>
