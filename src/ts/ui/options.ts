@@ -159,4 +159,20 @@ export abstract class OptionsScreen {
 		this.rebindDialog.classList.add('hidden');
 		this.refreshKeybindings();
 	}
+
+	showMarbleTexturePicker() {
+		return new Promise<void>(resolve => {
+			// Show an image picker
+			let fileInput = document.createElement('input');
+			fileInput.setAttribute('type', 'file');
+			fileInput.setAttribute('accept', "image/x-png,image/gif,image/jpeg");
+
+			fileInput.onchange = async (e) => {
+				let file = fileInput.files[0];
+				await StorageManager.databasePut('keyvalue', file, 'marbleTexture'); // Store the Blob in the IndexedDB
+				resolve();
+			};
+			fileInput.click();
+		});
+	}
 }

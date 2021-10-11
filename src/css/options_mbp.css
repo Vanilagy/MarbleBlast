@@ -189,6 +189,38 @@
 	pointer-events: none;
 }
 
+.mbp-options-element._button > img:first-of-type {
+	position: absolute;
+	display: block;
+	top: 5px;
+	right: 0;
+}
+
+.mbp-options-element._button > p:last-of-type {
+	position: absolute;
+	display: block;
+	top: 3px;
+	right: -11px;
+	font-family: MarkerFelt;
+	text-align: center;
+	width: 176px;
+	pointer-events: none;
+}
+
+#mbp-reset-marble-texture-button {
+	position: absolute;
+	top: 14px;
+	right: 153px;
+}
+
+#mbp-reset-marble-texture-button:hover {
+	filter: brightness(1.2);
+}
+
+#mbp-reset-marble-texture-button:active {
+	filter: brightness(0.9);
+}
+
 #mbp-rebind-dialog {
 	position: absolute;
 	top: 0;

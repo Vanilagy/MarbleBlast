@@ -165,10 +165,9 @@ class Jukebox {
 			if (index >= 0) {
 				this.songsContainer.children[index].classList.add('selected');
 				this.selectedIndex = index;
-			} else {
-				this.selectedIndex = null;
 			}
 
+			this.playing = true;
 			this.updateNextPrevButtons();
 			this.updateText();
 		}

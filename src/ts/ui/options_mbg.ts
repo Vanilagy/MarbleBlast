@@ -278,18 +278,9 @@ export class MbgOptionsScreen extends OptionsScreen {
 
 		menu.setupButton(this.freeLookKey, 'options/cntrl_mous_bttn', () => this.changeKeybinding('freeLook'));
 
-		menu.setupButton(this.chooseMarbleTexture, 'options/cntr_cam_up', () => {
-			// Show an image picker
-			let fileInput = document.createElement('input');
-			fileInput.setAttribute('type', 'file');
-			fileInput.setAttribute('accept', "image/x-png,image/gif,image/jpeg");
-		
-			fileInput.onchange = async (e) => {
-				let file = fileInput.files[0];
-				await StorageManager.databasePut('keyvalue', file, 'marbleTexture'); // Store the Blob in the IndexedDB
-				this.setResetMarbleTextureState(true);
-			};
-			fileInput.click();
+		menu.setupButton(this.chooseMarbleTexture, 'options/cntr_cam_up', async () => {
+			await this.showMarbleTexturePicker();
+			this.setResetMarbleTextureState(true);
 		});
 		menu.setupButton(this.resetMarbleTexture, 'options/cntr_cam_dwn', () => {
 			StorageManager.databaseDelete('keyvalue', 'marbleTexture');
@@ -313,39 +304,43 @@ export class MbgOptionsScreen extends OptionsScreen {
 		});
 	}
 
+	show() {
+		super.show();
+		this.updateAllElements();
+	}
+
 	async init() {
 		super.init();
 
 		this.setupTab(this.tabGraphics, 'graphics');
 		this.setupTab(this.tabAudio, 'audio');
 		this.setupTab(this.tabControls, 'controls');
-
-		// Init all buttons, sliders and keybinds
-		[this.resolution640, this.resolution800, this.resolution1024][StorageManager.data.settings.resolution].click();
-		[this.openGl, this.direct3D][StorageManager.data.settings.videoDriver].click();
-		[this.windowedButton, this.fullButton][StorageManager.data.settings.screenStyle].click();
-		[this.depth16, this.depth32][StorageManager.data.settings.colorDepth].click();
-		if (StorageManager.data.settings.shadows) this.shadowsCheckbox.click();
-
-		this.musicVolumeKnob.style.left = Math.floor(this.musicVolumeKnobLeft + StorageManager.data.settings.musicVolume * this.trackLength) + 'px';
-		this.soundVolumeKnob.style.left = Math.floor(this.soundVolumeKnobLeft + StorageManager.data.settings.soundVolume * this.trackLength) + 'px';
-		this.mouseSensitivityKnob.style.left = Math.floor(this.mouseSensitivityKnobLeft + StorageManager.data.settings.mouseSensitivity * this.trackLength) + 'px';
-
-		this.refreshKeybindings();
-
-		if (StorageManager.data.settings.invertMouse & 0b10) this.invertY.click();
-		if (StorageManager.data.settings.alwaysFreeLook) this.alwaysFreeLook.click();
-		if (StorageManager.data.settings.reflectiveMarble) this.reflectiveMarbleCheckbox.click();
-
 		// Default selection
 		this.selectControlsTab('marble');
 		this.selectTab('graphics');
 		
 		await ResourceManager.loadImages(['cntrl_marb_bse.png', 'cntrl_cam_bse.png', 'cntrl_mous_base.png'].map(x => './assets/ui/options/' + x));
 
-		if ((await StorageManager.databaseCount('keyvalue', 'marbleTexture')) === 0) {
-			this.setResetMarbleTextureState(false);
-		}
+		await this.updateAllElements();
+	}
+
+	async updateAllElements() {
+		this.selectResolutionButton([this.resolution640, this.resolution800, this.resolution1024][StorageManager.data.settings.resolution], StorageManager.data.settings.resolution);
+		this.selectVideoDriverButton([this.openGl, this.direct3D][StorageManager.data.settings.videoDriver], StorageManager.data.settings.videoDriver);
+		this.selectScreenStyleButton([this.windowedButton, this.fullButton][StorageManager.data.settings.screenStyle], StorageManager.data.settings.videoDriver);
+		this.selectColorDepthButton([this.depth16, this.depth32][StorageManager.data.settings.colorDepth], StorageManager.data.settings.colorDepth);
+
+		this.musicVolumeKnob.style.left = Math.floor(this.musicVolumeKnobLeft + StorageManager.data.settings.musicVolume * this.trackLength) + 'px';
+		this.soundVolumeKnob.style.left = Math.floor(this.soundVolumeKnobLeft + StorageManager.data.settings.soundVolume * this.trackLength) + 'px';
+		this.mouseSensitivityKnob.style.left = Math.floor(this.mouseSensitivityKnobLeft + StorageManager.data.settings.mouseSensitivity * this.trackLength) + 'px';
+
+		this.refreshKeybindings();
+		
+		if (!!(StorageManager.data.settings.invertMouse & 0b10) !== this.invertY.hasAttribute('data-locked')) this.invertY.click();
+		if (StorageManager.data.settings.alwaysFreeLook !== this.alwaysFreeLook.hasAttribute('data-locked')) this.alwaysFreeLook.click();
+		if (StorageManager.data.settings.reflectiveMarble !== this.reflectiveMarbleCheckbox.hasAttribute('data-locked')) this.reflectiveMarbleCheckbox.click();
+
+		this.setResetMarbleTextureState(!((await StorageManager.databaseCount('keyvalue', 'marbleTexture')) === 0));
 	}
 
 	selectTab(which: 'graphics' | 'audio' | 'controls') {

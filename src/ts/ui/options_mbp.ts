@@ -81,6 +81,8 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.addDropdown(this.generalContainer, 'alwaysFreeLook', 'Free-Look', ['Disabled', 'Enabled'], true);
 		this.addDropdown(this.generalContainer, 'invertMouse', 'Invert Mouse', ['None', 'X Only', 'Y only', 'X and Y']);
 		this.addDropdown(this.generalContainer, 'showThousandths', 'Thousandths', ['Disabled', 'Enabled'], true);
+		this.addMarbleTexturePicker(this.generalContainer);
+		this.addDropdown(this.generalContainer, 'reflectiveMarble', 'Reflective Marble', ['Disabled', 'Enabled'], true);
 		this.addSlider(this.generalContainer, 'musicVolume', 'Music Volume', 0, 1, () => AudioManager.updateVolumes(), undefined, undefined, x => Math.ceil(x * 100).toString());
 		this.addSlider(this.generalContainer, 'mouseSensitivity', 'Mouse Speed', 0, 1);
 		this.addSlider(this.generalContainer, 'soundVolume', 'Sound Volume', 0, 1, () => AudioManager.updateVolumes(), () => {
@@ -239,6 +241,53 @@ export class MbpOptionsScreen extends OptionsScreen {
 		container.appendChild(element);
 
 		this.updateFuncs.push(() => bindingLabel.textContent = this.formatKeybinding(key));
+	}
+
+	/** Adds a configurable button element. */
+	addButton(container: HTMLDivElement, label: string, buttonLabel: string, onClick: () => any) {
+		let element = document.createElement('div');
+		element.classList.add('mbp-options-element', '_button');
+
+		let p = document.createElement('p');
+		p.textContent = label + ':';
+
+		let button = document.createElement('img');
+		this.menu.setupButton(button, 'options/bind', () => onClick());
+
+		let buttonLabelP = document.createElement('p');
+		buttonLabelP.textContent = buttonLabel;
+
+		element.append(p, button, buttonLabelP);
+		container.appendChild(element);
+
+		return element;
+	}
+
+	addMarbleTexturePicker(container: HTMLDivElement) {
+		let element = this.addButton(container, 'Marble Texture', 'Select File', async () => {
+			await this.showMarbleTexturePicker();
+			resetButton.classList.remove('hidden');
+		});
+
+		let resetButton = document.createElement('img');
+		resetButton.src = './assets/ui_mbp/mp/team/nomarble.png';
+		resetButton.id = 'mbp-reset-marble-texture-button';
+		resetButton.title = "Clear texture";
+		resetButton.classList.add('hidden');
+		resetButton.addEventListener('click', () => {
+			StorageManager.databaseDelete('keyvalue', 'marbleTexture');
+			resetButton.classList.add('hidden');
+		});
+
+		element.appendChild(resetButton);
+
+		this.updateFuncs.push(async () => {
+			if ((await StorageManager.databaseCount('keyvalue', 'marbleTexture')) === 0) {
+				resetButton.classList.add('hidden');
+			} else {
+				resetButton.classList.remove('hidden');
+			}
+		});
 	}
 
 	refreshKeybindings() {
