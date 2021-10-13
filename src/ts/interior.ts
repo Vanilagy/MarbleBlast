@@ -451,7 +451,7 @@ export class Interior {
 		let marble = this.level.marble;
 		// Get the contact normal
 		let contactNormal = contact.getManifold().getNormal();
-		if (contact.getShape1().userData === this.id) contactNormal = contactNormal.scale(-1);;
+		if (contact.getShape1().userData === this.id) contactNormal.scaleEq(-1);;
 
 		if (this.bouncyFloors.has(contactShape)) {
 			// Set the velocity along the contact normal, but make sure it's capped

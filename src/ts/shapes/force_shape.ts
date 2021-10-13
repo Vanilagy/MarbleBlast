@@ -29,7 +29,7 @@ export abstract class ForceShape extends Shape {
 			perpendicular.applyQuaternion(this.worldOrientation);
 
 			let conetip = this.worldPosition.clone().sub(perpendicular.multiplyScalar(0.7)); // The tip of the cone
-			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(conetip)); // The vector from the tip of the cone to the marble
+			let vec = marble.body.getPosition().subEq(Util.vecThreeToOimo(conetip)); // The vector from the tip of the cone to the marble
 			if (vec.length() === 0) return;
 			if (vec.length() > actualDistance) return; // Out distance is greater than the allowed distance, so we stop right here
 
@@ -51,7 +51,7 @@ export abstract class ForceShape extends Shape {
 			force.normalize();
 
 			// Calculate the actual force
-			force = force.scale(forcemag / PHYSICS_TICK_RATE);
+			force.scaleEq(forcemag / PHYSICS_TICK_RATE);
 
 			// Now we apply it
 			marble.body.addLinearVelocity(force);
@@ -65,7 +65,7 @@ export abstract class ForceShape extends Shape {
 			let force = this.computeAccurateConicForce(forceRadius, forceArc, forceStrength);
 
 			// Calculate the actual force
-			force = force.scale(1 / PHYSICS_TICK_RATE);
+			force.scaleEq(1 / PHYSICS_TICK_RATE);
 
 			// Now we apply it
 			this.level.marble.body.addLinearVelocity(force);
@@ -85,7 +85,7 @@ export abstract class ForceShape extends Shape {
 		var nodeVec = new OIMO.Vec3(node.elements[4], node.elements[5], node.elements[6]); // Gets the second column, so basically the transformed y axis
 		nodeVec.normalize();
 
-		posVec = pos.sub(Util.vecThreeToOimo(new THREE.Vector3().setFromMatrixPosition(node)));
+		posVec = pos.subEq(Util.vecThreeToOimo(new THREE.Vector3().setFromMatrixPosition(node)));
 		dot = posVec.length();
 
 		if (forceRadius < dot) {
@@ -109,12 +109,12 @@ export abstract class ForceShape extends Shape {
 	addSphericalForce(radius: number, strength: number) {
 		this.addCollider(() => new OIMO.SphereGeometry(radius), () => {
 			let marble = this.level.marble;
-			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition));
+			let vec = marble.body.getPosition().subEq(Util.vecThreeToOimo(this.worldPosition));
 			if (vec.length() === 0) return;
 
 			let strengthFac = 1 - Util.clamp(vec.length() / radius, 0, 1)**2; // Quadratic falloff with distance
 
-			marble.body.addLinearVelocity(vec.normalize().scale(strength * strengthFac / PHYSICS_TICK_RATE));
+			marble.body.addLinearVelocity(vec.normalize().scaleEq(strength * strengthFac / PHYSICS_TICK_RATE));
 		}, new THREE.Matrix4());
 	}
 
@@ -122,7 +122,7 @@ export abstract class ForceShape extends Shape {
 	addFieldForce(radius: number, forceVector: OIMO.Vec3) {
 		this.addCollider(() => new OIMO.SphereGeometry(radius), () => {
 			let marble = this.level.marble;
-			let vec = marble.body.getPosition().sub(Util.vecThreeToOimo(this.worldPosition));
+			let vec = marble.body.getPosition().subEq(Util.vecThreeToOimo(this.worldPosition));
 			if (vec.length() >= radius) return;
 
 			// Simply add the force

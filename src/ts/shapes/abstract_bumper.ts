@@ -17,7 +17,7 @@ export abstract class AbstractBumper extends Shape {
 
 		// Get the contact normal
 		let contactNormal = contact.getManifold().getNormal();
-		if (contact.getShape1().userData === this.id) contactNormal = contactNormal.scale(-1);
+		if (contact.getShape1().userData === this.id) contactNormal.scaleEq(-1);
 
 		let marble = this.level.marble;
 		

@@ -543,7 +543,6 @@ export class Level extends Scheduler {
 
 		interior.setTransform(interiorPosition, interiorRotation, interiorScale);
 
-		//this.scene.add(interior.group);
 		if (hasCollision) this.physics.addInterior(interior);
 	}
 
@@ -901,7 +900,7 @@ export class Level extends Scheduler {
 			let processedShapes = new Set<OIMO.Shape>();
 			for (let i = 0; i < 3; i++) {
 				// Shoot rays from the marble to the postiion of the camera
-				let rayCastDirection = Util.vecThreeToOimo(camera.position).sub(rayCastOrigin);
+				let rayCastDirection = Util.vecThreeToOimo(camera.position).subEq(rayCastOrigin);
 				rayCastDirection.addEq(rayCastDirection.clone().normalize().scale(2));
 
 				let firstHit: OIMO.RayCastHit = null;

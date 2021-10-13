@@ -220,7 +220,7 @@ export class Marble {
 				let surfaceShape = contact.getShape2();
 				if (surfaceShape === this.shape) {
 					// Invert the normal based on shape order
-					contactNormal = contactNormal.scale(-1);
+					contactNormal.scaleEq(-1);
 					surfaceShape = contact.getShape1();
 				}
 
@@ -256,7 +256,7 @@ export class Marble {
 			movementRotationAxis.mulMat3Eq(contactNormalRotation.toMat3());
 
 			let lastSurfaceRelativeVelocity = this.lastVel.sub(surfaceShape.getRigidBody().getLinearVelocity());
-			let surfaceRelativeVelocity = this.body.getLinearVelocity().sub(surfaceShape.getRigidBody().getLinearVelocity());
+			let surfaceRelativeVelocity = this.body.getLinearVelocity().subEq(surfaceShape.getRigidBody().getLinearVelocity());
 			let maxDotSlide = 0.5; // 30°
 
 			// Implements sliding: If we hit the surface at an angle below 45°, and have movement keys pressed, we don't bounce.
@@ -265,7 +265,7 @@ export class Marble {
 				let dot = contactNormal.dot(surfaceRelativeVelocity);
 				let linearVelocity = this.body.getLinearVelocity();
 				let originalLength = linearVelocity.length();
-				linearVelocity.addEq(contactNormal.scale(-dot)); // Remove all velocity in the direction of the surface normal
+				linearVelocity.addScaledEq(contactNormal, -dot); // Remove all velocity in the direction of the surface normal
 
 				let newLength = this.body.getLinearVelocity().length();
 				let diff = originalLength - newLength;
@@ -282,20 +282,20 @@ export class Marble {
 				let dot = -this.lastVel.dot(contactNormal);
 				if (dot < 0) break outer;
 
-				let boost = this.lastAngVel.cross(contactNormal).scale(2 * (0.5 - combinedRestitution) * dot / 300 / 0.98); // 0.98 fac because shock absorber used to have 0 rest but now 0.01
+				let boost = this.lastAngVel.cross(contactNormal).scaleEq(2 * (0.5 - combinedRestitution) * dot / 300 / 0.98); // 0.98 fac because shock absorber used to have 0 rest but now 0.01
 				this.body.addLinearVelocity(boost);
 			}
 
 			// Create a certain velocity boost on collisions with walls based on angular velocity. This assists in making wall-hits feel more natural.
 			outer:
 			if (this.collisionTimeout <= 0) {
-				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scale((1 - Math.abs(contactNormal.dot(this.level.currentUp))) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 15);
+				let angularBoost = this.body.getAngularVelocity().cross(contactNormal).scaleEq((1 - Math.abs(contactNormal.dot(this.level.currentUp))) * contactNormal.dot(this.body.getLinearVelocity()) / (Math.PI * 2) / 15);
 				if (angularBoost.length() < 0.01) break outer;
 
 				// Remove a bit of the current velocity so that the response isn't too extreme
 				let currentVelocity = this.body.getLinearVelocity();
 				let ratio = angularBoost.length() / currentVelocity.length();
-				currentVelocity = currentVelocity.scale(1 / (1 + ratio * 0.5)).add(angularBoost);
+				currentVelocity.scaleEq(1 / (1 + ratio * 0.5)).addEq(angularBoost);
 				this.body.setLinearVelocity(currentVelocity);
 
 				collisionTimeoutNeeded = true;
@@ -329,7 +329,7 @@ export class Marble {
 
 			// Handle rolling and sliding sounds
 			if (contactNormal.dot(surfaceRelativeVelocity) < 0.01) {
-				let predictedMovement = this.body.getAngularVelocity().cross(this.level.currentUp).scale(1 / Math.PI / 2);
+				let predictedMovement = this.body.getAngularVelocity().cross(this.level.currentUp).scaleEq(1 / Math.PI / 2);
 				// The expected movement based on the current angular velocity. If actual movement differs too much, we consider the marble to be "sliding".
 
 				if (predictedMovement.dot(surfaceRelativeVelocity) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > surfaceRelativeVelocity.length() * 1.5)) {
@@ -360,20 +360,20 @@ export class Marble {
 			// Subtract the movement axis so it doesn't get slowed down
 			let direction = movementRotationAxis.clone().normalize();
 			let dot2 = Math.max(0, angVel.dot(direction));
-			angVel.subEq(direction.scale(dot2));
+			angVel.addScaledEq(direction, -dot2);
 
 			// Subtract the "surface rotation axis", this ensures we can roll down hills quickly
 			let surfaceRotationAxis = this.level.currentUp.cross(contactNormal);
 			let degenerate = surfaceRotationAxis.length() < 1e-8;
 			surfaceRotationAxis.normalize();
 			let dot3 = degenerate? 0 : Math.max(angVel.dot(surfaceRotationAxis), 0);
-			angVel.subEq(surfaceRotationAxis.scale(dot3));
+			angVel.addScaledEq(surfaceRotationAxis, -dot3);
 
 			angVel.scaleEq(0.02 ** (Math.min(1, combinedFriction) / PHYSICS_TICK_RATE)); // Handle velocity slowdown
 
 			// Add them back
-			angVel.addEq(surfaceRotationAxis.scale(dot3));
-			angVel.addEq(direction.scale(dot2));
+			angVel.addScaledEq(surfaceRotationAxis, dot3);
+			angVel.addScaledEq(direction, dot2);
 
 			if (angVel.length() > 285) angVel.scaleEq(285 / angVel.length()); // Absolute max angular speed
 		 	this.body.setAngularVelocity(angVel);
@@ -381,7 +381,7 @@ export class Marble {
 			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot) {
 				// Cap the rolling velocity
 				let newLength = Math.max(0, 12 * Math.PI*2 * inputStrength / contactNormalUpDot - dot2);
-				movementRotationAxis = movementRotationAxis.normalize().scale(newLength);
+				movementRotationAxis = movementRotationAxis.normalize().scaleEq(newLength);
 			}
 
 			if (collisionTimeoutNeeded) this.collisionTimeout = 2;
@@ -390,12 +390,12 @@ export class Marble {
 		// Handle airborne movement
 		if (!current) {
 			// Angular acceleration isn't quite as speedy
-			movementRotationAxis = movementRotationAxis.scale(1/2);
+			movementRotationAxis.scaleEq(1/2);
 
 			let airMovementVector = new OIMO.Vec3(movementVec.x, movementVec.y, movementVec.z);
 			let airVelocity = (time.currentAttemptTime - this.helicopterEnableTime) < 5000 ? 5 : 3.2; // Change air velocity for the helicopter
 			if (this.level.finishTime) airVelocity = 0;
-			airMovementVector = airMovementVector.scale(airVelocity / PHYSICS_TICK_RATE);
+			airMovementVector.scaleEq(airVelocity / PHYSICS_TICK_RATE);
 			this.body.addLinearVelocity(airMovementVector);
 
 			this.slidingSound.gain.gain.value = 0;
@@ -494,8 +494,8 @@ export class Marble {
 
 		if (directionalSpeed < magnitude || !onlyIncrease) {
 			let velocity = this.body.getLinearVelocity();
-			velocity = velocity.sub(direction.scale(directionalSpeed));
-			velocity = velocity.add(direction.scale(magnitude));
+			velocity.addScaledEq(direction, -directionalSpeed);
+			velocity.addScaledEq(direction, magnitude);
 
 			this.body.setLinearVelocity(velocity);
 			if (directionalSpeed < magnitude) onIncrease();
@@ -512,7 +512,7 @@ export class Marble {
 		this.currentVisualOrientation = this.predictedOrientation;
 
 		// Naive: Just assume the marble moves as if nothing was in its way and it continued with its current velocity.
-		let predictedPosition = pos.add(vel.scale(1 / PHYSICS_TICK_RATE)).add(this.level.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
+		let predictedPosition = pos.add(vel.scale(1 / PHYSICS_TICK_RATE)).addEq(this.level.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
 		let finalPredictedPosition = predictedPosition;
 		let movementDiff = predictedPosition.sub(pos);
 

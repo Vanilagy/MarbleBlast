@@ -31,10 +31,10 @@ export class Trigger {
 		let p2 = origin.add(d1);
 		let p3 = origin.add(d2);
 		let p4 = origin.add(d3);
-		let p5 = origin.add(d1).add(d2);
-		let p6 = origin.add(d1).add(d3);
-		let p7 = origin.add(d2).add(d3);
-		let p8 = origin.add(d1).add(d2).add(d3);
+		let p5 = origin.add(d1).addEq(d2);
+		let p6 = origin.add(d1).addEq(d3);
+		let p7 = origin.add(d2).addEq(d3);
+		let p8 = origin.add(d1).addEq(d2).addEq(d3);
 
 		let mat = new THREE.Matrix4();
 		mat.compose(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
