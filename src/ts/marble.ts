@@ -364,9 +364,7 @@ export class Marble {
 
 			// Subtract the "surface rotation axis", this ensures we can roll down hills quickly
 			let surfaceRotationAxis = this.level.currentUp.cross(contactNormal);
-			let degenerate = surfaceRotationAxis.length() < 1e-8;
-			surfaceRotationAxis.normalize();
-			let dot3 = degenerate? 0 : Math.max(angVel.dot(surfaceRotationAxis), 0);
+			let dot3 = Math.max(angVel.dot(surfaceRotationAxis), 0);
 			angVel.addScaledEq(surfaceRotationAxis, -dot3);
 
 			angVel.scaleEq(0.02 ** (Math.min(1, combinedFriction) / PHYSICS_TICK_RATE)); // Handle velocity slowdown
