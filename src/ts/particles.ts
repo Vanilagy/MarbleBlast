@@ -290,6 +290,10 @@ export class ParticleManager {
 		return emitter;
 	}
 
+	removeEmitter(emitter: ParticleEmitter) {
+		Util.removeFromArray(this.emitters, emitter);
+	}
+
 	tick() {
 		let time = this.getTime();
 
