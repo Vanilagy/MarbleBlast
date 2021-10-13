@@ -64,4 +64,9 @@ export class RandomPowerUp extends PowerUp {
 	getAllDtsPaths() {
 		return POSSIBLE_POWERUPS.map(x => new x(this.element).dtsPath);
 	}
+
+	reset() {
+		super.reset();
+		this.pickedUpCount = 0;
+	}
 }

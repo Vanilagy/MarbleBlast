@@ -349,9 +349,20 @@ export abstract class Util {
 
 	/** Unescapes escaped (\) characters. */
 	static unescape(str: string) {
-		let regex = /\\([^\\])/g;
+		let cEscapeRegex = /(^|[^\\])\\x([0-9a-f]{2})/gi; // Matches \xhh
 		let match: RegExpExecArray = null;
+
+		while ((match = cEscapeRegex.exec(str)) !== null) {
+			let code = Number.parseInt(match[2], 16);
+			let char = this.macRomanToUtf8(code); // DUMB
+			str = str.slice(0, match.index) + match[1] + char + str.slice(match.index + match[0].length); // match[1] is "negative lookbehind"
+
+			cEscapeRegex.lastIndex -= 3;
+		}
+
+		let regex = /\\(.)/g;
 		let specialCases: Record<string, string> = {
+			'\\': '\\',
 			't': '\t',
 			'v': '\v',
 			'0': '\0',
@@ -639,6 +650,17 @@ export abstract class Util {
 			intersectionPoint.copy(rayOrigin).addScaledVector(rayDirection, (tmin >= 0)? tmin : tmax); // use tmax if the ray starts inside the box
 
 		return tmax >= tmin;
+	}
+
+	static macRomanToUtf8Map = ['Ä', 'Å', 'Ç', 'É', 'Ñ', 'Ö', 'Ü', 'á', 'à', 'â', 'ä', 'ã', 'å', 'ç', 'é', 'è', 'ê', 'ë', 'í', 'ì', 'î', 'ï', 'ñ', 'ó', 'ò', 'ô', 'ö', 'õ', 'ú', 'ù', 'û', 'ü', '†', '°', '¢', '£', '§', '•', '¶', 'ß', '®', '©', '™', '´', '¨', '≠', 'Æ', 'Ø', '∞', '±', '≤', '≥', '¥', 'µ', '∂', '∑', '∏', 'π', '∫', 'ª', 'º', 'Ω', 'æ', 'ø', '¿', '¡', '¬', '√', 'ƒ', '≈', '∆', '«', '»', '…', ' ', 'À', 'Ã', 'Õ', 'Œ', 'œ', '–', '—', '“', '”', '‘', '’', '÷', '◊', 'ÿ', 'Ÿ', '⁄', '€', '‹', '›', 'ﬁ', 'ﬂ', '‡', '·', '‚', '„', '‰', 'Â', 'Ê', 'Á', 'Ë', 'È', 'Í', 'Î', 'Ï', 'Ì', 'Ó', 'Ô', '🍎', 'Ò', 'Ú', 'Û', 'Ù', 'ı', 'ˆ', '˜', '¯', '˘', '˙', '˚', '¸', '˝', '˛', 'ˇ'];
+	/** Some fonts were apparently compiled on Mac and use this encoding instead of something sensible. Stupid. */
+	static macRomanToUtf8(char: number) {
+		if (char < 128) return String.fromCharCode(char);
+		else return this.macRomanToUtf8Map[char - 128];
+	}
+
+	static supportsInstancing(renderer: THREE.WebGLRenderer) {
+		return !(renderer.capabilities.isWebGL2 === false && renderer.extensions.has( 'ANGLE_instanced_arrays' ) === false);
 	}
 }
 

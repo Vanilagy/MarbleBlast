@@ -5,6 +5,7 @@ import { TimeState, Level, PHYSICS_TICK_RATE } from "./level";
 import { Util, MaterialGeometry } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
 import { Octree, OctreeObject } from "./octree";
+import { renderer } from "./rendering";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -112,7 +113,7 @@ export class Interior {
 		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
 		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
 		this.body = new OIMO.RigidBody(rigidBodyConfig);
-		this.useInstancing = !Util.isMac();
+		this.useInstancing = Util.supportsInstancing(renderer);
 	}
 
 	async init(id: number) {

@@ -176,6 +176,8 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 
 	for (let missionPath in shared.levelNameMap) {
 		let category = uppercaseFirstLetter(missionPath.split('/')[0]);
+		if (category === 'Mbp') category = 'Platinum ' + uppercaseFirstLetter(missionPath.split('/')[1]);
+		else category = 'Gold ' + category;
 
 		if (category !== lastCategory) {
 			// Add a header row if the category changes
