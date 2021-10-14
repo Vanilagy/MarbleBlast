@@ -147,7 +147,7 @@ export class Level extends Scheduler {
 	timeState: TimeState;
 	/** The last performance.now() time the physics were ticked. */
 	lastPhysicsTick: number = null;
-	paused = false;
+	paused = true;
 	/** If the level is stopped, it shouldn't be used anymore. */
 	stopped = false;
 	/** The timestate at the moment of finishing. */
@@ -252,6 +252,7 @@ export class Level extends Scheduler {
 	async start() {
 		if (this.stopped) return;
 
+		this.paused = false;
 		this.restart(true);
 		for (let interior of this.interiors) await interior.onLevelStart();
 		for (let shape of this.shapes) await shape.onLevelStart();

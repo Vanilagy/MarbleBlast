@@ -61,6 +61,7 @@ export abstract class LoadingScreen {
 
 		let level = new Level(mission);
 		try {
+			state.level = level;
 			await level.init();
 
 			if (getReplay) {
@@ -94,7 +95,6 @@ export abstract class LoadingScreen {
 
 			// Loading has finished, hop into gameplay.
 
-			state.level = level;
 			level.start();
 
 			this.hide();
@@ -103,6 +103,7 @@ export abstract class LoadingScreen {
 		} catch(e) {
 			console.error(e);
 			this.cancelButton.click();
+			state.level = null;
 
 			setTimeout(() => alert("There was an error due to which the level couldn't be loaded."), 50);
 		}

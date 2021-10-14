@@ -79,7 +79,14 @@ class Jukebox {
 		menu.setupButton(this.prevButton, 'play/prev', () => this.select(Object.keys(SONGS)[this.selectedIndex - 1]), true);
 		menu.setupVaryingButton(this.playButton, ['jukebox/stop', 'jukebox/play'], () => {
 			if (this.playing) { state.level.music?.stop(); this.playing = false; }
-			else this.select(Object.keys(SONGS)[this.selectedIndex]);
+			else {
+				if (this.selectedIndex !== null) this.select(Object.keys(SONGS)[this.selectedIndex]);
+				else {
+					// Restart the default song
+					state.level.music?.play();
+					this.playing = true;
+				}
+			}
 
 			this.updateText();
 		});

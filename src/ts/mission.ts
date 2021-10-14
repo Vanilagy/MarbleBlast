@@ -322,25 +322,27 @@ export class Mission {
 	/** Gets a general resource from the mission resources. */
 	async getResource(path: string) {
 		path = path.toLowerCase();
+		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
 
-		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
-			let blob = await this.getBlobForFile('data/' + path);
+		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
+			let blob = await this.getBlobForFile(base + path);
 			return blob;
 		} else {
-			return await ResourceManager.loadResource('./assets/data/' + path);
+			return await ResourceManager.loadResource('./assets/' + base + path);
 		}
 	}
 
 	/** Gets an image from the mission resources. */
 	async getImage(path: string) {
 		path = path.toLowerCase();
+		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
 
-		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
-			let blob = await this.getBlobForFile('data/' + path);
+		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
+			let blob = await this.getBlobForFile(base + path);
 			let url = ResourceManager.getUrlToBlob(blob);
 			return await ResourceManager.loadImage(url);
 		} else {
-			return await ResourceManager.loadImage('./assets/data/' + path);
+			return await ResourceManager.loadImage('./assets/' + base + path);
 		}
 	}
 

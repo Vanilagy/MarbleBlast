@@ -38,7 +38,7 @@ export class TeleportTrigger extends Trigger {
 	executeTeleport() {
 		this.entryTime = null;
 
-		let destination = this.level.triggers.find(x => x instanceof DestinationTrigger && x.element._name === this.element.destination);
+		let destination = this.level.triggers.find(x => x instanceof DestinationTrigger && x.element._name.toLowerCase() === this.element.destination?.toLowerCase());
 		if (!destination) return; // Who knows
 
 		let body = this.level.marble.body;

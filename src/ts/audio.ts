@@ -54,10 +54,19 @@ export abstract class AudioManager {
 	/** Loads an audio buffer from a path. Returns the cached version whenever possible. */
 	static loadBuffer(path: string) {
 		let fullPath = this.toFullPath(path);
-		if (this.audioBufferCache.has(fullPath)) return this.audioBufferCache.get(fullPath);
+
+		// If there's a current level, see if there's a sound file for this path contained in it
+		let mission = state.level?.mission;
+		let zipFile: JSZip.JSZipObject;
+		if (mission && mission.zipDirectory && mission.zipDirectory.files['data/sound/' + path]) {
+			zipFile = mission.zipDirectory.files['data/sound/' + path];
+		} else {
+			// Return the cached version if there is one
+			if (this.audioBufferCache.has(fullPath)) return this.audioBufferCache.get(fullPath);
+		}
 
 		let promise = new Promise<AudioBuffer>(async (resolve) => {
-			let blob = await ResourceManager.loadResource(fullPath);
+			let blob = zipFile? await zipFile.async('blob') : await ResourceManager.loadResource(fullPath);
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let audioBuffer: AudioBuffer;
 			try {
@@ -80,7 +89,7 @@ export abstract class AudioManager {
 			resolve(audioBuffer);
 		});
 
-		this.audioBufferCache.set(fullPath, promise);
+		if (!zipFile) this.audioBufferCache.set(fullPath, promise);
 		return promise;
 	}
 
@@ -254,7 +263,12 @@ export class AudioSource {
 
 	async play() {
 		let maybeBuffer = await this.promise;
-		if (this.stopped) return; // The sound may have already been stopped, so don't continue.
+		if (this.stopped) {
+			this.node = AudioManager.context.createBufferSource();
+			this.node.connect(this.gain);
+			this.stopped = false;
+			AudioManager.audioSources.push(this);
+		}
 
 		if (this.node instanceof AudioBufferSourceNode) {
 			this.node.buffer = maybeBuffer as AudioBuffer;
