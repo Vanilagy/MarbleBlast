@@ -26,7 +26,7 @@ export class TimeTravel extends PowerUp {
 		if (state.modification === 'gold') {
 			this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;
 		} else {
-			this.pickUpName = `${Math.abs(this.timeBonus/1000)} second Time ${this.timeBonus > 0 ? 'Modifier' : 'Penalty'}`;
+			this.pickUpName = `${Math.abs(this.timeBonus/1000)} second Time ${this.timeBonus > 0 ? 'Modifier' : 'Penalty'}`; // MBP calls them Time Penalty when they add time
 		}
 	}
 
@@ -36,6 +36,7 @@ export class TimeTravel extends PowerUp {
 	}
 
 	use(time: TimeState, bodyOverride?: OIMO.RigidBody) {
+		// We need to find the exact point of impact to accurately know at what time the clock needs to be stopped
 		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(bodyOverride ?? this.bodies[0], 2);
 		let timeToRevert = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 

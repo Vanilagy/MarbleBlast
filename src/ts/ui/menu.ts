@@ -55,6 +55,7 @@ export abstract class Menu {
 	abstract getMenuDiv(): HTMLDivElement;
 	abstract getBackgroundImage(): HTMLImageElement;
 
+	/** Sets up a Torque GUI button element which can take on different variants and switch between them quickly. */
 	setupVaryingButton(element: HTMLImageElement, paths: string[], onclick: (ev?: MouseEvent) => any, loadDisabledImage = false, triggerOnMouseDown = false, playHoverSound = true) {
 		let ogPaths = paths.slice();
 		paths = paths.map(x => this.uiAssetPath + x);
@@ -116,10 +117,12 @@ export abstract class Menu {
 		this.setButtonVariant(element, 0); // This will also set the button's default image
 	}
 
+	/** Sets up a Torque GUI button element. Adds listeners to show the correct _n, _d and _h variants and plays sounds. */
 	setupButton(element: HTMLImageElement, path: string, onclick: (ev?: MouseEvent) => any, loadDisabledImage?: boolean, triggerOnMouseDown?: boolean, playHoverSound?: boolean) {
 		this.setupVaryingButton(element, [path], onclick, loadDisabledImage, triggerOnMouseDown, playHoverSound);
 	}
 
+	/** Sets the active button variant for a given button. */
 	setButtonVariant(element: HTMLImageElement, index: number) {
 		this.activeButtonVariant.set(element, index);
 		this.variantChangeListeners.get(element)();

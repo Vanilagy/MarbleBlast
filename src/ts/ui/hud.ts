@@ -196,11 +196,12 @@ export abstract class Hud {
 		let now = performance.now();
 		this.frameTimeStore.push(now);
 
+		// Remove all frame times that were over a second ago
 		while (this.frameTimeStore.length && this.frameTimeStore[0] + 1000 <= now) this.frameTimeStore.shift();
 
 		let value = this.frameTimeStore.length;
 		value /= Math.min(1, state.level.timeState.timeSinceLoad / 1000 ?? 1); // Hack to make it reach the final frame rate faster
-		value = value | 0;
+		value = Math.floor(value);
 		if (value === 59 || value === 119 || value === 143 || value === 239) value++; // Snap to the most common frame rates
 		if (value === 61 || value === 121 || value === 145 || value === 241) value--;
 

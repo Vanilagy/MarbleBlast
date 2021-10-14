@@ -47,6 +47,8 @@ const init = async () => {
 		// No need to tell them to enter fullscreen if they're already in it
 		startGameDialog.children[0].textContent = 'Click anywhere to start';
 		startGameDialog.children[1].textContent = '';
+	} else {
+		startGameDialog.children[0].textContent = `Press ${Util.isMac()? '⌘+F' : 'F11'} to start in fullscreen mode`;
 	}
 	startGameDialog.style.display = 'block';
 	

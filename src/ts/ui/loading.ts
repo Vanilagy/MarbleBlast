@@ -43,7 +43,6 @@ export abstract class LoadingScreen {
 		let indexAtStart = this.loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
 		
 		this.levelNameElement.textContent = mission.title;
-
 		this.progressBar.style.width = '0px';
 
 		// Give the UI a bit of time to breathe before we begin to load the level.

@@ -96,7 +96,7 @@ export class MbgLevelSelect extends LevelSelect {
 		let index = [MissionLibrary.goldBeginner, MissionLibrary.goldIntermediate, MissionLibrary.goldAdvanced, MissionLibrary.goldCustom].indexOf(this.currentMissionArray);
 	
 		let elem = [this.tabBeginner, this.tabIntermediate, this.tabAdvanced, this.tabCustom][index];
-		elem.style.zIndex = "0";
+		elem.style.zIndex = "0"; // Bring the tab to the front
 	}
 
 	displayMetadata() {

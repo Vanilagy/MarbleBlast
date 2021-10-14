@@ -23,7 +23,7 @@ export class MbpHomeScreen extends HomeScreen {
         this.optionsSrc = 'menu/options';
         this.helpSrc = 'menu/help';
         this.exitSrc = 'menu/quit';
-		this.showChangelogSrc = 'menu/totd';
+		this.showChangelogSrc = 'menu/changelog';
 		this.changelogBackSrc = 'motd/ok';
     }
 

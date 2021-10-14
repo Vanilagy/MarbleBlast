@@ -77,7 +77,7 @@ export class MbpMenu extends Menu {
 	}
 
 	async init() {
-		// Preselect random backgrounds
+		// Preselect random backgrounds and load them
 		let homeCategory = Util.randomFromArray(Object.keys(BACKGROUNDS));
 		let homeIndex = Math.floor(Math.random() * BACKGROUNDS[homeCategory as keyof typeof BACKGROUNDS]) + 1;
 		let mbgIndex = Math.floor(Math.random() * BACKGROUNDS['gold']) + 1;

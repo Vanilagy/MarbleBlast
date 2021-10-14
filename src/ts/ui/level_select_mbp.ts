@@ -86,6 +86,7 @@ export class MbpLevelSelect extends LevelSelect {
 			this.difficultySelectorWindow.classList.add('hidden');
 		});
 
+		// Button toggles between metadata and scores screen
 		this.menu.setupVaryingButton(this.viewToggleButton, ['mp/play/scoresactive', 'mp/play/settingsactive'], () => {
 			if (this.scoresContainer.classList.contains('hidden')) {
 				this.metadataContainer.classList.add('hidden');
@@ -125,6 +126,7 @@ export class MbpLevelSelect extends LevelSelect {
 		await ResourceManager.loadImages(['play/eggnotfound.png', 'play/eggfound.png', 'play/marble_gold.png', 'play/marble_platinum.png', 'play/marble_ultra.png', 'mp/menu/brown/joined.png', 'mp/menu/brown/divider-orange-joined.png', 'options/textentry.png'].map(x => './assets/ui_mbp/' + x));
 	}
 
+	/** Creates a vertical section for the difficulty picker. */
 	createDifficultySection(title: string, img: string, difficulties: { name: string, arr?: Mission[] }[]) {
 		let div = document.createElement('div');
 		let header = document.createElement('p');
@@ -163,6 +165,7 @@ export class MbpLevelSelect extends LevelSelect {
 		super.setMissionArray(arr, doImageTimeout);
 
 		if (arr.length > 0) {
+			// Make sure to update the difficulty picker accordingly
 			this.menu.setButtonVariant(this.difficultySelectorCollapsed,
 				['beginner', 'intermediate', 'advanced', 'expert', 'custom'].indexOf(MissionLibrary.getDifficulty(arr))
 			);

@@ -102,6 +102,7 @@ export abstract class AudioManager {
 	 * @param path The path of the audio resource. If it's an array, a random one will be selected.
 	 * @param destination The destination node of the audio.
 	 * @param position Optional: The position of the audio source in 3D space.
+	 * @param preferStreaming If true, uses a normal <audio> element instead of play the audio as quickly as possible.
 	 */
 	static createAudioSource(path: string | string[], destination = this.soundGain, position?: THREE.Vector3, preferStreaming = false) {
 		let chosenPath = (typeof path === "string")? path : Util.randomFromArray(path);
@@ -263,7 +264,8 @@ export class AudioSource {
 
 	async play() {
 		let maybeBuffer = await this.promise;
-		if (this.stopped) {
+		if (this.stopped && this.node instanceof AudioBufferSourceNode) {
+			// Gotta recreate this stuff
 			this.node = AudioManager.context.createBufferSource();
 			this.node.connect(this.gain);
 			this.stopped = false;

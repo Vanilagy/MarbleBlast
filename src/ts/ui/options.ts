@@ -120,12 +120,14 @@ export abstract class OptionsScreen {
 
 	abstract refreshKeybindings(): void;
 
+	/** Returns a nice string representation of the key that a button is bound to. */
 	formatKeybinding(button: keyof typeof StorageManager.data.settings.gameButtonMapping) {
 		let str = Util.getKeyForButtonCode(StorageManager.data.settings.gameButtonMapping[button as keyof typeof StorageManager.data.settings.gameButtonMapping]);
 		if (str.startsWith('the')) return str.slice(str.indexOf(' ') + 1, str.lastIndexOf(' ')); // If the string starts with 'the', then it's a mouse button, and we clean it up by only keeping the middle part (dropping 'the' and 'button')
 		else return str;
 	}
 
+	/** Starts the rebinding process and shows a dialog. */
 	changeKeybinding(button: keyof typeof StorageManager.data.settings.gameButtonMapping) {
 		let map = (state.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
 		this.rebindDialog.classList.remove('hidden');
@@ -133,6 +135,7 @@ export abstract class OptionsScreen {
 		this.currentlyRebinding = button;
 	}
 	
+	/** Updates the binding for a given button. */
 	setKeybinding(button: keyof typeof StorageManager.data.settings.gameButtonMapping, value: string) {
 		let map = (state.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
 

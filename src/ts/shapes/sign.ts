@@ -1,6 +1,7 @@
 import { MissionElementStaticShape } from "../parsing/mis_parser";
 import { Shape } from "../shape";
 
+/** Sign used in MBP to show a direction. */
 export class Sign extends Shape {
 	dtsPath = "shapes/signs/sign.dts";
 	useInstancing = true;

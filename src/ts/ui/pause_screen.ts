@@ -15,6 +15,7 @@ export abstract class PauseScreen {
 	noSrc: string;
 	restartSrc: string;
 
+	/** If true, can't be closed using the Escape key. */
 	preventClose = false;
 
 	constructor(menu: Menu) {
@@ -62,6 +63,7 @@ export abstract class PauseScreen {
 		this.div.classList.add('hidden');
 	}
 
+	/** Pauses the current level if it makes sense. */
 	tryPause() {
 		if (!state.level
 			|| state.level.paused

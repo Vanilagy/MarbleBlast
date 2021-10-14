@@ -14,9 +14,10 @@ interface Type<T> extends Function {
 
 export const POSSIBLE_POWERUPS = [SuperJump, SuperSpeed, Helicopter, SuperBounce, ShockAbsorber, TimeTravel];
 
+/** A random power-up decides which power-up it acts like once it is picked up. */
 export class RandomPowerUp extends PowerUp {
 	dtsPath = "shapes/items/random.dts";
-	sounds = POSSIBLE_POWERUPS.map(x => new x(this.element).sounds).flat();
+	sounds = POSSIBLE_POWERUPS.map(x => new x(this.element).sounds).flat(); // Can play all the power-ups' sounds
 	lastInstance: PowerUp;
 	pickedUpCount = 0;
 

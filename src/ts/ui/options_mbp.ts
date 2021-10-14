@@ -15,6 +15,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 	generalContainer = document.querySelector('#mbp-options-general-container') as HTMLDivElement;
 	hotkeysContainer = document.querySelector('#mbp-options-hotkeys-container') as HTMLDivElement;
 
+	/** Array of functions that cause each option element to be refreshed. */
 	updateFuncs: (() => void)[] = [];
 	currentSliderElement: HTMLDivElement;
 	currentSliderCallback: (completion: number) => any;
@@ -71,6 +72,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		});
 
 		// Add all the option elements
+
 		// These here are commented out because, really, they're all no-ops.
 		//this.addDropdown(this.generalContainer, 'resolution', 'Screen Resolution', ['640x480', '800x600', '1024x768']);
 		//this.addDropdown(this.generalContainer, 'videoDriver', 'Video Driver', ['OpenGL', 'Direct3D']);
@@ -110,6 +112,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.addHotkey(this.hotkeysContainer, 'restart');
 	}
 
+	/** Handles dragging of the currently active slider. */
 	updateSliders() {
 		requestAnimationFrame(() => this.updateSliders());
 		if (!this.currentSliderElement) return;
@@ -153,6 +156,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 
 		let selectionLabel = document.createElement('p');
 
+		// Element that prevents anything else from being pressed while the dropdown is shown
 		let clickPreventer = document.createElement('div');
 		clickPreventer.classList.add('hidden');
 		clickPreventer.addEventListener('click', () => close());
@@ -269,6 +273,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 			resetButton.classList.remove('hidden');
 		});
 
+		// Add an additional button that removes the texture again
 		let resetButton = document.createElement('img');
 		resetButton.src = './assets/ui_mbp/mp/team/nomarble.png';
 		resetButton.id = 'mbp-reset-marble-texture-button';

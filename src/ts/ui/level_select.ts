@@ -172,7 +172,9 @@ export abstract class LevelSelect {
 		Leaderboard.loadLocal();
 	}
 
+	/** ...for the current level. */
 	abstract displayMetadata(): void;
+	/** Sets the metadata elements for the case that there is no level to display. */
 	abstract displayEmptyMetadata(): void;
 
 	playCurrentMission(replayData?: ArrayBuffer) {
@@ -250,6 +252,7 @@ export abstract class LevelSelect {
 		}
 	}
 
+	/** Sets and preloads images around the current level. */
 	setImages(fromTimeout = false, doTimeout = true) {
 		if (fromTimeout) {
 			// We come from a timeout, so clear it
@@ -343,7 +346,9 @@ export abstract class LevelSelect {
 		return missions;
 	}
 
+	/** Creates a score element that can be used to show local and online scores. */
 	abstract createScoreElement(includeReplayButton: boolean): HTMLDivElement;
+	/** Updates a previously created score element. */
 	abstract updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number): void;
 
 	displayBestTimes() {
@@ -366,6 +371,7 @@ export abstract class LevelSelect {
 		}
 	}
 
+	/** Creates a replay button for use in score elements. */
 	createReplayButton() {
 		let icon = document.createElement('img');
 		icon.src = "./assets/img/round_videocam_black_18dp.png";
@@ -503,6 +509,7 @@ export abstract class LevelSelect {
 				if (!mission) throw new Error("Mission not found.");
 
 				if (state.modification === 'gold' && mission.path.startsWith('mbp')) {
+					// We don't allow this
 					alert("You can't watch replays of Platinum level inside Marble Blast Gold.");
 					return;
 				}

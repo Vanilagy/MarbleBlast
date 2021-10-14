@@ -1,9 +1,10 @@
 import { ResourceManager } from "../resources";
 import { HelpScreen } from "./help";
 
+/** The page files to load and show, ordered. */
 const PAGES = ['webport', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
 const FORMAT_COMMAND_REGEX = /<.+?>/g; // Literally the cheapest thing ever
-const ANCHOR_REGEX = /&lt;a:(.+?)&gt;(.+?)&lt;\/a&gt;/g;
+const ANCHOR_REGEX = /&lt;a:(.+?)&gt;(.+?)&lt;\/a&gt;/g; // Looks a bit shitty 'cuz of escaped HTML stuff
 
 export class MbpHelpScreen extends HelpScreen {
 	pagePicker = document.querySelector('#mbp-help-picker');
@@ -57,8 +58,8 @@ export class MbpHelpScreen extends HelpScreen {
 
 	/** Turns a subset of TorqueML into HTML. */
 	generatePageHtml(text: string) {
-		let currentStyle = '';
-		let styleStack: string[] = [];
+		let currentStyle = ''; // The current style used for inserted text
+		let styleStack: string[] = []; // Stores previous styles so they can be reverted to
 		let html = '';
 
 		let heading = text.slice(0, text.indexOf('\n'));
@@ -90,14 +91,18 @@ export class MbpHelpScreen extends HelpScreen {
 
 			// Update the text style based on the command
 			if (nextCommand[0].startsWith('<just')) {
+				// Add text align to the style
 				currentStyle += 'text-align: ' + nextCommand[0].slice(6, -1) + ';';
 			} else if (nextCommand[0].startsWith('<font')) {
+				// Add a font family change to the style
 				let font = nextCommand[0].slice(6, nextCommand[0].lastIndexOf(':'));
 				let size = nextCommand[0].slice(nextCommand[0].lastIndexOf(':') + 1, -1);
 				currentStyle += `font-family: ${font};font-size: ${size}px;`
 			} else if (nextCommand[0] === '<spush>') {
+				// Push the current style to the stack
 				styleStack.push(currentStyle);
 			} else if (nextCommand[0] === '<spop>') {
+				// Pop the last style from the stack into the current style
 				currentStyle = styleStack.pop();
 			}
 

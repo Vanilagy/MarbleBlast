@@ -70,7 +70,7 @@ class Jukebox {
 	}
 	set playing(state: boolean) {
 		this._playing = state;
-		this.menu.setButtonVariant(this.playButton, 1 - Number(state));
+		this.menu.setButtonVariant(this.playButton, 1 - Number(state)); // Automagically✨ update the button too
 	}
 
 	constructor(menu: Menu) {
@@ -105,6 +105,7 @@ class Jukebox {
 			}
 		});
 
+		// Create all the elements for the songs
 		for (let key in SONGS) {
 			let element = document.createElement('div');
 			element.textContent = SONGS[key as keyof typeof SONGS];
@@ -114,6 +115,7 @@ class Jukebox {
 		}
 	}
 
+	/** Selects a given song and plays it. */
 	select(song: string) {
 		if (!SONGS[song as keyof typeof SONGS]) return;
 
@@ -166,12 +168,16 @@ class Jukebox {
 		state.menu.pauseScreen.preventClose = true;
 
 		if (this.selectedIndex === null) {
+			// This runs if this was the first time in the current level that the jukebox was opened.
+
 			for (let child of this.songsContainer.children) child.classList.remove('selected');
 
 			let index = Object.keys(SONGS).indexOf(state.level.originalMusicName);
 			if (index >= 0) {
 				this.songsContainer.children[index].classList.add('selected');
 				this.selectedIndex = index;
+			} else {
+				// The song that's playing is not part of the ones in the jukebox
 			}
 
 			this.playing = true;
@@ -179,6 +185,7 @@ class Jukebox {
 			this.updateText();
 		}
 
+		// Scroll the current song into view
 		let selectedElem = [...this.songsContainer.children].find(x => x.classList.contains('selected'));
 		if (selectedElem) selectedElem.scrollIntoView({ block: "nearest", inline: "nearest" });
 	}

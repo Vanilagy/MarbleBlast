@@ -17,6 +17,7 @@ export abstract class MissionLibrary {
 	static platinumExpert: Mission[] = [];
 	static platinumCustom: Mission[] = [];
 
+	/** Loads all missions. */
 	static async init() {
 		let mbgMissionFilenames: string[] = [];
 		let mbpMissionFilenames: string[] = [];

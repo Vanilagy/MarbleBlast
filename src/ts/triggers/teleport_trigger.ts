@@ -7,7 +7,9 @@ import { Util } from "../util";
 import { DestinationTrigger } from "./destination_trigger";
 import { Trigger } from "./trigger";
 
+/** A teleport trigger teleports the marble to a specified destination after some time of being inside it. */
 export class TeleportTrigger extends Trigger {
+	/** How long after entry until the teleport happens */
 	delay = 2000;
 	entryTime: number = null;
 
@@ -38,11 +40,13 @@ export class TeleportTrigger extends Trigger {
 	executeTeleport() {
 		this.entryTime = null;
 
+		// Find the destination trigger
 		let destination = this.level.triggers.find(x => x instanceof DestinationTrigger && x.element._name.toLowerCase() === this.element.destination?.toLowerCase());
 		if (!destination) return; // Who knows
 
 		let body = this.level.marble.body;
 
+		// Determine where to place the marble
 		let position: OIMO.Vec3;
 		if (this.element.centerdestpoint || destination.element.centerdestpoint) {
 			position = destination.body.getPosition();
@@ -55,6 +59,7 @@ export class TeleportTrigger extends Trigger {
 		if (MisParser.parseBoolean(this.element.inversevelocity || destination.element.inversevelocity)) body.setLinearVelocity(body.getLinearVelocity().scaleEq(-1));
 		if (!MisParser.parseBoolean(this.element.keepangular || destination.element.keepangular)) body.setAngularVelocity(new OIMO.Vec3());
 
+		// Determine camera orientation
 		if (!MisParser.parseBoolean(this.element.keepcamera || destination.element.keepcamera)) {
 			let yaw: number;
 			if (this.element.camerayaw) yaw = Util.degToRad(MisParser.parseNumber(this.element.camerayaw));

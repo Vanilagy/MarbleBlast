@@ -143,6 +143,7 @@ void main() {
 }
 `;
 
+/** Fragment shader for the particle rendering pipeline. */
 const fragmentShader = `
 varying vec4 color;
 
