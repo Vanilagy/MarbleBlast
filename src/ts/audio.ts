@@ -65,11 +65,12 @@ export abstract class AudioManager {
 			if (this.audioBufferCache.has(fullPath)) return this.audioBufferCache.get(fullPath);
 		}
 
-		let promise = new Promise<AudioBuffer>(async (resolve) => {
-			let blob = zipFile? await zipFile.async('blob') : await ResourceManager.loadResource(fullPath);
-			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
-			let audioBuffer: AudioBuffer;
+		let promise = new Promise<AudioBuffer>(async (resolve, reject) => {
 			try {
+				let blob = zipFile? await zipFile.async('blob') : await ResourceManager.loadResource(fullPath);
+				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
+				let audioBuffer: AudioBuffer;
+
 				if (window.AudioContext) {
 					audioBuffer = await this.context.decodeAudioData(arrayBuffer);
 				} else {
@@ -81,12 +82,11 @@ export abstract class AudioManager {
 						);
 					});
 				}
+	
+				resolve(audioBuffer);
 			} catch (e) {
-				console.log("Error with decoding Audio Data:", e);
-				console.log(fullPath);
+				reject(e);
 			}
-
-			resolve(audioBuffer);
 		});
 
 		if (!zipFile) this.audioBufferCache.set(fullPath, promise);

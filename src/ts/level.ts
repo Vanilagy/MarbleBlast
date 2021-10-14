@@ -72,6 +72,7 @@ export const GO_TIME = 3500;
 /** Default camera pitch */
 export const DEFAULT_PITCH = 0.45;
 const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should be large enough
+const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'metropolis.ogg', 'pianoforte.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
 /** The map used to get particle emitter options for a ParticleEmitterNode. */
 const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
@@ -465,7 +466,7 @@ export class Level extends Scheduler {
 				this.originalMusicName = ['groove police.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
 			} else {
 				// Play a random *MBP* song
-				musicFileName = Util.randomFromArray(['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'metropolis.ogg', 'pianoforte.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg']);
+				musicFileName = Util.randomFromArray(MBP_SONGS);
 				this.originalMusicName = musicFileName;
 			}
 		}
@@ -474,7 +475,17 @@ export class Level extends Scheduler {
 		let toLoad = ["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName];
 		if (isFinite(this.mission.qualifyTime) && state.modification === 'platinum') toLoad.push("alarm.wav", "alarm_timeout.wav", "infotutorial.wav");
 
-		await AudioManager.loadBuffers(toLoad);
+		try {
+			await AudioManager.loadBuffers(toLoad);
+		} catch (e) {
+			// Something died, maybe it was the music, try replacing it with a song we know exists
+			let newMusic = Util.randomFromArray(MBP_SONGS);
+			this.originalMusicName = newMusic;
+			toLoad[toLoad.indexOf(musicFileName)] = 'music/' + newMusic;
+			musicFileName = 'music/' + newMusic;
+			await AudioManager.loadBuffers(toLoad);
+		}
+		
 		this.music = AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
 		this.music.setLoop(true);
 		await this.music.promise;
@@ -1110,10 +1121,10 @@ export class Level extends Scheduler {
 			}
 
 			// Handle alarm warnings (that the user is about to exceed the par time)
-			if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum') {
+			if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum' && !this.finishTime) {
 				let alarmStart = this.mission.computeAlarmStartTime();
 
-				if (prevGameplayClock < alarmStart && this.timeState.gameplayClock >= alarmStart) {
+				if (prevGameplayClock <= alarmStart && this.timeState.gameplayClock >= alarmStart) {
 					// Start the alarm
 					this.alarmSound = AudioManager.createAudioSource('alarm.wav');
 					this.alarmSound.setLoop(true);
@@ -1406,6 +1417,7 @@ export class Level extends Scheduler {
 			this.finishTime.gameplayClock = Math.min(this.finishTime.gameplayClock, MAX_TIME); // Apply the time cap
 			this.finishTime.physicsTickCompletion = completionOfImpact;
 			this.currentTimeTravelBonus = 0;
+			this.alarmSound?.stop();
 
 			if (this.replay.mode === 'playback') this.finishTime = this.replay.finishTime;
 

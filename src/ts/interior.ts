@@ -466,7 +466,7 @@ export class Interior {
 			marble.body.addLinearVelocity(movementVec.scaleEq(-0.0015));
 			marble.body.setAngularVelocity(angVel.scaleEq(1.07));
 
-			return true;
+			return true; // Prevent immunity so we can trigger this code every tick and not every second tick or whatever
 		}
 
 		return true;

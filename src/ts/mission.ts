@@ -358,7 +358,7 @@ export class Mission {
 	computeAlarmStartTime() {
 		let alarmStart = this.qualifyTime;
 		if (this.missionInfo.alarmstarttime) alarmStart -= MisParser.parseNumber(this.missionInfo.alarmstarttime) * 1000;
-		else alarmStart -= 2 * 1000 ?? 15 * 1000;
+		else alarmStart -= 15 * 1000;
 		alarmStart = Math.max(0, alarmStart);
 
 		return alarmStart;

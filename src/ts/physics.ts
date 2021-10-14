@@ -308,9 +308,12 @@ export class PhysicsHelper {
 
 				if (object && !this.objectImmunity.has(object) && !calledObjects.has(object)) {
 					// We found a valid collision with an object
-					calledObjects.add(object);
 					let preventImmunity = object.onMarbleContact(this.level.timeState, contact);
-					if (!preventImmunity) newImmunity.push(object);
+					
+					if (!preventImmunity) {
+						calledObjects.add(object);
+						newImmunity.push(object);
+					}
 				}
 			}
 
