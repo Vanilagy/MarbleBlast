@@ -916,17 +916,20 @@ export class Level extends Scheduler {
 				rayCastDirection.addEq(rayCastDirection.clone().normalize().scale(2));
 
 				let firstHit: OIMO.RayCastHit = null;
+				let firstHitShape: OIMO.Shape = null;
 				let self = this;
 				this.physics.world.rayCast(rayCastOrigin, rayCastOrigin.add(rayCastDirection), {
 					process(shape, hit) {
 						if (shape !== self.marble.shape && !processedShapes.has(shape) && (!firstHit || hit.fraction < firstHit.fraction)) {
 							firstHit = Util.jsonClone(hit);
-							processedShapes.add(shape);
+							firstHitShape = shape;
 						}
 					}
 				});
 
 				if (firstHit) {
+					processedShapes.add(firstHitShape);
+
 					// Construct a plane at the point of ray impact based on the normal
 					let plane = new THREE.Plane();
 					let normal = Util.vecOimoToThree(firstHit.normal).multiplyScalar(-1);
@@ -954,6 +957,7 @@ export class Level extends Scheduler {
 					camera.rotateOnWorldAxis(rotationAxis, theta);
 					continue;
 				}
+				
 				break;
 			}
 
