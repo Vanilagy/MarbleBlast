@@ -1161,17 +1161,27 @@ export class Level extends Scheduler {
 	}
 
 	/** Sets the current up vector and gravity with it. */
-	setUp(vec: OIMO.Vec3, time: TimeState, instant = false) {
-		this.currentUp = vec;
-		this.physics.world.setGravity(vec.scale(-1 * this.physics.world.getGravity().length()));
+	setUp(newUp: OIMO.Vec3, time: TimeState, instant = false) {
+		this.currentUp = newUp;
+		this.physics.world.setGravity(newUp.scale(-1 * this.physics.world.getGravity().length()));
 
 		let currentQuat = this.getOrientationQuat(time);
 		let oldUp = new THREE.Vector3(0, 0, 1);
 		oldUp.applyQuaternion(currentQuat);
 
 		let quatChange = new THREE.Quaternion();
-		// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
-		quatChange.setFromUnitVectors(oldUp, Util.vecOimoToThree(vec));
+		let dot = Util.vecOimoToThree(newUp).dot(oldUp);
+		if (dot <= -(1 - 1e-15) && !(this.replay.version < 3)) { // If the old and new up are exact opposites, there are infinitely many possible rotations we could do. So choose the one that maintains the current look vector the best. Replay check so we don't break old stuff.
+			let lookVector = new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
+			let intermediateVector = oldUp.clone().cross(lookVector).normalize();
+
+			// First rotation to the intermediate vector, then rotate from there to the new up
+			quatChange.setFromUnitVectors(oldUp, intermediateVector);
+			quatChange.multiplyQuaternions(new THREE.Quaternion().setFromUnitVectors(intermediateVector, Util.vecOimoToThree(newUp)), quatChange);
+		} else {
+			// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
+			quatChange.setFromUnitVectors(oldUp, Util.vecOimoToThree(newUp));
+		}
 
 		this.newOrientationQuat = quatChange.multiply(currentQuat);
 		this.oldOrientationQuat = currentQuat;

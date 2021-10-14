@@ -16,6 +16,7 @@ import { Nuke } from "./shapes/nuke";
 export class Replay {
 	level: Level;
 	missionPath: string;
+	version: number = 3;
 	mode: 'record' | 'playback' = 'record';
 	/** If writing to the replay is still permitted. */
 	canStore = true;
@@ -367,7 +368,7 @@ export class Replay {
 
 		// First, create a more compact object by utilizing typed arrays.
 		let serialized: SerializedReplay = {
-			version: 3,
+			version: this.version,
 			timestamp: Date.now(),
 			missionPath: this.missionPath,
 			marblePositions: Util.arrayBufferToString(Replay.vec3sToBuffer(this.marblePositions).buffer),
@@ -408,6 +409,7 @@ export class Replay {
 		let serialized = JSON.parse(string) as SerializedReplay;
 		let version = serialized.version ?? 0;
 		
+		replay.version = version;
 		replay.missionPath = (version >= 1)? serialized.missionPath : null;
 		replay.timestamp = (version >= 1)? serialized.timestamp : 0;
 
