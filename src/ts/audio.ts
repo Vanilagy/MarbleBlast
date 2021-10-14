@@ -263,14 +263,20 @@ export class AudioSource {
 	}
 
 	async play() {
-		let maybeBuffer = await this.promise;
-		if (this.stopped && this.node instanceof AudioBufferSourceNode) {
-			// Gotta recreate this stuff
-			this.node = AudioManager.context.createBufferSource();
-			this.node.connect(this.gain);
+		if (this.stopped) {
 			this.stopped = false;
-			AudioManager.audioSources.push(this);
+
+			if (this.node instanceof AudioBufferSourceNode) {
+				// Gotta recreate this stuff
+				this.node = AudioManager.context.createBufferSource();
+				this.node.connect(this.gain);
+				this.stopped = false;
+				AudioManager.audioSources.push(this);
+			}
 		}
+
+		let maybeBuffer = await this.promise;
+		if (this.stopped) return;
 
 		if (this.node instanceof AudioBufferSourceNode) {
 			this.node.buffer = maybeBuffer as AudioBuffer;

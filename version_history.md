@@ -1,7 +1,14 @@
 # Version History
 
 ## 2.0.0
-- Did stuff
+To celebrate one year of the web port, we're bumping up its major version number to 2 and changing its name to "Marble Blast Web" with by far its biggest update yet. There are too many changes to be able to list them all, but here are the main ones:
+
+- **Implemented Marble Blast Platinum.** Well, at least the single-player part of it. This includes a completely new menu, new levels, new options, new sounds, new music and new gameplay elements. The added gameplay elements are checkpoints, teleporters, nukes, magnets, MBP frictions, bouncy floor, random power-ups and easter eggs.
+- **Added 1608 new levels.** This includes the 120 MBP default levels as well as 1488 MBP customs taken from Marbleland.
+- **Implemented game switching.** To still be able to play the pure Marble Blast Gold, you can now quickly switch between the two games in the main menu.
+- **Made physics more consistent.** Continuous collision detection got a makeover, so all collision (including edge-hits) should be way more accurate and reliable now. Hitting internal edges should also happen much more rarely now.
+- **Added a fancy new particle renderer.** Tens of thousands of particles on screen at one time will now run smooth like butter. Like a criminal undercover.
+- **Many bugfixes and improvements.** Tons of smaller bugs and inconsistencies were fixed and the game was optimized and improved in many places.
 
 ## 1.5.8
 - Added an additional 387 custom levels from Marbleland
