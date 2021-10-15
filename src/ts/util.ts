@@ -660,7 +660,8 @@ export abstract class Util {
 	}
 
 	static supportsInstancing(renderer: THREE.WebGLRenderer) {
-		return !(renderer.capabilities.isWebGL2 === false && renderer.extensions.has( 'ANGLE_instanced_arrays' ) === false);
+		// Macs weird man
+		return !Util.isMac() && !(renderer.capabilities.isWebGL2 === false && renderer.extensions.has( 'ANGLE_instanced_arrays' ) === false);
 	}
 }
 

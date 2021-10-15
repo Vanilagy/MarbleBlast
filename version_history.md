@@ -1,5 +1,9 @@
 # Version History
 
+## 2.0.1
+- Fixed broken instancing on Macs
+- Fixed sometimes-janky marble interpolation
+
 ## 2.0.0
 To celebrate one year of the web port, we're bumping up its major version number to 2 and changing its name to "Marble Blast Web" with by far its biggest update yet. There are too many changes to be able to list them all, but here are the main ones:
 

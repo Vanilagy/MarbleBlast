@@ -44,8 +44,6 @@ export class Marble {
 	shape: OIMO.Shape;
 	body: OIMO.RigidBody;
 	marbleTexture: THREE.Texture;
-	currentVisualPosition: OIMO.Vec3;
-	currentVisualOrientation: OIMO.Quat;
 	/** The predicted position of the marble in the next tick. */
 	predictedPosition: OIMO.Vec3;
 	/** The predicted orientation of the marble in the next tick. */
@@ -506,9 +504,6 @@ export class Marble {
 		let pos = this.body.getPosition();
 		let orientation = this.body.getOrientation();
 
-		this.currentVisualPosition = this.predictedPosition;
-		this.currentVisualOrientation = this.predictedOrientation;
-
 		// Naive: Just assume the marble moves as if nothing was in its way and it continued with its current velocity.
 		let predictedPosition = pos.add(vel.scale(1 / PHYSICS_TICK_RATE)).addEq(this.level.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
 		let finalPredictedPosition = predictedPosition;
@@ -545,8 +540,8 @@ export class Marble {
 
 	render(time: TimeState) {
 		// Position based on current and predicted position and orientation
-		let bodyPosition = Util.lerpOimoVectors(this.currentVisualPosition, this.predictedPosition, time.physicsTickCompletion);
-		let bodyOrientation = this.currentVisualOrientation.slerp(this.predictedOrientation, time.physicsTickCompletion);
+		let bodyPosition = Util.lerpOimoVectors(this.body.getPosition(), this.predictedPosition, time.physicsTickCompletion);
+		let bodyOrientation = this.body.getOrientation().slerp(this.predictedOrientation, time.physicsTickCompletion);
 		this.group.position.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
 		this.sphere.quaternion.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
 
@@ -617,8 +612,6 @@ export class Marble {
 		this.lastVel = new OIMO.Vec3();
 		this.collisionTimeout = 0;
 		this.slidingTimeout = 0;
-		this.currentVisualPosition = this.body.getPosition();
-		this.currentVisualOrientation = this.body.getOrientation();
 		this.predictedPosition = this.body.getPosition();
 		this.predictedOrientation = this.body.getOrientation();
 
