@@ -79,7 +79,8 @@ export const getVersionHistory = async (res: http.ServerResponse) => {
 	const contents = await fs.readFile(path.join(__dirname, '../version_history.md'));
 
 	res.writeHead(200, {
-		'Content-Type': 'text/markdown'
+		'Content-Type': 'text/markdown',
+		'Cache-Control': 'no-cache, no-store' // Don't cache this
 	});
 	res.end(contents);
 };
