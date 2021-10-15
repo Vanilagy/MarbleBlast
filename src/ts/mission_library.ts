@@ -83,7 +83,7 @@ export abstract class MissionLibrary {
 		let goldCustoms = await ResourceManager.readBlobAsJson(await goldCustomLevelListPromise) as CLAEntry[];
 		goldCustoms = goldCustoms.filter(x => x.modification === 'gold'); // Apparently some platinum levels snuck in
 		let platCustoms = await ResourceManager.readBlobAsJson(await platinumCustomLevelListPromise) as CLAEntry[];
-		platCustoms = platCustoms.filter(x => x.gameType === 'single'); // Whoops, forgot to filter the JSON
+		platCustoms = platCustoms.filter(x => x.gameType === 'single' && (!x.gameMode || x.gameMode === 'null')); // Whoops, forgot to filter the JSON
 
 		// Remove duplicate platinum levels
 		let platCustomNames = new Set<string>();

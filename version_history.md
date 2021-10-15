@@ -3,6 +3,7 @@
 ## 2.0.2
 - Added custom friction support
 - Fixed MBG volume slider bug
+- Remove some unsupported customs
 
 ## 2.0.1
 - Fixed broken instancing on Macs
