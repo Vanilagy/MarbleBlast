@@ -11,7 +11,7 @@ export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
 const SMOOTH_SHADING_ANGLE_THRESHOLD = Math.cos(Util.degToRad(15));
 
-const specialFriction: Record<string, number> = {
+const specialFrictionFactor: Record<string, number> = {
 	"friction_high": 1.5,
 	"friction_low": 0.2,
 	"friction_none": 0.01,
@@ -49,7 +49,10 @@ const specialResistutionFactor: Record<string, number> = {
 	"mmg_ice": 0.95,
 	//"floor_bounce": 0.0
 };
-const specialMaterials = new Set([...Object.keys(specialFriction), ...Object.keys(specialResistutionFactor)]);
+const specialForces: Record<string, number> = {
+	"floor_bounce": 15
+};
+const specialMaterials = new Set([...Object.keys(specialFrictionFactor), ...Object.keys(specialResistutionFactor), ...Object.keys(specialForces)]);
 
 /** Stores a list of all vertices with similar face normal. */
 interface VertexBucket {
@@ -89,7 +92,7 @@ export class Interior {
 	materialGeometry: MaterialGeometry = [];
 	/** Simply contains the file names of the materials without the path to them. */
 	materialNames: string[] = [];
-	bouncyFloors = new WeakSet<OIMO.Shape>();
+	forceShapes = new WeakMap<OIMO.Shape, number>();
 	randomForces = new WeakSet<OIMO.Shape>();
 	/** The data shared with other interiors with the same detail level (used for instancing). */
 	sharedData: SharedInteriorData;
@@ -102,6 +105,7 @@ export class Interior {
 	convexHullOctree = new Octree();
 	addedHulls = new Set<number>();
 	canMove = false;
+	specialMaterials: Set<string>;
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
 		this.dif = file;
@@ -114,6 +118,9 @@ export class Interior {
 		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
 		this.body = new OIMO.RigidBody(rigidBodyConfig);
 		this.useInstancing = Util.supportsInstancing(renderer);
+
+		// Combine the default special materials with the special ones specified in the .mis file
+		this.specialMaterials = new Set([...specialMaterials, ...Object.keys(this.level.mission.misFile.materialMappings)]);
 	}
 
 	async init(id: number) {
@@ -321,16 +328,26 @@ export class Interior {
 		shapeConfig.geometry = geometry;
 		shapeConfig.restitution = INTERIOR_DEFAULT_RESTITUTION;
 		shapeConfig.friction = INTERIOR_DEFAULT_FRICTION;
+		let force: number;
 
 		if (this.allowSpecialMaterials) {
-			shapeConfig.restitution *= specialResistutionFactor[material] ?? 1;
-			shapeConfig.friction *= specialFriction[material] ?? 1;
+			// Check for a custom material property override in the mission file
+			let specialMatProperties = this.level.mission.misFile.materialProperties[this.level.mission.misFile.materialMappings[material]];
+			
+			let restitution = specialMatProperties?.['restitution'] ?? specialResistutionFactor[material] ?? 1;
+			let friction = specialMatProperties?.['friction'] ?? specialFrictionFactor[material] ?? 1;
+			force = specialMatProperties?.['force'] ?? specialForces[material];
+
+			if (force !== undefined) restitution = 1; // Because we don't want anything to act weird
+
+			shapeConfig.restitution *= restitution;
+			shapeConfig.friction *= friction;
 		}
 
 		let shape = new OIMO.Shape(shapeConfig);
 		shape.userData = this.id;
-		if (this.allowSpecialMaterials && material === 'floor_bounce') this.bouncyFloors.add(shape);
 		if (this.allowSpecialMaterials && material?.startsWith('mbp_chevron_friction')) this.randomForces.add(shape);
+		if (force !== undefined) this.forceShapes.set(shape, force);
 
 		this.body.addShape(shape);
 	}
@@ -353,7 +370,7 @@ export class Interior {
 		}
 
 		// In case there is more than one material and one of them is special, generate geometry directly from the surfaces instead of from the convex hull.
-		if (materials.size > 1 && Util.setsHaveOverlap(materials, specialMaterials)) {
+		if (materials.size > 1 && Util.setsHaveOverlap(materials, this.specialMaterials)) {
 			for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
 				let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
 				if (!surface) continue;
@@ -453,9 +470,9 @@ export class Interior {
 		let contactNormal = contact.getManifold().getNormal();
 		if (contact.getShape1().userData === this.id) contactNormal.scaleEq(-1);;
 
-		if (this.bouncyFloors.has(contactShape)) {
+		if (this.forceShapes.has(contactShape)) {
 			// Set the velocity along the contact normal, but make sure it's capped
-			marble.setLinearVelocityInDirection(contactNormal, 15, false);
+			marble.setLinearVelocityInDirection(contactNormal, this.forceShapes.get(contactShape), false);
 			marble.slidingTimeout = 2; // Make sure we don't slide on the interior after bouncing off it
 
 			return false;

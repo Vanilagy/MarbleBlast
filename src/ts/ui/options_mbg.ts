@@ -216,10 +216,10 @@ export class MbgOptionsScreen extends OptionsScreen {
 			// Release all dragging things
 			this.draggingMusicVolume = this.draggingSoundVolume = this.draggingMouseSensitivity = false;
 			StorageManager.store();
-		
+
 			if (this.soundTestingSound) {
 				// Stop the sound
-				this.soundTestingSound.setLoop(true);
+				this.soundTestingSound.stop();
 				this.soundTestingSound = null;
 			}
 		});

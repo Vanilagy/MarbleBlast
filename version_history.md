@@ -1,5 +1,9 @@
 # Version History
 
+## 2.0.2
+- Added custom friction support
+- Fixed MBG volume slider bug
+
 ## 2.0.1
 - Fixed broken instancing on Macs
 - Fixed sometimes-janky marble interpolation

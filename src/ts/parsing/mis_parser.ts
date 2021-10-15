@@ -6,7 +6,9 @@ export interface MisFile {
 	root: MissionElementSimGroup,
 	/** The custom marble attributes overrides specified in the file. */
 	marbleAttributes: Record<string, string>,
-	activatedPackages: string[]
+	activatedPackages: string[],
+	materialProperties: Record<string, Record<string, number>>,
+	materialMappings: Record<string, string>
 }
 
 export enum MissionElementType {
@@ -268,6 +270,8 @@ const lineCommentRegEx = /\/\/.*/g;
 const assignmentRegEx = /(\$(?:\w|\d)+)\s*=\s*(.+?);/g;
 const marbleAttributesRegEx = /setMarbleAttributes\("(\w+)",\s*(.+?)\);/g;
 const activatePackageRegEx = /activatePackage\((.+?)\);/g;
+const materialPropertyRegEx = /new MaterialProperty *\( *(.+?) *\)\s*{\s*((?:\w+ *= *(\d|\.)+;\s*)*)}/gi;
+const addMaterialMappingRegEx = /addMaterialMapping *\( *"(.+?)" *, *(.+?) *\)/gi;
 
 /** A parser for .mis files, which hold mission information. */
 export class MisParser {
@@ -281,6 +285,9 @@ export class MisParser {
 	}
 
 	parse(): MisFile {
+		// This is dirty, but prepend all material definitions to the top of the file so we can parse them incase any custom material of this level uses them.
+		this.text = materialPropertyDefinition + '\n\n' + this.text;
+
 		let objectWriteBeginIndex = this.text.indexOf("//--- OBJECT WRITE BEGIN ---");
 		let objectWriteEndIndex = this.text.lastIndexOf("//--- OBJECT WRITE END ---");
 
@@ -309,6 +316,24 @@ export class MisParser {
 		activatePackageRegEx.lastIndex = 0;
 		while ((match = activatePackageRegEx.exec(outsideText)) !== null) {
 			activatedPackages.push(this.resolveExpression(match[1]));
+		}
+
+		let materialProperties: Record<string, Record<string, number>> = {};
+		match = null;
+		materialPropertyRegEx.lastIndex = 0;
+		while ((match = materialPropertyRegEx.exec(outsideText)) !== null) {
+			let pairs = match[2].split(';').filter(x => x.trim()).map(x => x.split('=').map(x => x.trim()));
+			materialProperties[match[1]] = {};
+			for (let pair of pairs) {
+				materialProperties[match[1]][pair[0]] = Number(pair[1]);
+			}
+		}
+
+		let materialMappings: Record<string, string> = {};
+		match = null;
+		addMaterialMappingRegEx.lastIndex = 0;
+		while ((match = addMaterialMappingRegEx.exec(outsideText)) !== null) {
+			materialMappings[match[1]] = match[2];
 		}
 
 		// Trim away the outside text
@@ -358,8 +383,10 @@ export class MisParser {
 
 		return {
 			root: elements[0] as MissionElementSimGroup,
-			marbleAttributes: marbleAttributes,
-			activatedPackages: activatedPackages
+			marbleAttributes,
+			activatedPackages,
+			materialProperties,
+			materialMappings
 		};
 	}
 
@@ -696,3 +723,228 @@ export class MisParser {
 		return true;
 	}
 }
+
+/** The source string, taken from PQ, where all default frictions and materials are defined. */
+const materialPropertyDefinition = `
+new MaterialProperty(GrassFrictionMaterial) {
+	friction = 1.50;
+	restitution = 0.35;
+};
+
+new MaterialProperty(TarmacFrictionMaterial) {
+	friction = 0.35;
+	restitution = 0.7;
+};
+
+new MaterialProperty(RugFrictionMaterial) {
+	friction = 6;
+	restitution = 0.5;
+};
+
+new MaterialProperty(IceFrictionMaterial) {
+	friction = 0.03;
+	restitution = 0.95;
+};
+
+new MaterialProperty(CarpetFrictionMaterial) {
+	friction = 6;
+	restitution = 0.5;
+};
+
+new MaterialProperty(SandFrictionMaterial) {
+	friction = 4;
+	restitution = 0.1;
+};
+
+new MaterialProperty(WaterFrictionMaterial) {
+	friction = 6;
+	restitution = 0;
+};
+
+new MaterialProperty(BouncyFrictionMaterial) {
+	friction = 0.2;
+	restitution = 0;
+	force = 15;
+};
+
+new MaterialProperty(RandomForceMaterial) {
+	friction = -1;
+	restitution = 1;
+};
+
+// MBU/O values...
+
+new MaterialProperty(HighFrictionMultiplayerMaterial) {
+	friction = 6;
+	restitution = 0.3;
+};
+
+// added to stop the game from popping an error in the console log that it cannot find the
+// material property even though the game runs fine without that minor piece of code
+// so these lines of code are an extra to shut the game up and you can remove them if you wish
+
+new MaterialProperty(DefaultMaterial) {
+	friction = 1;
+	restitution = 1;
+};
+
+// these values are for a balanced game play with Mini Marble Golf (the levels)
+// they might be a tad different to their MBP equivalent and are more realistic
+
+new MaterialProperty(MMGGrassMaterial) {
+	friction = 0.9;
+	restitution = 0.5;
+};
+
+new MaterialProperty(MMGSandMaterial) {
+	friction = 6;
+	restitution = 0.1;
+};
+
+new MaterialProperty(MMGWaterMaterial) {
+	friction = 6;
+	restitution = 0;
+};
+
+new MaterialProperty(MMGIceMaterial) {
+	friction = 0.03;
+	restitution = 0.95;
+};
+
+new MaterialProperty(MMGIceShadowMaterial) {
+	friction = 0.2;
+	restitution = 0.95;
+};
+
+// These are some old values
+
+new MaterialProperty(BumperMaterial) {
+	friction = 0.5;
+	restitution = 0;
+	force = 15;
+};
+
+new MaterialProperty(ButtonMaterial) {
+	friction = 1;
+	restitution = 1;
+};
+
+// MBG Values for their frictions. MBP ones still rock, though.
+
+// Space
+
+new MaterialProperty(NoFrictionMaterial) {
+	friction = 0.01;
+	restitution = 0.5;
+};
+
+// Mud
+
+new MaterialProperty(LowFrictionMaterial) {
+	friction = 0.20;
+	restitution = 0.5;
+};
+
+// Grass
+
+new MaterialProperty(HighFrictionMaterial) {
+	friction = 1.50;
+	restitution = 0.5;
+};
+
+// Yellow ramps with arrows from Three Fold Maze and Escher's Race
+
+new MaterialProperty(VeryHighFrictionMaterial) {
+	friction = 2;
+	restitution = 1;
+};
+
+// Normal floor
+
+new MaterialProperty(RubberFloorMaterial) {
+	friction = 1;
+	restitution = 1;
+};
+
+// Oil Slick
+
+new MaterialProperty(IceMaterial) {
+	friction = 0.05;
+	restitution = 0.5;
+};
+
+new MaterialProperty(XmasSnowMaterial) {
+	friction = 3;
+	restitution = 0.2;
+};
+
+// PlatinumQuest frictions
+
+new MaterialProperty(PQSpaceMaterial) {
+	friction = 0.01;
+	restitution = 0.35;
+};
+
+// It's elite
+new MaterialProperty(PQIceMaterial) {
+	friction = 0.07331;
+	restitution = 0.75;
+};
+
+new MaterialProperty(PQMudMaterial) {
+	friction = 0.30;
+	restitution = 0.5;
+};
+
+// Match 3FM/ER friction
+new MaterialProperty(PQGrassMaterial) {
+	friction = 2;
+	restitution = 0.5;
+};
+
+// Tad higher on rest. now
+new MaterialProperty(PQSandMaterial) {
+	friction = 4;
+	restitution = 0.15;
+};
+
+new MaterialProperty(PQBouncyMaterial) {
+	friction = 0.2;
+	restitution = 0;
+	force = 15;
+};
+
+new MaterialProperty(IceShardMaterial) {
+	friction = 0;
+	restitution = 0;
+	force = 0;
+};
+
+new MaterialProperty(MORepulsionMaterial) {
+	friction = 1;
+	restitution = 1;
+	force = 10;
+};
+
+new MaterialProperty(MOWeakRepulsionMaterial) {
+	friction = 1;
+	restitution = 1;
+	force = 5;
+};
+
+// Spooky!!
+
+new MaterialProperty(SpookyWaterMaterial) {
+	friction = 6;
+	restitution = 0;
+};
+
+new MaterialProperty(SpookyDirtMaterial) {
+	friction = 6;
+	restitution = 0.3;
+};
+
+new MaterialProperty(SpookyGrassMaterial) {
+	friction = 2;
+	restitution = 0.75;
+};`;
