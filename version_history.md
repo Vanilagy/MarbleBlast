@@ -1,9 +1,17 @@
 # Version History
 
+## 2.0.3
+- Fixed checkpoint spawn points in different gravities
+- Fixed teleport triggers in certain situations
+- Fixed missing skyboxes/assets in some customs
+- Fixed Pianoforte.ogg playing in levels
+- Fixed free-look setting not being respected with controllers
+- Fixed minor UI bugs
+
 ## 2.0.2
 - Added custom friction support
 - Fixed MBG volume slider bug
-- Remove some unsupported customs
+- Removed some unsupported customs
 
 ## 2.0.1
 - Fixed broken instancing on Macs

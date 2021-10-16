@@ -590,7 +590,8 @@ export class Marble {
 	}
 
 	enableTeleportingLook(time: TimeState) {
-		this.teleportEnableTime = time.currentAttemptTime;
+		let completion = (this.teleportDisableTime !== null)? Util.clamp((time.currentAttemptTime - this.teleportDisableTime) / TELEPORT_FADE_DURATION, 0, 1) : 1;
+		this.teleportEnableTime = time.currentAttemptTime - TELEPORT_FADE_DURATION * (1 - completion);
 		this.teleportDisableTime = null;
 	}
 	

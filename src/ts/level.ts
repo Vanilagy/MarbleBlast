@@ -72,7 +72,7 @@ export const GO_TIME = 3500;
 /** Default camera pitch */
 export const DEFAULT_PITCH = 0.45;
 const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should be large enough
-const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'metropolis.ogg', 'pianoforte.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
+const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
 /** The map used to get particle emitter options for a ParticleEmitterNode. */
 const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
@@ -454,7 +454,7 @@ export class Level extends Scheduler {
 
 	async initSounds() {
 		let musicFileName: string;
-		if (this.mission.missionInfo.music) {
+		if (this.mission.missionInfo.music && this.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
 			musicFileName = this.mission.missionInfo.music.toLowerCase();
 			this.originalMusicName = musicFileName;
 		} else {
@@ -1053,6 +1053,7 @@ export class Level extends Scheduler {
 				let position = this.marble.body.getPosition().clone();
 				position.x = startPosition.x;
 				position.y = startPosition.y;
+				position = new OIMO.Vec3(-80, 10, 490);
 				this.marble.body.setPosition(position);
 
 				let vel = this.marble.body.getLinearVelocity();
@@ -1071,6 +1072,7 @@ export class Level extends Scheduler {
 
 			let yawChange = 0.0;
 			let pitchChange = 0.0;
+			let freeLook = StorageManager.data.settings.alwaysFreeLook || isPressed('freeLook');
 			let amount = Util.lerp(1, 6, StorageManager.data.settings.keyboardSensitivity);
 			if (isPressed('cameraLeft')) yawChange += amount;
 			if (isPressed('cameraRight')) yawChange -= amount;
@@ -1078,7 +1080,7 @@ export class Level extends Scheduler {
 			if (isPressed('cameraDown')) pitchChange += amount;
 			
 			yawChange -= gamepadAxes.cameraX * 5.0;
-			pitchChange += gamepadAxes.cameraY * 5.0;
+			if (freeLook) pitchChange += gamepadAxes.cameraY * 5.0;
 			
 			this.yaw += yawChange / PHYSICS_TICK_RATE;
 			this.pitch += pitchChange / PHYSICS_TICK_RATE;
@@ -1357,8 +1359,19 @@ export class Level extends Scheduler {
 	loadCheckpointState() {
 		let marble = this.marble;
 
+		let gravityField = (this.currentCheckpoint.srcElement as any)?.gravity || this.currentCheckpointTrigger?.element.gravity;
+		if (MisParser.parseBoolean(gravityField)) {
+			// In this case, we set the gravity to the relative "up" vector of the checkpoint shape.
+			let up = new THREE.Vector3(0, 0, 1);
+			up.applyQuaternion(this.currentCheckpoint.worldOrientation);
+			this.setUp(Util.vecThreeToOimo(up), this.timeState, true);
+		} else {
+			// Otherwise, we restore gravity to what was stored.
+			this.setUp(this.checkpointUp, this.timeState, true);
+		}
+
 		// Determine where to spawn the marble
-		let offset = new OIMO.Vec3(0, 0, 3);
+		let offset = this.currentUp.scale(3);
 		let add = (this.currentCheckpoint.srcElement as any)?.add || this.currentCheckpointTrigger?.element.add;
 		if (add) offset = Util.vecThreeToOimo(MisParser.parseVector3(add));
 
@@ -1371,17 +1384,6 @@ export class Level extends Scheduler {
 		euler.setFromQuaternion(this.currentCheckpoint.worldOrientation, "ZXY");
 		this.yaw = euler.z + Math.PI/2;
 		this.pitch = DEFAULT_PITCH;
-
-		let gravityField = (this.currentCheckpoint.srcElement as any)?.gravity || this.currentCheckpointTrigger?.element.gravity;
-		if (MisParser.parseBoolean(gravityField)) {
-			// In this case, we set the gravity to the relative "up" vector of the checkpoint shape.
-			let up = new THREE.Vector3(0, 0, 1);
-			up.applyQuaternion(this.currentCheckpoint.worldOrientation);
-			this.setUp(Util.vecThreeToOimo(up), this.timeState, true);
-		} else {
-			// Otherwise, we restore gravity to what was stored.
-			this.setUp(this.checkpointUp, this.timeState, true);
-		}
 
 		// Restore gem states
 		for (let shape of this.shapes) {

@@ -12,6 +12,7 @@ export class TeleportTrigger extends Trigger {
 	/** How long after entry until the teleport happens */
 	delay = 2000;
 	entryTime: number = null;
+	exitTime: number = null;
 
 	constructor(element: MissionElementTrigger, level: Level) {
 		super(element, level);
@@ -20,21 +21,35 @@ export class TeleportTrigger extends Trigger {
 	}
 
 	onMarbleEnter(time: TimeState) {
+		this.exitTime = null;
+		this.level.marble.enableTeleportingLook(time);
+		this.level.replay.recordMarbleEnter(this);
+		if (this.entryTime !== null) return;
+
 		this.entryTime = time.currentAttemptTime;
 		state.menu.hud.displayAlert("Teleporter has been activated, please wait.");
-		this.level.replay.recordMarbleEnter(this);
-		this.level.marble.enableTeleportingLook(time);
 	}
 
 	onMarbleLeave(time: TimeState) {
-		this.entryTime = null;
-		this.level.replay.recordMarbleLeave(this);
+		this.exitTime = time.currentAttemptTime;
 		this.level.marble.disableTeleportingLook(time);
+		this.level.replay.recordMarbleLeave(this);
 	}
 
 	tick(time: TimeState) {
 		if (this.entryTime === null) return;
-		if (time.currentAttemptTime - this.entryTime >= this.delay) this.executeTeleport();
+
+		if (time.currentAttemptTime - this.entryTime >= this.delay) {
+			this.executeTeleport();
+			return;
+		}
+
+		// There's a little delay after exiting before the teleporter gets cancelled
+		if (this.exitTime !== null && time.currentAttemptTime - this.exitTime > 50) {
+			this.entryTime = null;
+			this.exitTime = null;
+			return;
+		}
 	}
 
 	executeTeleport() {
@@ -75,5 +90,6 @@ export class TeleportTrigger extends Trigger {
 
 	reset() {
 		this.entryTime = null;
+		this.exitTime = null;
 	}
 }
