@@ -4,12 +4,14 @@ import { TimeState } from "../level";
 import { MissionElementItem } from "../parsing/mis_parser";
 import { state } from "../state";
 
+export const DEFAULT_COOLDOWN_DURATION = 7000;
+
 /** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
 	element: MissionElementItem;
 	lastPickUpTime: number = null;
 	/** Reappears after this time. */
-	cooldownDuration: number = 7000;
+	cooldownDuration: number = DEFAULT_COOLDOWN_DURATION;
 	/** Whether or not to automatically use the powerup instantly on pickup. */
 	autoUse = false;
 	ambientRotate = true;

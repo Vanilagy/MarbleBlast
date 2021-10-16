@@ -1395,6 +1395,11 @@ export class Level extends Scheduler {
 		state.menu.hud.displayGemCount(this.gemCount, this.totalGems);
 		state.menu.hud.setCenterText('none');
 
+		// Turn all of these off
+		marble.superBounceEnableTime = -Infinity;
+		marble.shockAbsorberEnableTime = -Infinity;
+		marble.helicopterEnableTime = -Infinity;
+
 		this.clearSchedule();
 		this.outOfBounds = false;
 

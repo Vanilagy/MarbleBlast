@@ -31,7 +31,6 @@ export class RandomPowerUp extends PowerUp {
 			let instance = new random(this.element);
 			instance.level = this.level; // Prevent having to init()
 			instance.id = this.id;
-			if (random === TimeTravel) this.cooldownDuration = Infinity; // Don't respawn again
 
 			if (instance.pickUp()) {
 				// We pretend we're them
@@ -39,6 +38,7 @@ export class RandomPowerUp extends PowerUp {
 				this.customPickUpAlert = instance.customPickUpAlert;
 				this.an = instance.an;
 				this.autoUse = instance.autoUse;
+				this.cooldownDuration = instance.cooldownDuration;
 				this.lastInstance = instance;
 				this.pickedUpCount++;
 

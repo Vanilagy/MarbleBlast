@@ -477,6 +477,7 @@ export class Shape {
 			if (flags & MaterialFlags.Translucent) {
 				material.transparent = true;
 				material.depthWrite = false;
+				material.userData = { translucent: true };
 			}
 			if (flags & MaterialFlags.Additive) material.blending = THREE.AdditiveBlending;
 			if (flags & MaterialFlags.Subtractive) material.blending = THREE.SubtractiveBlending;
@@ -963,7 +964,7 @@ export class Shape {
 		}
 
 		const updateMaterial = (material: THREE.Material) => {
-			material.transparent = true;
+			material.transparent = material.userData?.translucent ?? opacity < 1;
 			
 			if (material instanceof THREE.ShadowMaterial) {
 				material.opacity = opacity * 0.25; // Make sure the shadow isn't too dark

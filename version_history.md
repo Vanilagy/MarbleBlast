@@ -1,5 +1,10 @@
 # Version History
 
+## 2.0.6
+- Fixed random power-up not respawning
+- Fixed power-up effects not disappearing upon checkpoint respawn
+- Fixed particle rendering bug
+
 ## 2.0.5
 - Fixed old replays not loading correctly
 
