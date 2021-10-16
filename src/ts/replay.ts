@@ -442,14 +442,14 @@ export class Replay {
 		replay.trapdoorStartValues = serialized.trapdoorStartValues;
 		replay.landmineStartValues = serialized.landmineStartValues;
 		replay.pushButtonStartValues = serialized.pushButtonStartValues ?? []; // Might not be there in older versions
-		replay.nukeStartValues = serialized.nukeStartValues;
+		replay.nukeStartValues = serialized.nukeStartValues ?? [];
 		replay.timeSinceLoad = serialized.timeSinceLoad;
 		replay.rollingSoundGain = [...new Float32Array(Util.stringToArrayBuffer(serialized.rollingSoundGain))];
 		replay.rollingSoundPlaybackRate = [...new Float32Array(Util.stringToArrayBuffer(serialized.rollingSoundPlaybackRate))];
 		replay.slidingSoundGain = [...new Float32Array(Util.stringToArrayBuffer(serialized.slidingSoundGain))];
 		replay.jumpSoundTimes = serialized.jumpSoundTimes;
 		replay.bounceTimes = serialized.bounceTimes;
-		replay.randomPowerUpChoices = serialized.randomPowerUpChoices.reduce((prev, next) => (prev.set(next[0], next[1]), prev), new Map<number, number[]>());
+		replay.randomPowerUpChoices = (serialized.randomPowerUpChoices ?? []).reduce((prev, next) => (prev.set(next[0], next[1]), prev), new Map<number, number[]>());
 
 		return replay;
 	}

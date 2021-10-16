@@ -1,5 +1,8 @@
 # Version History
 
+## 2.0.5
+- Fixed old replays not loading correctly
+
 ## 2.0.4
 - Fixed checkpoints not storing power-ups correctly
 
