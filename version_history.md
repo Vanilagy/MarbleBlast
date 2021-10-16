@@ -1,5 +1,8 @@
 # Version History
 
+## 2.0.4
+- Fixed checkpoints not storing power-ups correctly
+
 ## 2.0.3
 - Fixed checkpoint spawn points in different gravities
 - Fixed teleport triggers in certain situations
