@@ -1246,7 +1246,7 @@ export class Level extends Scheduler {
 		this.yaw -= e.movementX * factor * xFactor;
 	}
 
-	pickUpPowerUp(powerUp: PowerUp) {
+	pickUpPowerUp(powerUp: PowerUp, playPickUpSound = true) {
 		if (!powerUp) return false;
 		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
 		this.heldPowerUp = powerUp;
@@ -1259,7 +1259,7 @@ export class Level extends Scheduler {
 			else this.overlayScene.remove(overlayShape.group);
 		}
 
-		AudioManager.play(powerUp.sounds[0]);
+		if (playPickUpSound) AudioManager.play(powerUp.sounds[0]);
 
 		return true;
 	}
@@ -1400,7 +1400,7 @@ export class Level extends Scheduler {
 
 		this.deselectPowerUp(); // Always deselect first
 		// Wait a bit to select the powerup to prevent immediately using it incase the user skipped the OOB screen by clicking
-		if (this.checkpointHeldPowerUp) this.schedule(this.timeState.currentAttemptTime + 500, () => this.pickUpPowerUp(this.checkpointHeldPowerUp));
+		if (this.checkpointHeldPowerUp) this.schedule(this.timeState.currentAttemptTime + 500, () => this.pickUpPowerUp(this.checkpointHeldPowerUp, false));
 
 		AudioManager.play('spawn.wav');
 	}
