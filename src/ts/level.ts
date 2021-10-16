@@ -1053,7 +1053,6 @@ export class Level extends Scheduler {
 				let position = this.marble.body.getPosition().clone();
 				position.x = startPosition.x;
 				position.y = startPosition.y;
-				position = new OIMO.Vec3(-80, 10, 490);
 				this.marble.body.setPosition(position);
 
 				let vel = this.marble.body.getLinearVelocity();
