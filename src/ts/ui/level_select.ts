@@ -76,10 +76,10 @@ export abstract class LevelSelect {
 		window.addEventListener('keydown', (e) => {
 			if (this.div.classList.contains('hidden')) return;
 		
-			if (e.code === 'ArrowLeft' && document.activeElement === document.body) {
+			if (e.code === 'ArrowLeft' && (!this.searchInput.value || document.activeElement === document.body)) {
 				this.cycleMission(-1);
 				if (!this.prevButton.style.pointerEvents) this.prevButton.src = this.menu.uiAssetPath + 'play/prev_d.png';
-			} else if (e.code === 'ArrowRight' && document.activeElement === document.body) {
+			} else if (e.code === 'ArrowRight' && (!this.searchInput.value || document.activeElement === document.body)) {
 				this.cycleMission(1);
 				if (!this.nextButton.style.pointerEvents) this.nextButton.src = this.menu.uiAssetPath + 'play/next_d.png';
 			} else if (e.code === 'Escape') {
