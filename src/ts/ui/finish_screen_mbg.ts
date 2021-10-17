@@ -66,12 +66,17 @@ export class MbgFinishScreen extends FinishScreen {
 		this.qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? Util.secondsToTimeString(level.mission.qualifyTime / 1000) : Util.secondsToTimeString(5999.999);
 		this.qualifyTimeElement.style.color = failedToQualify? 'red' : '';
 		this.qualifyTimeElement.style.textShadow = failedToQualify? '1px 1px 0px black' : '';
+		Util.monospaceNumbers(this.qualifyTimeElement);
 		
 		let goldTime = level.mission.goldTime;
 		this.goldTimeElement.textContent = Util.secondsToTimeString(goldTime / 1000);
 		this.goldTimeElement.parentElement.style.display = (goldTime !== -Infinity)? '' : 'none';
+		Util.monospaceNumbers(this.goldTimeElement);
+
 		this.elapsedTimeElement.textContent = Util.secondsToTimeString(elapsedTime / 1000);
 		this.bonusTimeElement.textContent = Util.secondsToTimeString(bonusTime / 1000);
+		Util.monospaceNumbers(this.elapsedTimeElement);
+		Util.monospaceNumbers(this.bonusTimeElement);
 	}
 
 	createBestTimeElement() {
@@ -87,6 +92,7 @@ export class MbgFinishScreen extends FinishScreen {
 
 		element.children[0].textContent = rank + '. ' + score[0];
 		element.children[1].textContent = Util.secondsToTimeString(score[1] / 1000);
+		Util.monospaceNumbers(element.children[1]);
 		(element.children[1] as HTMLParagraphElement).style.color = (score[1] <= goldTime)? '#fff700' : '';
 		(element.children[1] as HTMLParagraphElement).style.textShadow = (score[1] <= goldTime)? '1px 1px 0px black' : '';
 	}

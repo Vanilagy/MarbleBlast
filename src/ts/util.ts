@@ -663,6 +663,11 @@ export abstract class Util {
 		// Macs weird man
 		return !Util.isMac() && !(renderer.capabilities.isWebGL2 === false && renderer.extensions.has( 'ANGLE_instanced_arrays' ) === false);
 	}
+
+	/** Manually ensures all numbers in the element's text have the same width so they align nicely. */
+	static monospaceNumbers(element: Element, ems = 0.5) {
+		element.innerHTML = element.textContent.split('').map(x => (x >= '0' && x <= '9')? `<span style="width: ${ems}em; display: inline-block; text-align: center;">${x}</span>` : x).join('');
+	}
 }
 
 /** A scheduler can be used to schedule tasks in the future which will be executed when it's time. */

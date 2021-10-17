@@ -107,6 +107,7 @@ export class MbpFinishScreen extends FinishScreen {
 
 		this.time.textContent = Util.secondsToTimeString(level.finishTime.gameplayClock / 1000);
 		this.qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? Util.secondsToTimeString(level.mission.qualifyTime / 1000) : Util.secondsToTimeString(5999.999);
+		Util.monospaceNumbers(this.qualifyTimeElement);
 		
 		let goldTime = level.mission.goldTime;
 		this.goldTimeElement.parentElement.style.display = 'none';
@@ -116,9 +117,11 @@ export class MbpFinishScreen extends FinishScreen {
 			if (level.mission.modification === 'gold') {
 				this.goldTimeElement.textContent = Util.secondsToTimeString(goldTime / 1000);
 				this.goldTimeElement.parentElement.style.display = '';
+				Util.monospaceNumbers(this.goldTimeElement);
 			} else {
 				this.platinumTimeElement.textContent = Util.secondsToTimeString(goldTime / 1000);
 				this.platinumTimeElement.parentElement.style.display = '';
+				Util.monospaceNumbers(this.platinumTimeElement);
 			}
 		}
 
@@ -128,10 +131,13 @@ export class MbpFinishScreen extends FinishScreen {
 		if (ultimateTime !== -Infinity) {
 			this.ultimateTimeElement.textContent = Util.secondsToTimeString(ultimateTime / 1000);
 			this.ultimateTimeElement.parentElement.style.display = '';
+			Util.monospaceNumbers(this.ultimateTimeElement);
 		}
 
 		this.elapsedTimeElement.textContent = Util.secondsToTimeString(elapsedTime / 1000);
 		this.bonusTimeElement.textContent = Util.secondsToTimeString(bonusTime / 1000);
+		Util.monospaceNumbers(this.elapsedTimeElement);
+		Util.monospaceNumbers(this.bonusTimeElement);
 	}
 
 	createBestTimeElement() {
@@ -143,7 +149,10 @@ export class MbpFinishScreen extends FinishScreen {
 		let goldTime = state.level.mission.goldTime;
 		let ultimateTime = state.level.mission.ultimateTime;
 
-		element.innerHTML = `<div><span>${rank}. </span>${Util.htmlEscape(score[0])}</div><div>${Util.secondsToTimeString(score[1] / 1000)}</div>`;
+		let tmp = document.createElement('div');
+		tmp.textContent = Util.secondsToTimeString(score[1] / 1000);
+		Util.monospaceNumbers(tmp);
+		element.innerHTML = `<div><span>${rank}. </span>${Util.htmlEscape(score[0])}</div><div>${tmp.innerHTML}</div>`;
 
 		element.style.color = '';
 		if (score[1] <= goldTime) element.style.color = (state.level.mission.modification === 'gold')? MBP_GOLD_COLOR : MBP_PLATINUM_COLOR;

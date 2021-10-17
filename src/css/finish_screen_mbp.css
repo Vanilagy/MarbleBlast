@@ -48,7 +48,7 @@
 	font-size: 20px;
 }
 
-#mbp-finish-time-rows span {
+#mbp-finish-time-rows p > span {
 	float: right;
 }
 
@@ -86,19 +86,19 @@
 	right: 0;
 }
 
-#mbp-finish-screen-top-times > div:nth-child(1) span {
+#mbp-finish-screen-top-times > div:nth-child(1) > div:first-child > span {
 	color: rgb(238, 200, 132);
 }
-#mbp-finish-screen-top-times > div:nth-child(2) span {
+#mbp-finish-screen-top-times > div:nth-child(2) > div:first-child > span {
 	color: rgb(205, 205, 205);
 }
-#mbp-finish-screen-top-times > div:nth-child(3) span {
+#mbp-finish-screen-top-times > div:nth-child(3) > div:first-child > span {
 	color: rgb(201, 175, 160);
 }
-#mbp-finish-screen-top-times > div:nth-child(4) span {
+#mbp-finish-screen-top-times > div:nth-child(4) > div:first-child > span {
 	color: rgb(164, 164, 164);
 }
-#mbp-finish-screen-top-times > div:nth-child(5) span {
+#mbp-finish-screen-top-times > div:nth-child(5) > div:first-child > span {
 	color: rgb(148, 148, 148);
 }
 
