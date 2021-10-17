@@ -1,5 +1,9 @@
 # Version History
 
+## 2.0.7
+- Added 54 missing MBP customs
+- Added support for NoRespawnAntiGravityItem
+
 ## 2.0.6
 - Fixed random power-up not respawning
 - Fixed power-up effects not disappearing upon checkpoint respawn

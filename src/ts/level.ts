@@ -578,6 +578,7 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "ductfan") shape = new DuctFan();
 		else if (dataBlockLowerCase === "smallductfan") shape = new SmallDuctFan();
 		else if (dataBlockLowerCase === "antigravityitem") shape = new AntiGravity(element as MissionElementItem);
+		else if (dataBlockLowerCase === "norespawnantigravityitem") shape = new AntiGravity(element as MissionElementItem, true);
 		else if (dataBlockLowerCase === "landmine") shape = new LandMine();
 		else if (dataBlockLowerCase === "shockabsorberitem") shape = new ShockAbsorber(element as MissionElementItem);
 		else if (dataBlockLowerCase === "superspeeditem") shape = new SuperSpeed(element as MissionElementItem);
