@@ -580,6 +580,12 @@
 		<div style="font-family: Expo; opacity: 0; pointer-events: none;">ABC</div>
 		<div style="font-family: MarkerFelt; opacity: 0; pointer-events: none;">ABC</div>
 
+		<script>
+			let isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+			if (isSafari) {
+				document.write('<script src="./lib/oggdec.js" defer' + '><' + '/script>');
+			}
+		</script>
 		<script src="./lib/three.js" defer></script>
 		<script src="./lib/oimo.js" defer></script>
 		<script src="./lib/pako.js" defer></script>

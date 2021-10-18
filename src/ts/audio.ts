@@ -17,6 +17,8 @@ export abstract class AudioManager {
 	/** Stores a list of all currently playing audio sources. */
 	static audioSources: AudioSource[] = [];
 
+	static oggDecoder: ReturnType<typeof OggdecModule>; // Because Safari
+
 	static init() {
 		let AudioContext = window.AudioContext ?? (window as any).webkitAudioContext; // Safari
 		this.context = new AudioContext();
@@ -34,6 +36,8 @@ export abstract class AudioManager {
 		this.musicGain.connect(this.masterGain);
 
 		this.updateVolumes();
+
+		if (typeof OggdecModule !== 'undefined') this.oggDecoder = OggdecModule();
 	}
 
 	static setAssetPath(path: string) {
@@ -41,13 +45,7 @@ export abstract class AudioManager {
 	}
 
 	static toFullPath(path: string) {
-		if (path.endsWith('.ogg') && Util.isSafari()) {
-			// Safari can't decode OGG, so we serve it a fallback MP3 version instead.
-			path = path.replace('.ogg', '.mp3');
-		}
-
 		let fullPath = this.assetPath + path;
-
 		return fullPath;
 	}
 
@@ -71,7 +69,10 @@ export abstract class AudioManager {
 				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 				let audioBuffer: AudioBuffer;
 
-				if (window.AudioContext) {
+				if (path.endsWith('.ogg') && Util.isSafari()) {
+					// Safari can't deal with .ogg
+					audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
+				} else if (window.AudioContext) {
 					audioBuffer = await this.context.decodeAudioData(arrayBuffer);
 				} else {
 					audioBuffer = await new Promise((res, rej) => {
@@ -108,6 +109,8 @@ export abstract class AudioManager {
 		let chosenPath = (typeof path === "string")? path : Util.randomFromArray(path);
 		let fullPath = this.toFullPath(chosenPath);
 		let audioSource: AudioSource;
+
+		if (chosenPath.endsWith('.ogg') && Util.isSafari()) preferStreaming = false; // We can't
 
 		if (preferStreaming) {
 			if (this.audioBufferCache.has(fullPath)) {
