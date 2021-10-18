@@ -66,8 +66,7 @@ export abstract class Menu {
 		const hover = () => paths[this.activeButtonVariant.get(element)] + '_h.png';
 		const down = () => paths[this.activeButtonVariant.get(element)] + '_d.png';
 		const disabled = () => paths[this.activeButtonVariant.get(element)] + '_i.png';
-	
-		element.src = normal();
+		
 		element.addEventListener('mouseenter', () => {
 			hovered = true;
 			element.setAttribute('data-hovered', '');

@@ -48,7 +48,7 @@ const init = async () => {
 		startGameDialog.children[0].textContent = 'Click anywhere to start';
 		startGameDialog.children[1].textContent = '';
 	} else {
-		startGameDialog.children[0].textContent = `Press ${Util.isMac()? '⌘+F' : 'F11'} to start in fullscreen mode`;
+		startGameDialog.children[0].textContent = `Press ${Util.isMac()? '^⌘F' : 'F11'} to start in fullscreen mode`;
 	}
 	startGameDialog.style.display = 'block';
 	

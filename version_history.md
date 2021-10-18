@@ -1,5 +1,8 @@
 # Version History
 
+## 2.0.8
+- Added support for Safari again
+
 ## 2.0.7
 - Added 54 missing MBP customs
 - Added support for NoRespawnAntiGravityItem
