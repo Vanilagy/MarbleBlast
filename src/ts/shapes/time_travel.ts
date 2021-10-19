@@ -26,7 +26,7 @@ export class TimeTravel extends PowerUp {
 		if (state.modification === 'gold') {
 			this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;
 		} else {
-			this.pickUpName = `${Math.abs(this.timeBonus/1000)} second Time ${this.timeBonus > 0 ? 'Modifier' : 'Penalty'}`; // MBP calls them Time Penalty when they add time
+			this.pickUpName = `${Math.abs(this.timeBonus/1000)} second Time ${this.timeBonus >= 0 ? 'Modifier' : 'Penalty'}`; // MBP calls them Time Penalty when they add time
 		}
 	}
 

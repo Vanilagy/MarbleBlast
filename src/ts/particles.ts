@@ -235,6 +235,7 @@ export class ParticleManager {
 		(mesh as any).center = new THREE.Vector2(0.5, 0.5); // Sprite has this too, so we gotta add it
 		this.level.scene.add(mesh);
 		mesh.frustumCulled = false;
+		mesh.renderOrder = 1337; // Something high to ensure correct rendering with other transparent objects
 
 		material.onBeforeCompile = (shader) => {
 			// Replace the shaders with our own
@@ -476,6 +477,7 @@ class Particle {
 			this.material = new THREE.SpriteMaterial({ map: ResourceManager.getTextureFromCache(this.o.texture), depthWrite: false });
 			this.material.blending = this.o.blending;
 			this.sprite = new THREE.Sprite(this.material);
+			this.sprite.renderOrder = 1337;
 		}
 	}
 

@@ -1,5 +1,8 @@
 # Version History
 
+## 2.0.9
+- Fixed some shape/particle rendering bugs
+
 ## 2.0.8
 - Added support for Safari again
 
