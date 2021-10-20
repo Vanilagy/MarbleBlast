@@ -619,7 +619,7 @@ export class Interior {
 			let movementVec = angVel.cross(contactNormal);
 			// Move the marble in the opposite direction
 			marble.body.addLinearVelocity(movementVec.scaleEq(-0.0015));
-			marble.body.setAngularVelocity(angVel.scaleEq(1.07));
+			marble.body.setAngularVelocity(angVel.scaleEq(1.07 * marble.speedFac));
 
 			return true; // Prevent immunity so we can trigger this code every tick and not every second tick or whatever
 		}

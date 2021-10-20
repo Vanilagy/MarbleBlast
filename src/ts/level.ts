@@ -75,6 +75,7 @@ const SHAPE_OVERLAY_OFFSETS = {
 export const GO_TIME = 3500;
 /** Default camera pitch */
 export const DEFAULT_PITCH = 0.45;
+const BLAST_CHARGE_TIME = 25000;
 const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should be large enough
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
@@ -124,7 +125,8 @@ interface LoadingState {
 /** The central control unit of gameplay. Handles loading, simulation and rendering. */
 export class Level extends Scheduler {
 	mission: Mission;
-
+	/** Whether or not this level has the classic additional features of MBU levels, such as a larger marble and the blast functionality. */
+	hasUltraFeatures: boolean;
 	loadingState: LoadingState;
 
 	scene: THREE.Scene;
@@ -182,11 +184,13 @@ export class Level extends Scheduler {
 	heldPowerUp: PowerUp = null;
 	totalGems = 0;
 	gemCount = 0;
+	blastAmount = 0;
 	outOfBounds = false;
 	outOfBoundsTime: TimeState;
 	/** When the jump button was pressed, remember that it was pressed until the next tick to execute the jump. */
 	jumpQueued = false;
 	useQueued = false;
+	blastQueued = false;
 	/** Whether or not the player is currently pressing the restart button. */
 	pressingRestart = false;
 	/** The time state at the last point the help text was updated. */
@@ -202,6 +206,7 @@ export class Level extends Scheduler {
 	checkpointHeldPowerUp: PowerUp = null;
 	/** Up vector at the point of checkpointing */
 	checkpointUp: OIMO.Vec3 = null;
+	checkpointBlast: number = null;
 	
 	timeTravelSound: AudioSource;
 	/** The alarm that plays in MBP when the player is about to pass the "par time". */
@@ -214,6 +219,7 @@ export class Level extends Scheduler {
 		super();
 		this.mission = mission;
 		this.loadingState = { loaded: 0, total: 0 };
+		this.hasUltraFeatures = mission.modification === 'ultra' && mission.path !== 'mbp/advanced/hypercube_ultra.mis';
 	}
 
 	/** Loads all necessary resources and builds the mission. */
@@ -705,6 +711,7 @@ export class Level extends Scheduler {
 		this.outOfBounds = false;
 		this.lastPhysicsTick = null;
 		this.maxDisplayedTime = 0;
+		this.blastAmount = 0;
 		
 		if (this.totalGems > 0) {
 			this.gemCount = 0;
@@ -716,6 +723,7 @@ export class Level extends Scheduler {
 		this.checkpointCollectedGems.clear();
 		this.checkpointHeldPowerUp = null;
 		this.checkpointUp = null;
+		this.checkpointBlast = null;
 
 		this.finishTime = null;
 
@@ -840,6 +848,7 @@ export class Level extends Scheduler {
 
 		let hud = state.menu.hud;
 		hud.displayTime(timeToDisplay / 1000, this.determineClockColor(timeToDisplay));
+		hud.displayBlastMeterFullness(this.blastAmount);
 		hud.displayFps();
 
 		// Update help and alert text visibility
@@ -996,7 +1005,11 @@ export class Level extends Scheduler {
 				this.heldPowerUp.use(this.timeState);
 			}
 		}
+		if (!playReplay && (isPressed('blast') || this.blastQueued) && getPressedFlag('blast')) {
+			this.marble.useBlast();
+		}
 		this.useQueued = false;
+		this.blastQueued = false;
 
 		state.menu.finishScreen.handleGamepadInput();
 
@@ -1032,6 +1045,8 @@ export class Level extends Scheduler {
 			elapsed -= 1000 / PHYSICS_TICK_RATE;
 
 			this.tickSchedule(this.timeState.currentAttemptTime);
+
+			if (this.hasUltraFeatures && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
 
 			// Update pathed interior velocities before running the simulation step
 			// Note: We do this even in replay playback mode, because pathed interior body position is relevant for the camera code.
@@ -1350,6 +1365,7 @@ export class Level extends Scheduler {
 		this.currentCheckpointTrigger = trigger;
 		this.checkpointCollectedGems.clear();
 		this.checkpointUp = this.currentUp.clone();
+		this.checkpointBlast = this.blastAmount;
 
 		// Remember all gems that were collected up to this point
 		for (let shape of this.shapes) {
@@ -1411,6 +1427,7 @@ export class Level extends Scheduler {
 
 		this.clearSchedule();
 		this.outOfBounds = false;
+		this.blastAmount = this.checkpointBlast;
 
 		this.deselectPowerUp(); // Always deselect first
 		// Wait a bit to select the powerup to prevent immediately using it incase the user skipped the OOB screen by clicking

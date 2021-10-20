@@ -110,6 +110,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.addHotkey(this.hotkeysContainer, 'use');
 		this.addHotkey(this.hotkeysContainer, 'freeLook');
 		this.addHotkey(this.hotkeysContainer, 'restart');
+		this.addHotkey(this.hotkeysContainer, 'blast');
 	}
 
 	/** Handles dragging of the currently active slider. */

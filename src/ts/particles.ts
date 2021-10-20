@@ -282,8 +282,8 @@ export class ParticleManager {
 		return this.level.timeState.timeSinceLoad;
 	}
 
-	createEmitter(options: ParticleEmitterOptions, initialPos: THREE.Vector3, getPos?: () => THREE.Vector3) {
-		let emitter = new ParticleEmitter(options, this, getPos);
+	createEmitter(options: ParticleEmitterOptions, initialPos: THREE.Vector3, getPos?: () => THREE.Vector3, spawnSphereSquish?: THREE.Vector3) {
+		let emitter = new ParticleEmitter(options, this, getPos, spawnSphereSquish);
 		emitter.currPos = getPos?.() ?? initialPos.clone();
 		emitter.currPosTime = this.getTime();
 		emitter.spawn(this.getTime());
@@ -360,11 +360,13 @@ export class ParticleEmitter {
 	currPosTime: number;
 	vel = new THREE.Vector3();
 	getPos: () => THREE.Vector3;
+	spawnSphereSquish: THREE.Vector3;
 
-	constructor(options: ParticleEmitterOptions, manager: ParticleManager, getPos?: () => THREE.Vector3) {
+	constructor(options: ParticleEmitterOptions, manager: ParticleManager, getPos?: () => THREE.Vector3, spawnSphereSquish?: THREE.Vector3) {
 		this.o = options;
 		this.manager = manager;
 		this.getPos = getPos;
+		this.spawnSphereSquish = spawnSphereSquish ?? new THREE.Vector3(1, 1, 1);
 	}
 
 	spawn(time: number) {
@@ -397,6 +399,7 @@ export class ParticleEmitter {
 
 		// Generate a point uniformly chosen on a sphere's surface.
 		let randomPointOnSphere = new THREE.Vector3(Util.randomGaussian(), Util.randomGaussian(), Util.randomGaussian()).normalize();
+		randomPointOnSphere.multiply(this.spawnSphereSquish);
 		// Compute the total velocity
 		let vel = this.vel.clone().multiplyScalar(this.o.inheritedVelFactor).add(randomPointOnSphere.multiplyScalar(this.o.ejectionVelocity + this.o.velocityVariance * (Math.random() * 2 - 1))).add(this.o.ambientVelocity);
 
@@ -444,7 +447,7 @@ export class ParticleEmitter {
 		clone.ambientVelocity = new THREE.Vector3(options.ambientVelocity.x, options.ambientVelocity.y, options.ambientVelocity.z);
 		clone.spawnOffset = options.spawnOffset;
 
-		return clone;
+		return clone as ParticleEmitterOptions;
 	}
 }
 

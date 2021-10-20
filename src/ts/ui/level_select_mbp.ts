@@ -172,7 +172,11 @@ export class MbpLevelSelect extends LevelSelect {
 			this.difficultySelectorModificationIcon.src = "./assets/ui_mbp/play/" + ((MissionLibrary.getModification(arr) === 'gold')? "marble_gold.png" : "marble_platinum.png");
 		}
 
-		state.menu.backgroundImage.src = (MissionLibrary.getModification(arr) === 'gold')? (state.menu as MbpMenu).mbgBg : (state.menu as MbpMenu).mbpBg;
+		// Set the background image based on the modification
+		state.menu.backgroundImage.src = 
+			(MissionLibrary.getModification(arr) === 'gold')? (state.menu as MbpMenu).mbgBg :
+			(MissionLibrary.getModification(arr) === 'ultra')? (state.menu as MbpMenu).mbuBg :
+			(state.menu as MbpMenu).mbpBg;
 	}
 
 	displayMetadata() {

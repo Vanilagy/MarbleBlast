@@ -36,6 +36,9 @@ export abstract class Hud {
 	fpsMeter: HTMLImageElement;
 	fpsMeterValue: HTMLDivElement;
 	frameTimeStore: number[] = [];
+	blastMeter: HTMLDivElement;
+	blastMeterBody: HTMLImageElement;
+	blastMeterFill: HTMLImageElement;
 
 	abstract gemCountMinDigits: number;
 	abstract showClockBackground: boolean;
@@ -54,6 +57,9 @@ export abstract class Hud {
 		this.clockBackground = document.querySelector('#clock-background');
 		this.fpsMeter = document.querySelector('#fps-meter');
 		this.fpsMeterValue = document.querySelector('#fps-meter-value');
+		this.blastMeter = document.querySelector('#blast-meter');
+		this.blastMeterBody = document.querySelector('#blast-meter-body');
+		this.blastMeterFill = document.querySelector('#blast-meter-fill');
 	}
 
 	async load() {
@@ -155,7 +161,12 @@ export abstract class Hud {
 				"pandown": "cameraDown",
 				"panleft": "cameraLeft",
 				"panright": "cameraRight",
-				"freelook": "freeLook"
+				"turnup": "cameraUp",
+				"turndown": "cameraDown",
+				"turnleft": "cameraLeft",
+				"turnright": "cameraRight",
+				"freelook": "freeLook",
+				"useblast": "blast"
 			} as Record<string, string>)[match[1].toLowerCase()];
 			if (!gameButton) continue;
 
@@ -206,5 +217,18 @@ export abstract class Hud {
 		if (value === 61 || value === 121 || value === 145 || value === 241) value--;
 
 		this.fpsMeterValue.textContent = 'FPS: ' + value;
+	}
+
+	setBlastMeterVisibility(state: boolean) {
+		if (state) this.blastMeter.classList.remove('hidden');
+		else this.blastMeter.classList.add('hidden');
+	}
+
+	displayBlastMeterFullness(amount: number) {
+		if (amount > 1) this.blastMeterBody.src = './assets/ui_mbp/game/blastbar_charged.png';
+		else this.blastMeterBody.src = './assets/ui_mbp/game/blastbar.png';
+
+		this.blastMeterFill.style.width = Util.clamp(amount, 0, 1) * 109 + 'px';
+		this.blastMeterFill.src = `./assets/ui_mbp/game/blastbar_bar${(amount >= 0.2)? 'green' : 'gray'}.png`;
 	}
 }

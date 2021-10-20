@@ -29,6 +29,7 @@ window.addEventListener('mousedown', (e) => {
 			if (state.level) {
 				if (key === 'jump' && isPressedOnce(key)) state.level.jumpQueued = true;
 				if (key === 'use' && isPressedOnce(key)) state.level.useQueued = true;
+				if (key === 'blast' && isPressedOnce(key)) state.level.blastQueued = true;
 			}
 		}
 	}
@@ -105,7 +106,8 @@ const gameButtons = {
 	cameraRight: [] as string[],
 	freeLook: [] as string[],
 	restart: [] as string[],
-	pause: [] as string[]
+	pause: [] as string[],
+	blast: [] as string[]
 };
 
 /** For each game button, a flag indicating whether it has been pressed since the flag was reset. Used to prevent things like entering and immediately leaving the pause menu. */
@@ -122,7 +124,8 @@ const pressedSinceFlag = {
 	cameraRight: false,
 	freeLook: false,
 	restart: false,
-	pause: false
+	pause: false,
+	blast: false
 };
 
 /** Set a button's state based on a presser. */

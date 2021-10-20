@@ -27,7 +27,8 @@ export interface StorageData {
 			"cameraLeft": string,
 			"cameraRight": string,
 			"freeLook": string,
-			"restart": string
+			"restart": string,
+			"blast": string
 		},
 		mouseSensitivity: number,
 		keyboardSensitivity: number,
@@ -74,7 +75,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 			"cameraLeft": "ArrowLeft",
 			"cameraRight": "ArrowRight",
 			"freeLook": "RMB",
-			"restart": "KeyR"
+			"restart": "KeyR",
+			"blast": "KeyE"
 		},
 		mouseSensitivity: 0.2,
 		keyboardSensitivity: 0.1,

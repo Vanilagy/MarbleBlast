@@ -8,14 +8,15 @@ import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
 import { MisParser } from "./parsing/mis_parser";
+import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
 
 const DEFAULT_RADIUS = 0.2;
 export const MARBLE_ROLL_FORCE = 40 || 40;
 const TELEPORT_FADE_DURATION = 500;
 
-export const bounceParticleOptions = {
+export const bounceParticleOptions: ParticleEmitterOptions = {
 	ejectionPeriod: 1,
-	ambientVelocity: new THREE.Vector3(0, 0, 0.0),
+	ambientVelocity: new THREE.Vector3(0, 0, 0),
 	ejectionVelocity: 2.6,
 	velocityVariance: 0.25 * 0.5,
 	emitterLifetime: 4,
@@ -36,6 +37,34 @@ export const bounceParticleOptions = {
 	}
 };
 
+const blastParticleOptions: ParticleEmitterOptions = {
+	ejectionPeriod: 0.9,
+	ambientVelocity: new THREE.Vector3(0, 0, -0.3),
+	ejectionVelocity: 3,
+	velocityVariance: 0.4,
+	emitterLifetime: 300,
+	inheritedVelFactor: 0.25,
+	particleOptions: {
+		texture: 'particles/smoke.png',
+		blending: THREE.NormalBlending,
+		spinSpeed: 20,
+		spinRandomMin: -90,
+		spinRandomMax: 90,
+		lifetime: 600,
+		lifetimeVariance: 250,
+		dragCoefficient: 0.2,
+		acceleration: -0.1,
+		colors: [{r: 25/255, g: 244/255, b: 255/255, a: 0.2}, {r: 25/255, g: 244/255, b: 255/255, a: 1}, {r: 25/255, g: 244/255, b: 255/255, a: 1}, {r: 25/255, g: 244/255, b: 255/255, a: 0}],
+		sizes: [0.1, 0.1, 0.1],
+		times: [0, 0.2, 0.75, 1]
+	}
+};
+const blastMaxParticleOptions = ParticleEmitter.cloneOptions(blastParticleOptions);
+blastMaxParticleOptions.ejectionVelocity = 4;
+blastMaxParticleOptions.ejectionPeriod = 0.7;
+blastMaxParticleOptions.particleOptions.dragCoefficient = 0.3;
+blastMaxParticleOptions.particleOptions.colors = blastMaxParticleOptions.particleOptions.colors.map(x => { x.r = 255/255; x.g = 159/255; x.b = 25/255; return x; });
+
 /** Controls marble behavior and responds to player input. */
 export class Marble {
 	level: Level;
@@ -53,11 +82,14 @@ export class Marble {
 
 	/** The radius of the marble. */
 	radius: number;
-	slowDownFac: number;
 	/** The default jump impulse of the marble. */
 	jumpImpulse = 7.3; // For now, seems to fit more.
 	/** The default restitution of the marble. */
 	bounceRestitution = 0.5;
+
+	get speedFac() {
+		return DEFAULT_RADIUS / this.radius;
+	}
 
 	/** Forcefield around the player shown during super bounce and shock absorber usage. */
 	forcefield: Shape;
@@ -93,12 +125,7 @@ export class Marble {
 		this.innerGroup = new THREE.Group();
 		this.group.add(this.innerGroup);
 
-		if (this.level.mission.modification === 'ultra' && this.level.mission.path !== 'mbu/advanced/hypercube_ultra.mis') {
-			this.radius = 0.3;
-		} else {
-			this.radius = 0.2;
-		}
-		this.slowDownFac = DEFAULT_RADIUS / this.radius;
+		this.radius = this.level.hasUltraFeatures? 0.3 : 0.2;
 
 		if (this.level.mission.misFile.marbleAttributes["jumpImpulse"] !== undefined) 
 			this.jumpImpulse = MisParser.parseNumber(this.level.mission.misFile.marbleAttributes["jumpImpulse"]);
@@ -177,7 +204,9 @@ export class Marble {
 		this.group.add(this.helicopter.group);
 
 		// Load the necessary rolling sounds
-		await AudioManager.loadBuffers(["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"]);
+		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"];
+		if (this.level.hasUltraFeatures) toLoad.push("blast.wav");
+		await AudioManager.loadBuffers(toLoad);
 
 		this.rollingSound = AudioManager.createAudioSource('rolling_hard.wav');
 		this.rollingSound.play();
@@ -398,12 +427,12 @@ export class Marble {
 			angVel.addScaledEq(surfaceRotationAxis, dot3);
 			angVel.addScaledEq(direction, dot2);
 
-			if (angVel.length() > 285 * this.slowDownFac) angVel.scaleEq(285 * this.slowDownFac / angVel.length()); // Absolute max angular speed
+			if (angVel.length() > 285 * this.speedFac) angVel.scaleEq(285 * this.speedFac / angVel.length()); // Absolute max angular speed
 		 	this.body.setAngularVelocity(angVel);
 
-			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot) {
+			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot * this.speedFac) {
 				// Cap the rolling velocity
-				let newLength = Math.max(0, 12 * Math.PI*2 * inputStrength / contactNormalUpDot - dot2);
+				let newLength = Math.max(0, 12 * Math.PI*2 * inputStrength / contactNormalUpDot * this.speedFac - dot2);
 				movementRotationAxis = movementRotationAxis.normalize().scaleEq(newLength);
 			}
 
@@ -425,9 +454,9 @@ export class Marble {
 			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 		}
 
-		movementRotationAxis.scaleEq(this.slowDownFac);
+		movementRotationAxis.scaleEq(this.speedFac);
 		// Apply angular acceleration, but make sure the angular velocity doesn't exceed some maximum
-		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 120 * this.slowDownFac));
+		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 120 * this.speedFac));
 
 		this.lastPos = this.body.getPosition();
 		this.lastVel = this.body.getLinearVelocity();
@@ -629,6 +658,26 @@ export class Marble {
 		let completion = Util.clamp((time.currentAttemptTime - this.teleportEnableTime) / TELEPORT_FADE_DURATION, 0, 1) ?? 1;
 		this.teleportDisableTime = time.currentAttemptTime - TELEPORT_FADE_DURATION * (1 - completion);
 		this.teleportEnableTime = null;
+	}
+
+	useBlast() {
+		if (this.level.blastAmount < 0.2 || !this.level.hasUltraFeatures) return;
+
+		let impulse = this.level.currentUp.scale(Math.max(Math.sqrt(this.level.blastAmount), this.level.blastAmount) * 10);
+		this.body.addLinearVelocity(impulse);
+		AudioManager.play('blast.wav');
+		this.level.particles.createEmitter(
+			(this.level.blastAmount > 1)? blastMaxParticleOptions : blastParticleOptions,
+			null,
+			() => Util.vecOimoToThree(this.body.getPosition().addScaledEq(this.level.currentUp, -this.radius * 0.4)),
+			new THREE.Vector3(1, 1, 1).addScaledVector(Util.vecOimoToThree(this.level.currentUp), -0.8)
+		);
+
+		this.level.blastAmount = 0;
+	}
+
+	setRadius(radius: number) {
+
 	}
 
 	reset() {
