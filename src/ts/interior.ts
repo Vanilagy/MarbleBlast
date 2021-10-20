@@ -265,7 +265,7 @@ export class Interior {
 			let i3 = this.detailLevel.windings[i+2];
 
 			if (k % 2 === 0) {
-				// Swap the first and last index to mainting correct winding order
+				// Swap the first and last index to maintain correct winding order
 				let temp = i1;
 				i1 = i3;
 				i3 = temp;

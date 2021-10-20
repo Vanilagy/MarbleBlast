@@ -654,7 +654,7 @@ export class DtsParser extends BinaryFileParser {
 				return {
 					start: alloc.readU16(),
 					numElements: alloc.readU16(),
-					matIndex: (alloc.readU32() & 0x00ffffff) // Remove all the flags associated with the material index
+					matIndex: alloc.readU32()
 				};
 			});
 			let numIndices = alloc.readS32();

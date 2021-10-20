@@ -54,7 +54,7 @@ export class Mission {
 	goldTime = -Infinity; // Doubles as platinum time
 	ultimateTime = -Infinity;
 	type: 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'custom' = 'custom';
-	modification: 'gold' | 'platinum';
+	modification: 'gold' | 'platinum' | 'ultra';
 	zipDirectory: JSZip = null;
 	fileToBlobPromises = new Map<JSZip['files'][number], Promise<Blob>>();
 	difCache = new Map<string, Promise<DifFile>>();
@@ -85,7 +85,7 @@ export class Mission {
 		if (missionInfo.platinumtime) mission.goldTime = MisParser.parseNumber(missionInfo.platinumtime);
 		if (missionInfo.ultimatetime) mission.ultimateTime = MisParser.parseNumber(missionInfo.ultimatetime);
 		mission.type = missionInfo.type.toLowerCase() as any;
-		mission.modification = path.startsWith('mbp/')? 'platinum' : 'gold';
+		mission.modification = path.startsWith('mbp/')? 'platinum' : path.startsWith('mbu/')? 'ultra' : 'gold';
 		mission.hasEasterEgg = mission.allElements.some(element => element._type === MissionElementType.Item && element.datablock?.toLowerCase() === 'easteregg');
 
 		return mission;
@@ -95,6 +95,7 @@ export class Mission {
 	static fromCLAEntry(entry: CLAEntry, isNew: boolean) {
 		let path = 'custom/' + entry.id;
 		if (entry.modification === 'platinum') path = 'mbp/' + path;
+		if (entry.modification === 'ultra') path = 'mbu/' + path;
 		let mission = new Mission(path);
 		mission.title = entry.name.trim();
 		mission.artist = entry.artist ?? '';
@@ -105,7 +106,7 @@ export class Mission {
 		if (entry.ultimateTime) mission.ultimateTime = entry.ultimateTime;
 		mission.id = entry.id;
 		mission.isNew = isNew;
-		mission.modification = entry.modification as ('gold' | 'platinum');
+		mission.modification = entry.modification as ('gold' | 'platinum' | 'ultra');
 		mission.hasEasterEgg = entry.hasEasterEgg;
 
 		return mission;
@@ -187,7 +188,8 @@ export class Mission {
  
 	getDirectoryMissionPath() {
 		if (this.modification === 'gold') return 'missions/' + this.path;
-		return 'missions_mbp/' + this.path.slice(4);
+		if (this.modification === 'ultra') return 'missions_mbu/' + this.path.slice(4);
+		if (this.modification === 'platinum') return 'missions_mbp/' + this.path.slice(4);
 	}
 
 	/** Gets the path of the image of a mission. */

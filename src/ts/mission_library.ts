@@ -17,10 +17,16 @@ export abstract class MissionLibrary {
 	static platinumExpert: Mission[] = [];
 	static platinumCustom: Mission[] = [];
 
+	static ultraBeginner: Mission[] = [];
+	static ultraIntermediate: Mission[] = [];
+	static ultraAdvanced: Mission[] = [];
+	static ultraCustom: Mission[] = [];
+
 	/** Loads all missions. */
 	static async init() {
 		let mbgMissionFilenames: string[] = [];
 		let mbpMissionFilenames: string[] = [];
+		let mbuMissionFilenames: string[] = [];
 
 		const collectMissionFiles = (arr: string[], directory: DirectoryStructure, path: string) => {
 			for (let name in directory) {
@@ -33,16 +39,20 @@ export abstract class MissionLibrary {
 		};
 		collectMissionFiles(mbgMissionFilenames, ResourceManager.dataDirectoryStructure['missions'], ''); // Find all mission files
 		collectMissionFiles(mbpMissionFilenames, ResourceManager.dataMbpDirectoryStructure['missions_mbp'], '');
+		collectMissionFiles(mbuMissionFilenames, ResourceManager.dataMbpDirectoryStructure['missions_mbu'], '');
 
 		let mbgPromises: Promise<MisFile>[] = [];
 		let mbpPromises: Promise<MisFile>[] = [];
+		let mbuPromises: Promise<MisFile>[] = [];
 		for (let filename of mbgMissionFilenames) {
 			// Load and read all missions
 			mbgPromises.push(MisParser.loadFile("./assets/data/missions/" + filename));
 		}
 		for (let filename of mbpMissionFilenames) {
-			// Load and read all missions
 			mbpPromises.push(MisParser.loadFile("./assets/data_mbp/missions_mbp/" + filename));
+		}
+		for (let filename of mbuMissionFilenames) {
+			mbuPromises.push(MisParser.loadFile("./assets/data_mbp/missions_mbu/" + filename));
 		}
 
 		// Get the list of all custom levels in the CLA
@@ -51,16 +61,16 @@ export abstract class MissionLibrary {
 
 		let mbgMisFiles = await Promise.all(mbgPromises);
 		let mbpMisFiles = await Promise.all(mbpPromises);
+		let mbuMisFiles = await Promise.all(mbuPromises);
+
 		let misFileToFilename = new Map<MisFile, string>();
-		for (let i = 0; i < mbgMissionFilenames.length; i++) {
-			misFileToFilename.set(mbgMisFiles[i], mbgMissionFilenames[i]);
-		}
-		for (let i = 0; i < mbpMissionFilenames.length; i++) {
-			misFileToFilename.set(mbpMisFiles[i], mbpMissionFilenames[i]);
-		}
+		for (let i = 0; i < mbgMissionFilenames.length; i++) misFileToFilename.set(mbgMisFiles[i], mbgMissionFilenames[i]);
+		for (let i = 0; i < mbpMissionFilenames.length; i++) misFileToFilename.set(mbpMisFiles[i], mbpMissionFilenames[i]);
+		for (let i = 0; i < mbuMissionFilenames.length; i++) misFileToFilename.set(mbuMisFiles[i], mbuMissionFilenames[i]);
 
 		let mbgMissions: Mission[] = [];
 		let mbpMissions: Mission[] = [];
+		let mbuMissions: Mission[] = [];
 
 		// Create the regular missions
 		for (let misFile of mbgMisFiles) {
@@ -71,6 +81,10 @@ export abstract class MissionLibrary {
 			let mission = Mission.fromMisFile('mbp/' + misFileToFilename.get(misFile), misFile);
 			mbpMissions.push(mission);
 		}
+		for (let misFile of mbuMisFiles) {
+			let mission = Mission.fromMisFile('mbu/' + misFileToFilename.get(misFile), misFile);
+			mbuMissions.push(mission);
+		}
 
 		// Sort the missions by level index so they're in the right order
 		const sortFn = (a: Mission, b: Mission) => {
@@ -78,6 +92,7 @@ export abstract class MissionLibrary {
 		};
 		mbgMissions.sort(sortFn);
 		mbpMissions.sort(sortFn);
+		mbuMissions.sort(sortFn);
 
 		// Read the custom level lists
 		let goldCustoms = await ResourceManager.readBlobAsJson(await goldCustomLevelListPromise) as CLAEntry[];
@@ -123,6 +138,14 @@ export abstract class MissionLibrary {
 			else this.platinumCustom.push(mission);
 			this.allMissions.push(mission);
 		}
+		for (let mission of mbuMissions) {
+			let missionType = mission.type;
+			if (missionType === 'beginner') this.ultraBeginner.push(mission);
+			else if (missionType === 'intermediate') this.ultraIntermediate.push(mission);
+			else if (missionType === 'advanced') this.ultraAdvanced.push(mission);
+			else this.ultraCustom.push(mission);
+			this.allMissions.push(mission);
+		}
 
 		// Strange case, but these two levels are in opposite order in the original game.
 		Util.swapInArray(this.goldIntermediate, 11, 12);
@@ -131,6 +154,7 @@ export abstract class MissionLibrary {
 		const sortFn2 = (a: Mission, b: Mission) => Util.normalizeString(a.title).localeCompare(Util.normalizeString(b.title), undefined, { numeric: true, sensitivity: 'base' });
 		this.goldCustom.sort(sortFn2);
 		this.platinumCustom.sort(sortFn2);
+		this.ultraCustom.sort(sortFn2);
 
 		for (let i = 0; i < this.goldBeginner.length; i++) this.goldBeginner[i].initSearchString(i);
 		for (let i = 0; i < this.goldIntermediate.length; i++) this.goldIntermediate[i].initSearchString(i);
@@ -142,6 +166,11 @@ export abstract class MissionLibrary {
 		for (let i = 0; i < this.platinumAdvanced.length; i++) this.platinumAdvanced[i].initSearchString(i);
 		for (let i = 0; i < this.platinumExpert.length; i++) this.platinumExpert[i].initSearchString(i);
 		for (let i = 0; i < this.platinumCustom.length; i++) this.platinumCustom[i].initSearchString(i);
+
+		for (let i = 0; i < this.ultraBeginner.length; i++) this.ultraBeginner[i].initSearchString(i);
+		for (let i = 0; i < this.ultraIntermediate.length; i++) this.ultraIntermediate[i].initSearchString(i);
+		for (let i = 0; i < this.ultraAdvanced.length; i++) this.ultraAdvanced[i].initSearchString(i);
+		for (let i = 0; i < this.ultraCustom.length; i++) this.ultraCustom[i].initSearchString(i);
 	}
 
 	static getModification(arr: Mission[]) {

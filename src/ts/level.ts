@@ -4,7 +4,7 @@ import { renderer, camera, orthographicCamera, mainCanvas } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble, MARBLE_RADIUS, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
@@ -55,6 +55,10 @@ import { EasterEgg } from "./shapes/easter_egg";
 import { RandomPowerUp } from "./shapes/random_power_up";
 import { MbpPauseScreen } from "./ui/pause_screen_mbp";
 import { MbpHud } from "./ui/hud_mbp";
+import { Sky } from "./shapes/sky";
+import { Glass } from "./shapes/glass";
+import { Blast } from "./shapes/blast";
+import { MegaMarble } from "./shapes/mega_marble";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -593,6 +597,10 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "checkpoint") shape = new Checkpoint();
 		else if (dataBlockLowerCase === "easteregg") shape = new EasterEgg(element as MissionElementItem);
 		else if (dataBlockLowerCase === "randompowerupitem") shape = new RandomPowerUp(element as MissionElementItem);
+		else if (["clear", "cloudy", "dusk", "wintry"].includes(dataBlockLowerCase)) shape = new Sky(dataBlockLowerCase);
+		else if (/glass_\d+shape/.test(dataBlockLowerCase)) shape = new Glass(dataBlockLowerCase);
+		else if (dataBlockLowerCase === "blastitem") shape = new Blast(element as MissionElementItem);
+		else if (dataBlockLowerCase === "megamarbleitem") shape = new MegaMarble(element as MissionElementItem);
 
 		if (!shape) return;
 

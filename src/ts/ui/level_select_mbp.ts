@@ -73,10 +73,10 @@ export class MbpLevelSelect extends LevelSelect {
 			{ name: 'Custom', arr: MissionLibrary.platinumCustom }
 		]);
 		this.createDifficultySection('Ultra', './assets/ui_mbp/play/marble_ultra.png', [
-			{ name: 'Beginner' },
-			{ name: 'Intermediate' },
-			{ name: 'Advanced' },
-			{ name: 'Custom' }
+			{ name: 'Beginner', arr: MissionLibrary.ultraBeginner },
+			{ name: 'Intermediate', arr: MissionLibrary.ultraIntermediate },
+			{ name: 'Advanced', arr: MissionLibrary.ultraAdvanced },
+			{ name: 'Custom', arr: MissionLibrary.ultraCustom }
 		]);
 
 		this.difficultySelectorWindow.querySelector('._click-preventer').addEventListener('mousedown', () => {
