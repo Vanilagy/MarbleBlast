@@ -5,7 +5,6 @@ import { Util } from "./util";
 import { Interior } from "./interior";
 import { Shape } from "./shape";
 import { Trigger } from "./triggers/trigger";
-import { MARBLE_RADIUS } from "./marble";
 
 interface CollisionCorrectionEvent {
 	fraction: number,
@@ -22,7 +21,7 @@ export class PhysicsHelper {
 	/** A separate world used to compute collision with pathed interiors. */
 	pathedInteriorCollisionWorld: OIMO.World;
 	pathedInteriorBodies: Map<PathedInterior, OIMO.RigidBody>;
-	marbleGeometry = new OIMO.SphereGeometry(MARBLE_RADIUS);
+	marbleGeometry: OIMO.SphereGeometry;
 
 	/** A separate world used to check collision with items and colliders. */
 	auxWorld: OIMO.World;
@@ -54,12 +53,14 @@ export class PhysicsHelper {
 		this.world.addRigidBody(this.level.marble.body);
 
 		// Use a capsule geometry to approximate the swept volume of the marble between two physics ticks
-		let auxMarbleGeometry = new OIMO.CapsuleGeometry(MARBLE_RADIUS * 2, 0); // Radius will be changed on the fly anyway
+		let auxMarbleGeometry = new OIMO.CapsuleGeometry(this.level.marble.radius * 2, 0); // Radius will be changed on the fly anyway
 		this.auxMarbleShape = new OIMO.Shape(new OIMO.ShapeConfig());
 		this.auxMarbleShape._geom = auxMarbleGeometry;
 		this.auxMarbleBody = new OIMO.RigidBody(new OIMO.RigidBodyConfig());
 		this.auxMarbleBody.addShape(this.auxMarbleShape);
 		this.auxWorld.addRigidBody(this.auxMarbleBody);
+
+		this.marbleGeometry = new OIMO.SphereGeometry(this.level.marble.radius);
 	}
 
 	addInterior(interior: Interior) {
@@ -214,9 +215,9 @@ export class PhysicsHelper {
 		let stepSize = 1;
 		let reduction = 0.1; // To avoid finding a collision with the surface the marble is currently rolling on
 		// Search for the first intersect if we were to move the marble in a straight line given its current position and velocity
-		let { mid, collisionNormal } = this.findSweptSphereIntersection(this.world, MARBLE_RADIUS * (1 - reduction), marble.body.getPosition(), movementDiff, 24,
+		let { mid, collisionNormal } = this.findSweptSphereIntersection(this.world, this.level.marble.radius * (1 - reduction), marble.body.getPosition(), movementDiff, 24,
 			(x) => x !== marble.shape && x.getRigidBody().getType() === OIMO.RigidBodyType.STATIC // Make sure to ignore pathed interiors
-		, MARBLE_RADIUS * reduction);
+		, this.level.marble.radius * reduction);
 
 		outer:
 		if (mid > 0 && mid < 1) {
@@ -257,6 +258,7 @@ export class PhysicsHelper {
 			transform.setPosition(prevMarblePosition.addScaled(translationVec, -1));
 			translationVec.scaleEq(3);
 
+			let self = this;
 			this.pathedInteriorCollisionWorld.convexCast(this.marbleGeometry, transform, translationVec, {
 				process(shape, hit) {
 					let fraction = hit.fraction * 3 - 1; // Readjust the fraction because we scaled the translationVec
@@ -268,10 +270,10 @@ export class PhysicsHelper {
 						movementDot *= -1;
 					}
 
-					if (movementDot < MARBLE_RADIUS * PHYSICS_TICK_RATE) return; // The marble impacted the surface slow enough that discrete collision detection is enough to handle it.
+					if (movementDot < self.level.marble.radius * PHYSICS_TICK_RATE) return; // The marble impacted the surface slow enough that discrete collision detection is enough to handle it.
 
 					// Nudge the position back a bit so that it *just* touches the surface.
-					let position = hit.position.clone().addScaledEq(hit.normal, -MARBLE_RADIUS * 0.95);
+					let position = hit.position.clone().addScaledEq(hit.normal, -self.level.marble.radius * 0.95);
 
 					collisionCorrectionEvents.push({
 						interior: interior as PathedInterior,
@@ -328,8 +330,8 @@ export class PhysicsHelper {
 
 		// Construct the capsule geometry in a way where it represents the swept volume of the marble during the last tick.
 		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._halfHeight = movementDist/2;
-		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._radius = MARBLE_RADIUS * 2; // The normal game's hitbox can expand to up to sqrt(3)x the normal size, but since we're using a sphere, let's be generous and make it 2x
-		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._gjkMargin = MARBLE_RADIUS * 2; // We gotta update this value too
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._radius = this.level.marble.radius * 2; // The normal game's hitbox can expand to up to sqrt(3)x the normal size, but since we're using a sphere, let's be generous and make it 2x
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._gjkMargin = this.level.marble.radius * 2; // We gotta update this value too
 		let marblePosition = this.level.marble.body.getPosition().addScaledEq(movementDiff, -0.5);
 
 		this.auxMarbleBody.setPosition(marblePosition);
@@ -362,8 +364,8 @@ export class PhysicsHelper {
 			current = current.getNext();
 		}
 
-		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._radius = MARBLE_RADIUS;
-		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._gjkMargin = MARBLE_RADIUS;
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._radius = this.level.marble.radius;
+		(this.auxMarbleShape._geom as OIMO.CapsuleGeometry)._gjkMargin = this.level.marble.radius;
 
 		this.auxWorld.getContactManager()._updateContacts(); // Update contacts again
 		current = this.auxMarbleBody.getContactLinkList();
@@ -491,7 +493,7 @@ export class PhysicsHelper {
 	computeCompletionOfImpactWithShapes(shapes: Set<OIMO.Shape>, radiusFactor: number) {
 		let movementDiff = this.level.marble.body.getPosition().subEq(this.level.marble.lastPos);
 		// 5 iters are enough to ensure ~0.26ms accuracy
-		return this.findSweptSphereIntersection(this.auxWorld, MARBLE_RADIUS * radiusFactor, this.level.marble.lastPos, movementDiff, 5, (x) => shapes.has(x)).mid;
+		return this.findSweptSphereIntersection(this.auxWorld, this.level.marble.radius * radiusFactor, this.level.marble.lastPos, movementDiff, 5, (x) => shapes.has(x)).mid;
 	}
 
 	/** Computes the completion between the last and current tick that the marble touched the given rigid body in the aux world. */

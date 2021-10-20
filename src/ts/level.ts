@@ -2,7 +2,7 @@ import { Interior } from "./interior";
 import * as THREE from "three";
 import { renderer, camera, orthographicCamera, mainCanvas } from "./rendering";
 import OIMO from "./declarations/oimo";
-import { Marble, MARBLE_RADIUS, bounceParticleOptions } from "./marble";
+import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
 import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
@@ -916,7 +916,7 @@ export class Level extends Scheduler {
 			// Handle wall intersections:
 
 			const closeness = 0.1;
-			let rayCastOrigin = marblePosition.add(this.currentUp.scale(MARBLE_RADIUS));
+			let rayCastOrigin = marblePosition.add(this.currentUp.scale(this.marble.radius));
 
 			let processedShapes = new Set<OIMO.Shape>();
 			for (let i = 0; i < 3; i++) {

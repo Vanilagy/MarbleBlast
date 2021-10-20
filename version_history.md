@@ -1,5 +1,8 @@
 # Version History
 
+## 2.1.0
+- Added support for both regular and MBU-style marble textures
+
 ## 2.0.10
 - No, MBU levels are not out yet. That was an oopsie.
 

@@ -9,7 +9,7 @@ import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
 import { MisParser } from "./parsing/mis_parser";
 
-export const MARBLE_RADIUS = 0.2;
+const DEFAULT_RADIUS = 0.2;
 export const MARBLE_ROLL_FORCE = 40 || 40;
 const TELEPORT_FADE_DURATION = 500;
 
@@ -40,7 +40,9 @@ export const bounceParticleOptions = {
 export class Marble {
 	level: Level;
 	group: THREE.Group;
+	innerGroup: THREE.Group;
 	sphere: THREE.Mesh;
+	ballShape: Shape;
 	shape: OIMO.Shape;
 	body: OIMO.RigidBody;
 	marbleTexture: THREE.Texture;
@@ -49,6 +51,9 @@ export class Marble {
 	/** The predicted orientation of the marble in the next tick. */
 	predictedOrientation: OIMO.Quat;
 
+	/** The radius of the marble. */
+	radius: number;
+	slowDownFac: number;
 	/** The default jump impulse of the marble. */
 	jumpImpulse = 7.3; // For now, seems to fit more.
 	/** The default restitution of the marble. */
@@ -85,6 +90,15 @@ export class Marble {
 
 	async init() {
 		this.group = new THREE.Group();
+		this.innerGroup = new THREE.Group();
+		this.group.add(this.innerGroup);
+
+		if (this.level.mission.modification === 'ultra' && this.level.mission.path !== 'mbu/advanced/hypercube_ultra.mis') {
+			this.radius = 0.3;
+		} else {
+			this.radius = 0.2;
+		}
+		this.slowDownFac = DEFAULT_RADIUS / this.radius;
 
 		if (this.level.mission.misFile.marbleAttributes["jumpImpulse"] !== undefined) 
 			this.jumpImpulse = MisParser.parseNumber(this.level.mission.misFile.marbleAttributes["jumpImpulse"]);
@@ -107,16 +121,29 @@ export class Marble {
 		marbleTexture.flipY = true; // Because THREE.js UVs are different from what Torque would do
 		this.marbleTexture = marbleTexture;
 
+		let has2To1Texture = marbleTexture.image.width === marbleTexture.image.height * 2;
+
 		// Create the 3D object
-        let geometry = new THREE.SphereBufferGeometry(MARBLE_RADIUS, 32, 16);
-		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({map: marbleTexture, color: 0xffffff}));
+		if (has2To1Texture || (this.level.mission.modification === 'ultra' && !customTextureBlob)) {
+			let ballShape = new Shape();
+			ballShape.dtsPath = 'shapes/balls/pack1/pack1marble.dts';
+			ballShape.castShadow = true;
+			if (customTextureBlob) ballShape.matNamesOverride['base.marble'] = marbleTexture;
+			await ballShape.init(this.level);
+			ballShape.setTransform(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3().setScalar(this.radius / DEFAULT_RADIUS));
+			this.innerGroup.add(ballShape.group);
+			this.ballShape = ballShape;
+		}
+
+		let geometry = new THREE.SphereBufferGeometry(this.radius, 32, 16);
+		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ map: marbleTexture, color: 0xffffff }));
 		sphere.castShadow = true;
 		this.sphere = sphere;
-		this.group.add(sphere);
+		this.innerGroup.add(sphere);
 
 		// Create the collision geometry
 		let shapeConfig = new OIMO.ShapeConfig();
-		shapeConfig.geometry = new OIMO.SphereGeometry(MARBLE_RADIUS);
+		shapeConfig.geometry = new OIMO.SphereGeometry(this.radius);
 		shapeConfig.friction = 1;
 		shapeConfig.restitution = this.bounceRestitution;
 		let shape = new OIMO.Shape(shapeConfig);
@@ -139,7 +166,7 @@ export class Marble {
 		await this.forcefield.init(this.level);
 		this.forcefield.setOpacity(0);
 		this.forcefield.showSequences = false; // Hide the weird default animation it does
-		this.sphere.add(this.forcefield.group);
+		this.innerGroup.add(this.forcefield.group);
 
 		this.helicopter = new Shape();
 		// Easter egg: Due to an iconic bug where the helicopter would instead look like a glow bounce, this can now happen 0.1% of the time.
@@ -371,7 +398,7 @@ export class Marble {
 			angVel.addScaledEq(surfaceRotationAxis, dot3);
 			angVel.addScaledEq(direction, dot2);
 
-			if (angVel.length() > 285) angVel.scaleEq(285 / angVel.length()); // Absolute max angular speed
+			if (angVel.length() > 285 * this.slowDownFac) angVel.scaleEq(285 * this.slowDownFac / angVel.length()); // Absolute max angular speed
 		 	this.body.setAngularVelocity(angVel);
 
 			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot) {
@@ -398,8 +425,9 @@ export class Marble {
 			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 		}
 
+		movementRotationAxis.scaleEq(this.slowDownFac);
 		// Apply angular acceleration, but make sure the angular velocity doesn't exceed some maximum
-		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 120));
+		this.body.setAngularVelocity(Util.addToVectorCapped(this.body.getAngularVelocity(), movementRotationAxis, 120 * this.slowDownFac));
 
 		this.lastPos = this.body.getPosition();
 		this.lastVel = this.body.getLinearVelocity();
@@ -543,7 +571,7 @@ export class Marble {
 		let bodyPosition = Util.lerpOimoVectors(this.body.getPosition(), this.predictedPosition, time.physicsTickCompletion);
 		let bodyOrientation = this.body.getOrientation().slerp(this.predictedOrientation, time.physicsTickCompletion);
 		this.group.position.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
-		this.sphere.quaternion.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
+		this.innerGroup.quaternion.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
 
 		this.forcefield.render(time);
 		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) this.helicopter.render(time);
@@ -565,6 +593,7 @@ export class Marble {
 			mat.transparent = true;
 			mat.flatShading = true;
 			this.sphere.castShadow = false;
+			this.sphere.visible = true;
 		} else {
 			if (!mat.map) {
 				mat.map = this.marbleTexture;
@@ -574,6 +603,7 @@ export class Marble {
 			mat.transparent = false;
 			mat.flatShading = false;
 			this.sphere.castShadow = true;
+			this.sphere.visible = !this.ballShape;
 		}
 	}
 

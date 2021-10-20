@@ -114,7 +114,7 @@ export class Shape {
 	worldMatrix = new THREE.Matrix4();
 
 	/** Can be used to override certain material names. */
-	matNamesOverride: Record<string, string> = {};
+	matNamesOverride: Record<string, string | THREE.Texture> = {};
 	materials: (THREE.MeshLambertMaterial | THREE.MeshBasicMaterial)[];
 	/** Used for collision objects. */
 	shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
@@ -462,7 +462,11 @@ export class Shape {
 			let material = ((flags & MaterialFlags.SelfIlluminating) || environmentMaterial) ? new THREE.MeshBasicMaterial() : new THREE.MeshLambertMaterial();
 			this.materials.push(material);
 
-			if (!fullName || (this.isTSStatic && (flags & MaterialFlags.ReflectanceMapOnly))) {
+			if (matName instanceof THREE.Texture) {
+				if (flags & MaterialFlags.S_Wrap) matName.wrapS = THREE.RepeatWrapping;
+				if (flags & MaterialFlags.T_Wrap) matName.wrapT = THREE.RepeatWrapping;
+				material.map = matName;
+			} else if (!fullName || (this.isTSStatic && (flags & MaterialFlags.ReflectanceMapOnly))) {
 				// Usually do nothing. It's an plain white material without a texture.
 				// Ah EXCEPT if we're a TSStatic.
 				if (this.isTSStatic) {
