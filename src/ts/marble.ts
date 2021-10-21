@@ -703,6 +703,7 @@ export class Marble {
 		);
 
 		this.level.blastAmount = 0;
+		this.level.replay.recordUseBlast();
 	}
 
 	/** Updates the radius of the marble both visually and physically. */

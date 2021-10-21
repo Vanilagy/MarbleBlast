@@ -16,7 +16,7 @@ import { Nuke } from "./shapes/nuke";
 export class Replay {
 	level: Level;
 	missionPath: string;
-	version: number = 3;
+	version: number = 4;
 	mode: 'record' | 'playback' = 'record';
 	/** If writing to the replay is still permitted. */
 	canStore = true;
@@ -57,6 +57,10 @@ export class Replay {
 	uses: {
 		tickIndex: number,
 		id: number
+	}[] = [];
+	/** Stores blast usage. */
+	blasts: {
+		tickIndex: number
 	}[] = [];
 	/** Camera orientation for each physics tick. */
 	cameraOrientations: {
@@ -139,6 +143,7 @@ export class Replay {
 			this.marbleLeave.length = 0;
 			this.marbleContact.length = 0;
 			this.uses.length = 0;
+			this.blasts.length = 0;
 			this.cameraOrientations.length = 0;
 			this.timeTravelTimeToRevert.clear();
 			this.touchFinishTickIndices.length = 0;
@@ -283,6 +288,14 @@ export class Replay {
 		});
 	}
 
+	recordUseBlast() {
+		if (this.mode === 'playback' || !this.canStore) return;
+
+		this.blasts.push({
+			tickIndex: this.currentTickIndex
+		});
+	}
+
 	recordTouchFinish() {
 		if (this.mode === 'playback' || !this.canStore) return;
 		this.touchFinishTickIndices.push(this.currentTickIndex);
@@ -325,6 +338,12 @@ export class Replay {
 
 			let powerUp = this.level.shapes.find(x => x.id === use.id) as PowerUp;
 			powerUp.use(this.level.timeState);
+		}
+
+		for (let blast of this.blasts) {
+			if (blast.tickIndex !== i) continue;
+
+			this.level.marble.useBlast();
 		}
 
 		for (let tickIndex of this.touchFinishTickIndices) if (tickIndex === i) this.level.touchFinish();
@@ -380,6 +399,7 @@ export class Replay {
 			marbleLeave: this.marbleLeave,
 			marbleContact: this.marbleContact,
 			uses: this.uses,
+			blasts: this.blasts,
 			cameraOrientations: Util.arrayBufferToString(cameraOrientations.buffer),
 			timeTravelTimeToRevert: [...this.timeTravelTimeToRevert.entries()],
 			touchFinishTickIndices: this.touchFinishTickIndices,
@@ -422,6 +442,7 @@ export class Replay {
 		replay.marbleLeave = serialized.marbleLeave ?? []; // Might not be there in older versions
 		replay.marbleContact = serialized.marbleContact;
 		replay.uses = serialized.uses;
+		replay.blasts = serialized.blasts;
 		
 		let cameraOrientations: {
 			yaw: number,
@@ -565,6 +586,9 @@ export interface SerializedReplay {
 	uses: {
 		tickIndex: number,
 		id: number
+	}[];
+	blasts: {
+		tickIndex: number
 	}[];
 	cameraOrientations: string;
 	timeTravelTimeToRevert: [number, number][]
