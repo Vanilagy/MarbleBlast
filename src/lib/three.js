@@ -25949,7 +25949,7 @@
 
 					initMaterial( material, scene, object );
 
-				} else if ( materialProperties.needsLights && ( materialProperties.lightsStateVersion !== lights.state.version ) ) {
+				} else if ( materialProperties.needsLights && ( materialProperties.lightsStateVersion < lights.state.version ) ) { // Modification: Replaced !== with < here because... bug?
 
 					initMaterial( material, scene, object );
 

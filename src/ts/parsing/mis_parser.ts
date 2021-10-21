@@ -68,6 +68,7 @@ export interface MissionElementScriptObject extends MissionElementBase {
 	alarmstarttime: string,
 	noblast: string,
 	blast: string,
+	useultramarble: string,
 
 	score: any,
 	score0: any,

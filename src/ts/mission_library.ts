@@ -56,8 +56,9 @@ export abstract class MissionLibrary {
 		}
 
 		// Get the list of all custom levels in the CLA
-		let goldCustomLevelListPromise = ResourceManager.loadResource('./assets/gold_levels.json');
-		let platinumCustomLevelListPromise = ResourceManager.loadResource('./assets/platinum_levels.json');
+		let goldCustomLevelListPromise = ResourceManager.loadResource('./assets/customs_gold.json');
+		let platinumCustomLevelListPromise = ResourceManager.loadResource('./assets/customs_platinum.json');
+		let ultraCustomLevelListPromise = ResourceManager.loadResource('./assets/customs_ultra.json');
 
 		let mbgMisFiles = await Promise.all(mbgPromises);
 		let mbpMisFiles = await Promise.all(mbpPromises);
@@ -99,6 +100,8 @@ export abstract class MissionLibrary {
 		goldCustoms = goldCustoms.filter(x => x.modification === 'gold'); // Apparently some platinum levels snuck in
 		let platCustoms = await ResourceManager.readBlobAsJson(await platinumCustomLevelListPromise) as CLAEntry[];
 		platCustoms = platCustoms.filter(x => x.gameType === 'single' && (!x.gameMode || x.gameMode === 'null')); // Whoops, forgot to filter the JSON
+		let ultraCustoms = await ResourceManager.readBlobAsJson(await ultraCustomLevelListPromise) as CLAEntry[];
+		ultraCustoms = ultraCustoms.filter(x => x.gameType === 'single');
 
 		// Remove duplicate platinum levels
 		let platCustomNames = new Set<string>();
@@ -114,9 +117,10 @@ export abstract class MissionLibrary {
 		}
 
 		// Create all custom missions
-		for (let custom of [...goldCustoms, ...platCustoms]) {
+		for (let custom of [...goldCustoms, ...platCustoms, ...ultraCustoms]) {
 			let mission = Mission.fromCLAEntry(custom, false);
 			if (mission.modification === 'gold') mbgMissions.push(mission);
+			else if (mission.modification === 'ultra') mbuMissions.push(mission);
 			else mbpMissions.push(mission);
 		}
 

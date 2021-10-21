@@ -106,7 +106,7 @@ const applyReflectiveMarbleShader = (shader: THREE.Shader) => {
 
 		//float reflectAmount = invSigmoid(0.01 + 0.98 * texture(map, vUv).a);
 		//reflectAmount = max(0.25, reflectAmount);
-		float reflectAmount = 0.25; // For now
+		float reflectAmount = 0.3; // For now
 		reflectAmount -= 0.7 * (2.0 * normal.z - 1.0); // Fresnel thingy
 		reflectAmount = sigmoid(reflectAmount);
 		reflectAmount = 0.95 * reflectAmount;
@@ -724,12 +724,12 @@ export class Marble {
 			marbleReflectionCamera.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), Math.PI); // Flip it 180
 			marbleReflectionCamera.position.copy(this.group.position);
 	
-			this.level.scene.remove(this.group); // So that we don't have framebuffer recursion
+			this.group.visible = false; // To avoid framebuffer recursion ("feedback loop")
 			let renderTargetBefore = renderer.getRenderTarget();
 			renderer.setRenderTarget(marbleReflectionRenderTarget);
 			renderer.render(this.level.scene, marbleReflectionCamera);
 			renderer.setRenderTarget(renderTargetBefore);
-			this.level.scene.add(this.group);
+			this.group.visible = true;
 		}
 	}
 

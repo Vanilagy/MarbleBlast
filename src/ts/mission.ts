@@ -192,10 +192,10 @@ export class Mission {
 	}
 
 	setUltraFlags() {
-		if (!MisParser.parseBoolean(this.missionInfo.noblast) && MisParser.parseBoolean(this.missionInfo.blast) || this.missionInfo.game?.toLowerCase() === 'ultra')
+		if (!MisParser.parseBoolean(this.missionInfo.noblast) && (MisParser.parseBoolean(this.missionInfo.blast) || this.missionInfo.game?.toLowerCase() === 'ultra'))
 			this.hasBlast = true;
 
-		if (this.missionInfo.game?.toLowerCase() === 'ultra')
+		if (this.missionInfo.game?.toLowerCase() === 'ultra' || MisParser.parseBoolean(this.missionInfo.useultramarble))
 			this.hasUltraMarble = true;
 	}
  

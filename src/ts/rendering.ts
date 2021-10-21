@@ -17,7 +17,7 @@ const resize = () => {
 };
 window.addEventListener('resize', resize);
 
-export const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: false });
+export const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: false, logarithmicDepthBuffer: true }); // Just so much better with logarithmic
 renderer.shadowMap.enabled = true;
 
 /** Main camera. */

@@ -108,8 +108,8 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 const broadcastToWebhook = (missionPath: string, score: [string, number]) => {
 	let missionName = escapeDiscord(getMissionNameFromMissionPath(missionPath)).trim();
 	let timeString = secondsToTimeString(score[1] / 1000);
-	let modification = missionPath.startsWith('mbp')? 'platinum': 'gold';
-	if (modification === 'platinum') missionPath = missionPath.slice(4);
+	let modification = missionPath.startsWith('mbp')? 'platinum': missionPath.startsWith('mbu')? 'ultra' : 'gold';
+	if (modification !== 'gold') missionPath = missionPath.slice(4);
 	let category = uppercaseFirstLetter(missionPath.slice(0, missionPath.indexOf('/')));
 	
 	let message = `${escapeDiscord(score[0])} has just achieved a world record on "${missionName}" (Web ${uppercaseFirstLetter(modification)} ${category}) of ${timeString}`;
@@ -177,6 +177,7 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 	for (let missionPath in shared.levelNameMap) {
 		let category = uppercaseFirstLetter(missionPath.split('/')[0]);
 		if (category === 'Mbp') category = 'Platinum ' + uppercaseFirstLetter(missionPath.split('/')[1]);
+		else if (category === 'Mbu') category = 'Ultra ' + uppercaseFirstLetter(missionPath.split('/')[1]);
 		else category = 'Gold ' + category;
 
 		if (category !== lastCategory) {
