@@ -34,7 +34,7 @@ export interface StorageData {
 		keyboardSensitivity: number,
 		invertMouse: number,
 		alwaysFreeLook: boolean,
-		reflectiveMarble: boolean,
+		marbleReflectivity: number,
 		showFrameRate: boolean,
 		showThousandths: boolean,
 		fov: number
@@ -82,7 +82,7 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		keyboardSensitivity: 0.1,
 		invertMouse: 0,
 		alwaysFreeLook: true,
-		reflectiveMarble: false,
+		marbleReflectivity: 0,
 		showFrameRate: true,
 		showThousandths: true,
 		fov: 60

@@ -290,7 +290,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		menu.setupButton(this.buttonRestartLevel, 'options/cntr_cam_dwn', () => this.changeKeybinding('restart'));
 
 		menu.setupButton(this.reflectiveMarbleCheckbox, 'options/cntrl_mous_freel', () => {
-			StorageManager.data.settings.reflectiveMarble = !this.reflectiveMarbleCheckbox.hasAttribute('data-locked');
+			StorageManager.data.settings.marbleReflectivity = (!this.reflectiveMarbleCheckbox.hasAttribute('data-locked'))? 2 : 0;
 			StorageManager.store();
 
 			// Toggle the checkbox
@@ -338,7 +338,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		
 		if (!!(StorageManager.data.settings.invertMouse & 0b10) !== this.invertY.hasAttribute('data-locked')) this.invertY.click();
 		if (StorageManager.data.settings.alwaysFreeLook !== this.alwaysFreeLook.hasAttribute('data-locked')) this.alwaysFreeLook.click();
-		if (StorageManager.data.settings.reflectiveMarble !== this.reflectiveMarbleCheckbox.hasAttribute('data-locked')) this.reflectiveMarbleCheckbox.click();
+		if ((StorageManager.data.settings.marbleReflectivity === 2) !== this.reflectiveMarbleCheckbox.hasAttribute('data-locked')) this.reflectiveMarbleCheckbox.click();
 
 		this.setResetMarbleTextureState(!((await StorageManager.databaseCount('keyvalue', 'marbleTexture')) === 0));
 	}

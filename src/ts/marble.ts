@@ -9,6 +9,7 @@ import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
 import { MisParser, MissionElementType } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
+import { camera, marbleReflectionCamera, marbleReflectionRenderTarget, renderer } from "./rendering";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -48,7 +49,7 @@ const blastParticleOptions: ParticleEmitterOptions = {
 	inheritedVelFactor: 0.25,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.NormalBlending,
+		blending: THREE.AdditiveBlending,
 		spinSpeed: 20,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -66,6 +67,57 @@ blastMaxParticleOptions.ejectionVelocity = 4;
 blastMaxParticleOptions.ejectionPeriod = 0.7;
 blastMaxParticleOptions.particleOptions.dragCoefficient = 0.3;
 blastMaxParticleOptions.particleOptions.colors = blastMaxParticleOptions.particleOptions.colors.map(x => { x.r = 255/255; x.g = 159/255; x.b = 25/255; return x; });
+
+const applyReflectiveMarbleShader = (shader: THREE.Shader) => {
+	shader.vertexShader = `
+		varying vec3 vTransformedNormal;
+	` + shader.vertexShader;
+	shader.vertexShader = shader.vertexShader.replace('#include <defaultnormal_vertex>', `
+		#include <defaultnormal_vertex>
+		vTransformedNormal = transformedNormal;
+	`);
+
+	shader.fragmentShader = `
+		varying vec3 vPosition;
+		varying vec3 vTransformedNormal;
+		uniform sampler2D selfMadeEnvMap;
+
+		float sigmoid(float x) {
+			return 0.5 + 0.5 * tanh(2.0 * x - 1.0);
+		}
+		float invSigmoid(float x) {
+			return 0.5 + 0.5 * atanh(2.0 * x - 1.0);
+		}
+	` + shader.fragmentShader;
+	shader.fragmentShader = shader.fragmentShader.replace('#include <envmap_fragment>', `
+		/*
+		 * The idea here is the following: Our env map is in a normal perspective projection, and we want to map points on the sphere to where
+		 * they would reflect off in the texture. The following math just performs some trig to find out the UV coords that correspond to the
+		 * surface normal to create an accurate reflection.
+		*/
+
+		vec3 normal = normalize(vTransformedNormal);
+		float fovHalves = 177.0 * PI / 180.0 / 2.0;
+		float xAngle = -asin(normalize(normal * vec3(1, 0, 1)).x) / PI_HALF * fovHalves; // Since the FOV isn't 180°, we need to rescale the angle so that pi/2 becomes fov/2
+		float yAngle = asin(normalize(normal * vec3(0, 1, 1)).y) / PI_HALF * fovHalves;
+
+		float u = (tan(xAngle) / tan(fovHalves) + 1.0) / 2.0;
+		float v = (tan(yAngle) / tan(fovHalves) + 1.0) / 2.0;
+
+		//float reflectAmount = invSigmoid(0.01 + 0.98 * texture(map, vUv).a);
+		//reflectAmount = max(0.25, reflectAmount);
+		float reflectAmount = 0.25; // For now
+		reflectAmount -= 0.7 * (2.0 * normal.z - 1.0); // Fresnel thingy
+		reflectAmount = sigmoid(reflectAmount);
+		reflectAmount = 0.95 * reflectAmount;
+
+		outgoingLight = mix(outgoingLight, texture(selfMadeEnvMap, vec2(u, v)).rgb, reflectAmount);
+
+		#include <envmap_fragment>
+	`);
+
+	shader.uniforms.selfMadeEnvMap =  { value: marbleReflectionRenderTarget.texture };
+};
 
 /** Controls marble behavior and responds to player input. */
 export class Marble {
@@ -151,13 +203,16 @@ export class Marble {
 		this.marbleTexture = marbleTexture;
 
 		let has2To1Texture = marbleTexture.image.width === marbleTexture.image.height * 2;
+		let isReflective = StorageManager.data.settings.marbleReflectivity === 2 || (StorageManager.data.settings.marbleReflectivity === 0 && this.level.mission.modification === 'ultra');
 
 		// Create the 3D object
 		if (has2To1Texture || (this.level.mission.modification === 'ultra' && !customTextureBlob)) {
 			let ballShape = new Shape();
+			ballShape.shareMaterials = false;
 			ballShape.dtsPath = 'shapes/balls/pack1/pack1marble.dts';
 			ballShape.castShadow = true;
 			ballShape.normalizeVertexNormals = true; // We do this so that the marble doesn't get darker the larger it gets
+			if (isReflective) ballShape.onBeforeMaterialCompile = applyReflectiveMarbleShader;
 			if (customTextureBlob) ballShape.matNamesOverride['base.marble'] = marbleTexture;
 			await ballShape.init(this.level);
 			this.innerGroup.add(ballShape.group);
@@ -165,11 +220,17 @@ export class Marble {
 		}
 
 		let geometry = new THREE.SphereBufferGeometry(1, 32, 16);
-		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ map: marbleTexture, color: 0xffffff }));
+		let sphereMaterial = new THREE.MeshLambertMaterial({ map: marbleTexture, color: 0xffffff });
+		let sphere = new THREE.Mesh(geometry, sphereMaterial);
 		sphere.material.onBeforeCompile = shader => shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader; // Same thing as with ballShape
 		sphere.castShadow = true;
 		this.sphere = sphere;
 		this.innerGroup.add(sphere);
+
+		sphere.material.onBeforeCompile = shader => {
+			shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader; // Same thing as with ballShape
+			if (isReflective) applyReflectiveMarbleShader(shader);
+		};
 
 		// Create the collision geometry
 		let shapeConfig = new OIMO.ShapeConfig();
@@ -228,13 +289,6 @@ export class Marble {
 		this.slidingSound.setLoop(true);
 
 		await Promise.all([this.rollingSound.promise, this.slidingSound.promise, this.rollingMegaMarbleSound?.promise]);
-
-		if (StorageManager.data.settings.reflectiveMarble) {
-			// Add environment map reflection to the marble
-			sphere.material.envMap = this.level.envMap;
-			sphere.material.combine = THREE.MixOperation;
-			sphere.material.reflectivity = 0.15;
-		}
 	}
 
 	tick(time: TimeState) {
@@ -659,6 +713,19 @@ export class Marble {
 			mat.flatShading = false;
 			this.sphere.castShadow = true;
 			this.sphere.visible = !this.ballShape;
+		}
+
+		let isReflective = StorageManager.data.settings.marbleReflectivity === 2 || (StorageManager.data.settings.marbleReflectivity === 0 && this.level.mission.modification === 'ultra');
+		if (isReflective) {
+			marbleReflectionCamera.position.copy(this.group.position);
+			marbleReflectionCamera.lookAt(camera.position);
+	
+			this.level.scene.remove(this.group); // So that we don't have framebuffer recursion
+			let renderTargetBefore = renderer.getRenderTarget();
+			renderer.setRenderTarget(marbleReflectionRenderTarget);
+			renderer.render(this.level.scene, marbleReflectionCamera);
+			renderer.setRenderTarget(renderTargetBefore);
+			this.level.scene.add(this.group);
 		}
 	}
 

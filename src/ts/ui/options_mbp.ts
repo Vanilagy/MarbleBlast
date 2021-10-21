@@ -84,7 +84,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.addDropdown(this.generalContainer, 'invertMouse', 'Invert Mouse', ['None', 'X Only', 'Y only', 'X and Y']);
 		this.addDropdown(this.generalContainer, 'showThousandths', 'Thousandths', ['Disabled', 'Enabled'], true);
 		this.addMarbleTexturePicker(this.generalContainer);
-		this.addDropdown(this.generalContainer, 'reflectiveMarble', 'Reflective Marble', ['Disabled', 'Enabled'], true);
+		this.addDropdown(this.generalContainer, 'marbleReflectivity', 'Reflective Marble', ['Contextual', 'Disabled', 'Enabled']);
 		this.addSlider(this.generalContainer, 'musicVolume', 'Music Volume', 0, 1, () => AudioManager.updateVolumes(), undefined, undefined, x => Math.ceil(x * 100).toString());
 		this.addSlider(this.generalContainer, 'mouseSensitivity', 'Mouse Speed', 0, 1);
 		this.addSlider(this.generalContainer, 'soundVolume', 'Sound Volume', 0, 1, () => AudioManager.updateVolumes(), () => {

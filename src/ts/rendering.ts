@@ -30,4 +30,13 @@ export const orthographicCamera = new THREE.OrthographicCamera(-window.innerWidt
 orthographicCamera.up.set(0, 0, -1);
 orthographicCamera.lookAt(new THREE.Vector3(1, 0, 0));
 
+// We use a single texture for the marble reflection and not 6 in a cube because that's 6x faster.
+export const marbleReflectionRenderTarget = new THREE.WebGLRenderTarget(2**12, 2**12, {
+	format: THREE.RGBFormat,
+	generateMipmaps: true,
+	minFilter: THREE.LinearMipmapLinearFilter,
+	anisotropy: 16
+});
+export const marbleReflectionCamera = new THREE.PerspectiveCamera(177, 1, 0.05, 1000);
+
 resize();

@@ -1,6 +1,6 @@
 import { Interior } from "./interior";
 import * as THREE from "three";
-import { renderer, camera, orthographicCamera, mainCanvas } from "./rendering";
+import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
@@ -923,6 +923,7 @@ export class Level extends Scheduler {
 			camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z).sub(directionVector.clone().multiplyScalar(2.5));
 			camera.lookAt(Util.vecOimoToThree(marblePosition));
 			camera.position.add(cameraVerticalTranslation);
+			marbleReflectionCamera.up = up;
 
 			// Handle wall intersections:
 

@@ -148,6 +148,7 @@ export class Shape {
 	receiveShadows = true;
 	/** Whether or not to normalize vertex normals on the GPU. This is off by default because that's what Torque does. It's what makes stuff dark when it gets scaled. */
 	normalizeVertexNormals = false;
+	onBeforeMaterialCompile: (shader: THREE.Shader) => void = null;
 
 	/** Same shapes with the same shareId will share data. */
 	shareId: number = 0;
@@ -463,10 +464,12 @@ export class Shape {
 			// If the material is self-illuminated, we can get away with a MeshBasicMaterial
 			let material = ((flags & MaterialFlags.SelfIlluminating) || environmentMaterial) ? new THREE.MeshBasicMaterial() : new THREE.MeshLambertMaterial();
 			this.materials.push(material);
-
-			if (this.normalizeVertexNormals) material.onBeforeCompile = shader => {
-				shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader;
+			
+			material.onBeforeCompile = shader => {
+				if (this.normalizeVertexNormals) shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader;
+				this.onBeforeMaterialCompile?.(shader);
 			};
+			material.customProgramCacheKey = () => this.onBeforeMaterialCompile?.toString(); // The default cache key is the onBeforeCompile, but that can differ for us here.
 
 			if (matName instanceof THREE.Texture) {
 				if (flags & MaterialFlags.S_Wrap) matName.wrapS = THREE.RepeatWrapping;
@@ -958,7 +961,7 @@ export class Shape {
 			if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
 
 			this.materials[i].map = texture;
-			if (this.isTSStatic) this.materials[i].needsUpdate = true;
+			if (this.isTSStatic || this.materials[i] instanceof THREE.MeshBasicMaterial) this.materials[i].needsUpdate = true;
 		}
 
 		// Spin the shape round 'n' round
