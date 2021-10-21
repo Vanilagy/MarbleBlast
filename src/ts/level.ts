@@ -1384,6 +1384,8 @@ export class Level extends Scheduler {
 
 	/** Resets to the last stored checkpoint state. */
 	loadCheckpointState() {
+		if (!this.currentCheckpoint) return;
+
 		let marble = this.marble;
 
 		let gravityField = (this.currentCheckpoint.srcElement as any)?.gravity || this.currentCheckpointTrigger?.element.gravity;
@@ -1398,9 +1400,12 @@ export class Level extends Scheduler {
 		}
 
 		// Determine where to spawn the marble
-		let offset = this.currentUp.scale(3);
+		let offset = new OIMO.Vec3();
 		let add = (this.currentCheckpoint.srcElement as any)?.add || this.currentCheckpointTrigger?.element.add;
-		if (add) offset = Util.vecThreeToOimo(MisParser.parseVector3(add));
+		if (add) offset.addEq(Util.vecThreeToOimo(MisParser.parseVector3(add)));
+		let sub = (this.currentCheckpoint.srcElement as any)?.sub || this.currentCheckpointTrigger?.element.sub;
+		if (sub) offset.subEq(Util.vecThreeToOimo(MisParser.parseVector3(sub)));
+		if (!add && !sub) offset.z = 3; // Defaults to (0, 0, 3)
 
 		marble.body.setPosition(Util.vecThreeToOimo(this.currentCheckpoint.worldPosition).add(offset));
 		marble.body.setLinearVelocity(new OIMO.Vec3());
@@ -1439,6 +1444,7 @@ export class Level extends Scheduler {
 		if (this.checkpointHeldPowerUp) this.schedule(this.timeState.currentAttemptTime + 500, () => this.pickUpPowerUp(this.checkpointHeldPowerUp, false));
 
 		AudioManager.play('spawn.wav');
+		this.replay.recordCheckpointRespawn();
 	}
 
 	touchFinish(completionOfImpactOverride?: number) {

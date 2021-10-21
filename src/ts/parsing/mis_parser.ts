@@ -219,6 +219,7 @@ export interface MissionElementTrigger extends MissionElementBase {
 	// checkpoint stuff:
 	respawnpoint?: string,
 	add?: string,
+	sub?: string,
 	gravity?: string,
 	disableOob?: string,
 

@@ -112,6 +112,7 @@ export class Replay {
 	}[] = [];
 	/** Which powerups were selected at random. */
 	randomPowerUpChoices = new Map<number, number[]>();
+	checkpointRespawns: number[] = [];
 
 	/** The current tick index to write to / read from. */
 	currentTickIndex = 0;
@@ -158,6 +159,7 @@ export class Replay {
 			this.jumpSoundTimes.length = 0;
 			this.bounceTimes.length = 0;
 			this.randomPowerUpChoices.clear();
+			this.checkpointRespawns.length = 0;
 
 			// Remember trapdoor, mine and push button states
 			for (let shape of this.level.shapes) {
@@ -301,6 +303,11 @@ export class Replay {
 		this.touchFinishTickIndices.push(this.currentTickIndex);
 	}
 
+	recordCheckpointRespawn() {
+		if (this.mode === 'playback' || !this.canStore) return;
+		this.checkpointRespawns.push(this.currentTickIndex);
+	}
+
 	/** Apply the replay's stored state to the world. */
 	playBack() {
 		let i = this.currentTickIndex;
@@ -347,6 +354,7 @@ export class Replay {
 		}
 
 		for (let tickIndex of this.touchFinishTickIndices) if (tickIndex === i) this.level.touchFinish();
+		for (let tickIndex of this.checkpointRespawns) if (tickIndex === i) this.level.loadCheckpointState();
 
 		this.level.marble.body.setPosition(this.marblePositions[i]);
 		this.level.marble.body.setOrientation(this.marbleOrientations[i]);
@@ -414,7 +422,8 @@ export class Replay {
 			slidingSoundGain: Util.arrayBufferToString(new Float32Array(this.slidingSoundGain).buffer),
 			jumpSoundTimes: this.jumpSoundTimes,
 			bounceTimes: this.bounceTimes,
-			randomPowerUpChoices: [...this.randomPowerUpChoices.entries()]
+			randomPowerUpChoices: [...this.randomPowerUpChoices.entries()],
+			checkpointRespawns: this.checkpointRespawns
 		};
 
 		// Then compress the whole th ing. As this step is the most expensive, run it in another thread.
@@ -471,6 +480,7 @@ export class Replay {
 		replay.jumpSoundTimes = serialized.jumpSoundTimes;
 		replay.bounceTimes = serialized.bounceTimes;
 		replay.randomPowerUpChoices = (serialized.randomPowerUpChoices ?? []).reduce((prev, next) => (prev.set(next[0], next[1]), prev), new Map<number, number[]>());
+		replay.checkpointRespawns = serialized.checkpointRespawns ?? [];
 
 		return replay;
 	}
@@ -622,5 +632,6 @@ export interface SerializedReplay {
 		volume: number,
 		showParticles: boolean
 	}[];
-	randomPowerUpChoices: [number, number[]][]
+	randomPowerUpChoices: [number, number[]][],
+	checkpointRespawns: number[]
 }
