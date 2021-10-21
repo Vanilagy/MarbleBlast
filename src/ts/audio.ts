@@ -211,8 +211,11 @@ export class AudioSource {
 	panner: StereoPannerNode | PannerNode;
 	position: THREE.Vector3;
 	stopped = false;
+	playing = false;
 	gainFactor = 1;
 	audioElement: HTMLAudioElement;
+	loop = false;
+	playbackRate = 1;
 
 	constructor(source: Promise<AudioBuffer> | HTMLAudioElement, destination: AudioNode, position?: THREE.Vector3) {
 		if (source instanceof Promise) {
@@ -258,14 +261,18 @@ export class AudioSource {
 	setLoop(loop: boolean) {
 		if (this.audioElement) this.audioElement.loop = loop;
 		else (this.node as AudioBufferSourceNode).loop = loop;
+		this.loop = loop;
 	}
 
 	setPlaybackRate(playbackRate: number) {
 		if (this.audioElement) this.audioElement.playbackRate = playbackRate;
 		else (this.node as AudioBufferSourceNode).playbackRate.value = playbackRate;
+		this.playbackRate = playbackRate;
 	}
 
 	async play() {
+		if (this.playing) return;
+
 		if (this.stopped) {
 			this.stopped = false;
 
@@ -273,6 +280,8 @@ export class AudioSource {
 				// Gotta recreate this stuff
 				this.node = AudioManager.context.createBufferSource();
 				this.node.connect(this.gain);
+				this.node.loop = this.loop;
+				this.node.playbackRate.value = this.playbackRate;
 				this.stopped = false;
 				AudioManager.audioSources.push(this);
 			}
@@ -291,10 +300,13 @@ export class AudioSource {
 			this.audioElement.play();
 			this.audioElement.addEventListener('ended', () => this.stop());
 		}
+
+		this.playing = true;
 	}
 
 	stop() {
 		this.stopped = true;
+		this.playing = false;
 		try {
 			if (this.audioElement) this.audioElement.pause();
 			else (this.node as AudioBufferSourceNode).stop();

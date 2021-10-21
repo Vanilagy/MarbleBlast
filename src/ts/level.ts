@@ -69,7 +69,11 @@ const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/items/superjump.dts": -70,
 	"shapes/items/superbounce.dts": -55,
 	"shapes/items/superspeed.dts": -53,
-	"shapes/items/shockabsorber.dts": -53
+	"shapes/items/shockabsorber.dts": -53,
+	"shapes/items/megamarble.dts": -70,
+};
+const SHAPE_OVERLAY_SCALES = {
+	"shapes/items/megamarble.dts": 60,
 };
 /** The time in milliseconds when the marble is released from the start pad. */
 export const GO_TIME = 3500;
@@ -827,7 +831,7 @@ export class Level extends Scheduler {
 				overlayShape.group.position.y = 25;
 				overlayShape.group.position.z = -35;
 			} else {
-				overlayShape.group.scale.setScalar(40);
+				overlayShape.group.scale.setScalar(SHAPE_OVERLAY_SCALES[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_SCALES] ?? 40);
 				overlayShape.group.position.y = window.innerWidth - 55;
 				overlayShape.group.position.z = SHAPE_OVERLAY_OFFSETS[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_OFFSETS];
 			}
@@ -1424,6 +1428,7 @@ export class Level extends Scheduler {
 		marble.superBounceEnableTime = -Infinity;
 		marble.shockAbsorberEnableTime = -Infinity;
 		marble.helicopterEnableTime = -Infinity;
+		marble.megaMarbleEnableTime = -Infinity;
 
 		this.clearSchedule();
 		this.outOfBounds = false;

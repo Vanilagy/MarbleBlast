@@ -39845,22 +39845,25 @@ oimo_dynamics_rigidbody_RigidBody.prototype = {
 		return this._jointLinkList;
 	}
 	,addShape: function(shape) {
-		if(this._shapeList == null) {
-			this._shapeList = shape;
-			this._shapeListLast = shape;
-		} else {
-			this._shapeListLast._next = shape;
-			shape._prev = this._shapeListLast;
-			this._shapeListLast = shape;
+		if (shape) { // Modification: In order to be able to call the update code after this if, we made this if.
+			if(this._shapeList == null) {
+				this._shapeList = shape;
+				this._shapeListLast = shape;
+			} else {
+				this._shapeListLast._next = shape;
+				shape._prev = this._shapeListLast;
+				this._shapeListLast = shape;
+			}
+			this._numShapes++;
+			shape._rigidBody = this;
+			if(this._world != null) {
+				var _this = this._world;
+				shape._proxy = _this._broadPhase.createProxy(shape,shape._aabb);
+				shape._id = _this._shapeIdCount++;
+				_this._numShapes++;
+			}
 		}
-		this._numShapes++;
-		shape._rigidBody = this;
-		if(this._world != null) {
-			var _this = this._world;
-			shape._proxy = _this._broadPhase.createProxy(shape,shape._aabb);
-			shape._id = _this._shapeIdCount++;
-			_this._numShapes++;
-		}
+		
 		this.updateMass();
 		var s = this._shapeList;
 		while(s != null) {

@@ -21,7 +21,7 @@ export class PhysicsHelper {
 	/** A separate world used to compute collision with pathed interiors. */
 	pathedInteriorCollisionWorld: OIMO.World;
 	pathedInteriorBodies: Map<PathedInterior, OIMO.RigidBody>;
-	marbleGeometry: OIMO.SphereGeometry;
+	marbleGeometry = new OIMO.SphereGeometry(1);
 
 	/** A separate world used to check collision with items and colliders. */
 	auxWorld: OIMO.World;
@@ -59,8 +59,6 @@ export class PhysicsHelper {
 		this.auxMarbleBody = new OIMO.RigidBody(new OIMO.RigidBodyConfig());
 		this.auxMarbleBody.addShape(this.auxMarbleShape);
 		this.auxWorld.addRigidBody(this.auxMarbleBody);
-
-		this.marbleGeometry = new OIMO.SphereGeometry(this.level.marble.radius);
 	}
 
 	addInterior(interior: Interior) {
@@ -259,6 +257,8 @@ export class PhysicsHelper {
 			translationVec.scaleEq(3);
 
 			let self = this;
+			this.marbleGeometry._radius = this.level.marble.radius;
+			this.marbleGeometry._gjkMargin = this.level.marble.radius;
 			this.pathedInteriorCollisionWorld.convexCast(this.marbleGeometry, transform, translationVec, {
 				process(shape, hit) {
 					let fraction = hit.fraction * 3 - 1; // Readjust the fraction because we scaled the translationVec

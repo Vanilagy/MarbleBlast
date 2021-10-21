@@ -11,6 +11,8 @@ import { MisParser } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
 
 const DEFAULT_RADIUS = 0.2;
+const ULTRA_RADIUS = 0.3;
+const MEGA_MARBLE_RADIUS = 0.6666;
 export const MARBLE_ROLL_FORCE = 40 || 40;
 const TELEPORT_FADE_DURATION = 500;
 
@@ -81,7 +83,7 @@ export class Marble {
 	predictedOrientation: OIMO.Quat;
 
 	/** The radius of the marble. */
-	radius: number;
+	radius = DEFAULT_RADIUS;
 	/** The default jump impulse of the marble. */
 	jumpImpulse = 7.3; // For now, seems to fit more.
 	/** The default restitution of the marble. */
@@ -98,6 +100,7 @@ export class Marble {
 	superBounceEnableTime = -Infinity;
 	shockAbsorberEnableTime = -Infinity;
 	helicopterEnableTime = -Infinity;
+	megaMarbleEnableTime = -Infinity;
 	helicopterSound: AudioSource = null;
 	shockAbsorberSound: AudioSource = null;
 	superBounceSound: AudioSource = null;
@@ -114,6 +117,7 @@ export class Marble {
 	slidingTimeout = 0;
 	
 	rollingSound: AudioSource;
+	rollingMegaMarbleSound: AudioSource;
 	slidingSound: AudioSource;
 
 	constructor(level: Level) {
@@ -124,8 +128,6 @@ export class Marble {
 		this.group = new THREE.Group();
 		this.innerGroup = new THREE.Group();
 		this.group.add(this.innerGroup);
-
-		this.radius = this.level.hasUltraFeatures? 0.3 : 0.2;
 
 		if (this.level.mission.misFile.marbleAttributes["jumpImpulse"] !== undefined) 
 			this.jumpImpulse = MisParser.parseNumber(this.level.mission.misFile.marbleAttributes["jumpImpulse"]);
@@ -155,38 +157,38 @@ export class Marble {
 			let ballShape = new Shape();
 			ballShape.dtsPath = 'shapes/balls/pack1/pack1marble.dts';
 			ballShape.castShadow = true;
+			ballShape.normalizeVertexNormals = true; // We do this so that the marble doesn't get darker the larger it gets
 			if (customTextureBlob) ballShape.matNamesOverride['base.marble'] = marbleTexture;
 			await ballShape.init(this.level);
-			ballShape.setTransform(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3().setScalar(this.radius / DEFAULT_RADIUS));
 			this.innerGroup.add(ballShape.group);
 			this.ballShape = ballShape;
 		}
 
-		let geometry = new THREE.SphereBufferGeometry(this.radius, 32, 16);
+		let geometry = new THREE.SphereBufferGeometry(1, 32, 16);
 		let sphere = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ map: marbleTexture, color: 0xffffff }));
+		sphere.material.onBeforeCompile = shader => shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader; // Same thing as with ballShape
 		sphere.castShadow = true;
 		this.sphere = sphere;
 		this.innerGroup.add(sphere);
 
 		// Create the collision geometry
 		let shapeConfig = new OIMO.ShapeConfig();
-		shapeConfig.geometry = new OIMO.SphereGeometry(this.radius);
+		shapeConfig.geometry = new OIMO.SphereGeometry(1);
 		shapeConfig.friction = 1;
 		shapeConfig.restitution = this.bounceRestitution;
 		let shape = new OIMO.Shape(shapeConfig);
+		this.shape = shape;
 
 		let config = new OIMO.RigidBodyConfig();
 		let body = new OIMO.RigidBody(config);
-		body.addShape(shape);
 		body.setAutoSleep(false);
+		body.addShape(shape);
+		this.body = body;
 
 		// Set the marble's default orientation to be close to actual MBP
 		let mat3 = body.getRotation();
 		mat3.fromEulerXyz(new OIMO.Vec3(Math.PI/2, Math.PI * 7/6));
 		body.setRotation(mat3);
-
-		this.body = body;
-		this.shape = shape;
 
 		this.forcefield = new Shape();
 		this.forcefield.dtsPath = "shapes/images/glow_bounce.dts";
@@ -205,7 +207,7 @@ export class Marble {
 
 		// Load the necessary rolling sounds
 		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"];
-		if (this.level.hasUltraFeatures) toLoad.push("blast.wav");
+		if (this.level.hasUltraFeatures) toLoad.push("blast.wav"); // Mega Marble sounds are loaded in the power-up
 		await AudioManager.loadBuffers(toLoad);
 
 		this.rollingSound = AudioManager.createAudioSource('rolling_hard.wav');
@@ -213,12 +215,18 @@ export class Marble {
 		this.rollingSound.gain.gain.value = 0;
 		this.rollingSound.setLoop(true);
 
+		if (this.level.hasUltraFeatures) {
+			this.rollingMegaMarbleSound = AudioManager.createAudioSource('mega_roll.wav');
+			this.rollingMegaMarbleSound.gain.gain.value = 0;
+			this.rollingMegaMarbleSound.setLoop(true);
+		}
+
 		this.slidingSound = AudioManager.createAudioSource('sliding.wav');
 		this.slidingSound.play();
 		this.slidingSound.gain.gain.value = 0;
 		this.slidingSound.setLoop(true);
 
-		await Promise.all([this.rollingSound.promise, this.slidingSound.promise]);
+		await Promise.all([this.rollingSound.promise, this.slidingSound.promise, this.rollingMegaMarbleSound?.promise]);
 
 		if (StorageManager.data.settings.reflectiveMarble) {
 			// Add environment map reflection to the marble
@@ -389,16 +397,20 @@ export class Marble {
 				if (predictedMovement.dot(surfaceRelativeVelocity) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > surfaceRelativeVelocity.length() * 1.5)) {
 					this.slidingSound.gain.gain.value = 0.6;
 					this.rollingSound.gain.gain.value = 0;
+					if (this.rollingMegaMarbleSound) this.rollingMegaMarbleSound.gain.gain.value = 0;
 				} else {
 					this.slidingSound.gain.gain.value = 0;
 					let pitch = Util.clamp(surfaceRelativeVelocity.length() / 15, 0, 1) * 0.75 + 0.75;
 
 					this.rollingSound.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02);
+					this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02);
 					this.rollingSound.setPlaybackRate(pitch);
+					this.rollingMegaMarbleSound?.setPlaybackRate(pitch);
 				}
 			} else {
 				this.slidingSound.gain.gain.value = 0;
 				this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+				this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 			}
 
 			// Weaken the marble's angular power based on the friction and steepness of the surface
@@ -452,6 +464,7 @@ export class Marble {
 
 			this.slidingSound.gain.gain.value = 0;
 			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 		}
 
 		movementRotationAxis.scaleEq(this.speedFac);
@@ -525,6 +538,17 @@ export class Marble {
 			this.helicopterSound?.stop();
 			this.helicopterSound = null;
 		}
+
+		if (this.radius !== MEGA_MARBLE_RADIUS && time.currentAttemptTime - this.megaMarbleEnableTime < 10000) {
+			this.setRadius(MEGA_MARBLE_RADIUS);
+			this.body.addLinearVelocity(this.level.currentUp.scale(6)); // There's a small yeet upwards
+			this.rollingSound.stop();
+			this.rollingMegaMarbleSound?.play();
+		} else if (time.currentAttemptTime - this.megaMarbleEnableTime >= 10000) {
+			this.setRadius(this.level.hasUltraFeatures? ULTRA_RADIUS : DEFAULT_RADIUS);
+			this.rollingSound.play();
+			this.rollingMegaMarbleSound?.stop();
+		}
 	}
 
 	playJumpSound() {
@@ -532,7 +556,8 @@ export class Marble {
 	}
 
 	playBounceSound(volume: number) {
-		AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'], volume);
+		let prefix = (this.radius === MEGA_MARBLE_RADIUS)? 'mega_' : '';
+		AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'].map(x => prefix + x), volume);
 	}
 
 	showBounceParticles() {
@@ -660,6 +685,10 @@ export class Marble {
 		this.teleportEnableTime = null;
 	}
 
+	enableMegaMarble(time: TimeState) {
+		this.megaMarbleEnableTime = time.currentAttemptTime;
+	}
+
 	useBlast() {
 		if (this.level.blastAmount < 0.2 || !this.level.hasUltraFeatures) return;
 
@@ -676,8 +705,16 @@ export class Marble {
 		this.level.blastAmount = 0;
 	}
 
+	/** Updates the radius of the marble both visually and physically. */
 	setRadius(radius: number) {
+		this.radius = radius;
+		this.sphere.scale.setScalar(radius);
+		this.ballShape?.setTransform(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3().setScalar(radius / DEFAULT_RADIUS));
 
+		let geom = this.body.getShapeList()._geom as OIMO.SphereGeometry;
+		geom._radius = radius;
+		geom._gjkMargin = radius;
+		this.body.addShape(null); // I hacked OIMO a bit, this will trigger a recompute of the mass and stuff
 	}
 
 	reset() {
@@ -688,12 +725,14 @@ export class Marble {
 		this.helicopterEnableTime = -Infinity;
 		this.teleportEnableTime = null;
 		this.teleportDisableTime = null;
+		this.megaMarbleEnableTime = -Infinity;
 		this.lastContactNormal = new OIMO.Vec3(0, 0, 1);
 		this.lastVel = new OIMO.Vec3();
 		this.collisionTimeout = 0;
 		this.slidingTimeout = 0;
 		this.predictedPosition = this.body.getPosition();
 		this.predictedOrientation = this.body.getOrientation();
+		this.setRadius(this.level.hasUltraFeatures? ULTRA_RADIUS : DEFAULT_RADIUS);
 
 		let mat = this.sphere.material as THREE.MeshLambertMaterial;
 		mat.map = this.marbleTexture;

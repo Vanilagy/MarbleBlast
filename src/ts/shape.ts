@@ -146,6 +146,8 @@ export class Shape {
 	ambientSpinFactor = -1 / 3000 * Math.PI * 2;
 	/** Whether or not collision meshes will receive shadows. */
 	receiveShadows = true;
+	/** Whether or not to normalize vertex normals on the GPU. This is off by default because that's what Torque does. It's what makes stuff dark when it gets scaled. */
+	normalizeVertexNormals = false;
 
 	/** Same shapes with the same shareId will share data. */
 	shareId: number = 0;
@@ -461,6 +463,10 @@ export class Shape {
 			// If the material is self-illuminated, we can get away with a MeshBasicMaterial
 			let material = ((flags & MaterialFlags.SelfIlluminating) || environmentMaterial) ? new THREE.MeshBasicMaterial() : new THREE.MeshLambertMaterial();
 			this.materials.push(material);
+
+			if (this.normalizeVertexNormals) material.onBeforeCompile = shader => {
+				shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader;
+			};
 
 			if (matName instanceof THREE.Texture) {
 				if (flags & MaterialFlags.S_Wrap) matName.wrapS = THREE.RepeatWrapping;
