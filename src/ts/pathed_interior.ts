@@ -88,6 +88,7 @@ export class PathedInterior extends Interior {
 				rotation: MisParser.parseRotation(x.rotation)
 			};
 		});
+		if (MisParser.parseBoolean(this.path.isLooping)) this.markerData.push(this.markerData[0]); // In this case, we wrap around the marker list smoothly. Emulate this by copying the start to the end.
 		this.computeDuration();
 
 		// Add MustChangeTriggers if necessary

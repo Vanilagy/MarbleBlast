@@ -169,7 +169,8 @@ export interface MissionElementItem extends MissionElementBase {
 /** Holds the markers used for the path of a pathed interior. */
 export interface MissionElementPath extends MissionElementBase {
 	_type: MissionElementType.Path,
-	markers: MissionElementMarker[]
+	markers: MissionElementMarker[],
+	isLooping?: string
 }
 
 /** One keyframe in a pathed interior path. */
@@ -274,6 +275,7 @@ const marbleAttributesRegEx = /setMarbleAttributes\("(\w+)",\s*(.+?)\);/g;
 const activatePackageRegEx = /activatePackage\((.+?)\);/g;
 const materialPropertyRegEx = /new MaterialProperty *\( *(.+?) *\)\s*{\s*((?:\w+ *= *(\d|\.)+;\s*)*)}/gi;
 const addMaterialMappingRegEx = /addMaterialMapping *\( *"(.+?)" *, *(.+?) *\)/gi;
+const keyValuePairRegEx = /\s*(.+?)\s*=\s*"(.*?)"\s*;/g;
 
 /** A parser for .mis files, which hold mission information. */
 export class MisParser {
@@ -446,12 +448,27 @@ export class MisParser {
 
 	readSimGroup(name: string) {
 		let elements: MissionElement[] = [];
+		let keyValuePairs: Record<string, string> = {}; // Possible optional key-value pairs also included with the sim group
 
 		// Read in all elements
-		while (this.hasNextElement()) {
-			let element = this.readElement();
-			if (!element) continue;
-			elements.push(element);
+		while (true) {
+			elementHeadRegEx.lastIndex = this.index;
+			keyValuePairRegEx.lastIndex = this.index;
+			let head = elementHeadRegEx.exec(this.text);
+			let keyValue = keyValuePairRegEx.exec(this.text);
+
+			let index = Math.min(head?.index, keyValue?.index);
+			if (!isFinite(index)) break;
+			if (Util.indexOfIgnoreStringLiterals(this.text.slice(this.index, index), '}') !== -1) break;
+
+			if (index === head?.index) {
+				let element = this.readElement();
+				if (!element) continue;
+				elements.push(element);
+			} else {
+				keyValuePairs[keyValue[1]] = this.resolveExpression(keyValue[2]);
+				this.index += keyValue[0].length;
+			}
 		}
 
 		let endingBraceIndex = Util.indexOfIgnoreStringLiterals(this.text, '};', this.index);
@@ -460,11 +477,11 @@ export class MisParser {
 
 		if (!elements) return null;
 
-		return {
+		return Object.assign(keyValuePairs, {
 			_type: MissionElementType.SimGroup,
 			_name: name,
 			elements: elements
-		} as MissionElementSimGroup;
+		}) as any as MissionElementSimGroup;
 	}
 
 	/** Reads the key/value pairs of an element. */
@@ -570,13 +587,12 @@ export class MisParser {
 	}
 
 	readPath(name: string) {
-		let simGroup = this.readSimGroup(name);
+		let simGroup = this.readSimGroup(name) as any;
+		simGroup['markers'] = (simGroup.elements as MissionElementMarker[]).sort((a, b) => MisParser.parseNumber(a.seqnum) - MisParser.parseNumber(b.seqnum)); // Make sure they're sorted sequentially
+		delete simGroup['elements'];
 
-		return {
-			_type: MissionElementType.Path,
-			_name: name,
-			markers: (simGroup.elements as MissionElementMarker[]).sort((a, b) => MisParser.parseNumber(a.seqnum) - MisParser.parseNumber(b.seqnum)) // Make sure they're sorted sequentially
-		} as MissionElementPath;
+		simGroup._type = MissionElementType.Path;
+		return simGroup as MissionElementPath;
 	}
 
 	readMarker(name: string) {
