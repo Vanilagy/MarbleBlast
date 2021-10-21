@@ -87,6 +87,11 @@ export abstract class Hud {
 			this.fpsMeter.classList.add('hidden');
 			this.fpsMeterValue.classList.add('hidden');
 		}
+
+		this.setBlastMeterVisibility(state.level.mission.hasBlast);
+		if (state.level.mission.hasBlast) {
+			await ResourceManager.loadImages(["blastbar.png", "blastbar_charged.png", "blastbar_bargreen.png", "blastbar_bargray.png"].map(x => "./assets/ui_mbp/game/" + x));
+		}
 	}
 
 	/** Updates the game clock canvas. */

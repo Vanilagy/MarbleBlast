@@ -7,7 +7,7 @@ import { Shape } from "./shape";
 import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
-import { MisParser } from "./parsing/mis_parser";
+import { MisParser, MissionElementType } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
 
 const DEFAULT_RADIUS = 0.2;
@@ -207,7 +207,7 @@ export class Marble {
 
 		// Load the necessary rolling sounds
 		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"];
-		if (this.level.hasUltraFeatures) toLoad.push("blast.wav"); // Mega Marble sounds are loaded in the power-up
+		if (this.level.mission.hasBlast) toLoad.push("blast.wav");
 		await AudioManager.loadBuffers(toLoad);
 
 		this.rollingSound = AudioManager.createAudioSource('rolling_hard.wav');
@@ -215,7 +215,8 @@ export class Marble {
 		this.rollingSound.gain.gain.value = 0;
 		this.rollingSound.setLoop(true);
 
-		if (this.level.hasUltraFeatures) {
+		// Check if we need to prep a Mega Marble sound
+		if (this.level.mission.allElements.some(x => x._type === MissionElementType.Item && x.datablock?.toLowerCase() === 'megamarbleitem')) {
 			this.rollingMegaMarbleSound = AudioManager.createAudioSource('mega_roll.wav');
 			this.rollingMegaMarbleSound.gain.gain.value = 0;
 			this.rollingMegaMarbleSound.setLoop(true);
@@ -545,7 +546,7 @@ export class Marble {
 			this.rollingSound.stop();
 			this.rollingMegaMarbleSound?.play();
 		} else if (time.currentAttemptTime - this.megaMarbleEnableTime >= 10000) {
-			this.setRadius(this.level.hasUltraFeatures? ULTRA_RADIUS : DEFAULT_RADIUS);
+			this.setRadius(this.level.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
 			this.rollingSound.play();
 			this.rollingMegaMarbleSound?.stop();
 		}
@@ -690,7 +691,7 @@ export class Marble {
 	}
 
 	useBlast() {
-		if (this.level.blastAmount < 0.2 || !this.level.hasUltraFeatures) return;
+		if (this.level.blastAmount < 0.2 || !this.level.mission.hasBlast) return;
 
 		let impulse = this.level.currentUp.scale(Math.max(Math.sqrt(this.level.blastAmount), this.level.blastAmount) * 10);
 		this.body.addLinearVelocity(impulse);
@@ -733,7 +734,7 @@ export class Marble {
 		this.slidingTimeout = 0;
 		this.predictedPosition = this.body.getPosition();
 		this.predictedOrientation = this.body.getOrientation();
-		this.setRadius(this.level.hasUltraFeatures? ULTRA_RADIUS : DEFAULT_RADIUS);
+		this.setRadius(this.level.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
 
 		let mat = this.sphere.material as THREE.MeshLambertMaterial;
 		mat.map = this.marbleTexture;

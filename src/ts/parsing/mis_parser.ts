@@ -66,6 +66,8 @@ export interface MissionElementScriptObject extends MissionElementBase {
 	music: string,
 	gametype: string,
 	alarmstarttime: string,
+	noblast: string,
+	blast: string,
 
 	score: any,
 	score0: any,

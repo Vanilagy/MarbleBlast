@@ -130,7 +130,6 @@ interface LoadingState {
 export class Level extends Scheduler {
 	mission: Mission;
 	/** Whether or not this level has the classic additional features of MBU levels, such as a larger marble and the blast functionality. */
-	hasUltraFeatures: boolean;
 	loadingState: LoadingState;
 
 	scene: THREE.Scene;
@@ -223,7 +222,6 @@ export class Level extends Scheduler {
 		super();
 		this.mission = mission;
 		this.loadingState = { loaded: 0, total: 0 };
-		this.hasUltraFeatures = mission.modification === 'ultra' && mission.path !== 'mbp/advanced/hypercube_ultra.mis';
 	}
 
 	/** Loads all necessary resources and builds the mission. */
@@ -1050,7 +1048,7 @@ export class Level extends Scheduler {
 
 			this.tickSchedule(this.timeState.currentAttemptTime);
 
-			if (this.hasUltraFeatures && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
+			if (this.mission.hasBlast && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
 
 			// Update pathed interior velocities before running the simulation step
 			// Note: We do this even in replay playback mode, because pathed interior body position is relevant for the camera code.
@@ -1433,6 +1431,7 @@ export class Level extends Scheduler {
 		this.clearSchedule();
 		this.outOfBounds = false;
 		this.blastAmount = this.checkpointBlast;
+		this.finishTime = null; // For those very, very rare cases where the player touched the finish while OOB, but not fast enough, so they get respawned at the checkpoint and we need to remove the "finish lock".
 
 		this.deselectPowerUp(); // Always deselect first
 		// Wait a bit to select the powerup to prevent immediately using it incase the user skipped the OOB screen by clicking

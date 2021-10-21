@@ -60,6 +60,8 @@ export class Mission {
 	difCache = new Map<string, Promise<DifFile>>();
 	isNew = false;
 	hasEasterEgg = false;
+	hasBlast = false;
+	hasUltraMarble = false;
 
 	constructor(path: string, misFile?: MisFile) {
 		this.path = path;
@@ -87,6 +89,7 @@ export class Mission {
 		mission.type = missionInfo.type.toLowerCase() as any;
 		mission.modification = path.startsWith('mbp/')? 'platinum' : path.startsWith('mbu/')? 'ultra' : 'gold';
 		mission.hasEasterEgg = mission.allElements.some(element => element._type === MissionElementType.Item && element.datablock?.toLowerCase() === 'easteregg');
+		mission.setUltraFlags();
 
 		return mission;
 	}
@@ -184,6 +187,16 @@ export class Mission {
 			}
 		}
 		this.missionInfo = missionInfo;
+
+		this.setUltraFlags();
+	}
+
+	setUltraFlags() {
+		if (!MisParser.parseBoolean(this.missionInfo.noblast) && MisParser.parseBoolean(this.missionInfo.blast) || this.missionInfo.game?.toLowerCase() === 'ultra')
+			this.hasBlast = true;
+
+		if (this.missionInfo.game?.toLowerCase() === 'ultra')
+			this.hasUltraMarble = true;
 	}
  
 	getDirectoryMissionPath() {
