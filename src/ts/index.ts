@@ -15,16 +15,23 @@ OIMO.Setting.defaultContactPositionCorrectionAlgorithm = OIMO.PositionCorrection
 THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
 
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
+const loadingDetail = document.querySelector('#loading-detail') as HTMLDivElement;
 const startGameDialog = document.querySelector('#start-game-dialog') as HTMLDivElement;
 
 const init = async () => {
 	await Util.init();
 	await StorageManager.init();
 	await ResourceManager.init();
+
+	loadingDetail.textContent = 'Loading levels...';
 	await MissionLibrary.init();
 	AudioManager.init();
+
+	loadingDetail.textContent = 'Loading UI...';
 	await setMenu(StorageManager.data.modification);
-	await Promise.all([Leaderboard.init()]);
+
+	loadingDetail.textContent = 'Loading leaderboard...';
+	await Leaderboard.init();
 
 	let started = false;
 	const start = async () => {
@@ -35,6 +42,7 @@ const init = async () => {
 	};
 	
 	loadingMessage.style.display = 'none';
+	loadingDetail.style.display = 'none';
 	if (AudioManager.context.state === "running") {
 		// Start the game automatically if we already have audio autoplay permission.
 		start();

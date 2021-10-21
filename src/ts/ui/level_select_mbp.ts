@@ -122,6 +122,10 @@ export class MbpLevelSelect extends LevelSelect {
 		this.setMissionArray(MissionLibrary.platinumAdvanced, false);
 		this.setMissionArray(MissionLibrary.platinumIntermediate, false);
 		this.setMissionArray(MissionLibrary.platinumBeginner, false);
+		this.setMissionArray(MissionLibrary.ultraCustom, false);
+		this.setMissionArray(MissionLibrary.ultraAdvanced, false);
+		this.setMissionArray(MissionLibrary.ultraIntermediate, false);
+		this.setMissionArray(MissionLibrary.ultraBeginner, false);
 
 		await ResourceManager.loadImages(['play/eggnotfound.png', 'play/eggfound.png', 'play/marble_gold.png', 'play/marble_platinum.png', 'play/marble_ultra.png', 'mp/menu/brown/joined.png', 'mp/menu/brown/divider-orange-joined.png', 'options/textentry.png'].map(x => './assets/ui_mbp/' + x));
 	}
@@ -169,7 +173,7 @@ export class MbpLevelSelect extends LevelSelect {
 			this.menu.setButtonVariant(this.difficultySelectorCollapsed,
 				['beginner', 'intermediate', 'advanced', 'expert', 'custom'].indexOf(MissionLibrary.getDifficulty(arr))
 			);
-			this.difficultySelectorModificationIcon.src = "./assets/ui_mbp/play/" + ((MissionLibrary.getModification(arr) === 'gold')? "marble_gold.png" : "marble_platinum.png");
+			this.difficultySelectorModificationIcon.src = "./assets/ui_mbp/play/" + ((MissionLibrary.getModification(arr) === 'gold')? "marble_gold.png" : (MissionLibrary.getModification(arr) === 'ultra')? "marble_ultra.png" : "marble_platinum.png");
 		}
 
 		// Set the background image based on the modification

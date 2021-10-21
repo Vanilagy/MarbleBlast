@@ -91,7 +91,7 @@ html, body {
 	object-fit: cover;
 }
 
-#loading-message, #switching-message {
+#loading-message, #switching-message, #loading-detail {
 	position: absolute;
 	margin: auto;
 	top: 0;
@@ -105,6 +105,21 @@ html, body {
 	text-align: center;
 	height: 35px;
 	animation: pulse-opacity 1s infinite forwards;
+}
+
+#loading-detail {
+	position: absolute;
+	margin: auto;
+	top: 0;
+	bottom: -80px;
+	left: 0;
+	right: 0;
+	font-family: MarkerFelt;
+	color: #ffffff80;
+	font-size: 12px;
+	width: 200px;
+	text-align: center;
+	height: 35px;
 }
 
 #start-game-dialog {
