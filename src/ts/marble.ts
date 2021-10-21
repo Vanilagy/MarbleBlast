@@ -106,7 +106,7 @@ const applyReflectiveMarbleShader = (shader: THREE.Shader) => {
 
 		//float reflectAmount = invSigmoid(0.01 + 0.98 * texture(map, vUv).a);
 		//reflectAmount = max(0.25, reflectAmount);
-		float reflectAmount = 0.25; // For now
+		float reflectAmount = 0.23; // For now
 		reflectAmount -= 0.7 * (2.0 * normal.z - 1.0); // Fresnel thingy
 		reflectAmount = sigmoid(reflectAmount);
 		reflectAmount = 0.95 * reflectAmount;
@@ -231,6 +231,7 @@ export class Marble {
 			shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader; // Same thing as with ballShape
 			if (isReflective) applyReflectiveMarbleShader(shader);
 		};
+		sphere.material.customProgramCacheKey = () => sphere.material.onBeforeCompile.toString() + isReflective? applyReflectiveMarbleShader.toString() : null;
 
 		// Create the collision geometry
 		let shapeConfig = new OIMO.ShapeConfig();

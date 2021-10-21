@@ -3,9 +3,8 @@ import * as THREE from "three";
 export const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasElement;
 
 const resize = () => {
-	mainCanvas.setAttribute('width', window.innerWidth.toString());
-	mainCanvas.setAttribute('height', window.innerHeight.toString());
 	renderer.setSize(window.innerWidth, window.innerHeight);
+	renderer.setPixelRatio(window.devicePixelRatio);
 
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix(); // Necessary because changed aspect ratio

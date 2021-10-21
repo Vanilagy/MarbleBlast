@@ -469,7 +469,7 @@ export class Shape {
 				if (this.normalizeVertexNormals) shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader;
 				this.onBeforeMaterialCompile?.(shader);
 			};
-			material.customProgramCacheKey = () => this.onBeforeMaterialCompile?.toString(); // The default cache key is the onBeforeCompile, but that can differ for us here.
+			material.customProgramCacheKey = () => material.onBeforeCompile.toString() + this.onBeforeMaterialCompile?.toString(); // The default cache key is the onBeforeCompile, but that can differ for us here.
 
 			if (matName instanceof THREE.Texture) {
 				if (flags & MaterialFlags.S_Wrap) matName.wrapS = THREE.RepeatWrapping;
