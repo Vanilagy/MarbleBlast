@@ -717,8 +717,11 @@ export class Marble {
 
 		let isReflective = StorageManager.data.settings.marbleReflectivity === 2 || (StorageManager.data.settings.marbleReflectivity === 0 && this.level.mission.modification === 'ultra');
 		if (isReflective) {
+			marbleReflectionCamera.position.copy(camera.position);
+			marbleReflectionCamera.quaternion.copy(camera.quaternion);
+			Util.cameraLookAtDirect(marbleReflectionCamera, this.group.position);
+			marbleReflectionCamera.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), Math.PI); // Flip it 180
 			marbleReflectionCamera.position.copy(this.group.position);
-			marbleReflectionCamera.lookAt(camera.position);
 	
 			this.level.scene.remove(this.group); // So that we don't have framebuffer recursion
 			let renderTargetBefore = renderer.getRenderTarget();
