@@ -38,7 +38,8 @@ export interface StorageData {
 		showFrameRate: boolean,
 		showThousandths: boolean,
 		fov: number,
-		fancyShaders: boolean
+		fancyShaders: boolean,
+		respectDevicePixelRatio: boolean
 	},
 	bestTimes: Record<string, BestTimes>,
 	/** Used for the name entry in the post-game screen. */
@@ -83,11 +84,12 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		keyboardSensitivity: 0.1,
 		invertMouse: 0,
 		alwaysFreeLook: true,
-		marbleReflectivity: 0,
+		marbleReflectivity: 1, // Off by default for now until it's more performant more regularly
 		showFrameRate: true,
 		showThousandths: true,
 		fov: 60,
-		fancyShaders: true
+		fancyShaders: true,
+		respectDevicePixelRatio: true
 	},
 	bestTimes: {},
 	lastUsedName: '',

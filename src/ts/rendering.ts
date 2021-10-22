@@ -1,10 +1,11 @@
 import * as THREE from "three";
+import { StorageManager } from "./storage";
 
 export const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasElement;
 
-const resize = () => {
+export const resize = () => {
 	renderer.setSize(window.innerWidth, window.innerHeight);
-	renderer.setPixelRatio(window.devicePixelRatio);
+	renderer.setPixelRatio(StorageManager.data?.settings.respectDevicePixelRatio? window.devicePixelRatio : 1);
 
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix(); // Necessary because changed aspect ratio

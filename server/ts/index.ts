@@ -11,7 +11,7 @@ const serveStatic = serveStatic_;
 const finalhandler = finalhandler_;
 
 import { shared } from './shared';
-import { getDirectoryStructure, getVersionHistory, logUserError } from './misc';
+import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity } from './misc';
 import { getLeaderboard, submitScores, getWorldRecordSheet } from './leaderboard';
 import { getCustomLevelResource } from './customs';
 
@@ -83,6 +83,7 @@ const initServer = (port: number) => {
 						case 'sheet': await getWorldRecordSheet(res); break;
 						case 'error': await logUserError(res, body); break;
 						case 'version_history': await getVersionHistory(res); break;
+						case 'activity': await registerActivity(res, urlObject); break;
 						default: break outer; // Incorrect API function
 					}
 	

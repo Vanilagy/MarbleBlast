@@ -1,6 +1,6 @@
 import { Interior } from "./interior";
 import * as THREE from "three";
-import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera } from "./rendering";
+import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera, resize } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
@@ -272,6 +272,7 @@ export class Level extends Scheduler {
 		for (let shape of this.shapes) await shape.onLevelStart();
 		AudioManager.normalizePositionalAudioVolume();
 
+		resize(); // To update renderer
 		mainCanvas.classList.remove('hidden');
 		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick for correct positional audio playback
 		this.render(); // This will also do a tick

@@ -1,6 +1,7 @@
 import * as http from 'http';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import * as url from 'url';
 
 import { shared } from './shared';
 
@@ -83,4 +84,36 @@ export const getVersionHistory = async (res: http.ServerResponse) => {
 		'Cache-Control': 'no-cache, no-store' // Don't cache this
 	});
 	res.end(contents);
+};
+
+const idActivityTimes = new Map<string, number>();
+
+export const registerActivity = async (res: http.ServerResponse, urlObject: url.URL) => {
+	let id = urlObject.searchParams.get('id');
+	let has = idActivityTimes.has(id);
+	idActivityTimes.set(id, Date.now());
+	if (!has) appendToActivityFile();
+
+	res.writeHead(200, {
+		'Cache-Control': 'no-cache, no-store' // Don't cache this
+	});
+	res.end();
+}
+
+setInterval(() => {
+	let now = Date.now();
+	let changed = false;
+
+	for (let [id, timestamp] of idActivityTimes) {
+		if (now - timestamp >= 60000) {
+			idActivityTimes.delete(id);
+			changed = true;
+		}
+	}
+
+	if (changed) appendToActivityFile();
+}, 1000);
+
+const appendToActivityFile = () => {
+	fs.appendFile(path.join(__dirname, 'storage/activity.txt'), new Date().toISOString() + ' - ' + idActivityTimes.size + '\n');
 };

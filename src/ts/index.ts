@@ -137,3 +137,8 @@ const sendErrors = () => {
 	// 5-second timeout until it's done again
 	errorTimeout = setTimeout(sendErrors, 5000) as any as number;
 };
+
+const activityId = Util.getRandomId();
+setInterval(() => {
+	fetch('/api/activity?id=' + activityId);
+}, 30000);
