@@ -155,6 +155,24 @@ export abstract class StorageManager {
 				console.error("Error decoding best times!", e);
 			}
 		}
+
+		// Here we correct an oopsie: Because I accidentally released MBU levels too early, remove all local scores on those levels that happened before the *proper* MBU level release, as they are invalid.
+		let changed = false;
+		for (let missionPath in this.data.bestTimes) {
+			if (!missionPath.startsWith('mbu/')) continue;
+
+			for (let i = 0; i < this.data.bestTimes[missionPath].length; i++) {
+				let score = this.data.bestTimes[missionPath][i];
+				if (score[3] < 1634861292099) {
+					this.data.bestTimes[missionPath].splice(i--, 1);
+					changed = true;
+				}
+			}
+
+			if (this.data.bestTimes[missionPath].length === 0) delete this.data.bestTimes[missionPath];
+		}
+
+		if (changed) await this.storeBestTimes();
 	}
 
 	/** Migrates from localStorage to IndexedDB. */
