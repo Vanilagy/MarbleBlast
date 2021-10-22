@@ -127,7 +127,7 @@ export abstract class LevelSelect {
 	}
 
 	getDefaultMissionIndex() {
-		if ([MissionLibrary.goldCustom, MissionLibrary.platinumCustom].includes(this.currentMissionArray)) {
+		if ([MissionLibrary.goldCustom, MissionLibrary.platinumCustom, MissionLibrary.ultraCustom].includes(this.currentMissionArray)) {
 			// Always select the last custom level by default
 			return this.currentMissionArray.length - 1;
 		}

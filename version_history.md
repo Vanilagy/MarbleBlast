@@ -1,7 +1,17 @@
 # Version History
 
 ## 2.1.0
-- Added support for both regular and MBU-style marble textures
+- Added Marble Blast Ultra levels (61 default + 107 custom)
+- Added Blast
+- Added Mega Marble
+- Added fancy MBU material shaders
+- Added proper dynamic reflections to the marble
+- Added support for both regular and MBU-style custom marble textures
+- Added more loading screen detail
+- Fixed checkpoints working incorrectly in replays
+- Fixed wrong checkpoint respawn positions
+- Fixed z-fighting issues
+- Various other small fixes and improvements
 
 ## 2.0.10
 - No, MBU levels are not out yet. That was an oopsie.
