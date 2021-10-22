@@ -13,6 +13,50 @@ import { renderer } from "./rendering";
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
 
+// The following two shaders have been modified to support logarithmic depth buffers:
+const SHADOW_MATERIAL_VERTEX = `
+	#include <common>
+	#include <fog_pars_vertex>
+	#include <morphtarget_pars_vertex>
+	#include <skinning_pars_vertex>
+	#include <shadowmap_pars_vertex>
+	#include <logdepthbuf_pars_vertex> // Added here
+	void main() {
+		#include <beginnormal_vertex>
+		#include <morphnormal_vertex>
+		#include <skinbase_vertex>
+		#include <skinnormal_vertex>
+		#include <defaultnormal_vertex>
+		#include <begin_vertex>
+		#include <morphtarget_vertex>
+		#include <skinning_vertex>
+		#include <project_vertex>
+		#include <logdepthbuf_vertex> // Added here
+		#include <worldpos_vertex>
+		#include <shadowmap_vertex>
+		#include <fog_vertex>
+	}
+`;
+const SHADOW_MATERIAL_FRAGMENT = `
+	uniform vec3 color;
+	uniform float opacity;
+	#include <common>
+	#include <packing>
+	#include <fog_pars_fragment>
+	#include <bsdfs>
+	#include <lights_pars_begin>
+	#include <shadowmap_pars_fragment>
+	#include <shadowmask_pars_fragment>
+	#include <logdepthbuf_pars_fragment> // Added here
+	void main() {
+		#include <logdepthbuf_fragment> // Added here
+		gl_FragColor = vec4( color, opacity * ( 1.0 - getShadowMask() ) );
+		#include <tonemapping_fragment>
+		#include <encodings_fragment>
+		#include <fog_fragment>
+	}
+`;
+
 interface MaterialInfo {
 	keyframes: string[]
 }
@@ -529,6 +573,12 @@ export class Shape {
 			let mat = new THREE.MeshBasicMaterial({ envMap: this.level.envMap });
 			this.materials.push(mat);
 		}
+
+		// Modify it to work with log depth buffers
+		this.shadowMaterial.onBeforeCompile = shader => {
+			shader.vertexShader = SHADOW_MATERIAL_VERTEX;
+			shader.fragmentShader = SHADOW_MATERIAL_FRAGMENT;
+		};
 	}
 
 	/** Generates material geometry info from a given DTS mesh. */
@@ -550,7 +600,8 @@ export class Shape {
 			let dot1 = normal.dot(vertexNormals[i1]);
 			let dot2 = normal.dot(vertexNormals[i2]);
 			let dot3 = normal.dot(vertexNormals[i3]);
-			if (dot1 < 0 && dot2 < 0 && dot3 < 0) [i1, i3] = [i3, i1];
+			if (!this.dtsPath.includes('helicopter.dts')) if (dot1 < 0 && dot2 < 0 && dot3 < 0) [i1, i3] = [i3, i1];
+			// ^ temp hardcoded fix
 
 			for (let index of [i1, i2, i3]) {
 				let vertex = vertices[index];

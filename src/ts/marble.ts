@@ -578,7 +578,7 @@ export class Marble {
 		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) {
 			// Show the helicopter
 			this.helicopter.setOpacity(1);
-			this.helicopter.setTransform(new THREE.Vector3(), this.level.newOrientationQuat, new THREE.Vector3(1, 1, 1));
+			this.helicopter.setTransform(new THREE.Vector3(0, 0, this.radius - DEFAULT_RADIUS).applyQuaternion(this.level.newOrientationQuat), this.level.newOrientationQuat, new THREE.Vector3(1, 1, 1));
 			this.level.setGravityIntensity(this.level.defaultGravity * 0.25);
 			
 			if (!this.helicopterSound) {
@@ -788,6 +788,8 @@ export class Marble {
 		geom._radius = radius;
 		geom._gjkMargin = radius;
 		this.body.addShape(null); // I hacked OIMO a bit, this will trigger a recompute of the mass and stuff
+
+		this.forcefield.group.scale.setScalar(this.radius / DEFAULT_RADIUS);
 	}
 
 	reset() {
