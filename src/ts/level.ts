@@ -817,6 +817,7 @@ export class Level extends Scheduler {
 		this.sunlight.position.copy(shadowCameraPosition);
 		this.sunlight.target.position.copy(this.marble.group.position);
 
+		this.marble.renderReflection();
 		renderer.render(this.scene, camera);
 
 		// Update the overlay

@@ -29,7 +29,7 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 
 	for (let mission of options.missions) {
 		let rows: ScoreRow[] = shared.getScoresForMissionStatement.all(mission);
-		response[mission] = rows.map(x => [x.username, x.time]);
+		response[mission] = rows.map(x => [x.username.slice(0, 16), x.time]);
 	}
 
 	let stringified = JSON.stringify(response);
@@ -60,6 +60,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 	// Loop over all new scores
 	for (let missionPath in bestTimes) {
 		let score = bestTimes[missionPath];
+		score[0] = score[0].slice(0, 16); // Fuck you
 		let row: ScoreRow = shared.getScoreByUserStatement.get(missionPath, score[0], data.randomId); // See if a score by this player already exists on this mission
 		let inserted = false;
 		
@@ -149,7 +150,7 @@ const sendNewScores = (res: http.ServerResponse, timestamp: number) => {
 	
 			// Send over the entire leaderboard for a mission if one score in it changed
 			let rows: ScoreRow[] = shared.getScoresForMissionStatement.all(row.mission);
-			result[row.mission] = rows.map(x => [x.username, x.time]);
+			result[row.mission] = rows.map(x => [x.username.slice(0, 16), x.time]);
 		}
 	}
 
@@ -200,7 +201,7 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 		let wrecExists = await fs.pathExists(wrecPath);
 
 		// Add row
-		output += `${shared.levelNameMap[missionPath]},${topScore.time},${topScore.username},${wrecExists? 'Yes' : 'No'}\n`;
+		output += `${shared.levelNameMap[missionPath]},${topScore.time},${topScore.username.slice(0, 16)},${wrecExists? 'Yes' : 'No'}\n`;
 	}
 
 	res.writeHead(200, {

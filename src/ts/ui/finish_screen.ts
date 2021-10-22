@@ -39,7 +39,7 @@ export abstract class FinishScreen {
 		menu.setupButton(this.continueButton, 'endgame/continue', () => state.level.stopAndExit());
 
 		menu.setupButton(this.nameEntryButton, this.nameEntryButtonSrc, async () => {
-			let trimmed = this.nameEntryInput.value.trim();
+			let trimmed = this.nameEntryInput.value.trim().slice(0, 16);
 		
 			if (trimmed.length < 2) {
 				alert("Please enter a proper name for usage in the online leaderboard.");

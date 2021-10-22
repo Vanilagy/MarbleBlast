@@ -726,22 +726,24 @@ export class Marble {
 			this.sphere.castShadow = true;
 			this.sphere.visible = !this.ballShape;
 		}
+	}
 
+	renderReflection() {
 		let isReflective = StorageManager.data.settings.marbleReflectivity === 2 || (StorageManager.data.settings.marbleReflectivity === 0 && this.level.mission.modification === 'ultra');
-		if (isReflective) {
-			marbleReflectionCamera.position.copy(camera.position);
-			marbleReflectionCamera.quaternion.copy(camera.quaternion);
-			Util.cameraLookAtDirect(marbleReflectionCamera, this.group.position);
-			marbleReflectionCamera.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), Math.PI); // Flip it 180
-			marbleReflectionCamera.position.copy(this.group.position);
-	
-			this.group.visible = false; // To avoid framebuffer recursion ("feedback loop")
-			let renderTargetBefore = renderer.getRenderTarget();
-			renderer.setRenderTarget(marbleReflectionRenderTarget);
-			renderer.render(this.level.scene, marbleReflectionCamera);
-			renderer.setRenderTarget(renderTargetBefore);
-			this.group.visible = true;
-		}
+		if (!isReflective) return;
+		
+		marbleReflectionCamera.position.copy(camera.position);
+		marbleReflectionCamera.quaternion.copy(camera.quaternion);
+		Util.cameraLookAtDirect(marbleReflectionCamera, this.group.position);
+		marbleReflectionCamera.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), Math.PI); // Flip it 180
+		marbleReflectionCamera.position.copy(this.group.position);
+
+		this.group.visible = false; // To avoid framebuffer recursion ("feedback loop")
+		let renderTargetBefore = renderer.getRenderTarget();
+		renderer.setRenderTarget(marbleReflectionRenderTarget);
+		renderer.render(this.level.scene, marbleReflectionCamera);
+		renderer.setRenderTarget(renderTargetBefore);
+		this.group.visible = true;
 	}
 
 	enableSuperBounce(time: TimeState) {
