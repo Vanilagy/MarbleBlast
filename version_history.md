@@ -1,5 +1,9 @@
 # Version History
 
+## 2.1.2
+- Holding down the respawn key for 1 second will now hard-respawn you at the start pad
+- Fixed marble physics suddenly giving up their will to live
+
 ## 2.1.1
 - Fixed broken shaders in Safari
 - Added option to turn off fancy shaders

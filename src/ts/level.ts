@@ -196,6 +196,7 @@ export class Level extends Scheduler {
 	blastQueued = false;
 	/** Whether or not the player is currently pressing the restart button. */
 	pressingRestart = false;
+	restartPressTime: number = null;
 	/** The time state at the last point the help text was updated. */
 	helpTextTimeState: TimeState = null;
 	/** The time state at the last point the alert text was updated. */
@@ -726,6 +727,7 @@ export class Level extends Scheduler {
 		this.checkpointHeldPowerUp = null;
 		this.checkpointUp = null;
 		this.checkpointBlast = null;
+		this.restartPressTime = null;
 
 		this.finishTime = null;
 
@@ -1181,9 +1183,16 @@ export class Level extends Scheduler {
 		// Handle pressing of the restart button
 		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
 			this.restart(false);
+			if (this.currentCheckpoint) this.restartPressTime = performance.now();
 			this.pressingRestart = true;
 		} else if (!isPressed('restart')) {
 			this.pressingRestart = false;
+		}
+
+		// Holding down the restart button for 1 second will force a hard restart
+		if (!this.finishTime && isPressed('restart') && this.restartPressTime !== null) {
+			if (this.restartPressTime !== null && performance.now() - this.restartPressTime >= 1000)
+				this.restart(true);
 		}
 	}
 
@@ -1195,6 +1204,7 @@ export class Level extends Scheduler {
 
 	/** Sets the current up vector and gravity with it. */
 	setUp(newUp: OIMO.Vec3, time: TimeState, instant = false) {
+		newUp.normalize(); // We never know 👀
 		this.currentUp = newUp;
 		this.physics.world.setGravity(newUp.scale(-1 * this.physics.world.getGravity().length()));
 
