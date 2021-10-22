@@ -37,7 +37,8 @@ export interface StorageData {
 		marbleReflectivity: number,
 		showFrameRate: boolean,
 		showThousandths: boolean,
-		fov: number
+		fov: number,
+		fancyShaders: boolean
 	},
 	bestTimes: Record<string, BestTimes>,
 	/** Used for the name entry in the post-game screen. */
@@ -85,7 +86,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		marbleReflectivity: 0,
 		showFrameRate: true,
 		showThousandths: true,
-		fov: 60
+		fov: 60,
+		fancyShaders: true
 	},
 	bestTimes: {},
 	lastUsedName: '',

@@ -6,6 +6,7 @@ import { Util, MaterialGeometry } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
 import { Octree, OctreeObject } from "./octree";
 import { renderer } from "./rendering";
+import { StorageManager } from "./storage";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -133,19 +134,19 @@ const createNoiseTileMaterial = async (interior: Interior, baseTexture: string, 
 
 			noiseIndex.x = floor(vUv.x - halfPixel.x) / 63.0 + 0.5/64.0;
 			noiseIndex.y = floor(vUv.y - halfPixel.y) / 63.0 + 0.5/64.0;
-			noiseColor[0] = texture(noiseMap, noiseIndex) * 1.0 - 0.5;
+			noiseColor[0] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
 
 			noiseIndex.x = floor(vUv.x - halfPixel.x) / 63.0 + 0.5/64.0;
 			noiseIndex.y = floor(vUv.y + halfPixel.y) / 63.0 + 0.5/64.0;
-			noiseColor[1] = texture(noiseMap, noiseIndex) * 1.0 - 0.5;
+			noiseColor[1] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
 
 			noiseIndex.x = floor(vUv.x + halfPixel.x) / 63.0 + 0.5/64.0;
 			noiseIndex.y = floor(vUv.y + halfPixel.y) / 63.0 + 0.5/64.0;
-			noiseColor[2] = texture(noiseMap, noiseIndex) * 1.0 - 0.5;
+			noiseColor[2] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
 
 			noiseIndex.x = floor(vUv.x + halfPixel.x) / 63.0 + 0.5/64.0;
 			noiseIndex.y = floor(vUv.y - halfPixel.y) / 63.0 + 0.5/64.0;
-			noiseColor[3] = texture(noiseMap, noiseIndex) * 1.0 - 0.5;
+			noiseColor[3] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
 
 			vec4 finalNoiseCol = (noiseColor[0] + noiseColor[1] + noiseColor[2] + noiseColor[3]) / 4.0;
 
@@ -291,7 +292,7 @@ export class Interior {
 				let texName = this.detailLevel.materialList.materials[i].toLowerCase();
 				let fileName = texName.split('/').pop();
 
-				if (this.level.mission.modification === 'ultra' && customMaterialFactories[fileName]) {
+				if (StorageManager.data.settings.fancyShaders && this.level.mission.modification === 'ultra' && customMaterialFactories[fileName]) {
 					// There's a special way to create this material, prefer this instead of the normal way
 					materials.push(await customMaterialFactories[fileName](this));
 					continue;

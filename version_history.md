@@ -1,5 +1,9 @@
 # Version History
 
+## 2.1.1
+- Fixed broken shaders in Safari
+- Added option to turn off fancy shaders
+
 ## 2.1.0
 - Added Marble Blast Ultra levels (61 default + 107 custom)
 - Added Blast

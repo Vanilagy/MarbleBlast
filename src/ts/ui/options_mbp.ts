@@ -97,6 +97,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		}, undefined, x => Math.ceil(x * 100).toString());
 		this.addSlider(this.generalContainer, 'keyboardSensitivity', 'Keyboard Speed', 0, 1);
 		this.addSlider(this.generalContainer, 'fov', 'Field of View', 30, 120, undefined, undefined, 1, x => x.toString());
+		this.addDropdown(this.generalContainer, 'fancyShaders', 'Fancy Shaders', ['Disabled', 'Enabled'], true);
 
 		this.addHotkey(this.hotkeysContainer, 'up');
 		this.addHotkey(this.hotkeysContainer, 'left');

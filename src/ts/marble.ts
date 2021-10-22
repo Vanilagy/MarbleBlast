@@ -76,12 +76,23 @@ const applyReflectiveMarbleShader = (shader: THREE.Shader) => {
 		#include <defaultnormal_vertex>
 		vTransformedNormal = transformedNormal;
 	`);
-
+	
 	shader.fragmentShader = `
+		${Util.isSafari()? '#define SAFARI': ''} // This browser is just fucking stupid man idk
 		varying vec3 vPosition;
 		varying vec3 vTransformedNormal;
 		uniform sampler2D selfMadeEnvMap;
 
+		#ifdef SAFARI
+		float tanh(float x) {
+			return (exp(2.0 * x) - 1.0) / (exp(2.0 * x) + 1.0);
+		}
+		#endif
+		#ifdef SAFARI
+		float atanh(float x) {
+			return 0.5 * log((1.0 + x) / (1.0 - x));
+		}
+		#endif
 		float sigmoid(float x) {
 			return 0.5 + 0.5 * tanh(2.0 * x - 1.0);
 		}
@@ -104,14 +115,14 @@ const applyReflectiveMarbleShader = (shader: THREE.Shader) => {
 		float u = (tan(xAngle) / tan(fovHalves) + 1.0) / 2.0;
 		float v = (tan(yAngle) / tan(fovHalves) + 1.0) / 2.0;
 
-		//float reflectAmount = invSigmoid(0.01 + 0.98 * texture(map, vUv).a);
+		//float reflectAmount = invSigmoid(0.01 + 0.98 * texture2D(map, vUv).a);
 		//reflectAmount = max(0.25, reflectAmount);
 		float reflectAmount = 0.3; // For now
 		reflectAmount -= 0.7 * (2.0 * normal.z - 1.0); // Fresnel thingy
 		reflectAmount = sigmoid(reflectAmount);
 		reflectAmount = 0.95 * reflectAmount;
 
-		outgoingLight = mix(outgoingLight, texture(selfMadeEnvMap, vec2(u, v)).rgb, reflectAmount);
+		outgoingLight = mix(outgoingLight, texture2D(selfMadeEnvMap, vec2(u, v)).rgb, reflectAmount);
 
 		#include <envmap_fragment>
 	`);
