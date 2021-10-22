@@ -1,5 +1,8 @@
 # Version History
 
+## 2.1.3
+- Small bugfixes and improvements
+
 ## 2.1.2
 - Holding down the respawn key for 1 second will now hard-respawn you at the start pad
 - Fixed marble physics suddenly giving up their will to live

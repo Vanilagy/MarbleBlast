@@ -18,7 +18,7 @@ export abstract class PowerUp extends Shape {
 	collideable = false;
 	shareMaterials = false;
 	/** The name of the powerup that is shown on pickup. */
-	pickUpName: string;
+	abstract pickUpName: string;
 	/** Overrides the full pick up alert string. */
 	customPickUpAlert: string = null;
 	/** If 'an' should be used instead of 'a' in the pickup alert. */
