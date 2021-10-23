@@ -108,12 +108,14 @@ const applyReflectiveMarbleShader = (shader: THREE.Shader) => {
 		*/
 
 		vec3 normal = normalize(vTransformedNormal);
-		float fovHalves = 177.0 * PI / 180.0 / 2.0;
-		float xAngle = -asin(normalize(normal * vec3(1, 0, 1)).x) / PI_HALF * fovHalves; // Since the FOV isn't 180°, we need to rescale the angle so that pi/2 becomes fov/2
-		float yAngle = asin(normalize(normal * vec3(0, 1, 1)).y) / PI_HALF * fovHalves;
+		float fovHalves = 150.0 * PI / 180.0 / 2.0;
+		float xAngle = -asin(normalize(normal * vec3(1, 0, 1)).x);
+		float yAngle = asin(normalize(normal * vec3(0, 1, 1)).y);
 
-		float u = (tan(xAngle) / tan(fovHalves) + 1.0) / 2.0;
-		float v = (tan(yAngle) / tan(fovHalves) + 1.0) / 2.0;
+		float u = tan(xAngle) / tan(fovHalves);
+		float v = tan(yAngle) / tan(fovHalves);
+		u = (u + 1.0) / 2.0;
+		v = (v + 1.0) / 2.0;
 
 		//float reflectAmount = invSigmoid(0.01 + 0.98 * texture2D(map, vUv).a);
 		//reflectAmount = max(0.25, reflectAmount);

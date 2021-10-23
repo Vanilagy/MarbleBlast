@@ -1,5 +1,8 @@
 # Version History
 
+## 2.1.5
+- Reworked marble reflection code, making it more performant and beautiful :)
+
 ## 2.1.4
 - Fixed old replays again
 - Fixed incorrect checkpoint orientation in Ultra levels

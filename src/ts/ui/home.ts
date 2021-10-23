@@ -92,6 +92,7 @@ export abstract class HomeScreen {
 			if (bigger) {
 				// There's a newer version, go show the changes!
 				this.changelogContainer.classList.remove('hidden');
+				await StorageManager.onVersionUpgrade(StorageManager.data.lastSeenVersion);
 			}
 		} else if (Object.keys(StorageManager.data.bestTimes).length > 0) {
 			// We assume that if there's at least one local score, the user has interacted with the website to an extent where we can show the changelog.

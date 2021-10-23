@@ -344,7 +344,9 @@ export class Level extends Scheduler {
 
 		camera.far = MisParser.parseNumber(skyElement.visibledistance);
 		camera.fov = StorageManager.data.settings.fov;
+		marbleReflectionCamera.far = camera.far;
 		camera.updateProjectionMatrix();
+		marbleReflectionCamera.updateProjectionMatrix();
 
 		if (skyElement.useskytextures === "1") {
 			// Create the skybox

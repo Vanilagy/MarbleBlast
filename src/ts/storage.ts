@@ -84,7 +84,7 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		keyboardSensitivity: 0.1,
 		invertMouse: 0,
 		alwaysFreeLook: true,
-		marbleReflectivity: 1, // Off by default for now until it's more performant more regularly
+		marbleReflectivity: 0,
 		showFrameRate: true,
 		showThousandths: true,
 		fov: 60,
@@ -98,6 +98,14 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	lastSeenVersion: null,
 	collectedEggs: [],
 	modification: 'platinum'
+};
+
+const VERSION_UPGRADE_PROCEDURES: Record<string, () => Promise<any>> = {
+	'2.1.5': async () => {
+		// Got more performant now, so encourage people to have this on :)
+		StorageManager.data.settings.marbleReflectivity = 0;
+		await StorageManager.store();
+	}
 };
 
 /** Manages storage and persistence. */
@@ -324,5 +332,13 @@ export abstract class StorageManager {
 		}
 
 		return obj;
+	}
+
+	/** Performs a series of modification needed to upgrade an old version. */
+	static async onVersionUpgrade(from: string) {
+		for (let vers in VERSION_UPGRADE_PROCEDURES) {
+			if (Util.compareVersions(from, vers) >= 0) continue;
+			await VERSION_UPGRADE_PROCEDURES[vers]();
+		}
 	}
 }
