@@ -300,6 +300,13 @@ export class Interior {
 
 				let mat = new THREE.MeshLambertMaterial();
 				materials.push(mat);
+
+				// Check for this special material which just makes the surface invisible (like a colmesh)
+				if (this.level.mission.modification === 'ultra' && fileName === 'tools_invisible') {
+					mat.transparent = true;
+					mat.opacity = 0;
+					continue;
+				}
 				
 				let fullPath = this.difPath.includes('data/')?
 					this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length)
