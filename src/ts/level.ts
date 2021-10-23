@@ -1400,8 +1400,10 @@ export class Level extends Scheduler {
 
 		let marble = this.marble;
 
+		// Quite note: Checkpoints have slightly different behavior in Ultra, that's why there's some checks
+
 		let gravityField = (this.currentCheckpoint.srcElement as any)?.gravity || this.currentCheckpointTrigger?.element.gravity;
-		if (MisParser.parseBoolean(gravityField)) {
+		if (MisParser.parseBoolean(gravityField) || this.mission.modification === 'ultra') {
 			// In this case, we set the gravity to the relative "up" vector of the checkpoint shape.
 			let up = new THREE.Vector3(0, 0, 1);
 			up.applyQuaternion(this.currentCheckpoint.worldOrientation);
@@ -1417,7 +1419,12 @@ export class Level extends Scheduler {
 		if (add) offset.addEq(Util.vecThreeToOimo(MisParser.parseVector3(add)));
 		let sub = (this.currentCheckpoint.srcElement as any)?.sub || this.currentCheckpointTrigger?.element.sub;
 		if (sub) offset.subEq(Util.vecThreeToOimo(MisParser.parseVector3(sub)));
-		if (!add && !sub) offset.z = 3; // Defaults to (0, 0, 3)
+		if (!add && !sub) {
+			offset.z = 3; // Defaults to (0, 0, 3)
+
+			if (this.mission.modification === 'ultra')
+				offset = Util.vecThreeToOimo(Util.vecOimoToThree(offset).applyQuaternion(this.currentCheckpoint.worldOrientation)); // weird <3
+		}
 
 		marble.body.setPosition(Util.vecThreeToOimo(this.currentCheckpoint.worldPosition).add(offset));
 		marble.body.setLinearVelocity(new OIMO.Vec3());

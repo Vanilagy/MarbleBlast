@@ -451,7 +451,7 @@ export class Replay {
 		replay.marbleLeave = serialized.marbleLeave ?? []; // Might not be there in older versions
 		replay.marbleContact = serialized.marbleContact;
 		replay.uses = serialized.uses;
-		replay.blasts = serialized.blasts;
+		replay.blasts = serialized.blasts ?? [];
 		
 		let cameraOrientations: {
 			yaw: number,
