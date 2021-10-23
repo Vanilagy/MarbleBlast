@@ -5,6 +5,8 @@
 - Fixed incorrect checkpoint orientation in Ultra levels
 - Fixed "Qualify Time"
 - Fixed Tim Trance not playing in all MBU levels
+- Fixed incorrect MBU plate texture scaling
+- Fixed wrong level select backgrounds
 - Removed Herobrine
 
 ## 2.1.3

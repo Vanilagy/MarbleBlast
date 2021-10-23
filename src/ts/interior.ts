@@ -402,6 +402,7 @@ export class Interior {
 		let planeData = detailLevel.planes[surface.planeIndex & ~0x8000]; // Mask it here because the bit at 0x8000 specifies whether or not to invert the plane's normal.
 		let planeNormal = detailLevel.normals[planeData.normalIndex];
 		let geometryData = this.materialGeometry[surface.textureIndex];
+		let material = this.materialNames[surface.textureIndex];
 
 		let k = 0; // Keep track of the face's index for corrent vertex winding order.
 		for (let i = surface.windingStart; i < surface.windingStart + surface.windingCount - 2; i++) {
@@ -426,6 +427,7 @@ export class Interior {
 				// Figure out UV coordinates by getting the distances of the corresponding vertices to the plane.
 				let u = texPlaneX.distanceToPoint(new THREE.Vector3(vertex.x, vertex.y, vertex.z));
 				let v = texPlaneY.distanceToPoint(new THREE.Vector3(vertex.x, vertex.y, vertex.z));
+				if (this.level.mission.modification === 'ultra' && material === 'plate_1') u /= 2, v/= 2; // This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
 				geometryData.uvs.push(u, v);
 
 				geometryData.normals.push(0, 0, 0); // Push a placeholder, we'll compute a proper normal later

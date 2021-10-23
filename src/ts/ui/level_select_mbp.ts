@@ -176,11 +176,7 @@ export class MbpLevelSelect extends LevelSelect {
 			this.difficultySelectorModificationIcon.src = "./assets/ui_mbp/play/" + ((MissionLibrary.getModification(arr) === 'gold')? "marble_gold.png" : (MissionLibrary.getModification(arr) === 'ultra')? "marble_ultra.png" : "marble_platinum.png");
 		}
 
-		// Set the background image based on the modification
-		state.menu.backgroundImage.src = 
-			(MissionLibrary.getModification(arr) === 'gold')? (state.menu as MbpMenu).mbgBg :
-			(MissionLibrary.getModification(arr) === 'ultra')? (state.menu as MbpMenu).mbuBg :
-			(state.menu as MbpMenu).mbpBg;
+		this.updateBackground();
 	}
 
 	displayMetadata() {
@@ -240,6 +236,15 @@ export class MbpLevelSelect extends LevelSelect {
 
 	show() {
 		super.show();
-		state.menu.backgroundImage.src = (MissionLibrary.getModification(this.currentMissionArray) === 'gold')? (state.menu as MbpMenu).mbgBg : (state.menu as MbpMenu).mbpBg;
+		this.updateBackground();
+	}
+
+	/** Sets the background image based on the modification. */
+	updateBackground() {
+		let arr = this.currentMissionArray;
+		state.menu.backgroundImage.src = 
+			(MissionLibrary.getModification(arr) === 'gold')? (state.menu as MbpMenu).mbgBg :
+			(MissionLibrary.getModification(arr) === 'ultra')? (state.menu as MbpMenu).mbuBg :
+			(state.menu as MbpMenu).mbpBg;
 	}
 }
