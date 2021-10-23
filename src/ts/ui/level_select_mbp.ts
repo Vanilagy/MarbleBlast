@@ -190,7 +190,7 @@ export class MbpLevelSelect extends LevelSelect {
 		this.levelArtist.textContent = 'Author: ' + mission.artist.trim();
 		this.levelDescription.textContent = mission.description;
 		let qualifyTime = (mission.qualifyTime !== 0)? mission.qualifyTime : Infinity;
-		this.levelQualifyTime.innerHTML = `<span style="opacity: 0.8;">${mission.modification !== 'platinum'? 'Qualify' : 'Par'} Time: </span>` + (isFinite(qualifyTime)? Util.secondsToTimeString(qualifyTime / 1000) : 'N/A');
+		this.levelQualifyTime.innerHTML = `<span style="opacity: 0.8;">${mission.modification === 'gold'? 'Qualify' : 'Par'} Time: </span>` + (isFinite(qualifyTime)? Util.secondsToTimeString(qualifyTime / 1000) : 'N/A');
 
 		if (mission.hasEasterEgg) {
 			this.easterEggIcon.classList.remove('hidden');

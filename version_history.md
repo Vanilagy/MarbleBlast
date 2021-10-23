@@ -3,6 +3,7 @@
 ## 2.1.4
 - Fixed old replays again
 - Fixed incorrect checkpoint orientation in Ultra levels
+- Fixed "Qualify Time"
 - Removed Herobrine
 
 ## 2.1.3
