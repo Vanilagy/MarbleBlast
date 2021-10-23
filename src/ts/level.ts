@@ -216,6 +216,7 @@ export class Level extends Scheduler {
 	/** The alarm that plays in MBP when the player is about to pass the "par time". */
 	alarmSound: AudioSource;
 	music: AudioSource;
+	/** Used for jukebox stuff */
 	originalMusicName: string;
 	replay: Replay;
 
@@ -468,7 +469,10 @@ export class Level extends Scheduler {
 
 	async initSounds() {
 		let musicFileName: string;
-		if (this.mission.missionInfo.music && this.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
+		if (this.mission.modification === 'ultra') {
+			musicFileName = 'tim trance.ogg'; // ALWAYS play this banger
+			this.originalMusicName = musicFileName;
+		} else if (this.mission.missionInfo.music && this.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
 			musicFileName = this.mission.missionInfo.music.toLowerCase();
 			this.originalMusicName = musicFileName;
 		} else {
