@@ -7,6 +7,7 @@
 - Fixed Tim Trance not playing in all MBU levels
 - Fixed incorrect MBU plate texture scaling
 - Fixed wrong level select backgrounds
+- Controllers now respect mouse sensitivity
 - Removed Herobrine
 
 ## 2.1.3

@@ -1113,8 +1113,8 @@ export class Level extends Scheduler {
 			if (isPressed('cameraUp')) pitchChange -= amount;
 			if (isPressed('cameraDown')) pitchChange += amount;
 			
-			yawChange -= gamepadAxes.cameraX * 5.0;
-			if (freeLook) pitchChange += gamepadAxes.cameraY * 5.0;
+			yawChange -= gamepadAxes.cameraX * Util.lerp(0.5, 10, StorageManager.data.settings.mouseSensitivity);
+			if (freeLook) pitchChange += gamepadAxes.cameraY * Util.lerp(0.5, 10, StorageManager.data.settings.mouseSensitivity);
 			
 			this.yaw += yawChange / PHYSICS_TICK_RATE;
 			this.pitch += pitchChange / PHYSICS_TICK_RATE;
