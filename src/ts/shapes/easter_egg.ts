@@ -9,6 +9,7 @@ export class EasterEgg extends PowerUp {
 	cooldownDuration = Infinity; // Won't respawn until the level is restarted
 	autoUse = true;
 	sounds = ["easter.wav", "easterfound.wav"]; // The sound varies based on if the player already found the egg
+	pickUpName = '';
 
 	pickUp() {
 		let alreadyFound = StorageManager.data.collectedEggs.includes(this.level.mission.path);

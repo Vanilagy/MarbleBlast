@@ -20,6 +20,7 @@ export class RandomPowerUp extends PowerUp {
 	sounds = POSSIBLE_POWERUPS.map(x => new x(this.element).sounds).flat(); // Can play all the power-ups' sounds
 	lastInstance: PowerUp;
 	pickedUpCount = 0;
+	pickUpName = '';
 
 	pickUp() {
 		// Loop until a power-up is found that can be picked up

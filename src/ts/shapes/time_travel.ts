@@ -12,6 +12,7 @@ export class TimeTravel extends PowerUp {
 	autoUse = true;
 	timeBonus = 5000;
 	sounds = ["putimetravelvoice.wav", "timetravelactive.wav"];
+	pickUpName = ''; // Modified on the fly based on the time bonus
 
 	constructor(element: MissionElementItem) {
 		super(element);
