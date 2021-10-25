@@ -595,6 +595,14 @@ export abstract class Util {
 	}
 
 	static isTouchDevice: boolean;
+
+	static signedSqrt(x: number) {
+		return Math.sign(x) * Math.sqrt(Math.abs(x));
+	}
+
+	static signedSquare(x: number) {
+		return x * Math.abs(x);
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 

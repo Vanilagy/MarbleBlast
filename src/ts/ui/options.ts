@@ -5,6 +5,7 @@ import { StorageManager } from "../storage";
 import { currentMousePosition } from "../input";
 import { Util } from "../util";
 import { ResourceManager } from "../resources";
+import { SCALING_RATIO } from "../rendering";
 
 export const optionsDiv = document.querySelector('#options') as HTMLDivElement;
 const tabGraphics = document.querySelector('#tab-graphics') as HTMLImageElement;
@@ -231,7 +232,7 @@ const updateSliders = async () => {
 	// Updates all sliders based on mouse position.
 
 	if (draggingMusicVolume) {
-		let leftStart = optionsDiv.getBoundingClientRect().left + musicVolumeKnobLeft;
+		let leftStart = optionsDiv.getBoundingClientRect().left * SCALING_RATIO + musicVolumeKnobLeft;
 		let completion = Util.clamp(((currentMousePosition.x - 12) - leftStart) / trackLength, 0, 1);
 
 		musicVolumeKnob.style.left = Math.floor(musicVolumeKnobLeft + completion * trackLength) + 'px';
@@ -240,7 +241,7 @@ const updateSliders = async () => {
 	}
 
 	if (draggingSoundVolume) {
-		let leftStart = optionsDiv.getBoundingClientRect().left + soundVolumeKnobLeft;
+		let leftStart = optionsDiv.getBoundingClientRect().left * SCALING_RATIO + soundVolumeKnobLeft;
 		let completion = Util.clamp(((currentMousePosition.x - 12) - leftStart) / trackLength, 0, 1);
 
 		soundVolumeKnob.style.left = Math.floor(soundVolumeKnobLeft + completion * trackLength) + 'px';
@@ -255,7 +256,7 @@ const updateSliders = async () => {
 	}
 
 	if (draggingMouseSensitivity) {
-		let leftStart = optionsDiv.getBoundingClientRect().left + mouseSensitivityKnobLeft;
+		let leftStart = optionsDiv.getBoundingClientRect().left * SCALING_RATIO + mouseSensitivityKnobLeft;
 		let completion = Util.clamp(((currentMousePosition.x - 12) - leftStart) / trackLength, 0, 1);
 
 		mouseSensitivityKnob.style.left = Math.floor(mouseSensitivityKnobLeft + completion * trackLength) + 'px';

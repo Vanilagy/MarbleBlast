@@ -37,6 +37,10 @@ html, body {
 	bottom: 0;
 }
 
+body {
+	transform-origin: 0 0;
+}
+
 #menu {
 	position: absolute;
 	top: 0;

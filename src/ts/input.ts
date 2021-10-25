@@ -1,3 +1,4 @@
+import { SCALING_RATIO } from "./rendering";
 import { state } from "./state";
 import { StorageManager } from "./storage";
 import { handlePauseScreenGamepadInput } from "./ui/game";
@@ -10,19 +11,19 @@ export const currentMousePosition = {
 };
 
 window.addEventListener('mousemove', (e) => {
-	currentMousePosition.x = e.clientX;
-	currentMousePosition.y = e.clientY;
+	currentMousePosition.x = e.clientX * SCALING_RATIO;
+	currentMousePosition.y = e.clientY * SCALING_RATIO;
 	state.currentLevel?.onMouseMove(e);
 });
 window.addEventListener('touchstart', (e) => {
 	let touch = e.changedTouches[0];
-	currentMousePosition.x = touch.clientX;
-	currentMousePosition.y = touch.clientY;
+	currentMousePosition.x = touch.clientX * SCALING_RATIO;
+	currentMousePosition.y = touch.clientY * SCALING_RATIO;
 });
 window.addEventListener('touchmove', (e) => {
 	let touch = e.changedTouches[0];
-	currentMousePosition.x = touch.clientX;
-	currentMousePosition.y = touch.clientY;
+	currentMousePosition.x = touch.clientX * SCALING_RATIO;
+	currentMousePosition.y = touch.clientY * SCALING_RATIO;
 });
 
 window.addEventListener('mousedown', (e) => {
@@ -259,8 +260,14 @@ const jumpButton = document.querySelector('#jump-button') as HTMLImageElement;
 const useButton = document.querySelector('#use-button') as HTMLImageElement;
 const pauseButton = document.querySelector('#pause-button') as HTMLImageElement;
 
-const joystickSize = 300;
-const joystickHandleSize = 100;
+const joystickSize = 200;
+const joystickHandleSize = 66;
+
+movementJoystick.style.width = joystickSize + 'px';
+movementJoystick.style.height = joystickSize + 'px';
+movementJoystick.style.borderRadius = joystickHandleSize / 2 + 'px';
+movementJoystickHandle.style.width = joystickHandleSize + 'px';
+movementJoystickHandle.style.height = joystickHandleSize + 'px';
 
 let joystickPosition: {x: number, y: number} = null;
 export let normalizedJoystickHandlePosition: {x: number, y: number} = null;
@@ -276,8 +283,10 @@ movementAreaElement.addEventListener('touchstart', (e) => {
 	let touch = e.changedTouches[0];
 	movementAreaTouchIdentifier = touch.identifier;
 
-	let x = Util.clamp(touch.clientX, joystickSize/2, (window.innerWidth - joystickSize)/2);
-	let y = Util.clamp(touch.clientY, joystickSize/2, window.innerHeight - joystickSize/2);
+	console.log(SCALING_RATIO)
+
+	let x = Util.clamp(touch.clientX * SCALING_RATIO, joystickSize/2, (window.innerWidth * SCALING_RATIO - joystickSize)/2);
+	let y = Util.clamp(touch.clientY * SCALING_RATIO, joystickSize/2, window.innerHeight * SCALING_RATIO - joystickSize/2);
 
 	movementJoystick.style.display = 'block';
 	movementJoystick.style.left = x - joystickSize/2 + 'px';
@@ -299,8 +308,8 @@ movementAreaElement.addEventListener('touchmove', (e) => {
 const updateJoystickHandlePosition = (touch: Touch) => {
 	let innerRadius = (joystickSize - joystickHandleSize) / 2;
 
-	normalizedJoystickHandlePosition.x = Util.clamp((touch.clientX - joystickPosition.x) / innerRadius, -1, 1);
-	normalizedJoystickHandlePosition.y = Util.clamp((touch.clientY - joystickPosition.y) / innerRadius, -1, 1);
+	normalizedJoystickHandlePosition.x = Util.clamp((touch.clientX * SCALING_RATIO - joystickPosition.x) / innerRadius, -1, 1);
+	normalizedJoystickHandlePosition.y = Util.clamp((touch.clientY * SCALING_RATIO - joystickPosition.y) / innerRadius, -1, 1);
 
 	movementJoystickHandle.style.left = (normalizedJoystickHandlePosition.x) * innerRadius + joystickSize/2 - joystickHandleSize/2 + 'px';
 	movementJoystickHandle.style.top = (normalizedJoystickHandlePosition.y) * innerRadius + joystickSize/2 - joystickHandleSize/2 + 'px';
@@ -348,8 +357,8 @@ cameraAreaElement.addEventListener('touchmove', (e) => {
 	if (!touch) return;
 
 	if (touch.identifier === cameraAreaTouchIdentifier) {
-		let movementX = touch.clientX - lastCameraTouch.clientX;
-		let movementY = touch.clientY - lastCameraTouch.clientY;
+		let movementX = (touch.clientX - lastCameraTouch.clientX) * SCALING_RATIO;
+		let movementY = (touch.clientY - lastCameraTouch.clientY) * SCALING_RATIO;
 
 		let factor = Util.lerp(1 / 1500, 1 / 50, StorageManager.data.settings.mouseSensitivity);
 		let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;

@@ -171,7 +171,10 @@ export class Marble {
 		
 		// Add gamepad input and restrict if necessary
 		movementVec.add(new THREE.Vector3(-gamepadAxes.marbleY, -gamepadAxes.marbleX));
-		if (normalizedJoystickHandlePosition) movementVec.add(new THREE.Vector3(-normalizedJoystickHandlePosition.y, -normalizedJoystickHandlePosition.x));
+		if (normalizedJoystickHandlePosition) movementVec.add(new THREE.Vector3(
+			-Util.signedSquare(normalizedJoystickHandlePosition.y),
+			-Util.signedSquare(normalizedJoystickHandlePosition.x)
+		));
 		if (movementVec.x > 1.0)
 			movementVec.x = 1.0;
 		if (movementVec.x < -1.0)

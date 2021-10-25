@@ -2,10 +2,21 @@ import * as THREE from "three";
 
 const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasElement;
 
+const MIN_WIDTH = 640;
+const MIN_HEIGHT = 480;
+
+export let SCALING_RATIO = 1;
+
 const resize = () => {
-	mainCanvas.setAttribute('width', window.innerWidth.toString());
-	mainCanvas.setAttribute('height', window.innerHeight.toString());
+	let ratio = Math.max(1, MIN_WIDTH / window.innerWidth, MIN_HEIGHT / window.innerHeight);
+	document.body.style.width = Math.ceil(window.innerWidth * ratio) + 'px';
+	document.body.style.height = Math.ceil(window.innerHeight * ratio) + 'px';
+	document.body.style.transform = `scale(${1 / ratio})`;
+	SCALING_RATIO = ratio;
+
 	renderer.setSize(window.innerWidth, window.innerHeight);
+	mainCanvas.style.width = '100%';
+	mainCanvas.style.height = '100%';
 
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix(); // Necessary because changed aspect ratio
