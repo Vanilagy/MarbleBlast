@@ -41,6 +41,9 @@ export class PathedInterior extends Interior {
 	prevPosition: THREE.Vector3;
 	currentPosition = new THREE.Vector3();
 
+	allowSpecialMaterials = false; // Frictions don't work on pathed interiors
+	canMove = true;
+
 	/** Creates a PathedInterior from a sim group containing it and its path (and possible triggers). */
 	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
@@ -53,13 +56,13 @@ export class PathedInterior extends Interior {
 
 		level.interiors.push(pathedInterior);
 		await Util.wait(10); // See shapes for the meaning of this hack
-		await pathedInterior.init();
+		await pathedInterior.init(interiorElement._id);
 
 		return pathedInterior;
 	}
 
-	async init() {
-		await super.init();
+	async init(id: number) {
+		await super.init(id);
 
 		// Pathed interiors ignore the normal position, rotation, scale and use the base- variants instead.
 		this.basePosition = MisParser.parseVector3(this.element.baseposition);
@@ -72,7 +75,7 @@ export class PathedInterior extends Interior {
 		if (this.baseScale.y === 0) this.baseScale.y = 0.0001;
 		if (this.baseScale.z === 0) this.baseScale.z = 0.0001;
 
-		this.buildCollisionGeometry(this.baseScale);
+		for (let i = 0; i < this.detailLevel.convexHulls.length; i++) this.addConvexHull(i, this.baseScale);
 		this.body.setOrientation(new OIMO.Quat(this.baseOrientation.x, this.baseOrientation.y, this.baseOrientation.z, this.baseOrientation.w));
 		this.path = this.simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 
@@ -85,6 +88,7 @@ export class PathedInterior extends Interior {
 				rotation: MisParser.parseRotation(x.rotation)
 			};
 		});
+		if (MisParser.parseBoolean(this.path.isLooping)) this.markerData.push(this.markerData[0]); // In this case, we wrap around the marker list smoothly. Emulate this by copying the start to the end.
 		this.computeDuration();
 
 		// Add MustChangeTriggers if necessary
@@ -99,7 +103,7 @@ export class PathedInterior extends Interior {
 		if (this.element.datablock?.toLowerCase() === 'pathedmovingblock') {
 			this.soundPosition = new THREE.Vector3(); // This position will be modified
 			this.soundSource = AudioManager.createAudioSource('movingblockloop.wav', AudioManager.soundGain, this.soundPosition);
-			this.soundSource.node.loop = true;
+			this.soundSource.setLoop(true);
 
 			await this.soundSource.promise;
 		}

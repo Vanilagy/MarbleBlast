@@ -1,10 +1,17 @@
 import * as THREE from "three";
+import { state } from "./state";
 import { Util } from "./util";
 
 const imageCacheElement = document.querySelector('#image-cache');
 
 /** Holds a directory structure. If the value is null, then the key is a file, otherwise the key is a directory and the value is another directory structure. */
 export type DirectoryStructure = {[name: string]: null | DirectoryStructure};
+
+const MBP_REDIRECT_RULES = {
+	'assets/data_mbp/sound/gotgem.wav': 'assets/data_mbp/sound/gotdiamond.wav',
+	'assets/data_mbp/sound/gotallgems.wav': 'assets/data_mbp/sound/gotalldiamonds.wav',
+	'assets/data_mbp/sound/music/groovepolice': 'assets/data_mbp/sound/music/groove police',
+};
 
 /** Manages loading and caching of resources. */
 export abstract class ResourceManager {
@@ -13,26 +20,37 @@ export abstract class ResourceManager {
 	static textureLoader = new THREE.TextureLoader();
 	/** The structure in the assets/data directory. Used mainly to look up file extensions. */
 	static dataDirectoryStructure: DirectoryStructure = {};
+	static dataMbpDirectoryStructure: DirectoryStructure = {};
 	static loadResourcePromises = new Map<string, Promise<Blob>>();
 	static cachedResources = new Map<string, Blob>();
 	static loadImagePromises = new Map<string, Promise<HTMLImageElement>>();
 	static loadedImages = new Map<string, HTMLImageElement>();
 	static urlCache = new Map<Blob, string>();
 
+	static get mainDataPath() {
+		return (state.modification === 'gold')? './assets/data/' : './assets/data_mbp/';
+	}
+
 	static async init() {
-		let response = await this.loadResource('./api/directory_structure');
-		this.dataDirectoryStructure = JSON.parse(await this.readBlobAsText(response));
+		let promiseMbg = this.loadResource('./api/directory_structure');
+		let promiseMbp = this.loadResource('./api/directory_structure_mbp');
+
+		let [responseMbg, responseMbp] = await Promise.all([promiseMbg, promiseMbp]);
+
+		this.dataDirectoryStructure = JSON.parse(await this.readBlobAsText(responseMbg));
+		this.dataMbpDirectoryStructure = JSON.parse(await this.readBlobAsText(responseMbp));
 	}
 
 	/** Creates a three.js texture from the path, or returned the cached version. */
-	static getTexture(path: string, removeAlpha = false, prependPath = "assets/data/") {
-		let cached = this.textureCache.get(path);
+	static getTexture(path: string, removeAlpha = false, prependPath = this.mainDataPath) {
+		let fullPath = prependPath + path;
+		let cached = this.textureCache.get(fullPath);
 		if (cached) return Promise.resolve(cached);
 
-		if (this.loadTexturePromises.get(path)) return this.loadTexturePromises.get(path);
+		if (this.loadTexturePromises.get(fullPath)) return this.loadTexturePromises.get(fullPath);
 
 		let promise = new Promise<THREE.Texture>(async (resolve) => {
-			let image = await this.loadImage(prependPath + path);
+			let image = await this.loadImage(fullPath);
 			let texture = new THREE.Texture(image);
 			texture.flipY = false; // Why is the default true?
 			texture.anisotropy = 4; // Make it crispier
@@ -43,25 +61,26 @@ export abstract class ResourceManager {
 				texture.image = Util.removeAlphaChannel(image);
 			}
 	
-			this.textureCache.set(path, texture);
+			this.textureCache.set(fullPath, texture);
 			resolve(texture);
 		});
-		this.loadTexturePromises.set(path, promise);
+		this.loadTexturePromises.set(fullPath, promise);
 
 		return promise;
 	}
 
-	static getTextureFromCache(path: string) {
-		let cached = this.textureCache.get(path);
+	static getTextureFromCache(path: string, prependPath = this.mainDataPath) {
+		let fullPath = prependPath + path;
+		let cached = this.textureCache.get(fullPath);
 		if (cached) return cached;
 		return null;
 	}
 
 	/** Gets the full filenames (with extension) of the file located at the given path (without extension). */
-	static getFullNamesOf(path: string) {
+	static getFullNamesOf(path: string, mbp = state.modification === 'platinum') {
 		let parts = path.split('/');
 
-		let current: DirectoryStructure = this.dataDirectoryStructure;
+		let current: DirectoryStructure = mbp? this.dataMbpDirectoryStructure : this.dataDirectoryStructure;
 		while (parts.length) {
 			let part = parts.shift();
 
@@ -69,7 +88,10 @@ export abstract class ResourceManager {
 				let results: string[] = [];
 
 				for (let name in current) {
-					if (name.toLowerCase().startsWith(part.toLowerCase()) && (name.length === part.length || name[part.length] === '.')) results.push(name);
+					if (name.toLowerCase().startsWith(part.toLowerCase())
+						// Make sure nothing or only the extension follows
+						&& (name.length === part.length || part.length === name.lastIndexOf('.')))
+						results.push(name);
 				}
 
 				return results;
@@ -80,8 +102,19 @@ export abstract class ResourceManager {
 		}
 	}
 
+	static redirectPath(path: string) {
+		if (state.modification !== 'gold') {
+			for (let key in MBP_REDIRECT_RULES) {
+				if (path.includes(key)) return path.replace(key, MBP_REDIRECT_RULES[key as keyof typeof MBP_REDIRECT_RULES]);
+			}
+		}
+
+		return path;
+	}
+
 	/** Loads a resource from a path. Retries until it worked. */
 	static loadResource(path: string) {
+		path = this.redirectPath(path);
 		let cached = this.cachedResources.get(path);
 		if (cached) return Promise.resolve(cached);
 		if (this.loadResourcePromises.get(path)) return this.loadResourcePromises.get(path);

@@ -17,12 +17,13 @@ export abstract class AbstractBumper extends Shape {
 
 		// Get the contact normal
 		let contactNormal = contact.getManifold().getNormal();
-		if (contact.getShape1().userData === this.id) contactNormal = contactNormal.scale(-1);
+		if (contact.getShape1().userData === this.id) contactNormal.scaleEq(-1);
 
 		let marble = this.level.marble;
 		
 		// Set the velocity along the contact normal, but make sure it's capped
 		marble.setLinearVelocityInDirection(contactNormal, 15, false);
+		marble.slidingTimeout = 2; // Make sure we don't slide on the bumper after bouncing off it
 
 		this.level.replay.recordMarbleContact(this);
 	}

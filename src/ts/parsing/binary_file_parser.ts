@@ -114,6 +114,8 @@ export abstract class BinaryFileParser {
 			result += String.fromCharCode(this.readU8());
 		}
 
+		while (result.charCodeAt(result.length - 1) === 0) result = result.slice(0, -1); // Trim off NUL bytes from the end (thank you, HiGuy)
+
 		return result;
 	}
 }

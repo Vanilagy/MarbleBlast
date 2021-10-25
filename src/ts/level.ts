@@ -1,10 +1,10 @@
 import { Interior } from "./interior";
 import * as THREE from "three";
-import { renderer, camera, orthographicCamera } from "./rendering";
+import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera, resize } from "./rendering";
 import OIMO from "./declarations/oimo";
-import { Marble, MARBLE_RADIUS, bounceParticleOptions } from "./marble";
+import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementScriptObject, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";
@@ -34,33 +34,54 @@ import { Trigger } from "./triggers/trigger";
 import { InBoundsTrigger } from "./triggers/in_bounds_trigger";
 import { HelpTrigger } from "./triggers/help_trigger";
 import { OutOfBoundsTrigger } from "./triggers/out_of_bounds_trigger";
-import { displayTime, displayAlert, displayGemCount, gemCountElement, numberSources, setCenterText, displayHelp, showPauseScreen, hidePauseScreen, showFinishScreen, stopAndExit, handleFinishScreenGamepadInput, helpElement, alertElement } from "./ui/game";
 import { ResourceManager } from "./resources";
 import { AudioManager, AudioSource } from "./audio";
 import { PhysicsHelper } from "./physics";
 import { ParticleManager, ParticleEmitterOptions, particleNodeEmittersEmitterOptions, ParticleEmitter } from "./particles";
 import { StorageManager } from "./storage";
 import { Replay } from "./replay";
-import { getCurrentLevelArray } from "./ui/level_select";
 import { Mission } from "./mission";
 import { PushButton } from "./shapes/push_button";
 import { DifFile } from "./parsing/dif_parser";
+import { state } from "./state";
+import { Sign } from "./shapes/sign";
+import { Magnet } from "./shapes/magnet";
+import { Nuke, nukeSmokeParticle, nukeSparksParticle } from "./shapes/nuke";
+import { TeleportTrigger } from "./triggers/teleport_trigger";
+import { DestinationTrigger } from "./triggers/destination_trigger";
+import { Checkpoint } from "./shapes/checkpoint";
+import { CheckpointTrigger } from "./triggers/checkpoint_trigger";
+import { EasterEgg } from "./shapes/easter_egg";
+import { RandomPowerUp } from "./shapes/random_power_up";
+import { MbpPauseScreen } from "./ui/pause_screen_mbp";
+import { MbpHud } from "./ui/hud_mbp";
+import { Sky } from "./shapes/sky";
+import { Glass } from "./shapes/glass";
+import { Blast } from "./shapes/blast";
+import { MegaMarble } from "./shapes/mega_marble";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
+const PLAYBACK_SPEED = 1; // Major attack surface for cheaters here 😟
 /** The vertical offsets of overlay shapes to get them all visually centered. */
 const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/images/helicopter.dts": -67,
 	"shapes/items/superjump.dts": -70,
 	"shapes/items/superbounce.dts": -55,
 	"shapes/items/superspeed.dts": -53,
-	"shapes/items/shockabsorber.dts": -53
+	"shapes/items/shockabsorber.dts": -53,
+	"shapes/items/megamarble.dts": -70,
+};
+const SHAPE_OVERLAY_SCALES = {
+	"shapes/items/megamarble.dts": 60,
 };
 /** The time in milliseconds when the marble is released from the start pad. */
 export const GO_TIME = 3500;
 /** Default camera pitch */
-const DEFAULT_PITCH = 0.45;
+export const DEFAULT_PITCH = 0.45;
+const BLAST_CHARGE_TIME = 25000;
 const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should be large enough
+const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
 /** The map used to get particle emitter options for a ParticleEmitterNode. */
 const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
@@ -77,6 +98,9 @@ const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
 	LandMineEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter,
 	LandMineSmokeEmitter: landMineSmokeParticle,
 	LandMineSparkEmitter: landMineSparksParticle,
+	NukeEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter, // It ain't any different
+	NukeSmokeEmitter: nukeSmokeParticle,
+	NukeSparkEmitter: nukeSparksParticle,
 	FireWorkSmokeEmitter: fireworkSmoke,
 	RedFireWorkSparkEmitter: redSpark,
 	RedFireWorkTrailEmitter: redTrail,
@@ -105,7 +129,7 @@ interface LoadingState {
 /** The central control unit of gameplay. Handles loading, simulation and rendering. */
 export class Level extends Scheduler {
 	mission: Mission;
-
+	/** Whether or not this level has the classic additional features of MBU levels, such as a larger marble and the blast functionality. */
 	loadingState: LoadingState;
 
 	scene: THREE.Scene;
@@ -133,7 +157,7 @@ export class Level extends Scheduler {
 	timeState: TimeState;
 	/** The last performance.now() time the physics were ticked. */
 	lastPhysicsTick: number = null;
-	paused = false;
+	paused = true;
 	/** If the level is stopped, it shouldn't be used anymore. */
 	stopped = false;
 	/** The timestate at the moment of finishing. */
@@ -163,20 +187,37 @@ export class Level extends Scheduler {
 	heldPowerUp: PowerUp = null;
 	totalGems = 0;
 	gemCount = 0;
+	blastAmount = 0;
 	outOfBounds = false;
 	outOfBoundsTime: TimeState;
 	/** When the jump button was pressed, remember that it was pressed until the next tick to execute the jump. */
 	jumpQueued = false;
 	useQueued = false;
+	blastQueued = false;
 	/** Whether or not the player is currently pressing the restart button. */
 	pressingRestart = false;
+	restartPressTime: number = null;
 	/** The time state at the last point the help text was updated. */
 	helpTextTimeState: TimeState = null;
 	/** The time state at the last point the alert text was updated. */
 	alertTextTimeState: TimeState = null;
+
+	/** Stores the shape that is the destination of the current checkpoint. */
+	currentCheckpoint: Shape = null;
+	/** If the checkpoint was triggered by a trigger, this field stores that trigger. */
+	currentCheckpointTrigger: CheckpointTrigger = null;
+	checkpointCollectedGems = new Set<Gem>();
+	checkpointHeldPowerUp: PowerUp = null;
+	/** Up vector at the point of checkpointing */
+	checkpointUp: OIMO.Vec3 = null;
+	checkpointBlast: number = null;
 	
 	timeTravelSound: AudioSource;
+	/** The alarm that plays in MBP when the player is about to pass the "par time". */
+	alarmSound: AudioSource;
 	music: AudioSource;
+	/** Used for jukebox stuff */
+	originalMusicName: string;
 	replay: Replay;
 
 	constructor(mission: Mission) {
@@ -188,19 +229,14 @@ export class Level extends Scheduler {
 	/** Loads all necessary resources and builds the mission. */
 	async init() {
 		// Scan the mission for elements to determine required loading effort
-		const scanMission = (simGroup: MissionElementSimGroup) => {
-			for (let element of simGroup.elements) {
-				if ([MissionElementType.InteriorInstance, MissionElementType.Item, MissionElementType.PathedInterior, MissionElementType.StaticShape, MissionElementType.TSStatic].includes(element._type)) {
-					this.loadingState.total++;
+		for (let element of this.mission.allElements) {
+			if ([MissionElementType.InteriorInstance, MissionElementType.Item, MissionElementType.PathedInterior, MissionElementType.StaticShape, MissionElementType.TSStatic].includes(element._type)) {
+				this.loadingState.total++;
 
-					// Override the end pad element. We do this because only the last finish pad element will actually do anything.
-					if (element._type === MissionElementType.StaticShape && element.datablock?.toLowerCase() === 'endpad') this.endPadElement = element;
-				} else if (element._type === MissionElementType.SimGroup) {
-					scanMission(element);
-				}
+				// Override the end pad element. We do this because only the last finish pad element will actually do anything.
+				if (element._type === MissionElementType.StaticShape && element.datablock?.toLowerCase() === 'endpad') this.endPadElement = element;
 			}
-		};
-		scanMission(this.mission.root);
+		}
 		this.loadingState.total += 6 + 1 + 3 + 6; // For the scene, marble, UI and sounds (includes music!)
 
 		this.timeState = {
@@ -220,9 +256,10 @@ export class Level extends Scheduler {
 		await this.initMarble(); this.loadingState.loaded += 1;
 		this.particles = new ParticleManager(this);
 		await this.particles.init();
+		let soundPromise = this.initSounds();
 		await this.addSimGroup(this.mission.root);
 		await this.initUi(); this.loadingState.loaded += 3;
-		await this.initSounds(); this.loadingState.loaded += 6;
+		await soundPromise; this.loadingState.loaded += 6;
 
 		this.replay = new Replay(this);
 	}
@@ -230,11 +267,14 @@ export class Level extends Scheduler {
 	async start() {
 		if (this.stopped) return;
 
-		this.restart();
+		this.paused = false;
+		this.restart(true);
 		for (let interior of this.interiors) await interior.onLevelStart();
 		for (let shape of this.shapes) await shape.onLevelStart();
 		AudioManager.normalizePositionalAudioVolume();
 
+		resize(); // To update renderer
+		mainCanvas.classList.remove('hidden');
 		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick for correct positional audio playback
 		this.render(); // This will also do a tick
 		this.tickInterval = setInterval(() => this.tick());
@@ -249,7 +289,7 @@ export class Level extends Scheduler {
 
 		let addedShadow = false;
 		// There could be multiple suns, so do it for all of them
-		for (let element of this.mission.root.elements) {
+		for (let element of this.mission.allElements) {
 			if (element._type !== MissionElementType.Sun) continue;
 
 			let directionalColor = MisParser.parseVector4(element.color);
@@ -288,7 +328,7 @@ export class Level extends Scheduler {
 			}
 		}
 
-		let skyElement = this.mission.root.elements.find((element) => element._type === MissionElementType.Sky) as MissionElementSky;
+		let skyElement = this.mission.allElements.find((element) => element._type === MissionElementType.Sky) as MissionElementSky;
 
 		let fogColor = MisParser.parseVector4(skyElement.fogcolor);
 		// Uber strange way Torque maps these values:
@@ -303,7 +343,10 @@ export class Level extends Scheduler {
 		renderer.setClearColor(new THREE.Color(fogColor.x, fogColor.y, fogColor.z), 1);
 
 		camera.far = MisParser.parseNumber(skyElement.visibledistance);
+		camera.fov = StorageManager.data.settings.fov;
+		marbleReflectionCamera.far = camera.far;
 		camera.updateProjectionMatrix();
+		marbleReflectionCamera.updateProjectionMatrix();
 
 		if (skyElement.useskytextures === "1") {
 			// Create the skybox
@@ -368,16 +411,21 @@ export class Level extends Scheduler {
 
 	async initUi() {
 		// Load all necessary UI image elements
-		await ResourceManager.loadImages(Object.values(numberSources).map(x => "./assets/ui/game/numbers/" + x));
-		await ResourceManager.loadImages(["ready.png", "set.png", "go.png", "outofbounds.png", "powerup.png"].map(x => "./assets/ui/game/" + x));
+		await state.menu.hud.load();
 
 		// Set up the HUD overlay
 
 		let hudOverlayShapePaths = new Set<string>();
 		for (let shape of this.shapes) {
 			if (shape instanceof PowerUp || shape instanceof Gem) {
+				if (shape instanceof PowerUp && shape.autoUse) continue; // Can't collect these aye
+
 				// We need to display the gem and powerup shapes in the HUD
-				hudOverlayShapePaths.add(shape.dtsPath);
+				if (shape instanceof RandomPowerUp) {
+					for (let path of shape.getAllDtsPaths()) hudOverlayShapePaths.add(path);
+				} else {
+					hudOverlayShapePaths.add(shape.dtsPath);
+				}
 			}
 		}
 
@@ -390,6 +438,9 @@ export class Level extends Scheduler {
 			shape.dtsPath = path;
 			shape.ambientRotate = true;
 			shape.showSequences = false;
+			// MBP's UI gem color is randomized
+			if (path.includes("gem") && state.menu.hud instanceof MbpHud) shape.matNamesOverride['base.gem'] = Gem.pickRandomColor() + '.gem';
+
 			await shape.init();
 
 			this.overlayShapes.push(shape);
@@ -400,10 +451,10 @@ export class Level extends Scheduler {
 
 		if (this.totalGems > 0) {
 			// Show the gem overlay
-			gemCountElement.style.display = '';
+			state.menu.hud.setGemVisibility(true);
 		} else {
 			// Hide the gem UI
-			gemCountElement.style.display = 'none';
+			state.menu.hud.setGemVisibility(false);
 		}
 
 		// Render everything once to force a GPU upload
@@ -414,15 +465,49 @@ export class Level extends Scheduler {
 			if (shape.dtsPath.includes('gem')) continue;
 			this.overlayScene.remove(shape.group);
 		}
+
+		if (state.menu.pauseScreen instanceof MbpPauseScreen) state.menu.pauseScreen.jukebox.reset();
 	}
 
 	async initSounds() {
-		let levelIndex = getCurrentLevelArray().indexOf(this.mission);
-		let musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The music choice is based off of level index
+		let musicFileName: string;
+		if (this.mission.modification === 'ultra') {
+			musicFileName = 'tim trance.ogg'; // ALWAYS play this banger
+			this.originalMusicName = musicFileName;
+		} else if (this.mission.missionInfo.music && this.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
+			musicFileName = this.mission.missionInfo.music.toLowerCase();
+			this.originalMusicName = musicFileName;
+		} else {
+			if (this.mission.modification === 'gold') {
+				// Play the song based on the level index
+				let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
+				musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The default music choice is based off of level index
+				// Yes, the extra space is intentional
+				this.originalMusicName = ['groove police.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
+			} else {
+				// Play a random *MBP* song
+				musicFileName = Util.randomFromArray(MBP_SONGS);
+				this.originalMusicName = musicFileName;
+			}
+		}
+		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
 
-		await AudioManager.loadBuffers(["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", "timetravelactive.wav", "infotutorial.wav", musicFileName]);
+		let toLoad = ["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName];
+		if (isFinite(this.mission.qualifyTime) && state.modification === 'platinum') toLoad.push("alarm.wav", "alarm_timeout.wav", "infotutorial.wav");
+
+		try {
+			await AudioManager.loadBuffers(toLoad);
+		} catch (e) {
+			// Something died, maybe it was the music, try replacing it with a song we know exists
+			let newMusic = Util.randomFromArray(MBP_SONGS);
+			this.originalMusicName = newMusic;
+			toLoad[toLoad.indexOf(musicFileName)] = 'music/' + newMusic;
+			musicFileName = 'music/' + newMusic;
+			await AudioManager.loadBuffers(toLoad);
+		}
+		
 		this.music = AudioManager.createAudioSource(musicFileName, AudioManager.musicGain);
-		this.music.node.loop = true;
+		this.music.setLoop(true);
 		await this.music.promise;
 	}
 
@@ -454,7 +539,7 @@ export class Level extends Scheduler {
 					promises.push(this.addShape(element));
 				}; break;
 				case MissionElementType.Trigger: {
-					this.addTrigger(element);
+					promises.push(this.addTrigger(element));
 				}; break;
 				case MissionElementType.TSStatic: {
 					promises.push(this.addTSStatic(element));
@@ -476,7 +561,7 @@ export class Level extends Scheduler {
 		this.interiors.push(interior);
 
 		await Util.wait(10); // See shapes for the meaning of this hack
-		await interior.init();
+		await interior.init(element._id);
 
 		let interiorPosition = MisParser.parseVector3(element.position);
 		let interiorRotation = MisParser.parseRotation(element.rotation);
@@ -490,7 +575,6 @@ export class Level extends Scheduler {
 
 		interior.setTransform(interiorPosition, interiorRotation, interiorScale);
 
-		//this.scene.add(interior.group);
 		if (hasCollision) this.physics.addInterior(interior);
 	}
 
@@ -514,21 +598,32 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase === "ductfan") shape = new DuctFan();
 		else if (dataBlockLowerCase === "smallductfan") shape = new SmallDuctFan();
 		else if (dataBlockLowerCase === "antigravityitem") shape = new AntiGravity(element as MissionElementItem);
+		else if (dataBlockLowerCase === "norespawnantigravityitem") shape = new AntiGravity(element as MissionElementItem, true);
 		else if (dataBlockLowerCase === "landmine") shape = new LandMine();
 		else if (dataBlockLowerCase === "shockabsorberitem") shape = new ShockAbsorber(element as MissionElementItem);
 		else if (dataBlockLowerCase === "superspeeditem") shape = new SuperSpeed(element as MissionElementItem);
-		else if (dataBlockLowerCase === "timetravelitem") shape = new TimeTravel(element as MissionElementItem);
+		else if (["timetravelitem", "timepenaltyitem"].includes(dataBlockLowerCase)) shape = new TimeTravel(element as MissionElementItem);
 		else if (dataBlockLowerCase === "tornado") shape = new Tornado();
 		else if (dataBlockLowerCase === "trapdoor") shape = new TrapDoor(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "oilslick") shape = new Oilslick();
 		else if (dataBlockLowerCase === "pushbutton") shape = new PushButton();
+		else if (dataBlockLowerCase.startsWith("sign") || dataBlockLowerCase === "arrow") shape = new Sign(element as MissionElementStaticShape);
+		else if (dataBlockLowerCase === "magnet") shape = new Magnet();
+		else if (dataBlockLowerCase === "nuke") shape = new Nuke();
+		else if (dataBlockLowerCase === "checkpoint") shape = new Checkpoint();
+		else if (dataBlockLowerCase === "easteregg") shape = new EasterEgg(element as MissionElementItem);
+		else if (dataBlockLowerCase === "randompowerupitem") shape = new RandomPowerUp(element as MissionElementItem);
+		else if (["clear", "cloudy", "dusk", "wintry"].includes(dataBlockLowerCase)) shape = new Sky(dataBlockLowerCase);
+		else if (/glass_\d+shape/.test(dataBlockLowerCase)) shape = new Glass(dataBlockLowerCase);
+		else if (dataBlockLowerCase === "blastitem") shape = new Blast(element as MissionElementItem);
+		else if (dataBlockLowerCase === "megamarbleitem") shape = new MegaMarble(element as MissionElementItem);
 
 		if (!shape) return;
 
 		this.shapes.push(shape);
 		// This is a bit hacky, but wait a short amount so that all shapes will have been created by the time this codepath continues. This is necessary for correct sharing of data between shapes.
 		await Util.wait(10);
-		await shape.init(this, element._id);
+		await shape.init(this, element);
 
 		// Set the shape's transform
 		let shapePosition = MisParser.parseVector3(element.position);
@@ -546,22 +641,31 @@ export class Level extends Scheduler {
 		this.physics.addShape(shape);
 	}
 
-	addTrigger(element: MissionElementTrigger) {
+	async addTrigger(element: MissionElementTrigger) {
 		let trigger: Trigger;
 
 		// Create a trigger based on type
-		if (element.datablock === "OutOfBoundsTrigger") {
+		let dataBlockLowerCase = element.datablock?.toLowerCase();
+		if (dataBlockLowerCase === "outofboundstrigger") {
 			trigger = new OutOfBoundsTrigger(element, this);
-		} else if (element.datablock === "InBoundsTrigger") {
+		} else if (dataBlockLowerCase === "inboundstrigger") {
 			trigger = new InBoundsTrigger(element, this);
-		} else if (element.datablock === "HelpTrigger") {
+		} else if (dataBlockLowerCase === "helptrigger") {
 			trigger = new HelpTrigger(element, this);
+		} else if (dataBlockLowerCase === "teleporttrigger") {
+			trigger = new TeleportTrigger(element, this);
+		} else if (dataBlockLowerCase === "destinationtrigger") {
+			trigger = new DestinationTrigger(element, this);
+		} else if (dataBlockLowerCase === "checkpointtrigger") {
+			trigger = new CheckpointTrigger(element, this);
 		}
 
 		if (!trigger) return;
 
 		this.triggers.push(trigger);
 		this.physics.addTrigger(trigger);
+
+		await trigger.init();
 	}
 
 	/** Adds a TSStatic (totally static shape) to the world. */
@@ -580,7 +684,7 @@ export class Level extends Scheduler {
 		this.shapes.push(shape);
 		await Util.wait(10); // Same hack as for regular shapes
 		try {
-			await shape.init(this);
+			await shape.init(this, element);
 		} catch (e) {
 			console.error("Error in creating TSStatic, skipping it for now.", e);
 			Util.removeFromArray(this.shapes, shape);
@@ -602,18 +706,35 @@ export class Level extends Scheduler {
 	}
 
 	/** Restarts and resets the level. */
-	restart() {
+	restart(forceHardRestart: boolean) {
+		if (!forceHardRestart && this.currentCheckpoint) {
+			// There's a checkpoint, so load its state instead of restarting the whole level
+			this.loadCheckpointState();
+			return;
+		}
+
+		let hud = state.menu.hud;
+
 		this.timeState.currentAttemptTime = 0;
 		this.timeState.gameplayClock = 0;
 		this.currentTimeTravelBonus = 0;
 		this.outOfBounds = false;
 		this.lastPhysicsTick = null;
 		this.maxDisplayedTime = 0;
+		this.blastAmount = 0;
 		
 		if (this.totalGems > 0) {
 			this.gemCount = 0;
-			displayGemCount(this.gemCount, this.totalGems);
+			hud.displayGemCount(this.gemCount, this.totalGems);
 		}
+
+		this.currentCheckpoint = null;
+		this.currentCheckpointTrigger = null;
+		this.checkpointCollectedGems.clear();
+		this.checkpointHeldPowerUp = null;
+		this.checkpointUp = null;
+		this.checkpointBlast = null;
+		this.restartPressTime = null;
 
 		this.finishTime = null;
 
@@ -628,11 +749,12 @@ export class Level extends Scheduler {
 		this.yaw = euler.z + Math.PI/2;
 		this.pitch = DEFAULT_PITCH;
 
-		let missionInfo = this.mission.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === "MissionInfo") as MissionElementScriptObject;
-		if (missionInfo.starthelptext) displayHelp(missionInfo.starthelptext); // Show the start help text
+		let missionInfo = this.mission.missionInfo;
+		if (missionInfo.starthelptext) state.menu.hud.displayHelp(missionInfo.starthelptext); // Show the start help text
 
 		for (let shape of this.shapes) shape.reset();
 		for (let interior of this.interiors) interior.reset();
+		for (let trigger of this.triggers) trigger.reset();
 
 		// Reset the physics
 		this.currentUp = new OIMO.Vec3(0, 0, 1);
@@ -643,10 +765,12 @@ export class Level extends Scheduler {
 		this.physics.reset();
 		
 		this.deselectPowerUp();
-		setCenterText('none');
+		hud.setCenterText('none');
 
 		this.timeTravelSound?.stop();
 		this.timeTravelSound = null;
+		this.alarmSound?.stop();
+		this.alarmSound = null;
 
 		this.replay.init();
 
@@ -656,19 +780,19 @@ export class Level extends Scheduler {
 
 		this.clearSchedule();
 		this.schedule(500, () => {
-			setCenterText('ready');
+			hud.setCenterText('ready');
 			AudioManager.play('ready.wav');
 		});
 		this.schedule(2000, () => {
-			setCenterText('set');
+			hud.setCenterText('set');
 			AudioManager.play('set.wav');
 		});
 		this.schedule(GO_TIME, () => {
-			setCenterText('go');
+			hud.setCenterText('go');
 			AudioManager.play('go.wav');
 		});
 		this.schedule(5500, () => {
-			if (!this.outOfBounds) setCenterText('none');
+			if (!this.outOfBounds) hud.setCenterText('none');
 		});
 	}
 
@@ -678,7 +802,7 @@ export class Level extends Scheduler {
 		let time = performance.now();
 		this.tick(time);
 
-		let physicsTickLength = 1000 / PHYSICS_TICK_RATE;
+		let physicsTickLength = 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
 		let completion = Util.clamp((time - this.lastPhysicsTick) / physicsTickLength, 0, 1);
 		// Set up an intermediate time state for smoother rendering
 		let tempTimeState: TimeState = {
@@ -702,6 +826,7 @@ export class Level extends Scheduler {
 		this.sunlight.position.copy(shadowCameraPosition);
 		this.sunlight.target.position.copy(this.marble.group.position);
 
+		this.marble.renderReflection();
 		renderer.render(this.scene, camera);
 
 		// Update the overlay
@@ -714,7 +839,7 @@ export class Level extends Scheduler {
 				overlayShape.group.position.y = 25;
 				overlayShape.group.position.z = -35;
 			} else {
-				overlayShape.group.scale.setScalar(40);
+				overlayShape.group.scale.setScalar(SHAPE_OVERLAY_SCALES[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_SCALES] ?? 40);
 				overlayShape.group.position.y = window.innerWidth - 55;
 				overlayShape.group.position.z = SHAPE_OVERLAY_OFFSETS[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_OFFSETS];
 			}
@@ -732,7 +857,11 @@ export class Level extends Scheduler {
 		if (this.currentTimeTravelBonus === 0 && !this.finishTime) timeToDisplay = this.maxDisplayedTime;
 
 		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
-		displayTime(timeToDisplay / 1000);
+
+		let hud = state.menu.hud;
+		hud.displayTime(timeToDisplay / 1000, this.determineClockColor(timeToDisplay));
+		hud.displayBlastMeterFullness(this.blastAmount);
+		hud.displayFps();
 
 		// Update help and alert text visibility
 		let helpTextTime = this.helpTextTimeState?.timeSinceLoad ?? -Infinity;
@@ -740,12 +869,30 @@ export class Level extends Scheduler {
 		let helpTextCompletion = Util.clamp((this.timeState.timeSinceLoad - helpTextTime - 3000) / 1000, 0, 1) ** 2;
 		let alertTextCompletion = Util.clamp((this.timeState.timeSinceLoad - alertTextTime - 3000) / 1000, 0, 1) ** 2;
 
-		helpElement.style.opacity = (1 - helpTextCompletion).toString();
-		helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, helpTextCompletion)})`;
-		alertElement.style.opacity = (1 - alertTextCompletion).toString();
-		alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
+		hud.helpElement.style.opacity = (1 - helpTextCompletion).toString();
+		hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, helpTextCompletion)})`;
+		hud.alertElement.style.opacity = (1 - alertTextCompletion).toString();
+		hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
 
 		requestAnimationFrame(() => this.render());
+	}
+
+	determineClockColor(timeToDisplay: number) {
+		if (state.modification === 'gold') return;
+
+		if (this.finishTime) return 'green'; // Even if not qualified
+		if (this.timeState.currentAttemptTime < GO_TIME || this.currentTimeTravelBonus > 0) return 'green';
+		if (timeToDisplay >= this.mission.qualifyTime) return 'red';
+
+		if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum') {
+			// Create the flashing effect
+			let alarmStart = this.mission.computeAlarmStartTime();
+			let elapsed = timeToDisplay - alarmStart;
+			if (elapsed < 0) return;
+			if (Math.floor(elapsed / 1000) % 2 === 0) return 'red';
+		}
+
+		return; // Default yellow
 	}
 
 	/** Updates the position of the camera based on marble position and orientation. */
@@ -786,30 +933,34 @@ export class Level extends Scheduler {
 			camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z).sub(directionVector.clone().multiplyScalar(2.5));
 			camera.lookAt(Util.vecOimoToThree(marblePosition));
 			camera.position.add(cameraVerticalTranslation);
+			marbleReflectionCamera.up = up;
 
 			// Handle wall intersections:
 
 			const closeness = 0.1;
-			let rayCastOrigin = marblePosition.add(this.currentUp.scale(MARBLE_RADIUS));
+			let rayCastOrigin = marblePosition.add(this.currentUp.scale(this.marble.radius));
 
 			let processedShapes = new Set<OIMO.Shape>();
 			for (let i = 0; i < 3; i++) {
 				// Shoot rays from the marble to the postiion of the camera
-				let rayCastDirection = Util.vecThreeToOimo(camera.position).sub(rayCastOrigin);
+				let rayCastDirection = Util.vecThreeToOimo(camera.position).subEq(rayCastOrigin);
 				rayCastDirection.addEq(rayCastDirection.clone().normalize().scale(2));
 
 				let firstHit: OIMO.RayCastHit = null;
+				let firstHitShape: OIMO.Shape = null;
 				let self = this;
 				this.physics.world.rayCast(rayCastOrigin, rayCastOrigin.add(rayCastDirection), {
 					process(shape, hit) {
 						if (shape !== self.marble.shape && !processedShapes.has(shape) && (!firstHit || hit.fraction < firstHit.fraction)) {
 							firstHit = Util.jsonClone(hit);
-							processedShapes.add(shape);
+							firstHitShape = shape;
 						}
 					}
 				});
 
 				if (firstHit) {
+					processedShapes.add(firstHitShape);
+
 					// Construct a plane at the point of ray impact based on the normal
 					let plane = new THREE.Plane();
 					let normal = Util.vecOimoToThree(firstHit.normal).multiplyScalar(-1);
@@ -837,6 +988,7 @@ export class Level extends Scheduler {
 					camera.rotateOnWorldAxis(rotationAxis, theta);
 					continue;
 				}
+				
 				break;
 			}
 
@@ -859,17 +1011,20 @@ export class Level extends Scheduler {
 		if (!playReplay && (isPressed('use') || this.useQueued) && getPressedFlag('use')) {
 			if (this.outOfBounds && !this.finishTime) {
 				// Skip the out of bounds "animation" and restart immediately
-				this.clearSchedule();
-				this.restart();
+				this.restart(false);
 				return;
 			} else if (this.heldPowerUp) {
 				this.replay.recordUsePowerUp(this.heldPowerUp);
 				this.heldPowerUp.use(this.timeState);
 			}
 		}
+		if (!playReplay && (isPressed('blast') || this.blastQueued) && getPressedFlag('blast')) {
+			this.marble.useBlast();
+		}
 		this.useQueued = false;
+		this.blastQueued = false;
 
-		handleFinishScreenGamepadInput();
+		state.menu.finishScreen.handleGamepadInput();
 
 		// Handle pressing of the gamepad pause button
 		if (!this.finishTime && isPressed('pause') && getPressedFlag('pause')) {
@@ -882,11 +1037,12 @@ export class Level extends Scheduler {
 
 		if (this.lastPhysicsTick === null) {
 			// If there hasn't been a physics tick yet, ensure there is one now
-			this.lastPhysicsTick = time - 1000 / PHYSICS_TICK_RATE * 1.1;
+			this.lastPhysicsTick = time - 1000 / PHYSICS_TICK_RATE * 1.1 / PLAYBACK_SPEED;
 		}
 
 		/** Time since the last physics tick */
 		let elapsed = time - this.lastPhysicsTick;
+		elapsed *= PLAYBACK_SPEED;
 		if (elapsed >= 1000) {
 			elapsed = 1000;
 			this.lastPhysicsTick = time - 1000;
@@ -898,16 +1054,20 @@ export class Level extends Scheduler {
 			// By ticking we advance time, so advance time.
 			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
 			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
-			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE;
+			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
 			elapsed -= 1000 / PHYSICS_TICK_RATE;
 
 			this.tickSchedule(this.timeState.currentAttemptTime);
 
+			if (this.mission.hasBlast && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
+
 			// Update pathed interior velocities before running the simulation step
 			// Note: We do this even in replay playback mode, because pathed interior body position is relevant for the camera code.
 			for (let interior of this.interiors) interior.tick(this.timeState);
+			for (let trigger of this.triggers) trigger.tick(this.timeState);
 
 			// Step the physics
+			for (let interior of this.interiors) interior.buildCollisionGeometry(); // Update collision geometry for interiors
 			if (!playReplay) this.physics.step();
 
 			for (let shape of this.shapes) if (!shape.isTSStatic) shape.tick(this.timeState);
@@ -948,14 +1108,15 @@ export class Level extends Scheduler {
 
 			let yawChange = 0.0;
 			let pitchChange = 0.0;
-			if (isPressed('cameraLeft')) yawChange += 1.5;
-			if (isPressed('cameraRight')) yawChange -= 1.5;
-			if (isPressed('cameraUp')) pitchChange -= 1.5;
-			if (isPressed('cameraDown')) pitchChange += 1.5;
+			let freeLook = StorageManager.data.settings.alwaysFreeLook || isPressed('freeLook');
+			let amount = Util.lerp(1, 6, StorageManager.data.settings.keyboardSensitivity);
+			if (isPressed('cameraLeft')) yawChange += amount;
+			if (isPressed('cameraRight')) yawChange -= amount;
+			if (isPressed('cameraUp')) pitchChange -= amount;
+			if (isPressed('cameraDown')) pitchChange += amount;
 			
-			let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;
-			yawChange -= gamepadAxes.cameraX * 5.0;
-			pitchChange += gamepadAxes.cameraY * 5.0 * yFactor;
+			yawChange -= gamepadAxes.cameraX * Util.lerp(0.5, 10, StorageManager.data.settings.mouseSensitivity);
+			if (freeLook) pitchChange += gamepadAxes.cameraY * Util.lerp(0.5, 10, StorageManager.data.settings.mouseSensitivity);
 			
 			this.yaw += yawChange / PHYSICS_TICK_RATE;
 			this.pitch += pitchChange / PHYSICS_TICK_RATE;
@@ -966,12 +1127,14 @@ export class Level extends Scheduler {
 			// Record or playback the replay
 			if (!playReplay) this.replay.record();
 			else {
-				this.replay.playback();
+				this.replay.playBack();
 				if (this.replay.isPlaybackComplete()) {
-					stopAndExit();
+					this.stopAndExit();
 					return;
 				}
 			}
+
+			let prevGameplayClock = this.timeState.gameplayClock;
 
 			// Note: It is incorrect that this TT code here runs after physics and shape updating, it should run at the top of this loop's body. However, changing this code's position now would make all TT catches about ~8 milliseconds later, giving an unfair advantage to those who have already set leaderboard scores using the previous calculation. So, for the sake of score integrity, we're keeping it this way.
 			if (this.timeState.currentAttemptTime >= GO_TIME) {
@@ -981,7 +1144,7 @@ export class Level extends Scheduler {
 	
 					if (!this.timeTravelSound) {
 						this.timeTravelSound = AudioManager.createAudioSource('timetravelactive.wav');
-						this.timeTravelSound.node.loop = true;
+						this.timeTravelSound.setLoop(true);
 						this.timeTravelSound.play();
 					}
 				} else {
@@ -998,37 +1161,46 @@ export class Level extends Scheduler {
 					this.currentTimeTravelBonus = 0;
 				}
 			}
+
+			// Handle alarm warnings (that the user is about to exceed the par time)
+			if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum' && !this.finishTime) {
+				let alarmStart = this.mission.computeAlarmStartTime();
+
+				if (prevGameplayClock <= alarmStart && this.timeState.gameplayClock >= alarmStart) {
+					// Start the alarm
+					this.alarmSound = AudioManager.createAudioSource('alarm.wav');
+					this.alarmSound.setLoop(true);
+					this.alarmSound.play();
+					state.menu.hud.displayHelp(`You have ${(this.mission.qualifyTime - alarmStart) / 1000} seconds remaining.`, true);
+				}
+				if (prevGameplayClock < this.mission.qualifyTime && this.timeState.gameplayClock >= this.mission.qualifyTime) {
+					// Stop the alarm
+					this.alarmSound?.stop();
+					this.alarmSound = null;
+					state.menu.hud.displayHelp("The clock has passed the Par Time.", true);
+					AudioManager.play('alarm_timeout.wav');
+				}
+			}
 		}
 
 		AudioManager.updatePositionalAudio(this.timeState, camera.position, this.yaw);
 		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
-		if (tickDone) this.calculatePreemptiveTransforms();
+		if (tickDone) this.marble.calculatePredictiveTransforms();
 
 		// Handle pressing of the restart button
 		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
-			this.restart();
+			this.restart(false);
+			if (this.currentCheckpoint) this.restartPressTime = performance.now();
 			this.pressingRestart = true;
 		} else if (!isPressed('restart')) {
 			this.pressingRestart = false;
 		}
-	}
 
-	/** Predicts the position of the marble in the next physics tick to allow for smooth, interpolated rendering. */
-	calculatePreemptiveTransforms() {
-		let vel = this.marble.body.getLinearVelocity();
-		// Naive: Just assume the marble moves as if nothing was in its way and it continued with its current velocity.
-		let predictedPosition = this.marble.body.getPosition().add(vel.scale(1 / PHYSICS_TICK_RATE)).add(this.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
-
-		let angVel = this.marble.body.getAngularVelocity();
-		let orientation = this.marble.body.getOrientation();
-		let threeOrientation = new THREE.Quaternion(orientation.x, orientation.y, orientation.z, orientation.w);
-		let changeQuat = new THREE.Quaternion();
-		changeQuat.setFromAxisAngle(Util.vecOimoToThree(angVel).normalize(), angVel.length() / PHYSICS_TICK_RATE);
-		changeQuat.multiply(threeOrientation);
-		let predictedOrientation = new OIMO.Quat(threeOrientation.x, threeOrientation.y, threeOrientation.z, threeOrientation.w);
-
-		this.marble.preemptivePosition = predictedPosition;
-		this.marble.preemptiveOrientation = predictedOrientation;
+		// Holding down the restart button for 1 second will force a hard restart
+		if (!this.finishTime && isPressed('restart') && this.restartPressTime !== null) {
+			if (this.restartPressTime !== null && performance.now() - this.restartPressTime >= 1000)
+				this.restart(true);
+		}
 	}
 
 	/** Get the current interpolated orientation quaternion. */
@@ -1038,21 +1210,32 @@ export class Level extends Scheduler {
 	}
 
 	/** Sets the current up vector and gravity with it. */
-	setUp(vec: OIMO.Vec3, time: TimeState) {
-		this.currentUp = vec;
-		this.physics.world.setGravity(vec.scale(-1 * this.physics.world.getGravity().length()));
+	setUp(newUp: OIMO.Vec3, time: TimeState, instant = false) {
+		newUp.normalize(); // We never know 👀
+		this.currentUp = newUp;
+		this.physics.world.setGravity(newUp.scale(-1 * this.physics.world.getGravity().length()));
 
 		let currentQuat = this.getOrientationQuat(time);
 		let oldUp = new THREE.Vector3(0, 0, 1);
 		oldUp.applyQuaternion(currentQuat);
 
 		let quatChange = new THREE.Quaternion();
-		// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
-		quatChange.setFromUnitVectors(oldUp, Util.vecOimoToThree(vec));
+		let dot = Util.vecOimoToThree(newUp).dot(oldUp);
+		if (dot <= -(1 - 1e-15) && !(this.replay.version < 3)) { // If the old and new up are exact opposites, there are infinitely many possible rotations we could do. So choose the one that maintains the current look vector the best. Replay check so we don't break old stuff.
+			let lookVector = new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
+			let intermediateVector = oldUp.clone().cross(lookVector).normalize();
+
+			// First rotation to the intermediate vector, then rotate from there to the new up
+			quatChange.setFromUnitVectors(oldUp, intermediateVector);
+			quatChange.multiplyQuaternions(new THREE.Quaternion().setFromUnitVectors(intermediateVector, Util.vecOimoToThree(newUp)), quatChange);
+		} else {
+			// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
+			quatChange.setFromUnitVectors(oldUp, Util.vecOimoToThree(newUp));
+		}
 
 		this.newOrientationQuat = quatChange.multiply(currentQuat);
 		this.oldOrientationQuat = currentQuat;
-		this.orientationChangeTime = time.currentAttemptTime;
+		this.orientationChangeTime = instant? -Infinity : time.currentAttemptTime;
 	}
 
 	/** Gets the position and orientation of the player spawn point. */
@@ -1060,7 +1243,7 @@ export class Level extends Scheduler {
 		// The player is spawned at the last start pad in the mission file.
 		let startPad = Util.findLast(this.shapes, (shape) => shape instanceof StartPad);
 		let position: THREE.Vector3;
-		let euler: THREE.Euler = new THREE.Euler();
+		let euler = new THREE.Euler();
 
 		if (startPad) {
 			// If there's a start pad, start there
@@ -1068,7 +1251,7 @@ export class Level extends Scheduler {
 			euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
 		} else {
 			// Search for spawn points used for multiplayer
-			let spawnPoints = this.mission.root.elements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
+			let spawnPoints = this.mission.allElements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
 			if (spawnPoints) {
 				let first = spawnPoints.elements[0] as MissionElementTrigger;
 				position = MisParser.parseVector3(first.position);
@@ -1100,14 +1283,16 @@ export class Level extends Scheduler {
 		this.previousMouseMovementDistance = totalDistance;
 
 		let factor = Util.lerp(1 / 2500, 1 / 100, StorageManager.data.settings.mouseSensitivity);
-		let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;
+		let xFactor = (StorageManager.data.settings.invertMouse & 0b01)? -1 : 1;
+		let yFactor = (StorageManager.data.settings.invertMouse & 0b10)? -1 : 1;
 		let freeLook = StorageManager.data.settings.alwaysFreeLook || isPressed('freeLook');
 
 		if (freeLook) this.pitch += e.movementY * factor * yFactor;
-		this.yaw -= e.movementX * factor;
+		this.yaw -= e.movementX * factor * xFactor;
 	}
 
-	pickUpPowerUp(powerUp: PowerUp) {
+	pickUpPowerUp(powerUp: PowerUp, playPickUpSound = true) {
+		if (!powerUp) return false;
 		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
 		this.heldPowerUp = powerUp;
 
@@ -1119,7 +1304,7 @@ export class Level extends Scheduler {
 			else this.overlayScene.remove(overlayShape.group);
 		}
 
-		AudioManager.play(powerUp.sounds[0]);
+		if (playPickUpSound) AudioManager.play(powerUp.sounds[0]);
 
 		return true;
 	}
@@ -1137,10 +1322,11 @@ export class Level extends Scheduler {
 	pickUpGem(gem: Gem) {
 		this.gemCount++;
 		let string: string;
+		let gemWord = (state.modification === 'gold')? 'gem' : 'diamond';
 
 		// Show a notification (and play a sound) based on the gems remaining
 		if (this.gemCount === this.totalGems) {
-			string = "You have all the gems, head for the finish!";
+			string = `You have all the ${gemWord}s, head for the finish!`;
 			AudioManager.play('gotallgems.wav');
 			
 			// Some levels with this package end immediately upon collection of all gems
@@ -1149,20 +1335,20 @@ export class Level extends Scheduler {
 				this.touchFinish(completionOfImpact);
 			}
 		} else {
-			string = "You picked up a gem.  ";
+			string = `You picked up a ${gemWord}${state.modification === 'gold' ? '.' : '!'}  `;
 
 			let remaining = this.totalGems - this.gemCount;
 			if (remaining === 1) {
-				string += "Only one gem to go!";
+				string += `Only one ${gemWord} to go!`;
 			} else {
-				string += `${remaining} gems to go!`;
+				string += `${remaining} ${gemWord}s to go!`;
 			}
 
 			AudioManager.play('gotgem.wav');
 		}
 
-		displayAlert(string);
-		displayGemCount(this.gemCount, this.totalGems);
+		state.menu.hud.displayAlert(string);
+		state.menu.hud.displayGemCount(this.gemCount, this.totalGems);
 	}
 
 	addTimeTravelBonus(bonus: number, timeToRevert: number) {
@@ -1183,10 +1369,107 @@ export class Level extends Scheduler {
 		this.outOfBounds = true;
 		this.outOfBoundsTime = Util.jsonClone(this.timeState);
 		this.oobCameraPosition = camera.position.clone();
-		setCenterText('outofbounds');
+		state.menu.hud.setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
 
-		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart(), 'oobRestart');
+		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart(false), 'oobRestart');
+	}
+
+	/** Sets a new active checkpoint. */
+	saveCheckpointState(shape: Shape, trigger?: CheckpointTrigger) {
+		if (this.currentCheckpoint === shape) return;
+
+		let disableOob = (shape.srcElement as any)?.disableOob || trigger?.element.disableOob;
+		if (MisParser.parseBoolean(disableOob) && this.outOfBounds) return; // The checkpoint is configured to not work when the player is already OOB
+
+		this.currentCheckpoint = shape;
+		this.currentCheckpointTrigger = trigger;
+		this.checkpointCollectedGems.clear();
+		this.checkpointUp = this.currentUp.clone();
+		this.checkpointBlast = this.blastAmount;
+
+		// Remember all gems that were collected up to this point
+		for (let shape of this.shapes) {
+			if (!(shape instanceof Gem)) continue;
+			if (shape.pickedUp) this.checkpointCollectedGems.add(shape);
+		}
+
+		this.checkpointHeldPowerUp = this.heldPowerUp;
+
+		state.menu.hud.displayAlert("Checkpoint reached!");
+		AudioManager.play('checkpoint.wav');
+	}
+
+	/** Resets to the last stored checkpoint state. */
+	loadCheckpointState() {
+		if (!this.currentCheckpoint) return;
+
+		let marble = this.marble;
+
+		// Quite note: Checkpoints have slightly different behavior in Ultra, that's why there's some checks
+
+		let gravityField = (this.currentCheckpoint.srcElement as any)?.gravity || this.currentCheckpointTrigger?.element.gravity;
+		if (MisParser.parseBoolean(gravityField) || this.mission.modification === 'ultra') {
+			// In this case, we set the gravity to the relative "up" vector of the checkpoint shape.
+			let up = new THREE.Vector3(0, 0, 1);
+			up.applyQuaternion(this.currentCheckpoint.worldOrientation);
+			this.setUp(Util.vecThreeToOimo(up), this.timeState, true);
+		} else {
+			// Otherwise, we restore gravity to what was stored.
+			this.setUp(this.checkpointUp, this.timeState, true);
+		}
+
+		// Determine where to spawn the marble
+		let offset = new OIMO.Vec3();
+		let add = (this.currentCheckpoint.srcElement as any)?.add || this.currentCheckpointTrigger?.element.add;
+		if (add) offset.addEq(Util.vecThreeToOimo(MisParser.parseVector3(add)));
+		let sub = (this.currentCheckpoint.srcElement as any)?.sub || this.currentCheckpointTrigger?.element.sub;
+		if (sub) offset.subEq(Util.vecThreeToOimo(MisParser.parseVector3(sub)));
+		if (!add && !sub) {
+			offset.z = 3; // Defaults to (0, 0, 3)
+
+			if (this.mission.modification === 'ultra')
+				offset = Util.vecThreeToOimo(Util.vecOimoToThree(offset).applyQuaternion(this.currentCheckpoint.worldOrientation)); // weird <3
+		}
+
+		marble.body.setPosition(Util.vecThreeToOimo(this.currentCheckpoint.worldPosition).add(offset));
+		marble.body.setLinearVelocity(new OIMO.Vec3());
+		marble.body.setAngularVelocity(new OIMO.Vec3());
+
+		// Set camera orienation
+		let euler: THREE.Euler = new THREE.Euler();
+		euler.setFromQuaternion(this.currentCheckpoint.worldOrientation, "ZXY");
+		this.yaw = euler.z + Math.PI/2;
+		this.pitch = DEFAULT_PITCH;
+
+		// Restore gem states
+		for (let shape of this.shapes) {
+			if (!(shape instanceof Gem)) continue;
+			if (shape.pickedUp && !this.checkpointCollectedGems.has(shape)) {
+				shape.reset();
+				this.gemCount--;
+			}
+		}
+		state.menu.hud.displayGemCount(this.gemCount, this.totalGems);
+		state.menu.hud.setCenterText('none');
+
+		// Turn all of these off
+		marble.superBounceEnableTime = -Infinity;
+		marble.shockAbsorberEnableTime = -Infinity;
+		marble.helicopterEnableTime = -Infinity;
+		marble.megaMarbleEnableTime = -Infinity;
+
+		this.clearSchedule();
+		this.outOfBounds = false;
+		this.blastAmount = this.checkpointBlast;
+		this.finishTime = null; // For those very, very rare cases where the player touched the finish while OOB, but not fast enough, so they get respawned at the checkpoint and we need to remove the "finish lock".
+
+		this.deselectPowerUp(); // Always deselect first
+		// Wait a bit to select the powerup to prevent immediately using it incase the user skipped the OOB screen by clicking
+		if (this.checkpointHeldPowerUp) this.schedule(this.timeState.currentAttemptTime + 500, () => this.pickUpPowerUp(this.checkpointHeldPowerUp, false));
+
+		AudioManager.play('spawn.wav');
+		this.replay.recordCheckpointRespawn();
 	}
 
 	touchFinish(completionOfImpactOverride?: number) {
@@ -1196,7 +1479,7 @@ export class Level extends Scheduler {
 
 		if (completionOfImpactOverride === undefined && this.gemCount < this.totalGems) {
 			AudioManager.play('missinggems.wav');
-			displayAlert("You can't finish without all the gems!!");
+			state.menu.hud.displayAlert((state.modification === 'gold')? "You can't finish without all the gems!!" : "You may not finish without all the diamonds!");
 		} else {
 			let completionOfImpact: number;
 			if (completionOfImpactOverride === undefined) {
@@ -1216,6 +1499,7 @@ export class Level extends Scheduler {
 			this.finishTime.gameplayClock = Math.min(this.finishTime.gameplayClock, MAX_TIME); // Apply the time cap
 			this.finishTime.physicsTickCompletion = completionOfImpact;
 			this.currentTimeTravelBonus = 0;
+			this.alarmSound?.stop();
 
 			if (this.replay.mode === 'playback') this.finishTime = this.replay.finishTime;
 
@@ -1225,7 +1509,7 @@ export class Level extends Scheduler {
 			let endPad = Util.findLast(this.shapes, (shape) => shape instanceof EndPad) as EndPad;
 			endPad?.spawnFirework(this.timeState); // EndPad *might* not exist, in that case no fireworks lol
 
-			displayAlert("Congratulations! You've finished!");
+			state.menu.hud.displayAlert("Congratulations! You've finished!");
 
 			// Check if the player is OOB, but still allow finishing with less than half a second of having been OOB
 			if (this.outOfBounds && this.timeState.currentAttemptTime - this.outOfBoundsTime.currentAttemptTime >= 500) return;
@@ -1237,7 +1521,7 @@ export class Level extends Scheduler {
 			if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => {
 				// Show the finish screen
 				document.exitPointerLock();
-				showFinishScreen();
+				state.menu.finishScreen.show();
 				resetPressedFlag('use');
 				resetPressedFlag('jump');
 				resetPressedFlag('restart');
@@ -1250,14 +1534,14 @@ export class Level extends Scheduler {
 		this.paused = true;
 		document.exitPointerLock();
 		releaseAllButtons(); // Safety measure to prevent keys from getting stuck
-		showPauseScreen();
+		state.menu.pauseScreen.show();
 	}
 
 	/** Unpauses the level. */
 	unpause() {
 		this.paused = false;
 		if (!Util.isTouchDevice) document.documentElement.requestPointerLock();
-		hidePauseScreen();
+		state.menu.pauseScreen.hide();
 		this.lastPhysicsTick = performance.now();
 	}
 
@@ -1282,6 +1566,22 @@ export class Level extends Scheduler {
 		this.marble.superBounceSound?.stop();
 
 		AudioManager.stopAllAudio();
+	}
+	
+	/** Stops and destroys the current level and returns back to the menu. */
+	stopAndExit() {
+		this.stop();
+		state.level = null;
+		mainCanvas.classList.add('hidden');
+
+		state.menu.pauseScreen.hide();
+		state.menu.levelSelect.show();
+		state.menu.levelSelect.displayBestTimes(); // Potentially update best times having changed
+		state.menu.finishScreen.hide();
+		state.menu.hideGameUi();
+		state.menu.show();
+		
+		document.exitPointerLock();
 	}
 
 	/** Returns how much percent the level has finished loading. */

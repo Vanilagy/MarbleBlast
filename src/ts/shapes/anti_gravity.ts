@@ -3,13 +3,21 @@ import * as THREE from "three";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
+import { state } from "../state";
+import { MissionElementItem } from "../parsing/mis_parser";
 
 /** Changes the gravity on pickup. */
 export class AntiGravity extends PowerUp {
 	dtsPath = "shapes/items/antigravity.dts";
 	autoUse = true;
-	pickUpName = "Gravity Modifier";
+	pickUpName = (state.modification === 'gold')? "Gravity Modifier" : "Gravity Defier";
 	sounds = ["gravitychange.wav"];
+
+	constructor(element: MissionElementItem, respawnInstantly = false) {
+		super(element);
+
+		if (respawnInstantly) this.cooldownDuration = -Infinity;
+	}
 
 	pickUp() {
 		let direction = new THREE.Vector3(0, 0, -1);

@@ -29,7 +29,7 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 
 	for (let mission of options.missions) {
 		let rows: ScoreRow[] = shared.getScoresForMissionStatement.all(mission);
-		response[mission] = rows.map(x => [x.username, x.time]);
+		response[mission] = rows.map(x => [x.username.slice(0, 16), x.time]);
 	}
 
 	let stringified = JSON.stringify(response);
@@ -60,6 +60,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 	// Loop over all new scores
 	for (let missionPath in bestTimes) {
 		let score = bestTimes[missionPath];
+		score[0] = score[0].slice(0, 16); // Fuck you
 		let row: ScoreRow = shared.getScoreByUserStatement.get(missionPath, score[0], data.randomId); // See if a score by this player already exists on this mission
 		let inserted = false;
 		
@@ -89,7 +90,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 			if (shared.config.discordWebhookUrl) {
 				// Broadcast a world record message to the webhook URL
 				let allowed = true;
-				if (missionPath.startsWith('custom')) {
+				if (missionPath.includes('custom/')) {
 					let scoreCount: number = shared.getMissionScoreCount.pluck().get(missionPath);
 					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) allowed = false; // Not enough scores yet, don't broadcast
 				}
@@ -108,8 +109,11 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 const broadcastToWebhook = (missionPath: string, score: [string, number]) => {
 	let missionName = escapeDiscord(getMissionNameFromMissionPath(missionPath)).trim();
 	let timeString = secondsToTimeString(score[1] / 1000);
+	let modification = missionPath.startsWith('mbp')? 'platinum': missionPath.startsWith('mbu')? 'ultra' : 'gold';
+	if (modification !== 'gold') missionPath = missionPath.slice(4);
 	let category = uppercaseFirstLetter(missionPath.slice(0, missionPath.indexOf('/')));
-	let message = `${escapeDiscord(score[0])} has just achieved a world record on "${missionName}" (Web ${category}) of ${timeString}`;
+	
+	let message = `${escapeDiscord(score[0])} has just achieved a world record on "${missionName}" (Web ${uppercaseFirstLetter(modification)} ${category}) of ${timeString}`;
 
 	fetch(shared.config.discordWebhookUrl, {
 		method: 'POST',
@@ -124,9 +128,9 @@ const broadcastToWebhook = (missionPath: string, score: [string, number]) => {
 
 /** Gets the mission name from a given mission path. */
 const getMissionNameFromMissionPath = (missionPath: string) => {
-	if (missionPath.startsWith('custom')) {
+	if (missionPath.includes('custom/')) {
 		// Find the corresponding CLA entry
-		let claEntry = shared.claList.find(x => x.id === Number(missionPath.slice(7)));
+		let claEntry = shared.claList.find(x => x.id === Number(missionPath.slice(missionPath.lastIndexOf('/') + 1)));
 		return claEntry.name;
 	} else {
 		return shared.levelNameMap[missionPath];
@@ -146,7 +150,7 @@ const sendNewScores = (res: http.ServerResponse, timestamp: number) => {
 	
 			// Send over the entire leaderboard for a mission if one score in it changed
 			let rows: ScoreRow[] = shared.getScoresForMissionStatement.all(row.mission);
-			result[row.mission] = rows.map(x => [x.username, x.time]);
+			result[row.mission] = rows.map(x => [x.username.slice(0, 16), x.time]);
 		}
 	}
 
@@ -173,6 +177,9 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 
 	for (let missionPath in shared.levelNameMap) {
 		let category = uppercaseFirstLetter(missionPath.split('/')[0]);
+		if (category === 'Mbp') category = 'Platinum ' + uppercaseFirstLetter(missionPath.split('/')[1]);
+		else if (category === 'Mbu') category = 'Ultra ' + uppercaseFirstLetter(missionPath.split('/')[1]);
+		else category = 'Gold ' + category;
 
 		if (category !== lastCategory) {
 			// Add a header row if the category changes
@@ -194,7 +201,7 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 		let wrecExists = await fs.pathExists(wrecPath);
 
 		// Add row
-		output += `${shared.levelNameMap[missionPath]},${topScore.time},${topScore.username},${wrecExists? 'Yes' : 'No'}\n`;
+		output += `${shared.levelNameMap[missionPath]},${topScore.time},${topScore.username.slice(0, 16)},${wrecExists? 'Yes' : 'No'}\n`;
 	}
 
 	res.writeHead(200, {

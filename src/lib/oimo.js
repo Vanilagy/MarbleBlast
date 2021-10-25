@@ -23770,8 +23770,10 @@ oimo_dynamics_constraint_contact_ContactConstraint.prototype = {
 		binormalX = this._manifold._binormalX;
 		binormalY = this._manifold._binormalY;
 		binormalZ = this._manifold._binormalZ;
-		var friction = Math.sqrt(this._s1._friction * this._s2._friction);
-		var restitution = Math.sqrt(this._s1._restitution * this._s2._restitution);
+		//var friction = Math.sqrt(this._s1._friction * this._s2._friction);
+		//var restitution = Math.sqrt(this._s1._restitution * this._s2._restitution);
+		var friction = this._s1._friction * this._s2._friction; // Modification: OIMO takes the geometric mean, but Torque doesn't, so here's the correction.
+		var restitution = this._s1._restitution * this._s2._restitution;
 		var num = this._manifold._numPoints;
 		info.numRows = 0;
 		var posDiff;
@@ -39843,22 +39845,25 @@ oimo_dynamics_rigidbody_RigidBody.prototype = {
 		return this._jointLinkList;
 	}
 	,addShape: function(shape) {
-		if(this._shapeList == null) {
-			this._shapeList = shape;
-			this._shapeListLast = shape;
-		} else {
-			this._shapeListLast._next = shape;
-			shape._prev = this._shapeListLast;
-			this._shapeListLast = shape;
+		if (shape) { // Modification: In order to be able to call the update code after this if, we made this if.
+			if(this._shapeList == null) {
+				this._shapeList = shape;
+				this._shapeListLast = shape;
+			} else {
+				this._shapeListLast._next = shape;
+				shape._prev = this._shapeListLast;
+				this._shapeListLast = shape;
+			}
+			this._numShapes++;
+			shape._rigidBody = this;
+			if(this._world != null) {
+				var _this = this._world;
+				shape._proxy = _this._broadPhase.createProxy(shape,shape._aabb);
+				shape._id = _this._shapeIdCount++;
+				_this._numShapes++;
+			}
 		}
-		this._numShapes++;
-		shape._rigidBody = this;
-		if(this._world != null) {
-			var _this = this._world;
-			shape._proxy = _this._broadPhase.createProxy(shape,shape._aabb);
-			shape._id = _this._shapeIdCount++;
-			_this._numShapes++;
-		}
+		
 		this.updateMass();
 		var s = this._shapeList;
 		while(s != null) {

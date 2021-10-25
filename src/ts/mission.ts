@@ -1,8 +1,9 @@
-import { MissionElementSimGroup, MisParser, MissionElementType, MissionElementScriptObject, MisFile } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MisParser, MissionElementType, MissionElementScriptObject, MisFile, MissionElement } from "./parsing/mis_parser";
 import { ResourceManager } from "./resources";
 import { DifParser, DifFile } from "./parsing/dif_parser";
 import { Util } from "./util";
 import { DtsFile, DtsParser } from "./parsing/dts_parser";
+import { state } from "./state";
 
 /** A custom levels archive entry. */
 export interface CLAEntry {
@@ -39,39 +40,56 @@ export class Mission {
 	misFile: MisFile;
 	/** The root sim group, MissionGroup. */
 	root: MissionElementSimGroup;
+	/** Contains all mission elements contained in the .mis, flattened out into one array. */
+	allElements: MissionElement[];
 	/** The custom level id. */
 	id: number;
 	/** The string used for searching missions. */
 	searchString: string;
+	missionInfo: MissionElementScriptObject;
 	title: string;
 	artist: string;
 	description: string;
 	qualifyTime = Infinity;
-	goldTime = 0;
-	hasGoldTime = false; // Some customs don't have 'em
-	type: 'beginner' | 'intermediate' | 'advanced' | 'custom' = 'custom';
+	goldTime = -Infinity; // Doubles as platinum time
+	ultimateTime = -Infinity;
+	type: 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'custom' = 'custom';
+	modification: 'gold' | 'platinum' | 'ultra';
 	zipDirectory: JSZip = null;
 	fileToBlobPromises = new Map<JSZip['files'][number], Promise<Blob>>();
 	difCache = new Map<string, Promise<DifFile>>();
 	isNew = false;
+	hasEasterEgg = false;
+	hasBlast = false;
+	hasUltraMarble = false;
 
 	constructor(path: string, misFile?: MisFile) {
 		this.path = path;
 		this.misFile = misFile;
-		if (misFile) this.root = misFile.root;
+
+		if (misFile) {
+			this.root = misFile.root;
+			this.initAllElements();
+		}
 	}
 
 	/** Creates a new Mission from a .mis file. */
 	static fromMisFile(path: string, misFile: MisFile) {
 		let mission = new Mission(path, misFile);
-		let missionInfo = mission.root.elements.find((element) => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
+		let missionInfo = mission.allElements.find(element => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
 
+		mission.missionInfo = missionInfo;
 		mission.title = missionInfo.name;
 		mission.artist = missionInfo.artist ?? '';
 		mission.description = missionInfo.desc ?? '';
 		if (missionInfo.time && missionInfo.time !== "0") mission.qualifyTime = MisParser.parseNumber(missionInfo.time);
-		if (missionInfo.goldtime) mission.goldTime = MisParser.parseNumber(missionInfo.goldtime), mission.hasGoldTime = true;
+		if (missionInfo.goldtime) mission.goldTime = MisParser.parseNumber(missionInfo.goldtime);
+		if (missionInfo.platinumtime) mission.goldTime = MisParser.parseNumber(missionInfo.platinumtime);
+		if (missionInfo.ultimatetime) mission.ultimateTime = MisParser.parseNumber(missionInfo.ultimatetime);
 		mission.type = missionInfo.type.toLowerCase() as any;
+		mission.modification = path.startsWith('mbp/')? 'platinum' : path.startsWith('mbu/')? 'ultra' : 'gold';
+		mission.hasEasterEgg = mission.allElements.some(element => element._type === MissionElementType.Item && element.datablock?.toLowerCase() === 'easteregg');
+		mission.setUltraFlags();
 
 		return mission;
 	}
@@ -79,16 +97,34 @@ export class Mission {
 	/** Creates a new mission from a CLA entry. */
 	static fromCLAEntry(entry: CLAEntry, isNew: boolean) {
 		let path = 'custom/' + entry.id;
+		if (entry.modification === 'platinum') path = 'mbp/' + path;
+		if (entry.modification === 'ultra') path = 'mbu/' + path;
 		let mission = new Mission(path);
 		mission.title = entry.name.trim();
 		mission.artist = entry.artist ?? '';
 		mission.description = entry.desc ?? '';
 		if (entry.qualifyingTime) mission.qualifyTime = entry.qualifyingTime;
 		if (entry.goldTime) mission.goldTime = entry.goldTime;
+		if (entry.platinumTime) mission.goldTime = entry.platinumTime;
+		if (entry.ultimateTime) mission.ultimateTime = entry.ultimateTime;
 		mission.id = entry.id;
 		mission.isNew = isNew;
+		mission.modification = entry.modification as ('gold' | 'platinum' | 'ultra');
+		mission.hasEasterEgg = entry.hasEasterEgg;
 
 		return mission;
+	}
+
+	initAllElements() {
+		this.allElements = [];
+
+		const traverse = (simGroup: MissionElementSimGroup) => {
+			for (let element of simGroup.elements) {
+				this.allElements.push(element);		
+				if (element._type === MissionElementType.SimGroup) traverse(element);
+			}
+		};
+		traverse(this.root);
 	}
 
 	initSearchString(index: number) {
@@ -112,8 +148,9 @@ export class Mission {
 			let val = zip.files[filename];
 			delete zip.files[filename];
 			zip.files[filename.toLowerCase()] = val;
+			zip.files[filename.toLowerCase().replace('data/', 'data_mbp/')] = val;
 
-			if (filename.includes('interiors_mbg/')) {
+			if (state.modification === 'gold' && filename.includes('interiors_mbg/')) {
 				// Create an alias in interiors
 				zip.files[filename.replace('interiors_mbg/', 'interiors/')] = val;
 			}
@@ -121,34 +158,61 @@ export class Mission {
 
 		// Read the .mis file
 		let missionFileName = Object.keys(zip.files).find(x => x.endsWith('.mis'));
-		let text = await ResourceManager.readBlobAsText(await zip.files[missionFileName].async('blob'), 'ISO-8859-1')
+		let text = await ResourceManager.readBlobAsText(await zip.files[missionFileName].async('blob'), 'ISO-8859-1');
 		let parser = new MisParser(text);
 		let misFile = parser.parse();
 
 		this.misFile = misFile;
 		this.root = misFile.root;
+		this.initAllElements();
 
 		// Set up some metadata
-		let missionInfo = this.root.elements.find(x => x._type === MissionElementType.ScriptObject && x._name === "MissionInfo") as MissionElementScriptObject;
+		let missionInfo = this.allElements.find(x => x._type === MissionElementType.ScriptObject && x._name === "MissionInfo") as MissionElementScriptObject;
 		if (missionInfo?.time) {
 			this.qualifyTime = MisParser.parseNumber(missionInfo.time);
 			if (!this.qualifyTime) this.qualifyTime = Infinity; // Catches both 0 and NaN cases
 		}
 		if (missionInfo?.goldtime) {
 			this.goldTime = MisParser.parseNumber(missionInfo.goldtime);
-			this.hasGoldTime = true;
+			if (missionInfo?.platinumtime) this.goldTime = MisParser.parseNumber(missionInfo.platinumtime);
+
 			if (!this.goldTime) { // Again, catches both 0 and NaN cases
-				this.hasGoldTime = false;
-				this.goldTime = 0;
+				this.goldTime = -Infinity;
 			}
 		}
+		if (missionInfo?.ultimatetime) {
+			this.ultimateTime = MisParser.parseNumber(missionInfo.ultimatetime);
+			if (!this.ultimateTime) { // Again again, catches both 0 and NaN cases
+				this.ultimateTime = -Infinity;
+			}
+		}
+		this.missionInfo = missionInfo;
+
+		this.setUltraFlags();
+	}
+
+	setUltraFlags() {
+		if (!MisParser.parseBoolean(this.missionInfo.noblast) && (MisParser.parseBoolean(this.missionInfo.blast) || this.missionInfo.game?.toLowerCase() === 'ultra'))
+			this.hasBlast = true;
+
+		if (this.missionInfo.game?.toLowerCase() === 'ultra' || MisParser.parseBoolean(this.missionInfo.useultramarble))
+			this.hasUltraMarble = true;
+	}
+ 
+	getDirectoryMissionPath() {
+		if (this.modification === 'gold') return 'missions/' + this.path;
+		if (this.modification === 'ultra') return 'missions_mbu/' + this.path.slice(4);
+		if (this.modification === 'platinum') return 'missions_mbp/' + this.path.slice(4);
 	}
 
 	/** Gets the path of the image of a mission. */
 	getImagePath() {
 		if (this.type !== 'custom') {
-			let withoutExtension = "missions/" + this.path.slice(0, -4);
-			let imagePaths = ResourceManager.getFullNamesOf(withoutExtension);
+			let directoryMissionPath = this.getDirectoryMissionPath();
+			if (state.modification !== 'gold') directoryMissionPath = directoryMissionPath.replace('missions/', 'missions_mbg/');
+
+			let withoutExtension = directoryMissionPath.slice(0, -4);
+			let imagePaths = ResourceManager.getFullNamesOf(withoutExtension, state.modification !== 'gold');
 			let imagePath: string;
 			for (let path of imagePaths) {
 				if (!path.endsWith('.mis')) {
@@ -157,7 +221,9 @@ export class Mission {
 				}
 			}
 
-			return "./assets/data/missions/" + this.path.slice(0, this.path.lastIndexOf('/') + 1) + imagePath;
+			let res = directoryMissionPath.slice(0, directoryMissionPath.lastIndexOf('/') + 1) + imagePath;
+			if (state.modification === 'gold') return "./assets/data/" + res;
+			return "./assets/data_mbp/" + res;
 		} else {
 			// Request the bitmap
 			return `./api/custom/${this.id}.jpg`;
@@ -170,7 +236,9 @@ export class Mission {
 	async getDif(rawElementPath: string) {
 		rawElementPath = rawElementPath.toLowerCase();
 		let path = rawElementPath.slice(rawElementPath.indexOf('data/'));
-		if (path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
+		if (state.modification === 'gold' && path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
+
+		if (this.modification !== 'gold') path = path.replace('data/', 'data_mbp/');
 
 		let dif: DifFile = null;
 		if (this.difCache.get(path)) dif = await this.difCache.get(path); // We've already parsed the dif before
@@ -202,14 +270,16 @@ export class Mission {
 	async getDts(path: string) {
 		let dts: DtsFile = null;
 
-		if (this.zipDirectory && this.zipDirectory.files[path]) {
+		let base = (state.modification === 'gold')? 'data/' : 'data_mbp/';
+
+		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
 			// Get it from the zip
-			let arrayBuffer = await this.zipDirectory.files[path].async('arraybuffer');
+			let arrayBuffer = await this.zipDirectory.files['data/' + path].async('arraybuffer');
 			let parser = new DtsParser(arrayBuffer);
 			let result = parser.parse();
 			dts = result;
 		} else {
-			dts = await DtsParser.loadFile('./assets/' + path);
+			dts = await DtsParser.loadFile('./assets/' + base + path);
 		}
 
 		return dts;
@@ -219,16 +289,18 @@ export class Mission {
 	getFullNamesOf(path: string) {
 		path = path.toLowerCase();
 		let result: string[] = [];
+		let prepended = 'data/' + path;
 
 		if (this.zipDirectory) {
 			for (let filePath in this.zipDirectory.files) {
-				if (filePath.startsWith('data/' + path)) {
+				if (filePath.startsWith(prepended)) {
+					if (filePath.length !== prepended.length && prepended.length !== filePath.lastIndexOf('.')) continue;
 					result.push(filePath.slice(filePath.lastIndexOf('/') + 1));
 				}
 			}
 		}
 
-		result.push(...ResourceManager.getFullNamesOf(path));
+		result.push(...ResourceManager.getFullNamesOf(path, this.modification !== 'gold'));
 
 		return result;
 	}
@@ -251,37 +323,41 @@ export class Mission {
 	async getTexture(path: string, removeAlpha?: boolean) {
 		path = path.toLowerCase();
 
-		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
-			let blob = await this.getBlobForFile('data/' + path);
+		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
+
+		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
+			let blob = await this.getBlobForFile(base + path);
 			let url = ResourceManager.getUrlToBlob(blob);
 			return await ResourceManager.getTexture(url, removeAlpha, '');
 		} else {
-			return await ResourceManager.getTexture(path, removeAlpha);
+			return await ResourceManager.getTexture(path, removeAlpha, 'assets/' + base);
 		}
 	}
 
 	/** Gets a general resource from the mission resources. */
 	async getResource(path: string) {
 		path = path.toLowerCase();
+		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
 
-		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
-			let blob = await this.getBlobForFile('data/' + path);
+		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
+			let blob = await this.getBlobForFile(base + path);
 			return blob;
 		} else {
-			return await ResourceManager.loadResource('./assets/data/' + path);
+			return await ResourceManager.loadResource('./assets/' + base + path);
 		}
 	}
 
 	/** Gets an image from the mission resources. */
 	async getImage(path: string) {
 		path = path.toLowerCase();
+		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
 
-		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
-			let blob = await this.getBlobForFile('data/' + path);
+		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
+			let blob = await this.getBlobForFile(base + path);
 			let url = ResourceManager.getUrlToBlob(blob);
 			return await ResourceManager.loadImage(url);
 		} else {
-			return await ResourceManager.loadImage('./assets/data/' + path);
+			return await ResourceManager.loadImage('./assets/' + base + path);
 		}
 	}
 
@@ -291,5 +367,15 @@ export class Mission {
 			if (!this.searchString.includes(queryWords[i])) return false;
 		}
 		return true;
+	}
+
+	/** Computes the clock time in MBP when the user should be warned that they're about to exceed the par time. */
+	computeAlarmStartTime() {
+		let alarmStart = this.qualifyTime;
+		if (this.missionInfo.alarmstarttime) alarmStart -= MisParser.parseNumber(this.missionInfo.alarmstarttime) * 1000;
+		else alarmStart -= 15 * 1000;
+		alarmStart = Math.max(0, alarmStart);
+
+		return alarmStart;
 	}
 }

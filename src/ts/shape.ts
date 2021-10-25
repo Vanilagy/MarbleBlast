@@ -3,14 +3,59 @@ import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
-import { getRandomId } from "./state";
 import { Util, MaterialGeometry } from "./util";
 import { TimeState, Level } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 import { AudioManager } from "./audio";
+import { MissionElement } from "./parsing/mis_parser";
+import { renderer } from "./rendering";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
+
+// The following two shaders have been modified to support logarithmic depth buffers:
+const SHADOW_MATERIAL_VERTEX = `
+	#include <common>
+	#include <fog_pars_vertex>
+	#include <morphtarget_pars_vertex>
+	#include <skinning_pars_vertex>
+	#include <shadowmap_pars_vertex>
+	#include <logdepthbuf_pars_vertex> // Added here
+	void main() {
+		#include <beginnormal_vertex>
+		#include <morphnormal_vertex>
+		#include <skinbase_vertex>
+		#include <skinnormal_vertex>
+		#include <defaultnormal_vertex>
+		#include <begin_vertex>
+		#include <morphtarget_vertex>
+		#include <skinning_vertex>
+		#include <project_vertex>
+		#include <logdepthbuf_vertex> // Added here
+		#include <worldpos_vertex>
+		#include <shadowmap_vertex>
+		#include <fog_vertex>
+	}
+`;
+const SHADOW_MATERIAL_FRAGMENT = `
+	uniform vec3 color;
+	uniform float opacity;
+	#include <common>
+	#include <packing>
+	#include <fog_pars_fragment>
+	#include <bsdfs>
+	#include <lights_pars_begin>
+	#include <shadowmap_pars_fragment>
+	#include <shadowmask_pars_fragment>
+	#include <logdepthbuf_pars_fragment> // Added here
+	void main() {
+		#include <logdepthbuf_fragment> // Added here
+		gl_FragColor = vec4( color, opacity * ( 1.0 - getShadowMask() ) );
+		#include <tonemapping_fragment>
+		#include <encodings_fragment>
+		#include <fog_fragment>
+	}
+`;
 
 interface MaterialInfo {
 	keyframes: string[]
@@ -63,6 +108,16 @@ enum MaterialFlags {
 	ReflectanceMapOnly = 1 << 31
 }
 
+enum TSDrawPrimitive {
+	Triangles = 0 << 30,
+	Strip = 1 << 30,
+	Fan = 2 << 30,
+	Indexed = 1 << 29,
+	NoMaterial = 1 << 28,
+	MaterialMask = ~(TSDrawPrimitive.Strip | TSDrawPrimitive.Fan | TSDrawPrimitive.Triangles | TSDrawPrimitive.Indexed | TSDrawPrimitive.NoMaterial),
+	TypeMask = TSDrawPrimitive.Strip | TSDrawPrimitive.Fan | TSDrawPrimitive.Triangles
+}
+
 /** Used to model the graph of DTS nodes. */
 export interface GraphNode {
 	index: number,
@@ -76,8 +131,11 @@ export class Shape {
 	/** The unique id of this shape. */
 	id: number;
 	level: Level;
+	srcElement: MissionElement;
 	dtsPath: string;
+	colliderDtsPath: string;
 	dts: DtsFile;
+	colliderDts: DtsFile;
 	directoryPath: string;
 	/** Whether or not this shape is being used as a TSStatic. TSStatic are static, non-moving shapes that basically can't do anything. */
 	isTSStatic = false;
@@ -100,7 +158,7 @@ export class Shape {
 	worldMatrix = new THREE.Matrix4();
 
 	/** Can be used to override certain material names. */
-	matNamesOverride: Record<string, string> = {};
+	matNamesOverride: Record<string, string | THREE.Texture> = {};
 	materials: (THREE.MeshLambertMaterial | THREE.MeshBasicMaterial)[];
 	/** Used for collision objects. */
 	shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
@@ -132,6 +190,9 @@ export class Shape {
 	ambientSpinFactor = -1 / 3000 * Math.PI * 2;
 	/** Whether or not collision meshes will receive shadows. */
 	receiveShadows = true;
+	/** Whether or not to normalize vertex normals on the GPU. This is off by default because that's what Torque does. It's what makes stuff dark when it gets scaled. */
+	normalizeVertexNormals = false;
+	onBeforeMaterialCompile: (shader: THREE.Shader) => void = null;
 
 	/** Same shapes with the same shareId will share data. */
 	shareId: number = 0;
@@ -149,13 +210,15 @@ export class Shape {
 
 	sounds: string[] = [];
 
-	async init(level?: Level, id = 0) {
-		// Apparently, Macs have a huge issue displayed instanced shapes at the moment. This might be a graphics driver bug or a three bug, will have to investigate.
-		if (Util.isMac()) this.useInstancing = false;
+	async init(level?: Level, srcElement: MissionElement = null) {
+		if (!Util.supportsInstancing(renderer)) this.useInstancing = false;
 
-		this.id = id;
+		this.id = srcElement?._id ?? 0;
 		this.level = level;
-		this.dts = await ((this.level)? this.level.mission.getDts('data/' + this.dtsPath) : DtsParser.loadFile('./assets/data/' + this.dtsPath));
+		this.srcElement = srcElement;
+		this.colliderDtsPath ??= this.dtsPath;
+		this.dts = await ((this.level)? this.level.mission.getDts(this.dtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.dtsPath));
+		this.colliderDts = (this.dtsPath === this.colliderDtsPath)? this.dts : await ((this.level)? this.level.mission.getDts(this.colliderDtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.colliderDtsPath));
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
 
 		this.group = new THREE.Group();
@@ -246,6 +309,7 @@ export class Shape {
 						for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
 							let mesh = this.dts.meshes[i];
 							if (!mesh) continue;
+							if (mesh.parentMesh >= 0) continue; // If the node has a parent, skip it. Why? Don't know. Made teleport pad look correct.
 		
 							let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
 							let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
@@ -393,16 +457,16 @@ export class Shape {
 		}
 
 		// Now, create an actual collision body for each collision object (will be initiated with geometry later)
-		for (let i = 0; i < this.dts.nodes.length; i++) {
-			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
+		for (let i = 0; i < this.colliderDts.nodes.length; i++) {
+			let objects = this.colliderDts.objects.filter((object) => object.nodeIndex === i);
 
 			for (let object of objects) {
-				let isCollisionObject = this.dts.names[object.nameIndex].toLowerCase().startsWith("col");
+				let isCollisionObject = this.colliderDts.names[object.nameIndex].toLowerCase().startsWith("col");
 				if (isCollisionObject) {
 					let config = new OIMO.RigidBodyConfig();
 					config.type = OIMO.RigidBodyType.STATIC;
 					let body = new OIMO.RigidBody(config);
-					body.userData = { nodeIndex: i, objectIndex: this.dts.objects.indexOf(object) };
+					body.userData = { nodeIndex: i, objectIndex: this.colliderDts.objects.indexOf(object) };
 
 					this.bodies.push(body);
 				}
@@ -430,9 +494,10 @@ export class Shape {
 		let environmentMaterial: THREE.MeshBasicMaterial = null;
 
 		for (let i = 0; i < this.dts.matNames.length; i++) {
-			let matName = this.matNamesOverride[this.dts.matNames[i]] ||  this.dts.matNames[i]; // Check the override
+			let matName = this.matNamesOverride[this.dts.matNames[i]] || this.dts.matNames[i]; // Check the override
 			let flags = this.dts.matFlags[i];
-			let fullName = ResourceManager.getFullNamesOf(this.directoryPath + '/' + matName).filter((x) => !x.endsWith('.dts'))[0];
+			let fullNames = ResourceManager.getFullNamesOf(this.directoryPath + '/' + matName).filter((x) => !x.endsWith('.dts'));
+			let fullName = fullNames.find(x => x.endsWith('.ifl')) || fullNames[0]; // Prefer .ifls
 
 			if (this.isTSStatic && environmentMaterial && DROP_TEXTURE_FOR_ENV_MAP.has(this.dtsPath)) {
 				// Simply use the env material again
@@ -443,8 +508,18 @@ export class Shape {
 			// If the material is self-illuminated, we can get away with a MeshBasicMaterial
 			let material = ((flags & MaterialFlags.SelfIlluminating) || environmentMaterial) ? new THREE.MeshBasicMaterial() : new THREE.MeshLambertMaterial();
 			this.materials.push(material);
+			
+			material.onBeforeCompile = shader => {
+				if (this.normalizeVertexNormals) shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader;
+				this.onBeforeMaterialCompile?.(shader);
+			};
+			material.customProgramCacheKey = () => material.onBeforeCompile.toString() + this.onBeforeMaterialCompile?.toString(); // The default cache key is the onBeforeCompile, but that can differ for us here.
 
-			if (!fullName || (this.isTSStatic && (flags & MaterialFlags.ReflectanceMapOnly))) {
+			if (matName instanceof THREE.Texture) {
+				if (flags & MaterialFlags.S_Wrap) matName.wrapS = THREE.RepeatWrapping;
+				if (flags & MaterialFlags.T_Wrap) matName.wrapT = THREE.RepeatWrapping;
+				material.map = matName;
+			} else if (!fullName || (this.isTSStatic && (flags & MaterialFlags.ReflectanceMapOnly))) {
 				// Usually do nothing. It's an plain white material without a texture.
 				// Ah EXCEPT if we're a TSStatic.
 				if (this.isTSStatic) {
@@ -454,7 +529,16 @@ export class Shape {
 				}
 			} else if (fullName.endsWith('.ifl')) {
 				// Parse the .ifl file
-				let keyframes = await IflParser.loadFile('./assets/data/' + this.directoryPath + '/' + fullName);
+				let keyframes = await IflParser.loadFile(ResourceManager.mainDataPath + this.directoryPath + '/' + fullName);
+				let fullNameCache = new Map<string, string>(); // To speed things up a bit for repeated entries
+				keyframes = keyframes.map(x => {
+					if (fullNameCache.has(x)) return fullNameCache.get(x);
+
+					let fullName = ResourceManager.getFullNamesOf(this.directoryPath + '/' + x).filter((x) => !x.endsWith('.dts'))[0] ?? x;
+					fullNameCache.set(x, fullName);
+
+					return fullName;
+				})
 				this.materialInfo.set(material, { keyframes });
 
 				// Preload all frames of the material animation
@@ -489,6 +573,12 @@ export class Shape {
 			let mat = new THREE.MeshBasicMaterial({ envMap: this.level.envMap });
 			this.materials.push(mat);
 		}
+
+		// Modify it to work with log depth buffers
+		this.shadowMaterial.onBeforeCompile = shader => {
+			shader.vertexShader = SHADOW_MATERIAL_VERTEX;
+			shader.fragmentShader = SHADOW_MATERIAL_FRAGMENT;
+		};
 	}
 
 	/** Generates material geometry info from a given DTS mesh. */
@@ -502,36 +592,69 @@ export class Shape {
 			};
 		});
 
+		const addTriangleFromIndices = (i1: number, i2: number, i3: number, geometryData: typeof materialGeometry[number]) => {
+			// We first perform a check: If the computed face normal points in the opposite direction of all vertex normals, we need to invert the winding order of the vertices.
+			let ab = new THREE.Vector3(vertices[i2].x - vertices[i1].x, vertices[i2].y - vertices[i1].y, vertices[i2].z - vertices[i1].z);
+			let ac = new THREE.Vector3(vertices[i3].x - vertices[i1].x, vertices[i3].y - vertices[i1].y, vertices[i3].z - vertices[i1].z);
+			let normal = ab.cross(ac).normalize();
+			let dot1 = normal.dot(vertexNormals[i1]);
+			let dot2 = normal.dot(vertexNormals[i2]);
+			let dot3 = normal.dot(vertexNormals[i3]);
+			if (!this.dtsPath.includes('helicopter.dts')) if (dot1 < 0 && dot2 < 0 && dot3 < 0) [i1, i3] = [i3, i1];
+			// ^ temp hardcoded fix
+
+			for (let index of [i1, i2, i3]) {
+				let vertex = vertices[index];
+				geometryData.vertices.push(vertex.x, vertex.y, vertex.z);
+
+				let uv = dtsMesh.tverts[index];
+				geometryData.uvs.push(uv.x, uv.y);
+
+				let normal = vertexNormals[index];
+				geometryData.normals.push(normal.x, normal.y, normal.z);
+			}
+
+			geometryData.indices.push(i1, i2, i3);
+		};
+
 		for (let primitive of dtsMesh.primitives) {
-			let k = 0; // Keep track of current face for correct vertex winding order
-			let geometryData = materialGeometry[primitive.matIndex];
+			let geometryData = materialGeometry[primitive.matIndex & TSDrawPrimitive.MaterialMask];
+			let drawType = primitive.matIndex & TSDrawPrimitive.TypeMask;
 
-			for (let i = primitive.start; i < primitive.start + primitive.numElements - 2; i++) {
-				let i1 = dtsMesh.indices[i];
-				let i2 = dtsMesh.indices[i+1];
-				let i3 = dtsMesh.indices[i+2];
-
-				if (k % 2 === 0) {
-					// Swap the first and last index to mainting correct winding order
-					let temp = i1;
-					i1 = i3;
-					i3 = temp;
-				}
-
-				for (let index of [i1, i2, i3]) {
-					let vertex = vertices[index];
-					geometryData.vertices.push(vertex.x, vertex.y, vertex.z);
+			if (drawType === TSDrawPrimitive.Triangles) {
+				for (let i = primitive.start; i < primitive.start + primitive.numElements; i += 3) {
+					let i1 = dtsMesh.indices[i];
+					let i2 = dtsMesh.indices[i+1];
+					let i3 = dtsMesh.indices[i+2];
 	
-					let uv = dtsMesh.tverts[index];
-					geometryData.uvs.push(uv.x, uv.y);
-
-					let normal = vertexNormals[index];
-					geometryData.normals.push(normal.x, normal.y, normal.z);
+					addTriangleFromIndices(i1, i2, i3, geometryData);
 				}
+			} else if (drawType === TSDrawPrimitive.Strip) {
+				let k = 0; // Keep track of current face for correct vertex winding order
+				for (let i = primitive.start; i < primitive.start + primitive.numElements - 2; i++) {
+					let i1 = dtsMesh.indices[i];
+					let i2 = dtsMesh.indices[i+1];
+					let i3 = dtsMesh.indices[i+2];
+	
+					if (k % 2 === 0) {
+						// Swap the first and last index to maintain correct winding order
+						let temp = i1;
+						i1 = i3;
+						i3 = temp;
+					}
+	
+					addTriangleFromIndices(i1, i2, i3, geometryData);
+	
+					k++;
+				}
+			} else if (drawType === TSDrawPrimitive.Fan) {
+				for (let i = primitive.start; i < primitive.start + primitive.numElements - 2; i++) {
+					let i1 = dtsMesh.indices[primitive.start]; // Triangle fan starts at the start
+					let i2 = dtsMesh.indices[i+1];
+					let i3 = dtsMesh.indices[i+2];
 
-				geometryData.indices.push(i1, i2, i3);
-
-				k++;
+					addTriangleFromIndices(i1, i2, i3, geometryData);
+				}
 			}
 		}
 
@@ -541,16 +664,17 @@ export class Shape {
 	/** Generates collision objects for this shape. Geometry will be generated later. */
 	generateCollisionObjects() {
 		let bodyIndex = 0;
+		let dts = this.colliderDts;
 
-		for (let i = 0; i < this.dts.nodes.length; i++) {
-			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
+		for (let i = 0; i < dts.nodes.length; i++) {
+			let objects = dts.objects.filter((object) => object.nodeIndex === i);
 
 			for (let object of objects) {
-				if (!this.dts.names[object.nameIndex].toLowerCase().startsWith("col")) continue;
+				if (!dts.names[object.nameIndex].toLowerCase().startsWith("col")) continue;
 
 				let body = this.bodies[bodyIndex++];
 				for (let j = object.startMeshIndex; j < object.startMeshIndex + object.numMeshes; j++) {
-					let mesh = this.dts.meshes[j];
+					let mesh = dts.meshes[j];
 					if (!mesh) continue;
 
 					for (let primitive of mesh.primitives) {
@@ -580,10 +704,10 @@ export class Shape {
 			// Create collision geometry based on the bounding box
 			let body = this.bodies[0];
 
-			let o = new OIMO.Vec3(this.dts.bounds.min.x, this.dts.bounds.min.y, this.dts.bounds.min.z);
-			let dx = (this.dts.bounds.max.x - this.dts.bounds.min.x);
-			let dy = (this.dts.bounds.max.y - this.dts.bounds.min.y);
-			let dz = (this.dts.bounds.max.z - this.dts.bounds.min.z);
+			let o = new OIMO.Vec3(dts.bounds.min.x, dts.bounds.min.y, dts.bounds.min.z);
+			let dx = (dts.bounds.max.x - dts.bounds.min.x);
+			let dy = (dts.bounds.max.y - dts.bounds.min.y);
+			let dz = (dts.bounds.max.z - dts.bounds.min.z);
 
 			// All 8 vertices of the bounding cuboid
 			let vertices = [
@@ -888,7 +1012,7 @@ export class Shape {
 			if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
 
 			this.materials[i].map = texture;
-			if (this.isTSStatic) this.materials[i].needsUpdate = true;
+			if (this.isTSStatic || this.materials[i] instanceof THREE.MeshBasicMaterial) this.materials[i].needsUpdate = true;
 		}
 
 		// Spin the shape round 'n' round
@@ -935,7 +1059,7 @@ export class Shape {
 			let shapeConfig = new OIMO.ShapeConfig();
 			shapeConfig.geometry = collider.generateGeometry(this.worldScale);
 			let shape = new OIMO.Shape(shapeConfig);
-			shape.userData = getRandomId();
+			shape.userData = Util.getRandomId();
 			collider.body.addShape(shape);
 			collider.id = shape.userData;
 
@@ -1026,7 +1150,7 @@ export class Shape {
 		for (let geometry of this.geometries) geometry.dispose();
 	}
 
-	onMarbleContact(time: TimeState, contact?: OIMO.Contact) {}
+	onMarbleContact(time: TimeState, contact?: OIMO.Contact): (boolean | void) {}
 	onMarbleInside(time: TimeState) {}
 	onMarbleEnter(time: TimeState) {}
 	onMarbleLeave(time: TimeState) {}

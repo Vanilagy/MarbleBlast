@@ -6,7 +6,7 @@ sarcina.bundle({
 	verbose: true,
 	minifyMarkup: false,
 	ignore: ['ts'],
-	keep: ['lib/pako.js'],
+	keep: ['lib/pako.js', 'lib/oggdec.js'],
 	transpileScript: sarcina.ES2017,
 	insertPolyfill: true,
 	handleInlineScript: false

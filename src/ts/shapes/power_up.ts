@@ -1,22 +1,28 @@
 import { Util } from "../util";
 import { Shape } from "../shape";
 import { TimeState } from "../level";
-import { displayAlert, displayHelp } from "../ui/game";
 import { MissionElementItem } from "../parsing/mis_parser";
+import { state } from "../state";
+
+export const DEFAULT_COOLDOWN_DURATION = 7000;
 
 /** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
 	element: MissionElementItem;
 	lastPickUpTime: number = null;
 	/** Reappears after this time. */
-	cooldownDuration: number = 7000;
+	cooldownDuration: number = DEFAULT_COOLDOWN_DURATION;
 	/** Whether or not to automatically use the powerup instantly on pickup. */
 	autoUse = false;
 	ambientRotate = true;
 	collideable = false;
 	shareMaterials = false;
 	/** The name of the powerup that is shown on pickup. */
-	pickUpName: string;
+	abstract pickUpName: string;
+	/** Overrides the full pick up alert string. */
+	customPickUpAlert: string = null;
+	/** If 'an' should be used instead of 'a' in the pickup alert. */
+	an = false;
 
 	constructor(element: MissionElementItem) {
 		super();
@@ -33,8 +39,8 @@ export abstract class PowerUp extends Shape {
 			this.lastPickUpTime = time.currentAttemptTime;
 			if (this.autoUse) this.use(time);
 
-			displayAlert(`You picked up a ${this.pickUpName}!`);
-			if (this.element.showhelponpickup === "1" && !this.autoUse) displayHelp(`Press <func:bind mousefire> to use the ${this.pickUpName}!`);
+			state.menu.hud.displayAlert(this.customPickUpAlert ?? `You picked up ${this.an? 'an' : 'a'} ${this.pickUpName}!`);
+			if (this.element.showhelponpickup === "1" && !this.autoUse) state.menu.hud.displayHelp(`Press <func:bind mousefire> to use the ${this.pickUpName}!`);
 		}
 	}
 

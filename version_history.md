@@ -1,5 +1,94 @@
 # Version History
 
+## 2.1.5
+- Reworked marble reflection code, making it more performant and beautiful :)
+- Added support for a weird invisible MBU material
+
+## 2.1.4
+- Fixed old replays again
+- Fixed incorrect checkpoint orientation in Ultra levels
+- Fixed "Qualify Time"
+- Fixed Tim Trance not playing in all MBU levels
+- Fixed incorrect MBU plate texture scaling
+- Fixed wrong level select backgrounds
+- Controllers now respect mouse sensitivity
+- Removed Herobrine
+
+## 2.1.3
+- Small bugfixes and improvements
+
+## 2.1.2
+- Holding down the respawn key for 1 second will now hard-respawn you at the start pad
+- Fixed marble physics suddenly giving up their will to live
+
+## 2.1.1
+- Fixed broken shaders in Safari
+- Added option to turn off fancy shaders
+
+## 2.1.0
+- Added Marble Blast Ultra levels (61 default + 107 custom)
+- Added Blast
+- Added Mega Marble
+- Added fancy MBU material shaders
+- Added proper dynamic reflections to the marble
+- Added support for both regular and MBU-style custom marble textures
+- Added more loading screen detail
+- Fixed checkpoints working incorrectly in replays
+- Fixed wrong checkpoint respawn positions
+- Fixed z-fighting issues
+- Various other small fixes and improvements
+
+## 2.0.10
+- No, MBU levels are not out yet. That was an oopsie.
+
+## 2.0.9
+- Fixed some shape/particle rendering bugs
+
+## 2.0.8
+- Added support for Safari again
+
+## 2.0.7
+- Added 54 missing MBP customs
+- Added support for NoRespawnAntiGravityItem
+
+## 2.0.6
+- Fixed random power-up not respawning
+- Fixed power-up effects not disappearing upon checkpoint respawn
+- Fixed particle rendering bug
+
+## 2.0.5
+- Fixed old replays not loading correctly
+
+## 2.0.4
+- Fixed checkpoints not storing power-ups correctly
+
+## 2.0.3
+- Fixed checkpoint spawn points in different gravities
+- Fixed teleport triggers in certain situations
+- Fixed missing skyboxes/assets in some customs
+- Fixed Pianoforte.ogg playing in levels
+- Fixed free-look setting not being respected with controllers
+- Fixed minor UI bugs
+
+## 2.0.2
+- Added custom friction support
+- Fixed MBG volume slider bug
+- Removed some unsupported customs
+
+## 2.0.1
+- Fixed broken instancing on Macs
+- Fixed sometimes-janky marble interpolation
+
+## 2.0.0
+To celebrate one year of the web port, we're bumping up its major version number to 2 and changing its name to "Marble Blast Web" with by far its biggest update yet. There are too many changes to be able to list them all, but here are the main ones:
+
+- **Implemented Marble Blast Platinum.** Well, at least the single-player part of it. This includes a completely new menu, new levels, new options, new sounds, new music and new gameplay elements. The added gameplay elements are checkpoints, teleporters, nukes, magnets, MBP frictions, bouncy floor, random power-ups and easter eggs.
+- **Added 1608 new levels.** This includes the 120 MBP default levels as well as 1488 MBP customs taken from Marbleland.
+- **Implemented game switching.** To still be able to play the pure Marble Blast Gold, you can now quickly switch between the two games in the main menu.
+- **Made physics more consistent.** Continuous collision detection got a makeover, so all collision (including edge-hits) should be way more accurate and reliable now. Hitting internal edges should also happen much more rarely now.
+- **Added a fancy new particle renderer.** Tens of thousands of particles on screen at one time will now run smooth like butter. Like a criminal undercover.
+- **Many bugfixes and improvements.** Tons of smaller bugs and inconsistencies were fixed and the game was optimized and improved in many places.
+
 ## 1.5.8
 - Added an additional 387 custom levels from Marbleland
 - Fixed marble texture being flipped

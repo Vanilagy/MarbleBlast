@@ -10,12 +10,12 @@ export class SignPlain extends Shape {
 		super();
 
 		// Determine the direction to show
-		let direction = element.datablock.slice("SignPlain".length);
+		let direction = element.datablock.slice("SignPlain".length).toLowerCase();
 		switch (direction) {
-			case "Right": this.matNamesOverride["base.plainsign"] = "right.plainsign"; break;
-			case "Left": this.matNamesOverride["base.plainsign"] = "left.plainsign"; break;
-			case "Up": this.matNamesOverride["base.plainsign"] = "up.plainsign"; break;
-			case "Down": this.matNamesOverride["base.plainsign"] = "down.plainsign"; break;
+			case "right": this.matNamesOverride["base.plainsign"] = "right.plainsign"; break;
+			case "left": this.matNamesOverride["base.plainsign"] = "left.plainsign"; break;
+			case "up": this.matNamesOverride["base.plainsign"] = "up.plainsign"; break;
+			case "down": this.matNamesOverride["base.plainsign"] = "down.plainsign"; break;
 		}
 	}
 }

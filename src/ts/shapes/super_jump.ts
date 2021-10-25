@@ -2,11 +2,12 @@ import { PowerUp } from "./power_up";
 import { AudioManager } from "../audio";
 import * as THREE from "three";
 import { Util } from "../util";
+import { state } from "../state";
 
 /** Gives the marble an upwards boost. */
 export class SuperJump extends PowerUp {
 	dtsPath = "shapes/items/superjump.dts";
-	pickUpName = "Super Jump PowerUp";
+	pickUpName = (state.modification === 'gold')? "Super Jump PowerUp" : "Jump Boost PowerUp";
 	sounds = ["pusuperjumpvoice.wav", "dosuperjump.wav"];
 
 	pickUp(): boolean {

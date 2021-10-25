@@ -1,6 +1,7 @@
 import * as http from 'http';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import * as url from 'url';
 
 import { shared } from './shared';
 
@@ -8,7 +9,7 @@ import { shared } from './shared';
 type DirectoryStructure = {[name: string]: null | DirectoryStructure};
 
 /** Sends the current asset directory structure. */
-export const getDirectoryStructure = async (res: http.ServerResponse) => {
+export const getDirectoryStructure = async (res: http.ServerResponse, mbp = false) => {
 	/** Scans the directory recursively. */
 	const scanDirectory = async (directoryPath: string) => {
 		let files = await fs.readdir(directoryPath);
@@ -35,7 +36,7 @@ export const getDirectoryStructure = async (res: http.ServerResponse) => {
 		return result;
 	};
 
-	let structure = await scanDirectory(path.join(shared.directoryPath, 'assets', 'data'));
+	let structure = await scanDirectory(path.join(shared.directoryPath, 'assets', mbp? 'data_mbp' : 'data'));
 
 	res.writeHead(200, {
 		'Content-Type': 'application/json'
@@ -79,7 +80,40 @@ export const getVersionHistory = async (res: http.ServerResponse) => {
 	const contents = await fs.readFile(path.join(__dirname, '../version_history.md'));
 
 	res.writeHead(200, {
-		'Content-Type': 'text/markdown'
+		'Content-Type': 'text/markdown',
+		'Cache-Control': 'no-cache, no-store' // Don't cache this
 	});
 	res.end(contents);
+};
+
+const idActivityTimes = new Map<string, number>();
+
+export const registerActivity = async (res: http.ServerResponse, urlObject: url.URL) => {
+	let id = urlObject.searchParams.get('id');
+	let has = idActivityTimes.has(id);
+	idActivityTimes.set(id, Date.now());
+	if (!has) appendToActivityFile();
+
+	res.writeHead(200, {
+		'Cache-Control': 'no-cache, no-store' // Don't cache this
+	});
+	res.end();
+}
+
+setInterval(() => {
+	let now = Date.now();
+	let changed = false;
+
+	for (let [id, timestamp] of idActivityTimes) {
+		if (now - timestamp >= 60000) {
+			idActivityTimes.delete(id);
+			changed = true;
+		}
+	}
+
+	if (changed) appendToActivityFile();
+}, 1000);
+
+const appendToActivityFile = () => {
+	fs.appendFile(path.join(__dirname, 'storage/activity.txt'), new Date().toISOString() + ' - ' + idActivityTimes.size + '\n');
 };

@@ -9,11 +9,14 @@ import { LandMine } from "./shapes/land_mine";
 import { executeOnWorker } from "./worker";
 import { PushButton } from "./shapes/push_button";
 import { Mission } from "./mission";
+import { Interior } from "./interior";
+import { Nuke } from "./shapes/nuke";
 
 /** Stores everything necessary for a correct replay of a playthrough. Instead of relying on replaying player inputs, the replay simply stores all necessary state. */
 export class Replay {
 	level: Level;
 	missionPath: string;
+	version: number = 4;
 	mode: 'record' | 'playback' = 'record';
 	/** If writing to the replay is still permitted. */
 	canStore = true;
@@ -45,7 +48,7 @@ export class Replay {
 		tickIndex: number,
 		id: number
 	}[] = [];
-	/** Stores the times the marble collidede with a shape. */
+	/** Stores the times the marble collided with a shape. */
 	marbleContact: {
 		tickIndex: number,
 		id: number
@@ -54,6 +57,10 @@ export class Replay {
 	uses: {
 		tickIndex: number,
 		id: number
+	}[] = [];
+	/** Stores blast usage. */
+	blasts: {
+		tickIndex: number
 	}[] = [];
 	/** Camera orientation for each physics tick. */
 	cameraOrientations: {
@@ -82,6 +89,11 @@ export class Replay {
 		id: number,
 		lastContactTime: number
 	}[] = [];
+	/** In order to replay nukes correctly, their visibility state upon attempt start must be reconstructed properly. */
+	nukeStartValues: {
+		id: number,
+		disappearTime: number
+	}[] = [];
 	/** The timeSinceLoad at the start of the play. */
 	timeSinceLoad: number;
 	/** The gain of the rolling sound for each physics tick. */
@@ -98,6 +110,9 @@ export class Replay {
 		volume: number,
 		showParticles: boolean
 	}[] = [];
+	/** Which powerups were selected at random. */
+	randomPowerUpChoices = new Map<number, number[]>();
+	checkpointRespawns: number[] = [];
 
 	/** The current tick index to write to / read from. */
 	currentTickIndex = 0;
@@ -129,6 +144,7 @@ export class Replay {
 			this.marbleLeave.length = 0;
 			this.marbleContact.length = 0;
 			this.uses.length = 0;
+			this.blasts.length = 0;
 			this.cameraOrientations.length = 0;
 			this.timeTravelTimeToRevert.clear();
 			this.touchFinishTickIndices.length = 0;
@@ -136,11 +152,14 @@ export class Replay {
 			this.trapdoorStartValues.length = 0;
 			this.landmineStartValues.length = 0;
 			this.pushButtonStartValues.length = 0;
+			this.nukeStartValues.length = 0;
 			this.rollingSoundGain.length = 0;
 			this.rollingSoundPlaybackRate.length = 0;
 			this.slidingSoundGain.length = 0;
 			this.jumpSoundTimes.length = 0;
 			this.bounceTimes.length = 0;
+			this.randomPowerUpChoices.clear();
+			this.checkpointRespawns.length = 0;
 
 			// Remember trapdoor, mine and push button states
 			for (let shape of this.level.shapes) {
@@ -160,6 +179,11 @@ export class Replay {
 					this.pushButtonStartValues.push({
 						id: shape.id,
 						lastContactTime: shape.lastContactTime
+					});
+				} else if (shape instanceof Nuke) {
+					this.nukeStartValues.push({
+						id: shape.id,
+						disappearTime: shape.disappearTime
 					});
 				}
 			}
@@ -189,6 +213,12 @@ export class Replay {
 
 					if (startValues.lastContactTime === null) startValues.lastContactTime = -Infinity;
 					shape.lastContactTime = startValues.lastContactTime - this.timeSinceLoad + this.level.timeState.timeSinceLoad;
+				} else if (shape instanceof Nuke) {
+					let startValues = this.nukeStartValues.find(x => x.id === shape.id);
+					if (!startValues) continue;
+
+					if (startValues.disappearTime === null) startValues.disappearTime = -Infinity;
+					shape.disappearTime = startValues.disappearTime - this.timeSinceLoad + this.level.timeState.timeSinceLoad;
 				}
 			}
 		}
@@ -242,12 +272,12 @@ export class Replay {
 		});
 	}
 
-	recordMarbleContact(shape: Shape) {
+	recordMarbleContact(object: Shape | Interior) {
 		if (this.mode === 'playback' || !this.canStore) return;
 
 		this.marbleContact.push({
 			tickIndex: this.currentTickIndex,
-			id: shape.id
+			id: object.id
 		});
 	}
 
@@ -260,13 +290,26 @@ export class Replay {
 		});
 	}
 
+	recordUseBlast() {
+		if (this.mode === 'playback' || !this.canStore) return;
+
+		this.blasts.push({
+			tickIndex: this.currentTickIndex
+		});
+	}
+
 	recordTouchFinish() {
 		if (this.mode === 'playback' || !this.canStore) return;
 		this.touchFinishTickIndices.push(this.currentTickIndex);
 	}
 
+	recordCheckpointRespawn() {
+		if (this.mode === 'playback' || !this.canStore) return;
+		this.checkpointRespawns.push(this.currentTickIndex);
+	}
+
 	/** Apply the replay's stored state to the world. */
-	playback() {
+	playBack() {
 		let i = this.currentTickIndex;
 
 		for (let obj of this.marbleInside) {
@@ -293,8 +336,8 @@ export class Replay {
 		for (let obj of this.marbleContact) {
 			if (obj.tickIndex !== i) continue;
 
-			let shape = this.level.shapes.find(x => x.id === obj.id);
-			shape.onMarbleContact(this.level.timeState, null);
+			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.interiors.find(x => x.id === obj.id);
+			object.onMarbleContact(this.level.timeState, null);
 		}
 
 		for (let use of this.uses) {
@@ -304,7 +347,14 @@ export class Replay {
 			powerUp.use(this.level.timeState);
 		}
 
+		for (let blast of this.blasts) {
+			if (blast.tickIndex !== i) continue;
+
+			this.level.marble.useBlast();
+		}
+
 		for (let tickIndex of this.touchFinishTickIndices) if (tickIndex === i) this.level.touchFinish();
+		for (let tickIndex of this.checkpointRespawns) if (tickIndex === i) this.level.loadCheckpointState();
 
 		this.level.marble.body.setPosition(this.marblePositions[i]);
 		this.level.marble.body.setOrientation(this.marbleOrientations[i]);
@@ -325,7 +375,7 @@ export class Replay {
 			}
 		}
 		this.level.marble.rollingSound.gain.gain.value = this.rollingSoundGain[i];
-		this.level.marble.rollingSound.node.playbackRate.value = this.rollingSoundPlaybackRate[i];
+		this.level.marble.rollingSound.setPlaybackRate(this.rollingSoundPlaybackRate[i]);
 		this.level.marble.slidingSound.gain.gain.value = this.slidingSoundGain[i];
 
 		this.currentTickIndex = Math.min(this.marblePositions.length - 1, this.currentTickIndex + 1); // Make sure to stop at the last tick
@@ -345,7 +395,7 @@ export class Replay {
 
 		// First, create a more compact object by utilizing typed arrays.
 		let serialized: SerializedReplay = {
-			version: 2,
+			version: this.version,
 			timestamp: Date.now(),
 			missionPath: this.missionPath,
 			marblePositions: Util.arrayBufferToString(Replay.vec3sToBuffer(this.marblePositions).buffer),
@@ -357,6 +407,7 @@ export class Replay {
 			marbleLeave: this.marbleLeave,
 			marbleContact: this.marbleContact,
 			uses: this.uses,
+			blasts: this.blasts,
 			cameraOrientations: Util.arrayBufferToString(cameraOrientations.buffer),
 			timeTravelTimeToRevert: [...this.timeTravelTimeToRevert.entries()],
 			touchFinishTickIndices: this.touchFinishTickIndices,
@@ -364,12 +415,15 @@ export class Replay {
 			trapdoorStartValues: this.trapdoorStartValues,
 			landmineStartValues: this.landmineStartValues,
 			pushButtonStartValues: this.pushButtonStartValues,
+			nukeStartValues: this.nukeStartValues,
 			timeSinceLoad: this.timeSinceLoad,
 			rollingSoundGain: Util.arrayBufferToString(new Float32Array(this.rollingSoundGain).buffer),
 			rollingSoundPlaybackRate: Util.arrayBufferToString(new Float32Array(this.rollingSoundPlaybackRate).buffer),
 			slidingSoundGain: Util.arrayBufferToString(new Float32Array(this.slidingSoundGain).buffer),
 			jumpSoundTimes: this.jumpSoundTimes,
-			bounceTimes: this.bounceTimes
+			bounceTimes: this.bounceTimes,
+			randomPowerUpChoices: [...this.randomPowerUpChoices.entries()],
+			checkpointRespawns: this.checkpointRespawns
 		};
 
 		// Then compress the whole th ing. As this step is the most expensive, run it in another thread.
@@ -384,6 +438,7 @@ export class Replay {
 		let serialized = JSON.parse(string) as SerializedReplay;
 		let version = serialized.version ?? 0;
 		
+		replay.version = version;
 		replay.missionPath = (version >= 1)? serialized.missionPath : null;
 		replay.timestamp = (version >= 1)? serialized.timestamp : 0;
 
@@ -396,6 +451,7 @@ export class Replay {
 		replay.marbleLeave = serialized.marbleLeave ?? []; // Might not be there in older versions
 		replay.marbleContact = serialized.marbleContact;
 		replay.uses = serialized.uses;
+		replay.blasts = serialized.blasts ?? [];
 		
 		let cameraOrientations: {
 			yaw: number,
@@ -416,12 +472,15 @@ export class Replay {
 		replay.trapdoorStartValues = serialized.trapdoorStartValues;
 		replay.landmineStartValues = serialized.landmineStartValues;
 		replay.pushButtonStartValues = serialized.pushButtonStartValues ?? []; // Might not be there in older versions
+		replay.nukeStartValues = serialized.nukeStartValues ?? [];
 		replay.timeSinceLoad = serialized.timeSinceLoad;
 		replay.rollingSoundGain = [...new Float32Array(Util.stringToArrayBuffer(serialized.rollingSoundGain))];
 		replay.rollingSoundPlaybackRate = [...new Float32Array(Util.stringToArrayBuffer(serialized.rollingSoundPlaybackRate))];
 		replay.slidingSoundGain = [...new Float32Array(Util.stringToArrayBuffer(serialized.slidingSoundGain))];
 		replay.jumpSoundTimes = serialized.jumpSoundTimes;
 		replay.bounceTimes = serialized.bounceTimes;
+		replay.randomPowerUpChoices = (serialized.randomPowerUpChoices ?? []).reduce((prev, next) => (prev.set(next[0], next[1]), prev), new Map<number, number[]>());
+		replay.checkpointRespawns = serialized.checkpointRespawns ?? [];
 
 		return replay;
 	}
@@ -538,6 +597,9 @@ export interface SerializedReplay {
 		tickIndex: number,
 		id: number
 	}[];
+	blasts: {
+		tickIndex: number
+	}[];
 	cameraOrientations: string;
 	timeTravelTimeToRevert: [number, number][]
 	touchFinishTickIndices: number[];
@@ -556,6 +618,10 @@ export interface SerializedReplay {
 		id: number,
 		lastContactTime: number
 	}[];
+	nukeStartValues: {
+		id: number,
+		disappearTime: number
+	}[];
 	timeSinceLoad: number;
 	rollingSoundGain: string;
 	rollingSoundPlaybackRate: string;
@@ -566,4 +632,6 @@ export interface SerializedReplay {
 		volume: number,
 		showParticles: boolean
 	}[];
+	randomPowerUpChoices: [number, number[]][],
+	checkpointRespawns: number[]
 }

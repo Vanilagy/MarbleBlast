@@ -1,6 +1,7 @@
 import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
+import { StorageManager } from "./storage";
 
 export interface RGBAColor {
 	r: number,
@@ -348,9 +349,20 @@ export abstract class Util {
 
 	/** Unescapes escaped (\) characters. */
 	static unescape(str: string) {
-		let regex = /\\([^\\])/g;
+		let cEscapeRegex = /(^|[^\\])\\x([0-9a-f]{2})/gi; // Matches \xhh
 		let match: RegExpExecArray = null;
+
+		while ((match = cEscapeRegex.exec(str)) !== null) {
+			let code = Number.parseInt(match[2], 16);
+			let char = this.macRomanToUtf8(code); // DUMB
+			str = str.slice(0, match.index) + match[1] + char + str.slice(match.index + match[0].length); // match[1] is "negative lookbehind"
+
+			cEscapeRegex.lastIndex -= 3;
+		}
+
+		let regex = /\\(.)/g;
 		let specialCases: Record<string, string> = {
+			'\\': '\\',
 			't': '\t',
 			'v': '\v',
 			'0': '\0',
@@ -538,10 +550,10 @@ export abstract class Util {
 	}
 
 	/** Converts seconds into a time string as seen in the game clock at the top, for example. */
-	static secondsToTimeString(seconds: number, decimalDigits = 3) {
+	static secondsToTimeString(seconds: number, decimalDigits = StorageManager.data?.settings.showThousandths? 3 : 2) {
 		let abs = Math.abs(seconds);
 		let minutes = Math.floor(abs / 60);
-		let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(abs % 1 * 10**decimalDigits).toString(), decimalDigits);
+		let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(abs * 10**decimalDigits % 10**decimalDigits).toString(), decimalDigits);
 		if (seconds < 0) string = '-' + string;
 		
 		return string;
@@ -602,6 +614,76 @@ export abstract class Util {
 
 	static signedSquare(x: number) {
 		return x * Math.abs(x);
+	}
+	
+	static htmlEscapeElem = document.createElement('p');
+	static htmlEscape(raw: string) {
+		this.htmlEscapeElem.textContent = raw;
+		return this.htmlEscapeElem.innerHTML;
+	}
+
+	/** Standard Normal variate using Box-Muller transform. */
+	// https://stackoverflow.com/questions/25582882/javascript-math-random-normal-distribution-gaussian-bell-curve
+	static randomGaussian() {
+		let u = 0, v = 0;
+		while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+		while (v === 0) v = Math.random();
+		return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+	}
+
+	/** Gets a unique id. */
+	static getRandomId() {
+		// This might seem cheap, but Math.random can return 2^52 different values, so the chance of collisions here is still ridiculously low.
+		// https://v8.dev/blog/math-random
+		return Math.random().toString();
+	}
+
+	static roundToMultiple(val: number, fac: number) {
+		if (!fac) return val;
+		return Math.round(val / fac) * fac;
+	}
+
+	/** Checks if a ray intersects an AABB. Uses the algorithm described at https://tavianator.com/2011/ray_box.html. */
+	static rayIntersectsBox(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, box: THREE.Box3, intersectionPoint?: THREE.Vector3) {
+		let tx1 = (box.min.x - rayOrigin.x) / rayDirection.x;
+		let tx2 = (box.max.x - rayOrigin.x) / rayDirection.x;
+
+		let tmin = Math.min(tx1, tx2);
+		let tmax = Math.max(tx1, tx2);
+
+		let ty1 = (box.min.y - rayOrigin.y) / rayDirection.y;
+		let ty2 = (box.max.y - rayOrigin.y) / rayDirection.y;
+
+		tmin = Math.max(tmin, Math.min(ty1, ty2));
+		tmax = Math.min(tmax, Math.max(ty1, ty2));
+
+		let tz1 = (box.min.z - rayOrigin.z) / rayDirection.z;
+		let tz2 = (box.max.z - rayOrigin.z) / rayDirection.z;
+
+		tmin = Math.max(tmin, Math.min(tz1, tz2));
+		tmax = Math.min(tmax, Math.max(tz1, tz2));
+
+		if (intersectionPoint && tmax >= tmin)
+			intersectionPoint.copy(rayOrigin).addScaledVector(rayDirection, (tmin >= 0)? tmin : tmax); // use tmax if the ray starts inside the box
+
+		return tmax >= tmin;
+	}
+
+	static macRomanToUtf8Map = ['Ä', 'Å', 'Ç', 'É', 'Ñ', 'Ö', 'Ü', 'á', 'à', 'â', 'ä', 'ã', 'å', 'ç', 'é', 'è', 'ê', 'ë', 'í', 'ì', 'î', 'ï', 'ñ', 'ó', 'ò', 'ô', 'ö', 'õ', 'ú', 'ù', 'û', 'ü', '†', '°', '¢', '£', '§', '•', '¶', 'ß', '®', '©', '™', '´', '¨', '≠', 'Æ', 'Ø', '∞', '±', '≤', '≥', '¥', 'µ', '∂', '∑', '∏', 'π', '∫', 'ª', 'º', 'Ω', 'æ', 'ø', '¿', '¡', '¬', '√', 'ƒ', '≈', '∆', '«', '»', '…', ' ', 'À', 'Ã', 'Õ', 'Œ', 'œ', '–', '—', '“', '”', '‘', '’', '÷', '◊', 'ÿ', 'Ÿ', '⁄', '€', '‹', '›', 'ﬁ', 'ﬂ', '‡', '·', '‚', '„', '‰', 'Â', 'Ê', 'Á', 'Ë', 'È', 'Í', 'Î', 'Ï', 'Ì', 'Ó', 'Ô', '🍎', 'Ò', 'Ú', 'Û', 'Ù', 'ı', 'ˆ', '˜', '¯', '˘', '˙', '˚', '¸', '˝', '˛', 'ˇ'];
+	/** Some fonts were apparently compiled on Mac and use this encoding instead of something sensible. Stupid. */
+	static macRomanToUtf8(char: number) {
+		if (char < 128) return String.fromCharCode(char);
+		else return this.macRomanToUtf8Map[char - 128];
+	}
+
+	static supportsInstancing(renderer: THREE.WebGLRenderer) {
+		// Macs weird man
+		return !Util.isMac() && !(renderer.capabilities.isWebGL2 === false && renderer.extensions.has( 'ANGLE_instanced_arrays' ) === false);
+	}
+
+	/** Manually ensures all numbers in the element's text have the same width so they align nicely. */
+	static monospaceNumbers(element: Element, ems = 0.5) {
+		element.innerHTML = element.textContent.split('').map(x => (x >= '0' && x <= '9')? `<span style="width: ${ems}em; display: inline-block; text-align: center;">${x}</span>` : x).join('');
 	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing

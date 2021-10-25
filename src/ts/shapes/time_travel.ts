@@ -1,7 +1,9 @@
 import { PowerUp } from "./power_up";
 import { MissionElementItem, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
-import { PHYSICS_TICK_RATE } from "../level";
+import { PHYSICS_TICK_RATE, TimeState } from "../level";
+import { state } from "../state";
+import OIMO from "../declarations/oimo";
 
 /** Temporarily pauses the game clock. */
 export class TimeTravel extends PowerUp {
@@ -10,6 +12,7 @@ export class TimeTravel extends PowerUp {
 	autoUse = true;
 	timeBonus = 5000;
 	sounds = ["putimetravelvoice.wav", "timetravelactive.wav"];
+	pickUpName = ''; // Modified on the fly based on the time bonus
 
 	constructor(element: MissionElementItem) {
 		super(element);
@@ -17,8 +20,15 @@ export class TimeTravel extends PowerUp {
 		if (element.timebonus) {
 			this.timeBonus = MisParser.parseNumber(element.timebonus);
 		}
+		if (element.timepenalty) {
+			this.timeBonus = -MisParser.parseNumber(element.timepenalty);
+		}
 
-		this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;
+		if (state.modification === 'gold') {
+			this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;
+		} else {
+			this.pickUpName = `${Math.abs(this.timeBonus/1000)} second Time ${this.timeBonus >= 0 ? 'Modifier' : 'Penalty'}`; // MBP calls them Time Penalty when they add time
+		}
 	}
 
 	pickUp() {
@@ -26,8 +36,9 @@ export class TimeTravel extends PowerUp {
 		return true;
 	}
 
-	use() {
-		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(this.bodies[0], 2);
+	use(time: TimeState, bodyOverride?: OIMO.RigidBody) {
+		// We need to find the exact point of impact to accurately know at what time the clock needs to be stopped
+		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(bodyOverride ?? this.bodies[0], 2);
 		let timeToRevert = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 
 		if (this.level.replay.mode === 'playback') timeToRevert = this.level.replay.timeTravelTimeToRevert.get(this.id);

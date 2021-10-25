@@ -6,3 +6,4 @@ server/js
 dist
 todo.txt
 .rpt2_cache
+.vscode

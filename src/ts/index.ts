@@ -3,38 +3,46 @@ import OIMO from "./declarations/oimo";
 import { ResourceManager } from "./resources";
 import * as THREE from "three";
 import { AudioManager } from "./audio";
-import './ui/home';
-import { initLevelSelect } from "./ui/level_select";
-import { startUi, initUi } from "./ui/ui";
 import { StorageManager } from './storage';
 import { Util } from './util';
-import { initOptions } from './ui/options';
 import { Leaderboard } from './leaderboard';
-import { initHome } from './ui/home';
+import { MissionLibrary } from './mission_library';
+import { state } from './state';
+import { setMenu } from './ui/menu_setter';
 
 OIMO.Setting.defaultGJKMargin = 0.005; // Without this, the marble is very visibly floating above stuff.
 OIMO.Setting.defaultContactPositionCorrectionAlgorithm = OIMO.PositionCorrectionAlgorithm.NGS; // Slower, but there's really only one collision object anyway so
 THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
 
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
+const loadingDetail = document.querySelector('#loading-detail') as HTMLDivElement;
 const startGameDialog = document.querySelector('#start-game-dialog') as HTMLDivElement;
 
 const init = async () => {
 	await Util.init();
 	await StorageManager.init();
 	await ResourceManager.init();
+
+	loadingDetail.textContent = 'Loading levels...';
+	await MissionLibrary.init();
 	AudioManager.init();
-	await Promise.all([initOptions(), initLevelSelect(), initUi(), Leaderboard.init(), initHome()]);
+
+	loadingDetail.textContent = 'Loading UI...';
+	await setMenu(StorageManager.data.modification);
+
+	loadingDetail.textContent = 'Loading leaderboard...';
+	await Leaderboard.init();
 
 	let started = false;
-	const start = () => {
+	const start = async () => {
 		started = true;
 		startGameDialog.style.display = 'none';
 		AudioManager.context.resume();
-		startUi();
+		state.menu.show();
 	};
 	
 	loadingMessage.style.display = 'none';
+	loadingDetail.style.display = 'none';
 	if (AudioManager.context.state === "running") {
 		// Start the game automatically if we already have audio autoplay permission.
 		start();
@@ -47,6 +55,8 @@ const init = async () => {
 		// No need to tell them to enter fullscreen if they're already in it
 		startGameDialog.children[0].textContent = 'Click anywhere to start';
 		startGameDialog.children[1].textContent = '';
+	} else {
+		startGameDialog.children[0].textContent = `Press ${Util.isMac()? '^⌘F' : 'F11'} to start in fullscreen mode`;
 	}
 	startGameDialog.style.display = 'block';
 	
@@ -127,3 +137,8 @@ const sendErrors = () => {
 	// 5-second timeout until it's done again
 	errorTimeout = setTimeout(sendErrors, 5000) as any as number;
 };
+
+const activityId = Util.getRandomId();
+setInterval(() => {
+	fetch('/api/activity?id=' + activityId);
+}, 30000);

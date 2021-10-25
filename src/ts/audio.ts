@@ -12,9 +12,12 @@ export abstract class AudioManager {
 	static soundGain: GainNode;
 	static musicGain: GainNode;
 
+	static assetPath: string;
 	static audioBufferCache = new Map<string, Promise<AudioBuffer>>();
 	/** Stores a list of all currently playing audio sources. */
 	static audioSources: AudioSource[] = [];
+
+	static oggDecoder: ReturnType<typeof OggdecModule>; // Because Safari
 
 	static init() {
 		let AudioContext = window.AudioContext ?? (window as any).webkitAudioContext; // Safari
@@ -33,23 +36,43 @@ export abstract class AudioManager {
 		this.musicGain.connect(this.masterGain);
 
 		this.updateVolumes();
+
+		if (typeof OggdecModule !== 'undefined') this.oggDecoder = OggdecModule();
+	}
+
+	static setAssetPath(path: string) {
+		this.assetPath = path;
+	}
+
+	static toFullPath(path: string) {
+		let fullPath = this.assetPath + path;
+		return fullPath;
 	}
 
 	/** Loads an audio buffer from a path. Returns the cached version whenever possible. */
 	static loadBuffer(path: string) {
-		if (path.endsWith('.ogg') && Util.isSafari()) {
-			// Safari can't decode OGG, so we serve it a fallback MP3 version instead.
-			path = path.replace('.ogg', '.mp3');
+		let fullPath = this.toFullPath(path);
+
+		// If there's a current level, see if there's a sound file for this path contained in it
+		let mission = state.level?.mission;
+		let zipFile: JSZip.JSZipObject;
+		if (mission && mission.zipDirectory && mission.zipDirectory.files['data/sound/' + path]) {
+			zipFile = mission.zipDirectory.files['data/sound/' + path];
+		} else {
+			// Return the cached version if there is one
+			if (this.audioBufferCache.has(fullPath)) return this.audioBufferCache.get(fullPath);
 		}
 
-		if (this.audioBufferCache.has(path)) return this.audioBufferCache.get(path);
-
-		let promise = new Promise<AudioBuffer>(async (resolve) => {
-			let blob = await ResourceManager.loadResource("./assets/data/sound/" + path);
-			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
-			let audioBuffer: AudioBuffer;
+		let promise = new Promise<AudioBuffer>(async (resolve, reject) => {
 			try {
-				if (window.AudioContext) {
+				let blob = zipFile? await zipFile.async('blob') : await ResourceManager.loadResource(fullPath);
+				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
+				let audioBuffer: AudioBuffer;
+
+				if (path.endsWith('.ogg') && Util.isSafari()) {
+					// Safari can't deal with .ogg
+					audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
+				} else if (window.AudioContext) {
 					audioBuffer = await this.context.decodeAudioData(arrayBuffer);
 				} else {
 					audioBuffer = await new Promise((res, rej) => {
@@ -60,15 +83,14 @@ export abstract class AudioManager {
 						);
 					});
 				}
+	
+				resolve(audioBuffer);
 			} catch (e) {
-				console.log("Error with decoding Audio Data:", e);
-				console.log(path);
+				reject(e);
 			}
-
-			resolve(audioBuffer);
 		});
 
-		this.audioBufferCache.set(path, promise);
+		if (!zipFile) this.audioBufferCache.set(fullPath, promise);
 		return promise;
 	}
 
@@ -81,11 +103,30 @@ export abstract class AudioManager {
 	 * @param path The path of the audio resource. If it's an array, a random one will be selected.
 	 * @param destination The destination node of the audio.
 	 * @param position Optional: The position of the audio source in 3D space.
+	 * @param preferStreaming If true, uses a normal <audio> element instead of play the audio as quickly as possible.
 	 */
-	static createAudioSource(path: string | string[], destination = this.soundGain, position?: THREE.Vector3) {
+	static createAudioSource(path: string | string[], destination = this.soundGain, position?: THREE.Vector3, preferStreaming = false) {
 		let chosenPath = (typeof path === "string")? path : Util.randomFromArray(path);
-		let bufferPromise = this.loadBuffer(chosenPath);
-		let audioSource = new AudioSource(bufferPromise, destination, position);
+		let fullPath = this.toFullPath(chosenPath);
+		let audioSource: AudioSource;
+
+		if (chosenPath.endsWith('.ogg') && Util.isSafari()) preferStreaming = false; // We can't
+
+		if (preferStreaming) {
+			if (this.audioBufferCache.has(fullPath)) {
+				// We already got the buffer, prefer that over streaming
+				preferStreaming = false;
+			} else {
+				let audioElement = new Audio();
+				audioElement.src = fullPath;
+				audioElement.preload = 'auto';
+				audioSource = new AudioSource(audioElement, destination, position);
+			}
+		}
+		if (!preferStreaming) {
+			let bufferPromise = this.loadBuffer(chosenPath);
+			audioSource = new AudioSource(bufferPromise, destination, position);
+		}
 
 		if (position) {
 			// Mute the sound by default to avoid any weird audible artifacts.
@@ -105,7 +146,7 @@ export abstract class AudioManager {
 
 	/** Updates the pan and volume of positional audio sources based on the listener's location. */
 	static updatePositionalAudio(time: TimeState, listenerPos: THREE.Vector3, listenerYaw: number) {
-		let quat = state.currentLevel.getOrientationQuat(time);
+		let quat = state.level.getOrientationQuat(time);
 		quat.conjugate();
 
 		for (let source of this.audioSources) {
@@ -163,17 +204,29 @@ export abstract class AudioManager {
 
 /** A small wrapper around audio nodes that are used to play a sound. */
 export class AudioSource {
-	promise: Promise<AudioBuffer>;
+	promise: Promise<AudioBuffer | void>;
 	destination: AudioNode;
-	node: AudioBufferSourceNode;
+	node: AudioBufferSourceNode | MediaElementAudioSourceNode;
 	gain: GainNode;
 	panner: StereoPannerNode | PannerNode;
 	position: THREE.Vector3;
 	stopped = false;
+	playing = false;
 	gainFactor = 1;
+	audioElement: HTMLAudioElement;
+	loop = false;
+	playbackRate = 1;
 
-	constructor(bufferPromise: Promise<AudioBuffer>, destination: AudioNode, position?: THREE.Vector3) {
-		this.promise = bufferPromise;
+	constructor(source: Promise<AudioBuffer> | HTMLAudioElement, destination: AudioNode, position?: THREE.Vector3) {
+		if (source instanceof Promise) {
+			this.promise = source;
+		} else {
+			this.audioElement = source;
+			this.promise = new Promise(resolve => {
+				source.addEventListener('canplaythrough', () => resolve());
+			});
+		}
+		
 		this.destination = destination;
 		this.position = position;
 		
@@ -185,18 +238,14 @@ export class AudioSource {
 			this.panner = AudioManager.context.createPanner();
 		this.gain.connect(this.panner);
 		this.panner.connect(this.destination);
-
-		this.node = AudioManager.context.createBufferSource();
-		this.node.connect(this.gain);
-
-		this.init();
-	}
-
-	async init() {
-		let buffer = await this.promise;
-		if (this.stopped) return; // The sound may have already been stopped, so don't continue.
 		
-		this.node.buffer = buffer;
+		if (source instanceof Promise) {
+			this.node = AudioManager.context.createBufferSource();
+		} else {
+			this.node = AudioManager.context.createMediaElementSource(source);
+		}
+
+		this.node.connect(this.gain);
 	}
 
 	setPannerValue(val: number) {
@@ -209,19 +258,59 @@ export class AudioSource {
 		}
 	}
 
-	async play() {
-		await this.promise;
-		if (this.stopped) return; // The sound may have already been stopped, so don't continue.
+	setLoop(loop: boolean) {
+		if (this.audioElement) this.audioElement.loop = loop;
+		else (this.node as AudioBufferSourceNode).loop = loop;
+		this.loop = loop;
+	}
 
-		this.node.start();
-		this.node.onended = () => {
-			this.stop(); // Call .stop for clean-up purposes
-		};
-	};
+	setPlaybackRate(playbackRate: number) {
+		if (this.audioElement) this.audioElement.playbackRate = playbackRate;
+		else (this.node as AudioBufferSourceNode).playbackRate.value = playbackRate;
+		this.playbackRate = playbackRate;
+	}
+
+	async play() {
+		if (this.playing) return;
+
+		if (this.stopped) {
+			this.stopped = false;
+
+			if (this.node instanceof AudioBufferSourceNode) {
+				// Gotta recreate this stuff
+				this.node = AudioManager.context.createBufferSource();
+				this.node.connect(this.gain);
+				this.node.loop = this.loop;
+				this.node.playbackRate.value = this.playbackRate;
+				this.stopped = false;
+				AudioManager.audioSources.push(this);
+			}
+		}
+
+		let maybeBuffer = await this.promise;
+		if (this.stopped) return;
+
+		if (this.node instanceof AudioBufferSourceNode) {
+			this.node.buffer = maybeBuffer as AudioBuffer;
+			this.node.start();
+			this.node.onended = () => {
+				this.stop(); // Call .stop for clean-up purposes
+			};
+		} else {
+			this.audioElement.play();
+			this.audioElement.addEventListener('ended', () => this.stop());
+		}
+
+		this.playing = true;
+	}
 
 	stop() {
 		this.stopped = true;
-		try {this.node.stop()} catch (e) {}
+		this.playing = false;
+		try {
+			if (this.audioElement) this.audioElement.pause();
+			else (this.node as AudioBufferSourceNode).stop();
+		} catch (e) {}
 		Util.removeFromArray(AudioManager.audioSources, this);
 	}
 }

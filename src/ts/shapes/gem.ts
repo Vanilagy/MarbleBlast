@@ -3,7 +3,7 @@ import { MissionElementItem } from "../parsing/mis_parser";
 import { Util } from "../util";
 
 // List all of gem colors for randomly choosing one
-const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "orange", "black"];
+const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "orange", "black"]; // "Platinum" is also a color, but it can't appear by chance
 
 /** Gems need to be collected before being able to finish. */
 export class Gem extends Shape {
@@ -20,9 +20,9 @@ export class Gem extends Shape {
 
 		// Determine the color of the gem:
 		let color = element.datablock.slice("GemItem".length);
-		if (color.length === 0) color = Util.randomFromArray(GEM_COLORS); // Random if no color specified
+		if (color.length === 0) color = Gem.pickRandomColor(); // Random if no color specified
 
-		this.matNamesOverride["base.gem"] = color + ".gem";
+		this.matNamesOverride["base.gem"] = color.toLowerCase() + ".gem";
 	}
 
 	onMarbleInside() {
@@ -37,5 +37,9 @@ export class Gem extends Shape {
 	reset() {
 		this.pickedUp = false;
 		this.setOpacity(1);
+	}
+
+	static pickRandomColor() {
+		return Util.randomFromArray(GEM_COLORS);
 	}
 }

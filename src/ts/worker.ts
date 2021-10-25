@@ -1,4 +1,4 @@
-import { getRandomId } from "./state";
+import { Util } from "./util";
 
 function workerBody() {
 	const respond = (msgId: string, payload: any) => {
@@ -42,7 +42,7 @@ worker.onmessage = (e) => {
 
 /** Executes a command with a payload on the worker. Returns a promise that resolves with the result. */
 export const executeOnWorker = (command: string, payload: any) => {
-	let msgId = getRandomId();
+	let msgId = Util.getRandomId();
 	worker.postMessage({
 		msgId: msgId,
 		command: command,

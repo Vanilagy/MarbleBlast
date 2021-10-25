@@ -1,8 +1,6 @@
 import { SCALING_RATIO } from "./rendering";
 import { state } from "./state";
 import { StorageManager } from "./storage";
-import { handlePauseScreenGamepadInput } from "./ui/game";
-import { levelSelectDiv, handleLevelSelectControllerInput } from "./ui/level_select";
 import { Util } from "./util";
 
 export const currentMousePosition = {
@@ -13,7 +11,7 @@ export const currentMousePosition = {
 window.addEventListener('mousemove', (e) => {
 	currentMousePosition.x = e.clientX * SCALING_RATIO;
 	currentMousePosition.y = e.clientY * SCALING_RATIO;
-	state.currentLevel?.onMouseMove(e);
+	state.level?.onMouseMove(e);
 });
 window.addEventListener('touchstart', (e) => {
 	let touch = e.changedTouches[0];
@@ -29,7 +27,7 @@ window.addEventListener('touchmove', (e) => {
 window.addEventListener('mousedown', (e) => {
 	if (!StorageManager.data) return;
 	// Request pointer lock if we're currently in-game
-	if (state.currentLevel && !state.currentLevel.paused && !state.currentLevel.finishTime && !Util.isTouchDevice) document.documentElement.requestPointerLock();
+	if (state.level && !state.level.paused && !state.level.finishTime && !Util.isTouchDevice) document.documentElement.requestPointerLock();
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName && document.pointerLockElement) {
@@ -40,9 +38,10 @@ window.addEventListener('mousedown', (e) => {
 	
 			setPressed(key, buttonName, true);
 			
-			if (state.currentLevel) {
-				if (key === 'jump' && isPressedOnce(key)) state.currentLevel.jumpQueued = true;
-				if (key === 'use' && isPressedOnce(key)) state.currentLevel.useQueued = true;
+			if (state.level) {
+				if (key === 'jump' && isPressedOnce(key)) state.level.jumpQueued = true;
+				if (key === 'use' && isPressedOnce(key)) state.level.useQueued = true;
+				if (key === 'blast' && isPressedOnce(key)) state.level.blastQueued = true;
 			}
 		}
 	}
@@ -72,9 +71,9 @@ window.addEventListener('keydown', (e) => {
 
 		setPressed(key, e.code, true);
 
-		if (state.currentLevel) {
-			if (key === 'jump' && isPressedOnce(key)) state.currentLevel.jumpQueued = true;
-			if (key === 'use' && isPressedOnce(key)) state.currentLevel.useQueued = true;
+		if (state.level) {
+			if (key === 'jump' && isPressedOnce(key)) state.level.jumpQueued = true;
+			if (key === 'use' && isPressedOnce(key)) state.level.useQueued = true;
 		}
 	}
 });
@@ -94,10 +93,15 @@ window.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable ri
 
 window.addEventListener('beforeunload', (e) => {
 	// Ask the user if they're sure about closing the tab if they're currently in game
-	if (state.currentLevel) {
+	if (state.level) {
 		e.preventDefault();
 		e.returnValue = '';
 	}
+});
+
+document.addEventListener('pointerlockchange', () => {
+	// When pointer lock is left, we pause.
+	if (!document.pointerLockElement) state.menu.pauseScreen.tryPause();
 });
 
 /** For each game button, a list of the keys/buttons corresponding to it that are currently pressed. */
@@ -114,7 +118,8 @@ const gameButtons = {
 	cameraRight: [] as string[],
 	freeLook: [] as string[],
 	restart: [] as string[],
-	pause: [] as string[]
+	pause: [] as string[],
+	blast: [] as string[]
 };
 
 /** For each game button, a flag indicating whether it has been pressed since the flag was reset. Used to prevent things like entering and immediately leaving the pause menu. */
@@ -131,7 +136,8 @@ const pressedSinceFlag = {
 	cameraRight: false,
 	freeLook: false,
 	restart: false,
-	pause: false
+	pause: false,
+	blast: false
 };
 
 /** Set a button's state based on a presser. */
@@ -238,11 +244,11 @@ const updateGamepadInput = () => {
 	}
 
 	// Check for input on the level select screen
-	if (!levelSelectDiv.classList.contains('hidden')) 
-		handleLevelSelectControllerInput(gamepads[mostRecentGamepad]);
+	if (!state.menu.levelSelect.div.classList.contains('hidden')) 
+		state.menu.levelSelect.handleControllerInput(gamepads[mostRecentGamepad]);
 		
-	if (state.currentLevel?.paused)
-		handlePauseScreenGamepadInput(gamepads[mostRecentGamepad]);
+	if (state.level?.paused)
+		state.menu.pauseScreen.handleGamepadInput(gamepads[mostRecentGamepad]);
 	
 	for (let i = 0; i < gamepads[mostRecentGamepad].buttons.length && i < 18; i++) {
 		previousButtonState[i] = (gamepads[mostRecentGamepad].buttons[i].value > 0.5);
@@ -352,7 +358,7 @@ cameraAreaElement.addEventListener('touchstart', (e) => {
 
 cameraAreaElement.addEventListener('touchmove', (e) => {
 	let touch = [...e.changedTouches].find(x => x.identifier === cameraAreaTouchIdentifier);
-	let level = state.currentLevel;
+	let level = state.level;
 
 	if (!touch) return;
 
@@ -361,7 +367,7 @@ cameraAreaElement.addEventListener('touchmove', (e) => {
 		let movementY = (touch.clientY - lastCameraTouch.clientY) * SCALING_RATIO;
 
 		let factor = Util.lerp(1 / 1500, 1 / 50, StorageManager.data.settings.mouseSensitivity);
-		let yFactor = StorageManager.data.settings.invertYAxis? -1 : 1;
+		let yFactor = (StorageManager.data.settings.invertMouse & 0b10)? -1 : 1;
 
 		level.yaw -= movementX * factor;
 		level.pitch += movementY * factor * yFactor;

@@ -1,0 +1,56 @@
+#pause-screen {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 380px;
+	height: 183px;
+}
+
+#pause-screen > img:first-child {
+	width: 380px;
+	height: 183px;
+}
+
+#pause-screen > p {
+	position: absolute;
+	font-family: DomCasualRegular;
+	font-size: 24px;
+	top: 17px;
+	left: 106px;
+}
+
+#pause-yes {
+	display: block;
+	position: absolute;
+	top: 104px;
+	left: 46px;
+}
+
+#pause-no {
+	display: block;
+	position: absolute;
+	top: 102px;
+	left: 146px;
+}
+
+#pause-restart {
+	display: block;
+	position: absolute;
+	top: 101px;
+	left: 243px;
+}
+
+#pause-replay {
+	position: absolute;
+    top: 22px;
+    left: 184px;
+	opacity: 0.333;
+}
+
+#pause-replay:hover {
+	opacity: 0.666;
+}

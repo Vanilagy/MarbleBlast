@@ -3,13 +3,16 @@ import OIMO from "../declarations/oimo";
 import { TimeState, Level } from "../level";
 import { Util } from "../util";
 import * as THREE from "three";
+import { AudioManager } from "../audio";
 
 /** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
 export class Trigger {
 	id: number;
+	vertices: THREE.Vector3[];
 	body: OIMO.RigidBody;
 	level: Level;
 	element: MissionElementTrigger;
+	sounds: string[] = [];
 
 	constructor(element: MissionElementTrigger, level: Level) {
 		this.id = element._id;
@@ -28,10 +31,10 @@ export class Trigger {
 		let p2 = origin.add(d1);
 		let p3 = origin.add(d2);
 		let p4 = origin.add(d3);
-		let p5 = origin.add(d1).add(d2);
-		let p6 = origin.add(d1).add(d3);
-		let p7 = origin.add(d2).add(d3);
-		let p8 = origin.add(d1).add(d2).add(d3);
+		let p5 = origin.add(d1).addEq(d2);
+		let p6 = origin.add(d1).addEq(d3);
+		let p7 = origin.add(d2).addEq(d3);
+		let p8 = origin.add(d1).addEq(d2).addEq(d3);
 
 		let mat = new THREE.Matrix4();
 		mat.compose(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
@@ -39,6 +42,7 @@ export class Trigger {
 		// Apply the transformation matrix to each vertex
 		let vertices = [p1, p2, p3, p4, p5, p6, p7, p8]
 			.map((vert) => Util.vecOimoToThree(vert).applyMatrix4(mat));
+		this.vertices = vertices;
 
 		// Triggers ignore the actual shape of the polyhedron and simply use its AABB.
 		let aabb = Util.createAabbFromVectors(vertices);
@@ -58,7 +62,16 @@ export class Trigger {
 		this.body = body;
 	}
 
+	async init() {
+		// Preload all sounds
+		for (let sound of this.sounds) {
+			await AudioManager.loadBuffer(sound);
+		}
+	}
+
 	onMarbleInside(time: TimeState) {}
 	onMarbleEnter(time: TimeState) {}
 	onMarbleLeave(time: TimeState) {}
+	tick(time: TimeState) {}
+	reset() {}
 }

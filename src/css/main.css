@@ -4,8 +4,23 @@
 }
 
 @font-face {
+	font-family: "Dom Casual";
+	src: url("../assets/font/DomCasualRegular/DomCasualRegular.otf");
+}
+
+@font-face {
 	font-family: "Expo";
 	src: url("../assets/font/Expo/EXPON.TTF");
+}
+
+@font-face {
+	font-family: "MarkerFelt";
+	src: url("../assets/font/MarkerFelt/Marker Felt.ttf");
+}
+
+@font-face {
+	font-family: "Marker Felt";
+	src: url("../assets/font/MarkerFelt/Marker Felt.ttf");
 }
 
 @keyframes pulse-opacity {
@@ -41,7 +56,24 @@ body {
 	transform-origin: 0 0;
 }
 
+#game-ui {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	text-align: center;
+}
+
 #menu {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+#mbp-menu {
 	position: absolute;
 	top: 0;
 	left: 0;
@@ -58,20 +90,44 @@ body {
 	object-fit: fill;
 }
 
-#loading-message {
+#mbp-background-image {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+#loading-message, #switching-message, #loading-detail {
 	position: absolute;
 	margin: auto;
 	top: 0;
 	bottom: 0;
 	left: 0;
 	right: 0;
-	font-family: DomCasualRegular;
+	font-family: MarkerFelt;
 	color: white;
 	font-size: 24px;
 	width: 200px;
 	text-align: center;
 	height: 35px;
 	animation: pulse-opacity 1s infinite forwards;
+}
+
+#loading-detail {
+	position: absolute;
+	margin: auto;
+	top: 0;
+	bottom: -80px;
+	left: 0;
+	right: 0;
+	font-family: MarkerFelt;
+	color: #ffffff80;
+	font-size: 12px;
+	width: 200px;
+	text-align: center;
+	height: 35px;
 }
 
 #start-game-dialog {
@@ -84,16 +140,35 @@ body {
 	bottom: 0;
 	left: 0;
 	right: 0;
-	font-family: DomCasualRegular;
+	font-family: MarkerFelt;
 	color: white;
 }
 
-#version {
+#version, #mbp-version {
 	position: absolute;
-	top: 0;
+	bottom: 0;
 	left: 0;
 	margin: 0;
 	font-family: Arial;
 	padding: 2px;
 	font-size: 10px;
+}
+
+.modification-switcher {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 40px;
+	height: 40px;
+	padding: 10px;
+	background: #00000031;
+	border-bottom-right-radius: 10px;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+
+.modification-switcher:hover {
+	width: 50px;
+	height: 50px;
+	background: #00000050;
 }

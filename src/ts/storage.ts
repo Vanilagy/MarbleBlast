@@ -1,4 +1,3 @@
-import { getRandomId } from "./state";
 import { Util } from "./util";
 import { executeOnWorker } from "./worker";
 
@@ -7,7 +6,7 @@ export type BestTimes = [string, number, string, number][];
 
 const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999.99; // The 99:59.999 thing
 
-interface StorageData {
+export interface StorageData {
 	settings: {
 		resolution: number,
 		videoDriver: number,
@@ -28,16 +27,21 @@ interface StorageData {
 			"cameraLeft": string,
 			"cameraRight": string,
 			"freeLook": string,
-			"restart": string
+			"restart": string,
+			"blast": string
 		},
 		mouseSensitivity: number,
-		invertYAxis: boolean,
+		keyboardSensitivity: number,
+		invertMouse: number,
 		alwaysFreeLook: boolean,
-		reflectiveMarble: boolean
+		marbleReflectivity: number,
+		showFrameRate: boolean,
+		showThousandths: boolean,
+		fov: number,
+		fancyShaders: boolean,
+		respectDevicePixelRatio: boolean
 	},
 	bestTimes: Record<string, BestTimes>,
-	/** Stores the amount of unlocked levels per category of level (beginner, intermediate, advanced) */
-	unlockedLevels: [number, number, number],
 	/** Used for the name entry in the post-game screen. */
 	lastUsedName: string,
 	/** A random ID to somewhat uniquely identify this user, even if they change their username. */
@@ -45,7 +49,11 @@ interface StorageData {
 	/** The queue of scores that are still to be sent to the server. */
 	bestTimeSubmissionQueue: Record<string, BestTimes[number]>,
 	/** The last-seen version of the game. */
-	lastSeenVersion: string
+	lastSeenVersion: string,
+	/** Mission paths whose eggs have been collected. */
+	collectedEggs: string[],
+	/** Which modification was last used. */
+	modification: 'gold' | 'platinum'
 }
 
 const DEFAULT_STORAGE_DATA: StorageData = {
@@ -69,19 +77,35 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 			"cameraLeft": "ArrowLeft",
 			"cameraRight": "ArrowRight",
 			"freeLook": "RMB",
-			"restart": "KeyR"
+			"restart": "KeyR",
+			"blast": "KeyE"
 		},
 		mouseSensitivity: 0.2,
-		invertYAxis: false,
-		alwaysFreeLook: false,
-		reflectiveMarble: false
+		keyboardSensitivity: 0.1,
+		invertMouse: 0,
+		alwaysFreeLook: true,
+		marbleReflectivity: 0,
+		showFrameRate: true,
+		showThousandths: true,
+		fov: 60,
+		fancyShaders: true,
+		respectDevicePixelRatio: true
 	},
 	bestTimes: {},
-	unlockedLevels: [1, 1, 1],
 	lastUsedName: '',
-	randomId: getRandomId(),
+	randomId: Util.getRandomId(),
 	bestTimeSubmissionQueue: {},
-	lastSeenVersion: null
+	lastSeenVersion: null,
+	collectedEggs: [],
+	modification: 'platinum'
+};
+
+const VERSION_UPGRADE_PROCEDURES: Record<string, () => Promise<any>> = {
+	'2.1.5': async () => {
+		// Got more performant now, so encourage people to have this on :)
+		StorageManager.data.settings.marbleReflectivity = 0;
+		await StorageManager.store();
+	}
 };
 
 /** Manages storage and persistence. */
@@ -124,8 +148,12 @@ export abstract class StorageManager {
 
 		// Get the storage data
 		let storageData = await this.databaseGet('keyvalue', 'storageData');
-		if (storageData) this.data = storageData;
-		else this.data = DEFAULT_STORAGE_DATA;
+		if (storageData) {
+			// Correct fields incase the stored data is stale / from an older version
+			this.data = this.correctFields(DEFAULT_STORAGE_DATA, storageData);
+		} else {
+			this.data = DEFAULT_STORAGE_DATA;
+		}
 
 		// Get the best times and uncompress them
 		this.data.bestTimes = {};
@@ -140,11 +168,23 @@ export abstract class StorageManager {
 			}
 		}
 
-		// Set some default values if they're missing
-		if (!this.data.settings.gameButtonMapping.restart) this.data.settings.gameButtonMapping.restart = 'KeyR';
-		if (!this.data.randomId) this.data.randomId = getRandomId();
-		if (this.data.settings.reflectiveMarble === undefined) this.data.settings.reflectiveMarble = false;
-		if (!this.data.bestTimeSubmissionQueue) this.data.bestTimeSubmissionQueue = {};
+		// Here we correct an oopsie: Because I accidentally released MBU levels too early, remove all local scores on those levels that happened before the *proper* MBU level release, as they are invalid.
+		let changed = false;
+		for (let missionPath in this.data.bestTimes) {
+			if (!missionPath.startsWith('mbu/')) continue;
+
+			for (let i = 0; i < this.data.bestTimes[missionPath].length; i++) {
+				let score = this.data.bestTimes[missionPath][i];
+				if (score[3] < 1634861292099) {
+					this.data.bestTimes[missionPath].splice(i--, 1);
+					changed = true;
+				}
+			}
+
+			if (this.data.bestTimes[missionPath].length === 0) delete this.data.bestTimes[missionPath];
+		}
+
+		if (changed) await this.storeBestTimes();
 	}
 
 	/** Migrates from localStorage to IndexedDB. */
@@ -179,7 +219,7 @@ export abstract class StorageManager {
 	}
 
 	/** Get the three best times for a mission path. */
-	static getBestTimesForMission(path: string) {
+	static getBestTimesForMission(path: string, count: number, placeholderName: string) {
 		let result: BestTimes = [];
 		let stored = this.data.bestTimes[path];
 		if (stored) {
@@ -187,21 +227,22 @@ export abstract class StorageManager {
 		}
 		result.sort((a, b) => a[1] - b[1]); // Make sure they're in ascending order
 
-		let remaining = 3 - result.length;
+		let remaining = count - result.length;
 		for (let i = 0; i < remaining; i++) {
 			// Fill the remaining slots with Nardo Polo scores
-			result.push(["Nardo Polo", MAX_SCORE_TIME, "", 0]);
+			result.push([placeholderName, MAX_SCORE_TIME, "", 0]);
 		}
 
 		return result;
 	}
 
+	static maxScoresPerLevel = 5;
 	/** Register a new time for a mission.
-	 * @returns The inserted score and the index at which at was inserted. Returns null, if the score wasn't inserted (so, not in the top 3 best times).
+	 * @returns The inserted score and the index at which at was inserted. Returns null, if the score wasn't inserted (so, not in the top maxScoresPerLevel best times).
 	 */
 	static insertNewTime(path: string, name: string, time: number) {
 		let stored = this.data.bestTimes[path] ?? [];
-		let scoreId = getRandomId();
+		let scoreId = Util.getRandomId();
 		let toInsert: BestTimes[number] = [name, time, scoreId, Date.now()];
 
 		// Determine the correct index to insert the time at
@@ -212,9 +253,9 @@ export abstract class StorageManager {
 		stored.splice(index, 0, toInsert);
 
 		// Shorten the array if needed
-		if (stored.length > 3) {
-			let lost = stored[3];
-			stored = stored.slice(0, 3);
+		if (stored.length > this.maxScoresPerLevel) {
+			let lost = stored[this.maxScoresPerLevel];
+			stored = stored.slice(0, this.maxScoresPerLevel);
 
 			if (lost[2]) {
 				this.databaseGet('replays', lost[2]).then(replayData => {
@@ -227,7 +268,7 @@ export abstract class StorageManager {
 
 		this.storeBestTimes();
 
-		if (index === 3) return null;
+		if (index === this.maxScoresPerLevel) return null;
 		return {
 			index,
 			score: toInsert
@@ -274,5 +315,30 @@ export abstract class StorageManager {
 
 		await new Promise(resolve => request.onsuccess = resolve);
 		return request.result ?? null;
+	}
+
+	/** Makes sure the second parameter has the same deep structure as the first. */
+	static correctFields<T>(truth: T, obj: T) {
+		// Look for all fields present in the truth but not present in the object
+		for (let key in truth) {
+			if (!(key in obj)) obj[key] = truth[key]; // Copy the value
+			// If it's a non-empty non-array object, recurse
+			if (truth[key] && typeof truth[key] === 'object' && !Array.isArray(truth[key]) && Object.keys(truth[key]).length) this.correctFields(truth[key], obj[key]);
+		}
+
+		// Look for all fields not present in the truth but present in the object
+		for (let key in obj) {
+			if (!(key in truth)) delete obj[key];
+		}
+
+		return obj;
+	}
+
+	/** Performs a series of modification needed to upgrade an old version. */
+	static async onVersionUpgrade(from: string) {
+		for (let vers in VERSION_UPGRADE_PROCEDURES) {
+			if (Util.compareVersions(from, vers) >= 0) continue;
+			await VERSION_UPGRADE_PROCEDURES[vers]();
+		}
 	}
 }

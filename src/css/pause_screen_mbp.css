@@ -1,0 +1,163 @@
+#mbp-pause-screen {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+#mbp-pause-screen ._background {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.4);
+}
+
+#mbp-pause-screen ._center {
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 422px;
+    height: 250px;
+}
+
+#mbp-pause-screen ._center > img:first-of-type {
+	width: 422px;
+    height: 250px;
+	position: relative;
+}
+
+#mbp-pause-screen ._center > p {
+	position: absolute;
+	font-family: MarkerFelt;
+	font-size: 27px;
+	top: 29px;
+	left: 106px;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+}
+
+#mbp-pause-yes {
+	display: block;
+	position: absolute;
+	top: 142px;
+	left: 60px;
+}
+
+#mbp-pause-no {
+	display: block;
+	position: absolute;
+	top: 142px;
+	left: 148px;
+}
+
+#mbp-pause-restart {
+	display: block;
+	position: absolute;
+	top: 142px;
+	left: 277px;
+}
+
+#mbp-pause-replay {
+	display: block;
+	position: absolute;
+	top: 141px;
+	left: 234px;
+}
+
+#mbp-pause-jukebox {
+	display: block;
+	position: absolute;
+	bottom: 12px;
+	right: 12px;
+}
+
+#jukebox {
+	position: absolute;
+	margin: auto;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	width: 541px;
+	height: 409px;
+}
+
+#jukebox-close {
+	display: block;
+    position: absolute;
+    top: 307px;
+    left: 48px;
+}
+
+#jukebox-prev {
+	display: block;
+	position: absolute;
+	top: 307px;
+	left: 146px;
+}
+
+#jukebox-play {
+	display: block;
+	position: absolute;
+	top: 307px;
+	left: 220px;
+}
+
+#jukebox-next {
+	display: block;
+	position: absolute;
+	top: 307px;
+	left: 319px;
+}
+
+#jukebox-songs {
+	position: absolute;
+	top: 39px;
+	left: 51px;
+	width: 439px;
+	height: 218px;
+	overflow: auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#jukebox-songs::-webkit-scrollbar {
+	width: 5px;
+}
+
+#jukebox-songs::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#jukebox-songs::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+#jukebox-songs > div {
+    font-family: 'MarkerFelt';
+    text-align: left;
+    font-size: 19px;
+    padding-left: 5px;
+}
+
+#jukebox-songs > div.selected {
+	background: rgba(0, 0, 0, 0.25);
+}
+
+#jukebox-text {
+	position: absolute;
+	top: 260px;
+	left: 65px;
+	font-family: 'MarkerFelt';
+	color: white;
+	width: 400px;
+	margin: 0;
+	font-size: 18px;
+	text-shadow: 1px 1px 0px black;
+}

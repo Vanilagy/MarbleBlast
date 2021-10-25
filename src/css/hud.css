@@ -1,0 +1,113 @@
+#powerup-border {
+	position: absolute;
+	top: 5px;
+	right: 5px;
+}
+
+#help-text {
+	width: 100%;
+	text-align: center;
+	position: absolute;
+	top: 45%;
+	color: white;
+	font-size: 24px;
+	text-shadow: 1px 1px 0px black, 1px 1px 0px black;
+	white-space: pre-line;
+}
+
+#game-ui.platinum #help-text {
+	text-shadow: 1px 1px 0px #777777;
+}
+
+#alert-text {
+	width: 100%;
+	text-align: center;
+	position: absolute;
+	bottom: 30px;
+	color: #ffe240;
+	font-size: 24px;
+	text-shadow: 1px 1px 0px black, 1px 1px 0px black;
+	white-space: pre-line;
+}
+
+#game-ui.platinum #alert-text {
+	color: rgb(228, 211, 129);
+	text-shadow: 1px 1px 0px rgb(119, 102, 34);
+}
+
+#clock {
+	font-size: 0;
+	display: inline-block;
+	position: relative;
+}
+
+#clock-background {
+	position: absolute;
+    margin: auto;
+    left: 0px;
+    right: 0;
+    top: -10px;
+    width: 220px;
+    height: 79px;
+    transform: translateX(3px);
+}
+
+#gem-count {
+	font-size: 0;
+	position: absolute;
+	top: 0;
+	left: 30px;
+}
+
+#gem-count > img {
+	margin-right: -19px;
+}
+
+#gem-count > img:last-child {
+	margin-right: 0px;
+}
+
+#center-text {
+	display: block;
+	margin: auto;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 30%;
+}
+
+#fps-meter {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+}
+
+#fps-meter-value {
+	position: absolute;
+	bottom: 3px;
+	right: -14px;
+	font-family: 'DomCasualRegular';
+	font-size: 20px;
+	width: 100px;
+	text-align: left;
+}
+
+#blast-meter {
+	position: absolute;
+	bottom: 34px;
+	left: 7px;
+}
+
+#blast-meter-body {
+	display: block;
+	position: absolute;
+}
+
+#blast-meter-fill {
+	display: block;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: 0px;
+    height: 17px;
+}

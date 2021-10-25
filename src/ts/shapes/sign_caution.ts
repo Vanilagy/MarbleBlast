@@ -10,10 +10,10 @@ export class SignCaution extends Shape {
 		super();
 
 		// Determine the type of the sign
-		let type = element.datablock.slice("SignCaution".length);
+		let type = element.datablock.slice("SignCaution".length).toLowerCase();
 		switch (type) {
-			case "Caution": this.matNamesOverride["base.cautionsign"] = "caution.cautionsign"; break;
-			case "Danger": this.matNamesOverride["base.cautionsign"] = "danger.cautionsign"; break;
+			case "caution": this.matNamesOverride["base.cautionsign"] = "caution.cautionsign"; break;
+			case "danger": this.matNamesOverride["base.cautionsign"] = "danger.cautionsign"; break;
 		}
 	}
 }

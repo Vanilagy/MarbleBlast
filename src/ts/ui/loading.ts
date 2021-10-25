@@ -1,96 +1,110 @@
-import { setupButton, menuDiv, stopMenuMusic } from "./ui";
-import { levelSelectDiv } from "./level_select";
 import { state } from "../state";
 import { Level } from "../level";
-import { gameUiDiv } from "./game";
 import { Util } from "../util";
 import { Replay } from "../replay";
 import { Mission } from "../mission";
+import { Menu } from "./menu";
 
-const loadingDiv = document.querySelector('#loading') as HTMLDivElement;
-const levelNameElement = document.querySelector('#loading-level-name') as HTMLParagraphElement;
-const cancelButton = document.querySelector('#loading-cancel') as HTMLImageElement;
-const progressBar = document.querySelector('#loading-progress') as HTMLDivElement;
-const maxProgressBarWidth = 252;
-/** Used to cancel loading if necessary. */
-let loadingIndex = 0;
-let refresher: number;
+export abstract class LoadingScreen {
+	menu: Menu;
+	div: HTMLDivElement;
+	levelNameElement: HTMLParagraphElement;
+	cancelButton: HTMLImageElement;
+	progressBar: HTMLDivElement;
+	loadingIndex = 0;
+	refresher: number;
+	abstract maxProgressBarWidth: number;
 
-setupButton(cancelButton, 'loading/cancel', () => {
-	// Cancel the loading progress and return to level select
-	loadingDiv.classList.add('hidden');
-	levelSelectDiv.classList.remove('hidden');
-	loadingIndex++;
-	clearInterval(refresher);
-});
+	constructor(menu: Menu) {
+		this.menu = menu;
+		this.initProperties();
 
-export const loadLevel = async (mission: Mission, getReplay?: () => Replay) => {
-	loadingDiv.classList.remove('hidden');
-	let indexAtStart = loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
-	
-	levelNameElement.textContent = mission.title;
-
-	progressBar.style.width = '0px';
-
-	// Give the UI a bit of time to breathe before we begin to load the level.
-	await Util.wait(50);
-
-	await mission.load();
-
-	if (loadingIndex !== indexAtStart) return;
-
-	refresher = setInterval(() => {
-		// Constantly refresh the loading bar's width
-		let completion = level.getLoadingCompletion();
-		progressBar.style.width = (completion * maxProgressBarWidth) + 'px';
-	}) as unknown as number;
-
-	let level = new Level(mission);
-	try {
-		await level.init();
-
-		if (getReplay) {
-			let replay = getReplay();
-			// Load the replay
-			level.replay = replay;
-			replay.level = level;
-			replay.mode = 'playback';
-		}
-
-		if (loadingIndex !== indexAtStart) {
-			level.dispose();
-			return;
-		}
-		clearInterval(refresher);
-
-		// Fake some second loading pass
-		let start = performance.now();
-		refresher = setInterval(() => {
-			let completion = Util.clamp((performance.now() - start) / 100, 0, 1);
-			progressBar.style.width = (completion * maxProgressBarWidth) + 'px';
+		menu.setupButton(this.cancelButton, 'loading/cancel', () => {
+			// Cancel the loading progress and return to level select
+			this.hide();
+			menu.levelSelect.show();
+			this.loadingIndex++;
+			clearInterval(this.refresher);
 		});
-
-		await Util.wait(150);
-
-		if (loadingIndex !== indexAtStart) {
-			level.dispose();
-			return;
-		}
-		clearInterval(refresher);
-
-		// Loading has finished, hop into gameplay.
-
-		stopMenuMusic();
-		state.currentLevel = level;
-		level.start();
-
-		loadingDiv.classList.add('hidden');
-		menuDiv.classList.add('hidden');
-		gameUiDiv.classList.remove('hidden');
-	} catch(e) {
-		console.error(e);
-		cancelButton.click();
-
-		setTimeout(() => alert("There was an error due to which the level couldn't be loaded."), 50);
 	}
-};
+
+	abstract initProperties(): void;
+
+	show() {
+		this.div.classList.remove('hidden');
+	}
+
+	hide() {
+		this.div.classList.add('hidden');
+	}
+
+	async loadLevel(mission: Mission, getReplay?: () => Replay) {
+		this.show();
+		let indexAtStart = this.loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
+		
+		this.levelNameElement.textContent = mission.title;
+		this.progressBar.style.width = '0px';
+
+		// Give the UI a bit of time to breathe before we begin to load the level.
+		await Util.wait(50);
+
+		await mission.load();
+
+		if (this.loadingIndex !== indexAtStart) return;
+
+		this.refresher = setInterval(() => {
+			// Constantly refresh the loading bar's width
+			let completion = level.getLoadingCompletion();
+			this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
+		}) as unknown as number;
+
+		let level = new Level(mission);
+		try {
+			state.level = level;
+			await level.init();
+
+			if (getReplay) {
+				let replay = getReplay();
+				// Load the replay
+				level.replay = replay;
+				replay.level = level;
+				replay.mode = 'playback';
+			}
+
+			if (this.loadingIndex !== indexAtStart) {
+				level.dispose();
+				return;
+			}
+			clearInterval(this.refresher);
+
+			// Fake some second loading pass
+			let start = performance.now();
+			this.refresher = setInterval(() => {
+				let completion = Util.clamp((performance.now() - start) / 100, 0, 1);
+				this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
+			});
+
+			await Util.wait(150);
+
+			if (this.loadingIndex !== indexAtStart) {
+				level.dispose();
+				return;
+			}
+			clearInterval(this.refresher);
+
+			// Loading has finished, hop into gameplay.
+
+			level.start();
+
+			this.hide();
+			this.menu.hide();
+			this.menu.showGameUi();
+		} catch(e) {
+			console.error(e);
+			this.cancelButton.click();
+			state.level = null;
+
+			setTimeout(() => alert("There was an error due to which the level couldn't be loaded."), 50);
+		}
+	}
+}

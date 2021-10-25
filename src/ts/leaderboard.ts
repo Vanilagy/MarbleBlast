@@ -1,6 +1,6 @@
 import { ResourceManager } from "./resources";
+import { state } from "./state";
 import { BestTimes, StorageManager } from "./storage";
-import { displayBestTimes, getCurrentLevelArray, getCurrentLevelIndex, getCycleMissionIndex, getNextShuffledMissions } from "./ui/level_select";
 import { Util } from "./util";
 import { executeOnWorker } from "./worker";
 
@@ -21,15 +21,15 @@ export abstract class Leaderboard {
 	/** Loads the scores of all missions in the vicinity of the current mission. */
 	static loadLocal() {
 		let missionPaths = new Set<string>();
-		let currentLevelArray = getCurrentLevelArray();
+		let currentLevelArray = state.menu.levelSelect.currentMissionArray;
 
 		for (let i = -5; i <= 5; i++) {
-			let index = getCycleMissionIndex(i);
+			let index = state.menu.levelSelect.getCycleMissionIndex(i);
 			let mission = currentLevelArray[index];
 			if (mission) missionPaths.add(mission.path);
 		}
 
-		for (let mission of getNextShuffledMissions()) missionPaths.add(mission.path);
+		for (let mission of state.menu.levelSelect.getNextShuffledMissions()) missionPaths.add(mission.path);
 
 		this.loadForMissions([...missionPaths]);
 	}
@@ -84,7 +84,7 @@ export abstract class Leaderboard {
 			payloadBestTimes[missionPath] = [score[0], score[1]];
 
 			let onlineScore = this.scores.get(missionPath)?.[0];
-			if ((!onlineScore || (score[1] < onlineScore[1])) && !missionPath.startsWith('custom')) {
+			if ((!onlineScore || (score[1] < onlineScore[1])) && !missionPath.includes('custom/')) {
 				// This score is better than the top online score, therefore assume this is a new world record and prepare the replay for upload.
 				let replayData = await StorageManager.databaseGet('replays', score[2]) as ArrayBuffer;
 				if (!replayData) continue;
@@ -145,7 +145,7 @@ export abstract class Leaderboard {
 		}
 		if (localScoreRemoved) StorageManager.storeBestTimes();
 
-		let currentMission = getCurrentLevelArray()?.[getCurrentLevelIndex()];
-		if (changedMissions.includes(currentMission?.path)) displayBestTimes(); // Redraw the leaderboard
+		let currentMission = state.menu.levelSelect.currentMission;
+		if (changedMissions.includes(currentMission?.path)) state.menu.levelSelect.displayBestTimes(); // Redraw the leaderboard
 	}
 }

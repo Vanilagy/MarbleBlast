@@ -1,0 +1,305 @@
+#mbp-options {
+	position: absolute;
+	margin: auto;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	width: 784px;
+	height: 573px;
+}
+
+#mbp-options-home {
+	position: absolute;
+	display: block;
+	top: 482px;
+	left: 290px;
+}
+
+#mbp-options-apply {
+	position: absolute;
+    display: block;
+    top: 482px;
+    left: 396px;
+}
+
+#mbp-options-general {
+	position: absolute;
+	display: block;
+	top: 20px;
+	left: 100px;
+}
+
+#mbp-options-hotkeys {
+	position: absolute;
+	display: block;
+	top: 20px;
+	left: 326px;
+}
+
+#mbp-options-online {
+	position: absolute;
+	display: block;
+	top: 20px;
+	left: 546px;
+}
+
+#mbp-options ._container {
+	position: absolute;
+	top: 90px;
+	left: 29px;
+	max-height: 392px;
+	width: 724px;
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.mbp-options-element {
+	width: calc(724px / 2);
+	height: 56px;
+	position: relative;
+}
+
+.mbp-options-element > p:first-child {
+	color: white;
+	font-family: MarkerFelt;
+	text-shadow: 1px 1px 0px black;
+	font-size: 26px;
+	margin: 0;
+	position: absolute;
+	top: 10px;
+	left: 0;
+	padding-left: 5px;
+}
+
+.mbp-options-element._dropdown > img:first-of-type {
+	position: absolute;
+	display: block;
+	top: 0;
+	right: 0;
+}
+
+.mbp-options-element._dropdown > p:last-of-type {
+	position: absolute;
+	display: block;
+	top: 0;
+	right: -13px;
+	font-family: MarkerFelt;
+	text-align: center;
+	width: 200px;
+	pointer-events: none;
+}
+
+.mbp-options-element._dropdown > img:nth-of-type(2) {
+	position: absolute;
+	display: block;
+	top: 48px;
+	right: 0;
+	z-index: 2;
+}
+
+.mbp-options-element._dropdown > div:nth-of-type(1) {
+	position: absolute;
+	display: block;
+	top: -5000px;
+	left: -5000px;
+	width: 10000px;
+	height: 10000px;
+	z-index: 1;
+}
+
+.mbp-options-element._dropdown > div:nth-of-type(2) {
+	position: absolute;
+    top: 64px;
+    right: 14px;
+    width: 139px;
+	max-height: 145px;
+	overflow: auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+	z-index: 2;
+}
+
+.mbp-options-element._dropdown > div:nth-of-type(2) > div {
+	font-family: MarkerFelt;
+	font-size: 17px;
+	padding-left: 6px;
+}
+
+.mbp-options-element._dropdown > div:nth-of-type(2) > div:hover {
+	color: rgb(20, 66, 104);
+}
+
+.mbp-options-element._dropdown > div:nth-of-type(2)::-webkit-scrollbar {
+	width: 5px;
+}
+
+.mbp-options-element._dropdown > div:nth-of-type(2)::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+.mbp-options-element._dropdown > div:nth-of-type(2)::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+.mbp-options-element._slider > img:nth-of-type(1) {
+	position: absolute;
+	display: block;
+	top: 10px;
+	right: 5px;
+	padding: 10px 0px;
+}
+
+.mbp-options-element._slider > img:nth-of-type(2) {
+	position: absolute;
+	display: block;
+	top: 29px;
+	left: 217px;
+	transform: translate(-20px, -20px);
+	pointer-events: none;
+}
+
+.mbp-options-element._slider > p:last-child {
+	color: white;
+	font-family: MarkerFelt;
+	text-shadow: 1px 1px 0px black;
+	font-size: 26px;
+	margin: 0;
+	position: absolute;
+	top: 10px;
+	right: 166px;
+	padding-left: 5px;
+}
+
+.mbp-options-element._hotkey > img:first-of-type {
+	position: absolute;
+	display: block;
+	top: 5px;
+	right: 0;
+}
+
+.mbp-options-element._hotkey > p:last-of-type {
+	position: absolute;
+	display: block;
+	top: 3px;
+	right: -11px;
+	font-family: MarkerFelt;
+	text-align: center;
+	width: 176px;
+	pointer-events: none;
+}
+
+.mbp-options-element._button > img:first-of-type {
+	position: absolute;
+	display: block;
+	top: 5px;
+	right: 0;
+}
+
+.mbp-options-element._button > p:last-of-type {
+	position: absolute;
+	display: block;
+	top: 3px;
+	right: -11px;
+	font-family: MarkerFelt;
+	text-align: center;
+	width: 176px;
+	pointer-events: none;
+}
+
+#mbp-reset-marble-texture-button {
+	position: absolute;
+	top: 14px;
+	right: 153px;
+}
+
+#mbp-reset-marble-texture-button:hover {
+	filter: brightness(1.2);
+}
+
+#mbp-reset-marble-texture-button:active {
+	filter: brightness(0.9);
+}
+
+#mbp-rebind-dialog {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 125%;
+	z-index: 1;
+}
+
+#mbp-rebind-dialog > img {
+	display: block;
+	position: absolute;
+	top: 177px;
+	left: 216px;
+	height: 221px;
+	width: 346px;
+}
+
+#mbp-rebind-dialog > p {
+	display: block;
+	position: absolute;
+	top: 245px;
+	left: 238px;
+	width: 300px;
+	text-align: center;
+	font-family: DomCasualRegular;
+	font-size: 20px;
+}
+
+#mbp-rebind-confirm {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 125%;
+	z-index: 1;
+}
+
+#mbp-rebind-confirm > img:first-child {
+	display: block;
+	position: absolute;
+	top: 169px;
+	left: 261px;
+	height: 230px;
+	width: 267px;
+}
+
+#mbp-rebind-confirm > h6 {
+	display: block;
+	position: absolute;
+	top: 137px;
+	left: 253px;
+	width: 279px;
+	text-align: center;
+	font-family: 'Arial', sans-serif;
+	font-size: 22px;
+}
+
+#mbp-rebind-confirm > p {
+	display: block;
+	position: absolute;
+	top: 218px;
+	left: 266px;
+	width: 257px;
+	text-align: center;
+	font-family: 'Arial', sans-serif;
+	font-size: 12px;
+}
+
+#mbp-rebind-confirm-yes {
+	display: block;
+	position: absolute;
+	top: 333px;
+	left: 303px;
+}
+
+#mbp-rebind-confirm-no {
+	display: block;
+	position: absolute;
+	top: 332px;
+	left: 400px;
+}

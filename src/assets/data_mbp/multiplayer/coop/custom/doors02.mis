@@ -1,0 +1,470 @@
+//--- OBJECT WRITE BEGIN ---
+new SimGroup(MissionGroup) {
+
+   new ScriptObject(MissionInfo) {
+         UltimateTime = "8000";
+         name = "Overhead Crossing";
+         artist = "Andrew Sears";
+         desc = "This puzzle may seem hard, but it will be easy compared to other levels in the series.";
+         goldTime = "20000";
+         type = "Custom";
+         level = "2";
+   };
+   new MissionArea(MissionArea) {
+      area = "-360 -648 720 1296";
+      flightCeiling = "300";
+      flightCeilingRange = "20";
+         locked = "true";
+   };
+   new Sky(Sky) {
+      position = "336 136 0";
+      rotation = "1 0 0 0";
+      scale = "1 1 1";
+      cloudHeightPer[0] = "0";
+      cloudHeightPer[1] = "0";
+      cloudHeightPer[2] = "0";
+      cloudSpeed1 = "0.0001";
+      cloudSpeed2 = "0.0002";
+      cloudSpeed3 = "0.0003";
+      visibleDistance = "1000";
+      useSkyTextures = "1";
+      renderBottomTexture = "1";
+      SkySolidColor = "0.600000 0.600000 0.600000 1.000000";
+      fogDistance = "300";
+      fogColor = "0.600000 0.600000 0.600000 1.000000";
+      fogVolume1 = "-1 -1.73483e+09 -1.73483e+09";
+      fogVolume2 = "-1 -1.73483e+09 -1.73483e+09";
+      fogVolume3 = "-1 -1.73483e+09 -1.73483e+09";
+      materialList = "~/data/skies/Bonus/Bonus_Sky.dml";
+      windVelocity = "1 0 0";
+      windEffectPrecipitation = "0";
+      noRenderBans = "1";
+      fogVolumeColor1 = "128.000000 128.000000 128.000000 -1734829824.000000";
+      fogVolumeColor2 = "128.000000 128.000000 128.000000 -1734829824.000000";
+      fogVolumeColor3 = "128.000000 128.000000 128.000000 -1734829824.000000";
+   };
+   new Sun() {
+      direction = "0.280868 0.579493 -0.76505";
+      color = "1.400000 1.200000 0.400000 1.000000";
+      ambient = "0.400000 0.400000 0.400000 1.000000";
+   };
+   new ScriptObject() {
+         Pad = "2650";
+         PowerUp = "0";
+         time = "0";
+         gemCount = "0";
+         bonusTime = "0";
+         penaltyTime = "0";
+   };
+   new InteriorInstance() {
+      position = "79.2045 -276.062 43.1253";
+      rotation = "1 0 0 0";
+      scale = "1 1 1";
+      interiorFile = "~/data/interiors/Doors02.dif";
+      showTerrainInside = "0";
+   };
+   new StaticShape(StartPoint) {
+      position = "95.233 -266.054 46.1";
+      rotation = "0 0 -1 90";
+      scale = "1 1 1";
+      dataBlock = "StartPad";
+   };
+   new StaticShape(EndPoint) {
+      position = "53.2308 -260.079 43.38";
+      rotation = "0 0 -1 90";
+      scale = "1 1 1";
+      dataBlock = "EndPad";
+   };
+   new SimGroup(MustChange_g) {
+
+      new Path() {
+
+         new Marker() {
+            position = "52.2009 -272.913 40.044";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "0";
+            msToNext = "500";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "50.805 -272.913 40.044";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "1";
+            msToNext = "1";
+            smoothingType = "Linear";
+         };
+      };
+      new Trigger(MustChange) {
+         position = "58.0311 -264.906 45.05";
+         rotation = "1 0 0 0";
+         scale = "0.1 0.07 0.1";
+         dataBlock = "TriggerGotoTarget";
+         polyhedron = "-2.0000000 8.0000000 5.3750000 0.0000000 -16.0000000 0.0000000 0.0000000 0.0000000 -10.7500000 4.0000000 0.0000000 0.0000000";
+            targetTime = "60000";
+      };
+      new PathedInterior(MustChange) {
+         position = "52.2009 -272.913 40.044";
+         rotation = "1 0 0 0";
+         scale = "1 1 1";
+         dataBlock = "PathedDefault";
+         interiorResource = $usermods @ "/data/interiors/Turning_Point.dif";
+         interiorIndex = "1";
+         basePosition = "52.2009 -272.913 40.044";
+         baseRotation = "1 0 0 0";
+         baseScale = "1 1 1";
+            initialTargetPosition = "0";
+      };
+   };
+   new SimGroup(MustChange_g) {
+
+      new Path() {
+
+         new Marker() {
+            position = "63.8009 -285.513 46.044";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "0";
+            msToNext = "500";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "63.8009 -287.313 46.044";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "1";
+            msToNext = "1";
+            smoothingType = "Linear";
+         };
+      };
+      new Trigger(MustChange) {
+         position = "69.2311 -277.106 51.05";
+         rotation = "0 0 1 90";
+         scale = "0.1 0.07 0.1";
+         dataBlock = "TriggerGotoTarget";
+         polyhedron = "-2.0000000 8.0000000 5.3750000 0.0000000 -16.0000000 0.0000000 0.0000000 0.0000000 -10.7500000 4.0000000 0.0000000 0.0000000";
+            targetTime = "60000";
+      };
+      new PathedInterior(MustChange) {
+         position = "63.8009 -285.513 46.044";
+         rotation = "1 0 0 0";
+         scale = "1 1 1";
+         dataBlock = "PathedDefault";
+         interiorResource = $usermods @ "/data/interiors/Turning_Point.dif";
+         interiorIndex = "1";
+         basePosition = "63.8009 -285.513 46.044";
+         baseRotation = "1 0 0 0";
+         baseScale = "1 1 1";
+            initialTargetPosition = "0";
+      };
+   };
+   new SimGroup(MustChange_g) {
+
+      new Path() {
+
+         new Marker() {
+            position = "59.0009 -254.513 46.044";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "0";
+            msToNext = "500";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "59.0009 -252.313 46.044";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "1";
+            msToNext = "1";
+            smoothingType = "Linear";
+         };
+      };
+      new Trigger(MustChange) {
+         position = "64.4341 -246.886 51.05";
+         rotation = "0 0 1 90";
+         scale = "0.1 0.07 0.1";
+         dataBlock = "TriggerGotoTarget";
+         polyhedron = "-2.0000000 8.0000000 5.3750000 0.0000000 -16.0000000 0.0000000 0.0000000 0.0000000 -10.7500000 4.0000000 0.0000000 0.0000000";
+            targetTime = "60000";
+      };
+      new PathedInterior(MustChange) {
+         position = "59.0009 -254.513 46.044";
+         rotation = "1 0 0 0";
+         scale = "1 1 1";
+         dataBlock = "PathedDefault";
+         interiorResource = $usermods @ "/data/interiors/Turning_Point.dif";
+         interiorIndex = "1";
+         basePosition = "59.0009 -254.513 46.044";
+         baseRotation = "1 0 0 0";
+         baseScale = "1 1 1";
+            initialTargetPosition = "0";
+      };
+   };
+   new SimGroup(MustChange_g) {
+
+      new Path() {
+
+         new Marker() {
+            position = "70.2009 -290.513 40.044";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "0";
+            msToNext = "500";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "68.805 -290.513 40.044";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "1";
+            msToNext = "1";
+            smoothingType = "Linear";
+         };
+      };
+      new Trigger(MustChange) {
+         position = "76.0311 -282.506 45.05";
+         rotation = "1 0 0 0";
+         scale = "0.1 0.07 0.1";
+         dataBlock = "TriggerGotoTarget";
+         polyhedron = "-2.0000000 8.0000000 5.3750000 0.0000000 -16.0000000 0.0000000 0.0000000 0.0000000 -10.7500000 4.0000000 0.0000000 0.0000000";
+            targetTime = "60000";
+      };
+      new PathedInterior(MustChange) {
+         position = "70.2009 -290.513 40.044";
+         rotation = "1 0 0 0";
+         scale = "1 1 1";
+         dataBlock = "PathedDefault";
+         interiorResource = $usermods @ "/data/interiors/Turning_Point.dif";
+         interiorIndex = "1";
+         basePosition = "70.2009 -290.513 40.044";
+         baseRotation = "1 0 0 0";
+         baseScale = "1 1 1";
+            initialTargetPosition = "0";
+      };
+   };
+   new SimGroup(MustChange_g) {
+
+      new Path() {
+
+         new Marker() {
+            position = "88.15 -278.6 42.8";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "0";
+            msToNext = "1000";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "88.15 -278.6 49.8";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "1";
+            msToNext = "1";
+            smoothingType = "Linear";
+         };
+      };
+      new Trigger(MustChange) {
+         position = "69.3094 -277.079 51.1";
+         rotation = "0 0 1 90";
+         scale = "0.3 0.25 0.3";
+         dataBlock = "TriggerGotoTarget";
+         polyhedron = "-0.5000000 -2.0000000 2.0000000 0.0000000 4.0000000 0.0000000 1.0000000 0.0000000 0.0000000 0.0000000 0.0000000 -4.0000000";
+            targetTime = "99999";
+      };
+      new PathedInterior(MustChange) {
+         position = "49.1968 -266.059 43.125";
+         rotation = "0 0 1 90";
+         scale = "1 1 1";
+         dataBlock = "PathedDefault";
+         interiorResource = $usermods @ "/data/interiors/WoodDoor.dif";
+         interiorIndex = "0";
+         basePosition = "49.1968 -266.059 43.125";
+         baseRotation = "0 0 1 90";
+         baseScale = "1 1 1";
+            initialTargetPosition = "0";
+      };
+   };
+   new SimGroup(MustChange_g) {
+
+      new Path() {
+
+         new Marker() {
+            position = "88.15 -278.6 42.8";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "0";
+            msToNext = "1000";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "88.15 -278.6 49.8";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "1";
+            msToNext = "1";
+            smoothingType = "Linear";
+         };
+      };
+      new Trigger(MustChange) {
+         position = "58.0741 -264.892 45.1";
+         rotation = "1 0 0 0";
+         scale = "0.3 0.25 0.3";
+         dataBlock = "TriggerGotoTarget";
+         polyhedron = "-0.5000000 -2.0000000 2.0000000 0.0000000 4.0000000 0.0000000 1.0000000 0.0000000 0.0000000 0.0000000 0.0000000 -4.0000000";
+            targetTime = "99999";
+      };
+      new PathedInterior(MustChange) {
+         position = "86.2029 -282.944 42.62";
+         rotation = "0 0 1 90";
+         scale = "0.5 1 1";
+         dataBlock = "PathedDefault";
+         interiorResource = $usermods @ "/data/interiors/Doors02_MPs.dif";
+         interiorIndex = "0";
+         basePosition = "86.2029 -282.944 42.62";
+         baseRotation = "0 0 1 90";
+         baseScale = "0.5 1 1";
+            initialTargetPosition = "0";
+      };
+   };
+   new SimGroup(MustChange_g) {
+
+      new Path() {
+
+         new Marker() {
+            position = "79.4 -259.8 43.2";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "0";
+            msToNext = "500";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "79.4 -252.4 43.2";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "1";
+            msToNext = "1";
+            smoothingType = "Linear";
+         };
+      };
+      new Trigger(MustChange) {
+         position = "76.2017 -282.482 45.125";
+         rotation = "1 0 0 0";
+         scale = "0.05 0.3 2.5";
+         dataBlock = "TriggerGotoTarget";
+         polyhedron = "-2.0000000 -2.0000000 0.2500000 0.0000000 4.0000000 0.0000000 4.0000000 0.0000000 0.0000000 0.0000000 0.0000000 -0.5000000";
+            targetTime = "99999";
+      };
+      new PathedInterior(MustChange) {
+         position = "73.2051 -254.061 41.375";
+         rotation = "1 0 0 0";
+         scale = "1 1 1";
+         dataBlock = "PathedDefault";
+         interiorResource = $usermods @ "/data/interiors/Doors02_MPs.dif";
+         interiorIndex = "1";
+         basePosition = "73.2051 -254.061 41.375";
+         baseRotation = "1 0 0 0";
+         baseScale = "1 1 1";
+            initialTargetPosition = "0";
+      };
+   };
+   new SimGroup(MustChange_g) {
+
+      new Path() {
+
+         new Marker() {
+            position = "71.95 -246.8 47.8";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "0";
+            msToNext = "2000";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "71.95 -271.2 47.8";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "1";
+            msToNext = "1";
+            smoothingType = "Linear";
+         };
+      };
+      new Trigger(MustChange) {
+         position = "64.4884 -246.889 51.05";
+         rotation = "1 0 0 0";
+         scale = "0.08 0.1 2.5";
+         dataBlock = "TriggerGotoTarget";
+         polyhedron = "-7.0000000 -2.0000000 0.2500000 0.0000000 4.0000000 0.0000000 14.0000000 0.0000000 0.0000000 0.0000000 0.0000000 -0.5000000";
+            targetTime = "99999";
+      };
+      new PathedInterior(MustChange) {
+         position = "65.2 -225.4 47.375";
+         rotation = "0 0 1 90";
+         scale = "1 1 1";
+         dataBlock = "PathedDefault";
+         interiorResource = $usermods @ "/data/interiors/Doors02_MPs.dif";
+         interiorIndex = "2";
+         basePosition = "65.2 -225.4 47.375";
+         baseRotation = "0 0 1 90";
+         baseScale = "1 1 1";
+            initialTargetPosition = "0";
+      };
+   };
+   new SimGroup(MustChange_g) {
+
+      new Path() {
+
+         new Marker() {
+            position = "64.2251 -248.061 49.975";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "0";
+            msToNext = "1500";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "69.8618 -248.061 49.975";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "1";
+            msToNext = "1000";
+            smoothingType = "Linear";
+         };
+         new Marker() {
+            position = "69.8618 -248.061 43.9757";
+            rotation = "1 0 0 0";
+            scale = "1 1 1";
+            seqNum = "2";
+            msToNext = "1";
+            smoothingType = "Linear";
+         };
+      };
+      new Trigger(MustChange) {
+         position = "62.4 -248.02 51.37";
+         rotation = "0 0 1 90";
+         scale = "0.29 0.1 8";
+         dataBlock = "TriggerGotoTarget";
+         polyhedron = "-7.0000000 -2.0000000 0.2500000 0.0000000 4.0000000 0.0000000 14.0000000 0.0000000 0.0000000 0.0000000 0.0000000 -0.5000000";
+            targetTime = "99999";
+      };
+      new PathedInterior(MustChange) {
+         position = "42.2456 -280.064 31.38";
+         rotation = "1 0 0 0";
+         scale = "4 4 4";
+         dataBlock = "PathedDefault";
+         interiorResource = $usermods @ "/data/interiors/Turning_Point.dif";
+         interiorIndex = "1";
+         basePosition = "42.2456 -280.064 31.38";
+         baseRotation = "1 0 0 0";
+         baseScale = "4 4 4";
+            initialTargetPosition = "0";
+      };
+   };
+   new AudioProfile(MusicProfile) {
+      fileName = "~/data/sound/Pianoforte.ogg";
+      description = "AudioMusic";
+      preload = "0";
+   };
+};
+//--- OBJECT WRITE END ---

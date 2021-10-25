@@ -1,0 +1,46 @@
+#mbp-loading {
+	display: block;
+	margin: auto;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 441px;
+	height: 320px;
+	z-index: 0;
+}
+
+#mbp-loading-overlay {
+	display: block;
+	position: absolute;
+	top: 138px;
+	left: 178px;
+}
+
+#mbp-loading-cancel {
+	display: block;
+	position: absolute;
+	top: 238px;
+	left: 307px;
+}
+
+#mbp-loading-level-name {
+	position: absolute;
+	top: 10px;
+	left: 0px;
+	text-align: center;
+	width: 100%;
+	font-family: 'DomCasualRegular';
+	font-size: 24px;
+}
+
+#mbp-loading-progress {
+	height: 67px;
+	position: absolute;
+	width: 0px;
+	background: #258e9e7a;
+	left: 187px;
+	top: 140px;
+	z-index: -1;
+}

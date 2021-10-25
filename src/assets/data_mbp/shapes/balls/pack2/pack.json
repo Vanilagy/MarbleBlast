@@ -1,0 +1,15 @@
+{
+	"name": "Material Effects",
+	"marbles": [
+		{"name": "Clear Glass 1",      "shape": "pack2marble.dts", "skin": "glass", "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/glass1.glsl"},
+		{"name": "Clear Glass 2",      "shape": "pack2marble.dts", "skin": "glass", "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/glass2.glsl"},
+		{"name": "Wavy Glass",         "shape": "pack2marble.dts", "skin": "glass", "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/glass3.glsl"},
+		{"name": "Blurred Glass",      "shape": "pack2marble.dts", "skin": "glass", "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/glass4.glsl"},
+		{"name": "Polished Metal",     "shape": "pack2marble.dts", "skin": "metal", "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/metal1.glsl"},
+		{"name": "Wavy Metal",         "shape": "pack2marble.dts", "skin": "metal", "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/metal2.glsl"},
+		{"name": "Blurred Metal",      "shape": "pack2marble.dts", "skin": "metal", "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/metal3.glsl"},
+		{"name": "Glow in the Dark 1", "shape": "pack2marble.dts", "skin": "glow",  "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/glow1.glsl"},
+		{"name": "Glow in the Dark 2", "shape": "pack2marble.dts", "skin": "glow",  "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/glow2.glsl"},
+		{"name": "Chameleon",          "shape": "pack2marble.dts", "skin": "glass", "normalize": true, "shaderV": "platinum/data/shaders/sphereV.glsl", "shaderF": "platinum/data/shapes/balls/pack2/chameleon1.glsl"}
+	]
+}
