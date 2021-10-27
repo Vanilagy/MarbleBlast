@@ -1,19 +1,61 @@
 {
 	"name": "Marble Blast Web",
 	"short_name": "Marble Blast",
-	"icons": [
-		{
-			"src": "/assets/img/mbp.png",
-			"type": "image/png",
-			"sizes": "150x150"
-		}
-	],
+	"description": "A web port of Marble Blast Gold and Marble Blast Platinum: In this 3D platformer classic, race your marble to the finish as fast as possible in more than 4200 diverse levels taken from Marble Blast Gold, Platinum and Ultra. Play Marble Blast online right in your browser or on your mobile device.",
+	"dir": "ltr",
 	"start_url": "/index.html?app=true",
 	"scope": "/",
 	"display": "fullscreen",
 	"orientation": "landscape",
 	"background_color": "black",
+	"theme_color": "black",
 	"categories": ["games"],
 	"lang": "en-US",
-	"theme_color": "black"
+	"icons": [
+		{
+			"src": "/assets/img/app-icon/512x512.png",
+			"type": "image/png",
+			"sizes": "512x512"
+		},
+		{
+			"src": "/assets/img/app-icon/256x256.png",
+			"type": "image/png",
+			"sizes": "256x256"
+		},
+		{
+			"src": "/assets/img/app-icon/192x192.png",
+			"type": "image/png",
+			"sizes": "192x192"
+		},
+		{
+			"src": "/assets/img/app-icon/144x144.png",
+			"type": "image/png",
+			"sizes": "144x144"
+		},
+		{
+			"src": "/assets/img/app-icon/128x128.png",
+			"type": "image/png",
+			"sizes": "128x128"
+		},
+		{
+			"src": "/assets/img/app-icon/96x96.png",
+			"type": "image/png",
+			"sizes": "96x96"
+		},
+		{
+			"src": "/assets/img/app-icon/64x64.png",
+			"type": "image/png",
+			"sizes": "64x64"
+		},
+		{
+			"src": "/assets/img/app-icon/48x48.png",
+			"type": "image/png",
+			"sizes": "48x48"
+		},
+		{
+			"src": "/assets/img/app-icon/32x32.png",
+			"type": "image/png",
+			"sizes": "32x32"
+		}
+	]
 }
