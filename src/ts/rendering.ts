@@ -35,7 +35,7 @@ export const resize = async (wait = true) => {
 };
 window.addEventListener('resize', resize as any);
 
-export const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: false, logarithmicDepthBuffer: true }); // Just so much better with logarithmic
+export const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: false, logarithmicDepthBuffer: !Util.isIOS() }); // Just so much better with logarithmic. Doesn't seem to work on iOS so disable it there
 renderer.shadowMap.enabled = true;
 
 /** Main camera. */

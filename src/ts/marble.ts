@@ -217,7 +217,6 @@ export class Marble {
 		this.marbleTexture = marbleTexture;
 
 		let has2To1Texture = marbleTexture.image.width === marbleTexture.image.height * 2;
-		let isReflective = StorageManager.data.settings.marbleReflectivity === 2 || (StorageManager.data.settings.marbleReflectivity === 0 && this.level.mission.modification === 'ultra');
 
 		// Create the 3D object
 		if (has2To1Texture || (this.level.mission.modification === 'ultra' && !customTextureBlob)) {
@@ -226,7 +225,7 @@ export class Marble {
 			ballShape.dtsPath = 'shapes/balls/pack1/pack1marble.dts';
 			ballShape.castShadow = true;
 			ballShape.normalizeVertexNormals = true; // We do this so that the marble doesn't get darker the larger it gets
-			if (isReflective) ballShape.onBeforeMaterialCompile = applyReflectiveMarbleShader;
+			if (this.isReflective()) ballShape.onBeforeMaterialCompile = applyReflectiveMarbleShader;
 			if (customTextureBlob) ballShape.matNamesOverride['base.marble'] = marbleTexture;
 			await ballShape.init(this.level);
 			this.innerGroup.add(ballShape.group);
@@ -243,9 +242,9 @@ export class Marble {
 
 		sphere.material.onBeforeCompile = shader => {
 			shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader; // Same thing as with ballShape
-			if (isReflective) applyReflectiveMarbleShader(shader);
+			if (this.isReflective()) applyReflectiveMarbleShader(shader);
 		};
-		sphere.material.customProgramCacheKey = () => sphere.material.onBeforeCompile.toString() + (isReflective? applyReflectiveMarbleShader.toString() : null);
+		sphere.material.customProgramCacheKey = () => sphere.material.onBeforeCompile.toString() + (this.isReflective()? applyReflectiveMarbleShader.toString() : null);
 
 		// Create the collision geometry
 		let shapeConfig = new OIMO.ShapeConfig();
@@ -304,6 +303,12 @@ export class Marble {
 		this.slidingSound.setLoop(true);
 
 		await Promise.all([this.rollingSound.promise, this.slidingSound.promise, this.rollingMegaMarbleSound?.promise]);
+	}
+
+	/** Returns true iff the marble should use special reflective shaders. */
+	isReflective() {
+		return (StorageManager.data.settings.marbleReflectivity === 2 || (StorageManager.data.settings.marbleReflectivity === 0 && this.level.mission.modification === 'ultra')) && !Util.isIOS();
+		// On some iOS devices, the reflective marble is invisible. That implies a shader compilation error but I sadly cannot check the console on there so we're just disabling them for all iOS devices.
 	}
 
 	tick(time: TimeState) {
@@ -737,8 +742,7 @@ export class Marble {
 	}
 
 	renderReflection() {
-		let isReflective = StorageManager.data.settings.marbleReflectivity === 2 || (StorageManager.data.settings.marbleReflectivity === 0 && this.level.mission.modification === 'ultra');
-		if (!isReflective) return;
+		if (!this.isReflective()) return;
 		
 		marbleReflectionCamera.position.copy(camera.position);
 		marbleReflectionCamera.quaternion.copy(camera.quaternion);

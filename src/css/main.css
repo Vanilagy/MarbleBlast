@@ -31,7 +31,22 @@
 
 * {
 	user-select: none;
+	-webkit-touch-callout: none; /* iOS Safari */
+	-webkit-user-select: none; /* Safari */
+	-khtml-user-select: none; /* Konqueror HTML */
+	-moz-user-select: none; /* Old versions of Firefox */
+	-ms-user-select: none; /* Internet Explorer/Edge */
 	-webkit-user-drag: none;
+}
+
+/** Necessary to not fuck up the iOS Safari keyboard: */
+input, input:before, input:after {
+	-webkit-touch-callout: initial;
+	-webkit-user-select: initial;
+	-khtml-user-select: initial;
+	-moz-user-select: initial;
+	-ms-user-select: initial;
+	user-select: initial;
 }
 
 .hidden {

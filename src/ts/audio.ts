@@ -306,8 +306,8 @@ export class AudioSource {
 				this.stop(); // Call .stop for clean-up purposes
 			};
 		} else {
-			this.audioElement.play();
-			this.audioElement.addEventListener('ended', () => this.stop());
+			this.audioElement?.play();
+			this.audioElement?.addEventListener('ended', () => this.stop());
 		}
 
 		this.playing = true;

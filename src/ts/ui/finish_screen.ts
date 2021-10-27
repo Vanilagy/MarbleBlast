@@ -38,7 +38,7 @@ export abstract class FinishScreen {
 			// Restart the level
 			this.div.classList.add('hidden');
 			state.level.restart(true);
-			if (!Util.isTouchDevice) document.documentElement.requestPointerLock();
+			if (!Util.isTouchDevice) document.documentElement.requestPointerLock?.();
 		});
 		menu.setupButton(this.continueButton, 'endgame/continue', () => state.level.stopAndExit());
 

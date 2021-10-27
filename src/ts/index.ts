@@ -69,7 +69,7 @@ const init = async () => {
 	
 	loadingMessage.style.display = 'none';
 	loadingDetail.style.display = 'none';
-	if (AudioManager.context.state === "running") {
+	if (AudioManager.context.state === "running" && !Util.isSafari()) {
 		// Start the game automatically if we already have audio autoplay permission.
 		start();
 		return;
@@ -77,7 +77,7 @@ const init = async () => {
 
 	// Otherwise, we need user interaction to start audio.
 	
-	if (Util.isInFullscreen()) {
+	if (Util.isInFullscreen() || Util.isTouchDevice) {
 		// No need to tell them to enter fullscreen if they're already in it
 		startGameDialog.children[0].textContent = 'Click anywhere to start';
 		startGameDialog.children[1].textContent = '';
@@ -86,7 +86,7 @@ const init = async () => {
 	}
 	startGameDialog.style.display = 'block';
 	
-	window.addEventListener('mousedown', () => {
+	window.addEventListener('pointerdown', () => {
 		if (started) return;
 		start();
 	});

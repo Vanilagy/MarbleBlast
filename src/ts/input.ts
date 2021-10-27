@@ -27,7 +27,7 @@ window.addEventListener('touchmove', (e) => {
 window.addEventListener('mousedown', (e) => {
 	if (!StorageManager.data) return;
 	// Request pointer lock if we're currently in-game
-	if (state.level && !state.level.paused && !state.level.finishTime && !Util.isTouchDevice) document.documentElement.requestPointerLock();
+	if (state.level && !state.level.paused && !state.level.finishTime && !Util.isTouchDevice) document.documentElement.requestPointerLock?.();
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName && document.pointerLockElement) {
@@ -279,7 +279,7 @@ let movementAreaTouchIdentifier: number = null;
 let cameraAreaTouchIdentifier: number = null;
 let lastCameraTouch: Touch = null;
 
-let touchendFuncs: ((touch: Touch) => void)[] = [];
+let touchendFuncs: ((touch: Touch, force: boolean) => void)[] = [];
 const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameButtons, onStart?: (touch: Touch) => void) => {
 	let touchId: number = null;
 
@@ -291,8 +291,8 @@ const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameBu
 		onStart?.(touch);
 	});
 
-	touchendFuncs.push(touch => {
-		if (touch.identifier === touchId) {
+	touchendFuncs.push((touch, force) => {
+		if (force || touch.identifier === touchId) {
 			touchId = null;
 			element.style.opacity = '';
 			setPressed(button, 'touch', false);
@@ -386,7 +386,18 @@ window.addEventListener('touchend', (e) => {
 			cameraAreaTouchIdentifier = null;
 		}
 	
-		for (let func of touchendFuncs) func(touch);
+		for (let func of touchendFuncs) func(touch, false);
+	}
+
+	if (e.touches.length === 0) {
+		// Just to be sure, end all the things. To prevent stuff from being stuck on screen forever
+		movementAreaTouchIdentifier = null;
+		movementJoystick.style.visibility = 'hidden';
+		normalizedJoystickHandlePosition = null;
+
+		cameraAreaTouchIdentifier = null;
+
+		for (let func of touchendFuncs) func(null, true);
 	}
 });
 

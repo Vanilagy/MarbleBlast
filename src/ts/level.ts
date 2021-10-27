@@ -806,6 +806,8 @@ export class Level extends Scheduler {
 		let time = performance.now();
 		this.tick(time);
 
+		if (this.stopped) return; // Check it again here 'cuz the tick might've changed it
+
 		let physicsTickLength = 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
 		let completion = Util.clamp((time - this.lastPhysicsTick) / physicsTickLength, 0, 1);
 		// Set up an intermediate time state for smoother rendering
@@ -1524,7 +1526,7 @@ export class Level extends Scheduler {
 			// Schedule the finish screen to be shown
 			if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => {
 				// Show the finish screen
-				document.exitPointerLock();
+				document.exitPointerLock?.();
 				state.menu.finishScreen.show();
 				hideTouchControls();
 				
@@ -1540,7 +1542,7 @@ export class Level extends Scheduler {
 		if (this.paused || (state.level.finishTime && state.level.replay.mode === 'record')) return;
 
 		this.paused = true;
-		document.exitPointerLock();
+		document.exitPointerLock?.();
 		releaseAllButtons(); // Safety measure to prevent keys from getting stuck
 		state.menu.pauseScreen.show();
 		hideTouchControls();
@@ -1549,7 +1551,7 @@ export class Level extends Scheduler {
 	/** Unpauses the level. */
 	unpause() {
 		this.paused = false;
-		if (!Util.isTouchDevice) document.documentElement.requestPointerLock();
+		if (!Util.isTouchDevice) document.documentElement.requestPointerLock?.();
 		state.menu.pauseScreen.hide();
 		this.lastPhysicsTick = performance.now();
 		maybeShowTouchControls();
@@ -1591,7 +1593,7 @@ export class Level extends Scheduler {
 		state.menu.hideGameUi();
 		state.menu.show();
 		
-		document.exitPointerLock();
+		document.exitPointerLock?.();
 	}
 
 	/** Returns how much percent the level has finished loading. */
