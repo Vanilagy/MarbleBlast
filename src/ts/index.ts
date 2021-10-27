@@ -181,7 +181,7 @@ if (navigator.serviceWorker) {
 }
 
 let installPromptEvent: any = null;
-window.addEventListener('beforeinstallprompt', (e) => {
+window.addEventListener('beforeinstallprompt', (e: Event) => {
 	e.preventDefault();
 	installPromptEvent = e; // Save the prompt for later
 });
