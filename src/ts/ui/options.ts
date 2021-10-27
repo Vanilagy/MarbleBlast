@@ -131,6 +131,8 @@ export abstract class OptionsScreen {
 
 	/** Starts the rebinding process and shows a dialog. */
 	changeKeybinding(button: keyof typeof StorageManager.data.settings.gameButtonMapping) {
+		if (Util.isTouchDevice) return; // Don't
+
 		let map = (state.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
 		this.rebindDialog.classList.remove('hidden');
 		this.rebindDialog.children[1].innerHTML = `Press a new key or button for<br>"${map[button]}"`;

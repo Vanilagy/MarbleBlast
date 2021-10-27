@@ -1,4 +1,5 @@
 import { AudioManager } from "../audio";
+import { actionButtonContainer, blastButton, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, movementJoystick, movementJoystickHandle, pauseButton, restartButton } from "../input";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
 import { StorageManager } from "../storage";
@@ -33,7 +34,7 @@ export abstract class Hud {
 	centerElement: HTMLImageElement;
 	powerUpBorder: HTMLImageElement;
 	clockBackground: HTMLImageElement;
-	fpsMeter: HTMLImageElement;
+	fpsMeter: HTMLDivElement;
 	fpsMeterValue: HTMLDivElement;
 	frameTimeStore: number[] = [];
 	blastMeter: HTMLDivElement;
@@ -82,21 +83,60 @@ export abstract class Hud {
 
 		if (StorageManager.data.settings.showFrameRate && this.supportFpsMeter) {
 			this.fpsMeter.classList.remove('hidden');
-			this.fpsMeterValue.classList.remove('hidden');
 		} else {
 			this.fpsMeter.classList.add('hidden');
-			this.fpsMeterValue.classList.add('hidden');
 		}
 
 		this.setBlastMeterVisibility(state.level.mission.hasBlast);
 		if (state.level.mission.hasBlast) {
 			await ResourceManager.loadImages(["blastbar.png", "blastbar_charged.png", "blastbar_bargreen.png", "blastbar_bargray.png"].map(x => "./assets/ui_mbp/game/" + x));
 		}
+
+		if (Util.isTouchDevice) this.setupTouchControls();
+	}
+
+	setupTouchControls() {
+		// Change the offset based on whether or not there's a gem counter
+		pauseButton.style.top = state.level.totalGems? '60px' : '';
+		restartButton.style.top = state.level.totalGems? '60px' : '';
+		freeLookButton.style.top = state.level.totalGems? '60px' : '';
+
+		// Kinda hacky here, don't wanna clean up: (Yes there's a good reason we don't set display)
+		blastButton.style.visibility = state.level.mission.hasBlast? '' : 'hidden';
+		blastButton.style.pointerEvents = state.level.mission.hasBlast? '' : 'none';
+		freeLookButton.style.visibility = StorageManager.data.settings.alwaysFreeLook? 'hidden' : '';
+		freeLookButton.style.pointerEvents = StorageManager.data.settings.alwaysFreeLook? 'none' : '';
+
+		this.fpsMeter.style.transform = 'scale(0.5)';
+		this.fpsMeter.querySelector('img').style.borderRight = '50px solid #ffffff4d'; // To make it visible with rounded corners
+		this.fpsMeterValue.style.marginRight = '50px';
+
+		this.blastMeter.style.left = '20px'; // Same thing here
+		this.blastMeter.style.bottom = '47px'; // Same thing here
+
+		// Adjust layout based on user settings:
+
+		let joystickSize = StorageManager.data.settings.joystickSize;
+		let joystickHandleSize = JOYSTICK_HANDLE_SIZE_FACTOR * joystickSize;
+		
+		movementJoystick.style.width = joystickSize + 'px';
+		movementJoystick.style.height = joystickSize + 'px';
+		movementJoystick.style.borderRadius = joystickHandleSize / 2 + 'px';
+		movementJoystickHandle.style.width = joystickHandleSize + 'px';
+		movementJoystickHandle.style.height = joystickHandleSize + 'px';
+
+		let scale = StorageManager.data.settings.actionButtonSize / 120;
+		actionButtonContainer.style.right = StorageManager.data.settings.actionButtonRightOffset/scale + 'px';
+		actionButtonContainer.style.bottom = StorageManager.data.settings.actionButtonBottomOffset/scale + 'px';
+		actionButtonContainer.style.transform = `scale(${scale})`;
 	}
 
 	/** Updates the game clock canvas. */
 	displayTime(seconds: number, specialColor?: 'red' | 'green') {
 		if (!this.supportNumberColors) specialColor = undefined;
+
+		// Remove dumb float issues:
+		seconds = Util.roundToMultiple(seconds, 1e-8);
 
 		let string = Util.secondsToTimeString(seconds);
 		const defaultWidth = 43;

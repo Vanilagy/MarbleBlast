@@ -1,6 +1,6 @@
 import { Interior } from "./interior";
 import * as THREE from "three";
-import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera, resize } from "./rendering";
+import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera, resize, SCALING_RATIO } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
@@ -27,7 +27,7 @@ import { TriangleBumper } from "./shapes/triangle_bumper";
 import { Oilslick } from "./shapes/oilslick";
 import { Util, Scheduler } from "./util";
 import { PowerUp } from "./shapes/power_up";
-import { isPressed, releaseAllButtons, gamepadAxes, getPressedFlag, resetPressedFlag } from "./input";
+import { isPressed, releaseAllButtons, gamepadAxes, getPressedFlag, resetPressedFlag, hideTouchControls, maybeShowTouchControls, setTouchControlMode } from "./input";
 import { SmallDuctFan } from "./shapes/small_duct_fan";
 import { PathedInterior } from "./pathed_interior";
 import { Trigger } from "./triggers/trigger";
@@ -273,10 +273,11 @@ export class Level extends Scheduler {
 		for (let shape of this.shapes) await shape.onLevelStart();
 		AudioManager.normalizePositionalAudioVolume();
 
-		resize(); // To update renderer
+		resize(false); // To update renderer
 		mainCanvas.classList.remove('hidden');
 		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick for correct positional audio playback
 		this.render(); // This will also do a tick
+		this.lastPhysicsTick = performance.now(); // First render usually takes quite long (shader compile etc), so reset the last physics tick back to now
 		this.tickInterval = setInterval(() => this.tick());
 		this.music.play();
 
@@ -707,7 +708,7 @@ export class Level extends Scheduler {
 
 	/** Restarts and resets the level. */
 	restart(forceHardRestart: boolean) {
-		if (!forceHardRestart && this.currentCheckpoint) {
+		if (!forceHardRestart && this.currentCheckpoint && this.replay.mode !== 'playback') {
 			// There's a checkpoint, so load its state instead of restarting the whole level
 			this.loadCheckpointState();
 			return;
@@ -744,6 +745,7 @@ export class Level extends Scheduler {
 		this.marble.body.setPosition(new OIMO.Vec3(startPosition.x, startPosition.y, startPosition.z + 3));
 		this.marble.group.position.copy(Util.vecOimoToThree(this.marble.body.getPosition()));
 		this.marble.reset();
+		this.marble.calculatePredictiveTransforms();
 
 		// Determine starting camera orientation based on the start pad
 		this.yaw = euler.z + Math.PI/2;
@@ -766,6 +768,8 @@ export class Level extends Scheduler {
 		
 		this.deselectPowerUp();
 		hud.setCenterText('none');
+		maybeShowTouchControls();
+		setTouchControlMode((this.replay.mode === 'playback')? 'replay' : 'normal');
 
 		this.timeTravelSound?.stop();
 		this.timeTravelSound = null;
@@ -835,13 +839,13 @@ export class Level extends Scheduler {
 			overlayShape.render(this.timeState);
 
 			if (overlayShape.dtsPath.includes("gem")) {
-				overlayShape.group.scale.setScalar(45);
-				overlayShape.group.position.y = 25;
-				overlayShape.group.position.z = -35;
+				overlayShape.group.scale.setScalar(45 / SCALING_RATIO);
+				overlayShape.group.position.y = 25 / SCALING_RATIO;
+				overlayShape.group.position.z = -35 / SCALING_RATIO;
 			} else {
-				overlayShape.group.scale.setScalar(SHAPE_OVERLAY_SCALES[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_SCALES] ?? 40);
-				overlayShape.group.position.y = window.innerWidth - 55;
-				overlayShape.group.position.z = SHAPE_OVERLAY_OFFSETS[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_OFFSETS];
+				overlayShape.group.scale.setScalar((SHAPE_OVERLAY_SCALES[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_SCALES] ?? 40) / SCALING_RATIO);
+				overlayShape.group.position.y = window.innerWidth - 55 / SCALING_RATIO;
+				overlayShape.group.position.z = SHAPE_OVERLAY_OFFSETS[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_OFFSETS] / SCALING_RATIO;
 			}
 		}
 
@@ -1008,7 +1012,7 @@ export class Level extends Scheduler {
 		if (time === undefined) time = performance.now();
 		let playReplay = this.replay.mode === 'playback';
 
-		if (!playReplay && (isPressed('use') || this.useQueued) && getPressedFlag('use')) {
+		if (!playReplay && !state.menu.finishScreen.showing && (isPressed('use') || this.useQueued) && getPressedFlag('use')) {
 			if (this.outOfBounds && !this.finishTime) {
 				// Skip the out of bounds "animation" and restart immediately
 				this.restart(false);
@@ -1018,7 +1022,7 @@ export class Level extends Scheduler {
 				this.heldPowerUp.use(this.timeState);
 			}
 		}
-		if (!playReplay && (isPressed('blast') || this.blastQueued) && getPressedFlag('blast')) {
+		if (!playReplay && !state.menu.finishScreen.showing && (isPressed('blast') || this.blastQueued) && getPressedFlag('blast')) {
 			this.marble.useBlast();
 		}
 		this.useQueued = false;
@@ -1027,7 +1031,7 @@ export class Level extends Scheduler {
 		state.menu.finishScreen.handleGamepadInput();
 
 		// Handle pressing of the gamepad pause button
-		if (!this.finishTime && isPressed('pause') && getPressedFlag('pause')) {
+		if (isPressed('pause') && getPressedFlag('pause')) {
 			resetPressedFlag('pause');
 			resetPressedFlag('jump');
 			resetPressedFlag('use');
@@ -1273,7 +1277,6 @@ export class Level extends Scheduler {
 		if (!document.pointerLockElement || this.finishTime || this.paused || this.replay.mode === 'playback') return;
 
 		let totalDistance = Math.hypot(e.movementX, e.movementY);
-		if (totalDistance > 300 && location.search.includes('debug')) alert(totalDistance + ', ' + e.movementX + ' ' + e.movementY);
 
 		// Strangely enough, Chrome really bugs out sometimes and flings the mouse into a random direction quickly. We try to catch that here and ignore the mouse movement if we detect it.
 		if (totalDistance > 350 && this.previousMouseMovementDistance * 4 < totalDistance) {
@@ -1435,6 +1438,7 @@ export class Level extends Scheduler {
 		marble.body.setPosition(Util.vecThreeToOimo(this.currentCheckpoint.worldPosition).add(offset));
 		marble.body.setLinearVelocity(new OIMO.Vec3());
 		marble.body.setAngularVelocity(new OIMO.Vec3());
+		marble.calculatePredictiveTransforms();
 
 		// Set camera orienation
 		let euler: THREE.Euler = new THREE.Euler();
@@ -1522,6 +1526,8 @@ export class Level extends Scheduler {
 				// Show the finish screen
 				document.exitPointerLock();
 				state.menu.finishScreen.show();
+				hideTouchControls();
+				
 				resetPressedFlag('use');
 				resetPressedFlag('jump');
 				resetPressedFlag('restart');
@@ -1531,10 +1537,13 @@ export class Level extends Scheduler {
 
 	/** Pauses the level. */
 	pause() {
+		if (this.paused || (state.level.finishTime && state.level.replay.mode === 'record')) return;
+
 		this.paused = true;
 		document.exitPointerLock();
 		releaseAllButtons(); // Safety measure to prevent keys from getting stuck
 		state.menu.pauseScreen.show();
+		hideTouchControls();
 	}
 
 	/** Unpauses the level. */
@@ -1543,6 +1552,7 @@ export class Level extends Scheduler {
 		if (!Util.isTouchDevice) document.documentElement.requestPointerLock();
 		state.menu.pauseScreen.hide();
 		this.lastPhysicsTick = performance.now();
+		maybeShowTouchControls();
 	}
 
 	/** Ends the level irreversibly. */

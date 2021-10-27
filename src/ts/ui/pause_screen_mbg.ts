@@ -1,3 +1,4 @@
+import { Util } from "../util";
 import { Menu } from "./menu";
 import { PauseScreen } from "./pause_screen";
 
@@ -19,7 +20,8 @@ export class MbgPauseScreen extends PauseScreen {
 
 		this.replayButton.addEventListener('click', async (e) => {
 			if (e.button !== 0) return;
-			this.onReplayButtonClick(e);
+			this.onReplayButtonClick(e.altKey);
 		});
+		Util.onLongTouch(this.replayButton, () => this.onReplayButtonClick(true));
 	}
 }

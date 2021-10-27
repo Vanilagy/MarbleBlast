@@ -30,8 +30,34 @@ const init = async () => {
 	loadingDetail.textContent = 'Loading UI...';
 	await setMenu(StorageManager.data.modification);
 
+	// If we're on a touch device, remind the user that the site can be installed as a PWA
+	if (Util.isTouchDevice && !location.search.includes('app')) {
+		let div = document.createElement('div');
+		div.id = 'install-popup';
+		let img = document.createElement('img');
+		img.src = './assets/img/download.png';
+		img.style.display = 'none';
+		div.append(img);
+		img.addEventListener('click', () => {
+			installPromptEvent.prompt();
+		});
+
+		let intervalId = setInterval(() => {
+			if (installPromptEvent) img.style.display = '';
+		}, 100);
+
+		state.menu.showAlertPopup('Install as app', `This website can be installed on your device's home screen to run in proper fullscreen and feel like a native app. To install it, press the icon below, or if there is none, follow <a href="https://natomasunified.org/kb/add-website-to-mobile-device-home-screen/" target="_blank">these</a> steps.`, div).then(() => {
+			clearInterval(intervalId);
+		});
+	}
+
+	if (Util.isTouchDevice) {
+		document.querySelectorAll('.mobile-support-reminder').forEach(x => (x as HTMLElement).style.display = 'none');
+	}
+
 	loadingDetail.textContent = 'Loading leaderboard...';
 	await Leaderboard.init();
+	if (Util.isWeeb) document.title = 'Marble Blast Weeb'; // <- humor
 
 	let started = false;
 	const start = async () => {
@@ -142,3 +168,20 @@ const activityId = Util.getRandomId();
 setInterval(() => {
 	fetch('/api/activity?id=' + activityId);
 }, 30000);
+
+// Very basic Service Worker code here:
+if (navigator.serviceWorker) {
+	navigator.serviceWorker.register('/sw.js', {
+		scope: '/'
+	}).then(reg => {
+		reg.update();
+	}).catch(error => {
+		console.log('Service worker registration failed, error:', error);
+	});
+}
+
+let installPromptEvent: any = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+	e.preventDefault();
+	installPromptEvent = e; // Save the prompt for later
+});

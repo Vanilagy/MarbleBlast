@@ -1,5 +1,6 @@
 import { AudioManager } from "../audio";
 import { state } from "../state";
+import { Util } from "../util";
 import { Menu } from "./menu";
 import { PauseScreen } from "./pause_screen";
 
@@ -22,7 +23,8 @@ export class MbpPauseScreen extends PauseScreen {
 	constructor(menu: Menu) {
 		super(menu);
 
-		menu.setupButton(this.replayButton, 'play/replay', (e) => this.onReplayButtonClick(e));
+		menu.setupButton(this.replayButton, 'play/replay', (e) => this.onReplayButtonClick(e.altKey));
+		Util.onLongTouch(this.replayButton, () => this.onReplayButtonClick(true));
 
 		this.jukebox = new Jukebox(menu);
 		menu.setupButton(this.jukeboxButton, 'jukebox/jb_pausemenu', () => {

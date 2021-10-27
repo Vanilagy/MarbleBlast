@@ -80,6 +80,11 @@
 	position: absolute;
 	bottom: 0;
 	right: 0;
+	transform-origin: 100% 100%;
+}
+
+#fps-meter-background {
+	display: block;
 }
 
 #fps-meter-value {

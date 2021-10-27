@@ -49,9 +49,25 @@
 	top: 90px;
 	left: 29px;
 	max-height: 392px;
-	width: 724px;
+	width: 733px;
 	display: flex;
 	flex-wrap: wrap;
+	overflow: hidden;
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#mbp-options ._container::-webkit-scrollbar {
+	width: 5px;
+}
+
+#mbp-options ._container::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#mbp-options ._container::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
 }
 
 .mbp-options-element {
@@ -70,6 +86,23 @@
 	top: 10px;
 	left: 0;
 	padding-left: 5px;
+	height: 30px;
+	line-height: 33px;
+}
+
+.mbp-options-element._small-text > p:first-child {
+	font-size: 18px;
+}
+
+.mbp-options-element._heading {
+	width: 100%;
+	color: white;
+	font-family: MarkerFelt;
+	text-shadow: 1px 1px 0px black;
+	font-size: 26px;
+	margin: 0;
+	text-align: center;
+	height: 38px;
 }
 
 .mbp-options-element._dropdown > img:first-of-type {
@@ -99,7 +132,7 @@
 }
 
 .mbp-options-element._dropdown > div:nth-of-type(1) {
-	position: absolute;
+	position: fixed;
 	display: block;
 	top: -5000px;
 	left: -5000px;

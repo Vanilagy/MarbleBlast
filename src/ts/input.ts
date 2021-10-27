@@ -101,7 +101,7 @@ window.addEventListener('beforeunload', (e) => {
 
 document.addEventListener('pointerlockchange', () => {
 	// When pointer lock is left, we pause.
-	if (!document.pointerLockElement) state.menu.pauseScreen.tryPause();
+	if (!document.pointerLockElement) state.level?.pause();
 });
 
 /** For each game button, a list of the keys/buttons corresponding to it that are currently pressed. */
@@ -257,44 +257,95 @@ const updateGamepadInput = () => {
 
 window.setInterval(updateGamepadInput, 4);
 
-const touchInputContainer = document.querySelector('#touch-input-container') as HTMLDivElement;
+/* TOUCH STUFF: */
+
+export const touchInputContainer = document.querySelector('#touch-input-container') as HTMLDivElement;
 const movementAreaElement = document.querySelector('#movement-area') as HTMLDivElement;
 const cameraAreaElement = document.querySelector('#camera-area') as HTMLDivElement;
-const movementJoystick = document.querySelector('#movement-joystick') as HTMLDivElement;
-const movementJoystickHandle = document.querySelector('#movement-joystick-handle') as HTMLDivElement;
+export const movementJoystick = document.querySelector('#movement-joystick') as HTMLDivElement;
+export const movementJoystickHandle = document.querySelector('#movement-joystick-handle') as HTMLDivElement;
+export const actionButtonContainer = document.querySelector('#action-buttons') as HTMLDivElement;
 const jumpButton = document.querySelector('#jump-button') as HTMLImageElement;
 const useButton = document.querySelector('#use-button') as HTMLImageElement;
-const pauseButton = document.querySelector('#pause-button') as HTMLImageElement;
+export const blastButton = document.querySelector('#blast-button') as HTMLImageElement;
+export const pauseButton = document.querySelector('#pause-button') as HTMLImageElement;
+export const restartButton = document.querySelector('#restart-button') as HTMLImageElement;
+export const freeLookButton = document.querySelector('#free-look-button') as HTMLImageElement;
 
-const joystickSize = 200;
-const joystickHandleSize = 66;
-
-movementJoystick.style.width = joystickSize + 'px';
-movementJoystick.style.height = joystickSize + 'px';
-movementJoystick.style.borderRadius = joystickHandleSize / 2 + 'px';
-movementJoystickHandle.style.width = joystickHandleSize + 'px';
-movementJoystickHandle.style.height = joystickHandleSize + 'px';
-
+export const JOYSTICK_HANDLE_SIZE_FACTOR = 2/5;
 let joystickPosition: {x: number, y: number} = null;
 export let normalizedJoystickHandlePosition: {x: number, y: number} = null;
 let movementAreaTouchIdentifier: number = null;
 let cameraAreaTouchIdentifier: number = null;
-let jumpButtonTouchIdentifier: number = null;
-let useButtonTouchIdentifier: number = null;
 let lastCameraTouch: Touch = null;
 
-touchInputContainer.style.display = Util.isTouchDevice? 'block' : 'none';
+let touchendFuncs: ((touch: Touch) => void)[] = [];
+const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameButtons, onStart?: (touch: Touch) => void) => {
+	let touchId: number = null;
+
+	element.addEventListener('touchstart', (e) => {
+		let touch = e.changedTouches[0];
+		touchId = touch.identifier;
+		element.style.opacity = '0.9';
+		setPressed(button, 'touch', true);
+		onStart?.(touch);
+	});
+
+	touchendFuncs.push(touch => {
+		if (touch.identifier === touchId) {
+			touchId = null;
+			element.style.opacity = '';
+			setPressed(button, 'touch', false);
+		}
+	});
+};
+
+const startCameraMovement = (touch: Touch) => {
+	cameraAreaTouchIdentifier = touch.identifier;
+	lastCameraTouch = touch;
+};
+
+setupTouchButton(jumpButton, 'jump', startCameraMovement);
+setupTouchButton(useButton, 'use', startCameraMovement);
+setupTouchButton(blastButton, 'blast', startCameraMovement);
+setupTouchButton(pauseButton, 'pause');
+setupTouchButton(restartButton, 'restart');
+setupTouchButton(freeLookButton, 'freeLook');
+
+export const hideTouchControls = () => {
+	touchInputContainer.style.display = 'none';
+};
+
+export const maybeShowTouchControls = () => {
+	touchInputContainer.style.display = Util.isTouchDevice? 'block' : 'none';
+};
+
+export const setTouchControlMode = (mode: 'normal' | 'replay') => {
+	if (mode === 'normal') {
+		[movementJoystick, jumpButton, useButton, blastButton, freeLookButton].forEach(x => x.style.display = '');
+	} else if (mode === 'replay') {
+		// Hide everything but pause and replay buttons
+		[movementJoystick, jumpButton, useButton, blastButton, freeLookButton].forEach(x => x.style.display = 'none');
+	}
+};
 
 movementAreaElement.addEventListener('touchstart', (e) => {
 	let touch = e.changedTouches[0];
 	movementAreaTouchIdentifier = touch.identifier;
 
-	console.log(SCALING_RATIO)
+	let x: number, y: number;
+	let joystickSize = StorageManager.data.settings.joystickSize;
+	if (StorageManager.data.settings.joystickPosition === 0) {
+		// Fixed
+		x = StorageManager.data.settings.joystickLeftOffset + joystickSize/2;
+		y = window.innerHeight * (1 - StorageManager.data.settings.joystickVerticalPosition) * SCALING_RATIO;
+	} else {
+		// Dynamic
+		x = Util.clamp(touch.clientX * SCALING_RATIO, joystickSize/2, (window.innerWidth * SCALING_RATIO - joystickSize) / 2);
+		y = Util.clamp(touch.clientY * SCALING_RATIO, joystickSize/2, window.innerHeight * SCALING_RATIO - joystickSize / 2);
+	}
 
-	let x = Util.clamp(touch.clientX * SCALING_RATIO, joystickSize/2, (window.innerWidth * SCALING_RATIO - joystickSize)/2);
-	let y = Util.clamp(touch.clientY * SCALING_RATIO, joystickSize/2, window.innerHeight * SCALING_RATIO - joystickSize/2);
-
-	movementJoystick.style.display = 'block';
+	movementJoystick.style.visibility = 'visible';
 	movementJoystick.style.left = x - joystickSize/2 + 'px';
 	movementJoystick.style.top = y - joystickSize/2 + 'px';
 	joystickPosition = {x: x, y: y};
@@ -312,6 +363,8 @@ movementAreaElement.addEventListener('touchmove', (e) => {
 });
 
 const updateJoystickHandlePosition = (touch: Touch) => {
+	let joystickSize = StorageManager.data.settings.joystickSize;
+	let joystickHandleSize = JOYSTICK_HANDLE_SIZE_FACTOR * StorageManager.data.settings.joystickSize;
 	let innerRadius = (joystickSize - joystickHandleSize) / 2;
 
 	normalizedJoystickHandlePosition.x = Util.clamp((touch.clientX * SCALING_RATIO - joystickPosition.x) / innerRadius, -1, 1);
@@ -325,7 +378,7 @@ window.addEventListener('touchend', (e) => {
 	for (let touch of e.changedTouches) {
 		if (touch.identifier === movementAreaTouchIdentifier) {
 			movementAreaTouchIdentifier = null;
-			movementJoystick.style.display = 'none';
+			movementJoystick.style.visibility = 'hidden';
 			normalizedJoystickHandlePosition = null;
 		}
 	
@@ -333,30 +386,17 @@ window.addEventListener('touchend', (e) => {
 			cameraAreaTouchIdentifier = null;
 		}
 	
-		if (touch.identifier === jumpButtonTouchIdentifier) {
-			jumpButtonTouchIdentifier = null;
-			jumpButton.style.opacity = '';
-			setPressed('jump', 'touch', false);
-		}
-	
-		if (touch.identifier === useButtonTouchIdentifier) {
-			useButtonTouchIdentifier = null;
-			useButton.style.opacity = '';
-			setPressed('use', 'touch', false);
-		}
+		for (let func of touchendFuncs) func(touch);
 	}
-
-	setPressed('pause', 'touch', false);
 });
 
 cameraAreaElement.addEventListener('touchstart', (e) => {
 	let touch = e.changedTouches[0];
-	cameraAreaTouchIdentifier = touch.identifier;
-
-	lastCameraTouch = touch;
+	startCameraMovement(touch);
 });
 
-cameraAreaElement.addEventListener('touchmove', (e) => {
+// Put this on touchInputContainer instead of cameraAreaElement so it also works when you start the drag on a button
+touchInputContainer.addEventListener('touchmove', (e) => {
 	let touch = [...e.changedTouches].find(x => x.identifier === cameraAreaTouchIdentifier);
 	let level = state.level;
 
@@ -368,28 +408,11 @@ cameraAreaElement.addEventListener('touchmove', (e) => {
 
 		let factor = Util.lerp(1 / 1500, 1 / 50, StorageManager.data.settings.mouseSensitivity);
 		let yFactor = (StorageManager.data.settings.invertMouse & 0b10)? -1 : 1;
+		let freeLook = StorageManager.data.settings.alwaysFreeLook || isPressed('freeLook');
 
 		level.yaw -= movementX * factor;
-		level.pitch += movementY * factor * yFactor;
+		if (freeLook) level.pitch += movementY * factor * yFactor;
 
 		lastCameraTouch = touch;
 	}
-});
-
-jumpButton.addEventListener('touchstart', (e) => {
-	let touch = e.changedTouches[0];
-	jumpButtonTouchIdentifier = touch.identifier;
-	jumpButton.style.opacity = '0.9';
-	setPressed('jump', 'touch', true);
-});
-
-useButton.addEventListener('touchstart', (e) => {
-	let touch = e.changedTouches[0];
-	useButtonTouchIdentifier = touch.identifier;
-	useButton.style.opacity = '0.9';
-	setPressed('use', 'touch', true);
-});
-
-pauseButton.addEventListener('touchstart', () => {
-	setPressed('pause', 'touch', true);
 });

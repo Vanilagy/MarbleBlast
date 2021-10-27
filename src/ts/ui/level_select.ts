@@ -377,8 +377,7 @@ export abstract class LevelSelect {
 		icon.src = "./assets/img/round_videocam_black_18dp.png";
 		icon.title = "Alt-Click to download";
 
-		icon.addEventListener('click', async (e) => {
-			if (e.button !== 0) return;
+		const handler = async (download: boolean) => {
 			let mission = this.currentMission;
 			if (!mission) return;
 
@@ -388,11 +387,20 @@ export abstract class LevelSelect {
 			let replayData = await StorageManager.databaseGet('replays', attr);
 			if (!replayData) return;
 
-			if (!e.altKey) {
+			if (!download) {
 				this.playCurrentMission(replayData);
 			} else {
 				Replay.download(replayData, mission);
+				if (Util.isTouchDevice && Util.isInFullscreen()) this.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
 			}
+		};
+
+		icon.addEventListener('click', async (e) => {
+			if (e.button !== 0) return;
+			handler(e.altKey);
+		});
+		Util.onLongTouch(icon, () => {
+			handler(true);
 		});
 
 		icon.addEventListener('mouseenter', () => {
@@ -510,14 +518,14 @@ export abstract class LevelSelect {
 
 				if (state.modification === 'gold' && mission.path.startsWith('mbp')) {
 					// We don't allow this
-					alert("You can't watch replays of Platinum level inside Marble Blast Gold.");
+					state.menu.showAlertPopup('Warning', "You can't watch replays of Platinum level inside Marble Blast Gold.");
 					return;
 				}
 	
 				this.div.classList.add('hidden');
 				this.menu.loadingScreen.loadLevel(mission, () => replay);
 			} catch (e) {
-				alert("There was an error loading the replay.");
+				state.menu.showAlertPopup('Error', "There was an error loading the replay.");
 				console.error(e);
 			}
 		};

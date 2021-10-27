@@ -103,8 +103,7 @@ export abstract class LoadingScreen {
 			console.error(e);
 			this.cancelButton.click();
 			state.level = null;
-
-			setTimeout(() => alert("There was an error due to which the level couldn't be loaded."), 50);
+			state.menu.showAlertPopup('Error', "There was an error due to which the level couldn't be loaded.");
 		}
 	}
 }

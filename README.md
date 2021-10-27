@@ -5,7 +5,7 @@ Play it here: https://marbleblast.vani.ga/<br>
 TAS Rewind version here: https://github.com/RandomityGuy/MBG-Web-Rewind
 
 ## Features
-In this game, the objective is to roll your marble to the finish pad in the fastest time possible, while avoiding hazards and collecting gems and power-ups. It includes almost 4000 levels, including 220 original MBG/MBP/MBU levels (69 beginner, 79 intermediate, 108 advanced, 25 expert) and more than 3900 community custom levels. It implements all gameplay elements, sounds, music and UI/menu components from both Marble Blast Gold, Platinum and Ultra - additional features include a replay system and online leaderboards. The two games (Gold/Platinum) can be switched between seamlessly and without reloading in the main menu. The game can be played using a keyboard, mouse or gamepad.
+In this game, the objective is to roll your marble to the finish pad in the fastest time possible, while avoiding hazards and collecting gems and power-ups. It includes almost 4000 levels, including 220 original MBG/MBP/MBU levels (69 beginner, 79 intermediate, 108 advanced, 25 expert) and more than 3900 community custom levels. It implements all gameplay elements, sounds, music and UI/menu components from both Marble Blast Gold, Platinum and Ultra - additional features include a replay system and online leaderboards. The two games (Gold/Platinum) can be switched between seamlessly and without reloading in the main menu. The game can be played using a keyboard, mouse, gamepad or on your mobile device.
 
 [View version history](https://github.com/Vanilagy/MarbleBlast/blob/master/version_history.md)
 
@@ -13,6 +13,7 @@ In this game, the objective is to roll your marble to the finish pad in the fast
 <img src="./screenshots/natural_selection.png" width="640">
 <img src="./screenshots/king_of_the_marble.png" width="640">
 <img src="./screenshots/whirl.png" width="640">
+<img src="./screenshots/mobile.jpg" width="640">
 <img src="./screenshots/twisting.png" width="640">
 <img src="./screenshots/marble_mini_golf_smorgasbord.png" width="640">
 <img src="./screenshots/avi_training_2.png" width="640">

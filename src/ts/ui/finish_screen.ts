@@ -1,5 +1,5 @@
 import { AudioManager } from "../audio";
-import { isPressedByGamepad, getPressedFlag, resetPressedFlag } from "../input";
+import { isPressedByGamepad, getPressedFlag, resetPressedFlag, touchInputContainer } from "../input";
 import { Leaderboard } from "../leaderboard";
 import { GO_TIME } from "../level";
 import { Replay } from "../replay";
@@ -27,6 +27,10 @@ export abstract class FinishScreen {
 	abstract scorePlaceholderName: string;
 	abstract storeNotQualified: boolean;
 
+	get showing() {
+		return !this.div.classList.contains('hidden');
+	}
+
 	constructor(menu: Menu) {
 		this.initProperties();
 
@@ -42,12 +46,12 @@ export abstract class FinishScreen {
 			let trimmed = this.nameEntryInput.value.trim().slice(0, 16);
 		
 			if (trimmed.length < 2) {
-				alert("Please enter a proper name for usage in the online leaderboard.");
+				state.menu.showAlertPopup('Warning', "Please enter a proper name for usage in the online leaderboard.")
 				return;
 			}
 		
 			if (Util.isNaughty(trimmed)) {
-				alert("The name you chose contains words deemed inappropriate. Please do the right thing and choose a non-offensive name.");
+				state.menu.showAlertPopup('Warning', "The name you chose contains words deemed inappropriate. Please do the right thing and choose a non-offensive name.");
 				return;
 			}
 			
@@ -77,6 +81,7 @@ export abstract class FinishScreen {
 
 		window.addEventListener('keydown', (e) => {
 			if (!state.level) return;
+			if (state.menu !== menu) return;
 		
 			if (e.key === 'Enter') {
 				if (!this.nameEntryScreenDiv.classList.contains('hidden')) {
@@ -88,6 +93,7 @@ export abstract class FinishScreen {
 		});
 		window.addEventListener('keyup', (e) => {
 			if (!state.level) return;
+			if (state.menu !== menu) return;
 		
 			if (e.key === 'Enter') {
 				if (!this.nameEntryScreenDiv.classList.contains('hidden')) {
@@ -173,14 +179,15 @@ export abstract class FinishScreen {
 		}
 	}
 
-	async onViewReplayButtonClick(e: MouseEvent) {
+	async onViewReplayButtonClick(download: boolean) {
 		let level = state.level;
 
-		if (e.altKey) {
+		if (download) {
 			let serialized = await level.replay.serialize();
 			Replay.download(serialized, level.mission, false);
+			if (Util.isTouchDevice && Util.isInFullscreen()) state.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
 		} else {
-			let confirmed = confirm(`Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top ${this.bestTimeCount} local scores.`);
+			let confirmed = await state.menu.showConfirmPopup('Confirm', `Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top ${this.bestTimeCount} local scores.`);
 			if (!confirmed) return;
 		
 			level.replay.mode = 'playback';

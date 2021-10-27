@@ -45,7 +45,10 @@ export abstract class HomeScreen {
 			this.hide();
 			menu.optionsScreen.show();
 		});
-		menu.setupButton(this.exitButton, this.exitSrc, () => {}); // JavaScript can't close its own tab, so... don't do anything.
+		menu.setupButton(this.exitButton, this.exitSrc, () => {
+			window.close(); // Won't work unless PWA
+			if (!location.search.includes('app')) location.href = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'; // Internet veterans will recognize this link
+		});
 
 		menu.setupButton(this.showChangelogButton, this.showChangelogSrc, () => {
 			this.changelogContainer.classList.remove('hidden');
@@ -76,6 +79,11 @@ export abstract class HomeScreen {
 
 		let latestVersion = /(^|\n)## (\d+\.\d+\.\d+)/.exec(text)[2];
 		this.version.textContent = `MBW v${latestVersion}`;
+		if (Util.isTouchDevice) {
+			// Make sure it's not occluded by rounded corners
+			this.version.style.left = '15px';
+			this.version.style.bottom = '15px';
+		}
 
 		let classPrefix = (state.modification === 'gold')? 'changelog' : 'mbp-changelog';
 		// Cheap conversion from markdown to HTML here

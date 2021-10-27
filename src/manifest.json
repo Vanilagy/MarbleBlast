@@ -1,0 +1,19 @@
+{
+	"name": "Marble Blast Web",
+	"short_name": "Marble Blast",
+	"icons": [
+		{
+			"src": "/assets/img/mbp.png",
+			"type": "image/png",
+			"sizes": "150x150"
+		}
+	],
+	"start_url": "/index.html?app=true",
+	"scope": "/",
+	"display": "fullscreen",
+	"orientation": "landscape",
+	"background_color": "black",
+	"categories": ["games"],
+	"lang": "en-US",
+	"theme_color": "black"
+}

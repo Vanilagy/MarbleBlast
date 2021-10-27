@@ -40,8 +40,9 @@ export class MbgFinishScreen extends FinishScreen {
 
 		this.viewReplayButton.addEventListener('click', async (e) => {
 			if (e.button !== 0) return;
-			this.onViewReplayButtonClick(e);
+			this.onViewReplayButtonClick(e.altKey);
 		});
+		Util.onLongTouch(this.viewReplayButton, () => this.onViewReplayButtonClick(true));
 		this.viewReplayButton.addEventListener('mouseenter', () => AudioManager.play('buttonover.wav'));
 		this.viewReplayButton.addEventListener('mousedown', () => AudioManager.play('buttonpress.wav'));
 	}

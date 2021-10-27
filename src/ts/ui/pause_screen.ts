@@ -2,7 +2,9 @@ import { AudioManager } from "../audio";
 import { previousButtonState, resetPressedFlag } from "../input";
 import { Replay } from "../replay";
 import { state } from "../state";
+import { Util } from "../util";
 import { Menu } from "./menu";
+import { setEnterFullscreenButtonVisibility } from "./misc";
 
 export abstract class PauseScreen {
 	div: HTMLDivElement;
@@ -33,18 +35,20 @@ export abstract class PauseScreen {
 
 		window.addEventListener('keydown', (e) => {
 			if (!state.level) return;
+			if (state.menu !== menu) return;
 		
 			if (e.key === 'Escape') {
-				if (state.level.paused && !this.preventClose) {
-					this.noButton.src = menu.uiAssetPath + this.noSrc + '_d.png';
+				if (state.level.paused) {
+					if (!this.preventClose) this.noButton.src = menu.uiAssetPath + this.noSrc + '_d.png';
 				} else {
-					this.tryPause();
+					state.level.pause();
 				}
 			}
 		});
 		
 		window.addEventListener('keyup', (e) => {
 			if (!state.level) return;
+			if (state.menu !== menu) return;
 		
 			if (state.level.paused && e.key === 'Escape' && this.noButton.src.endsWith('_d.png')) {
 				this.noButton.src = menu.uiAssetPath + this.noSrc + '_n.png';
@@ -57,29 +61,23 @@ export abstract class PauseScreen {
 
 	show() {
 		this.div.classList.remove('hidden');
+		setEnterFullscreenButtonVisibility(true);
 	}
 	
 	hide() {
 		this.div.classList.add('hidden');
+		setEnterFullscreenButtonVisibility(false);
 	}
 
-	/** Pauses the current level if it makes sense. */
-	tryPause() {
-		if (!state.level
-			|| state.level.paused
-			|| (state.level.finishTime && state.level.replay.mode === 'record')) return;
-
-		state.level.pause();
-	}
-
-	async onReplayButtonClick(e: MouseEvent) {
+	async onReplayButtonClick(download: boolean) {
 		let level = state.level;
 	
-		if (e.altKey) {
+		if (download) {
 			let serialized = await level.replay.serialize();
 			Replay.download(serialized, level.mission, false, true);
+			if (Util.isTouchDevice && Util.isInFullscreen()) state.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
 		} else {
-			let confirmed = confirm("Note that you can only watch this replay once. If you want to watch it more often, download it first. (alt-click)");
+			let confirmed = await state.menu.showConfirmPopup('Confirm', "Do you want to watch this replay? Note that you can only watch it once. If you want to watch it more often, download it first. (alt-click (or long-press on touch devices))");
 			if (!confirmed) return;
 		
 			level.replay.mode = 'playback';

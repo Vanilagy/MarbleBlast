@@ -43,7 +43,8 @@ export class MbpFinishScreen extends FinishScreen {
 	constructor(menu: Menu) {
 		super(menu);
 
-		menu.setupButton(this.viewReplayButton, 'play/replay', (e) => this.onViewReplayButtonClick(e));	
+		menu.setupButton(this.viewReplayButton, 'play/replay', (e) => this.onViewReplayButtonClick(e.altKey));
+		Util.onLongTouch(this.viewReplayButton, () => this.onViewReplayButtonClick(true));
 
 		this.qualifyTimeElement = this.createTimeRow('Par Time').children[0] as HTMLSpanElement;
 		this.goldTimeElement = this.createTimeRow('Gold Time').children[0] as HTMLSpanElement;

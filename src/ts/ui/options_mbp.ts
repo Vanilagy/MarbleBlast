@@ -1,5 +1,7 @@
 import { AudioManager, AudioSource } from "../audio";
 import { currentMousePosition } from "../input";
+import { SCALING_RATIO } from "../rendering";
+import { ResourceManager } from "../resources";
 import { state } from "../state";
 import { StorageData, StorageManager } from "../storage";
 import { Util } from "../util";
@@ -62,14 +64,16 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.generalButton.click();
 
 		this.updateSliders();
-		window.addEventListener('mouseup', () => {
+		const handler = () => {
 			if (this.currentSliderElement) StorageManager.store();
 			else return;
 
 			this.currentSliderElement = null;
 			this.soundTestingSound?.stop();
 			this.soundTestingSound = null;
-		});
+		};
+		window.addEventListener('mouseup', handler);
+		window.addEventListener('touchend', handler);
 
 		// Add all the option elements
 
@@ -79,14 +83,23 @@ export class MbpOptionsScreen extends OptionsScreen {
 		//this.addDropdown(this.generalContainer, 'screenStyle', 'Screen Style', ['Windowed', 'Full']);
 		//this.addDropdown(this.generalContainer, 'shadows', 'Shadows', ['Disabled', 'Enabled'], true);
 		//this.addDropdown(this.generalContainer, 'colorDepth', 'Color Depth', ['16 Bit', '32 Bit']);
-		this.addDropdown(this.generalContainer, 'showFrameRate', 'Frame Rate', ['Hidden', 'Visible'], true);
+
+		this.addHeading(this.generalContainer, 'General');
 		this.addDropdown(this.generalContainer, 'alwaysFreeLook', 'Free-Look', ['Disabled', 'Enabled'], true);
 		this.addDropdown(this.generalContainer, 'invertMouse', 'Invert Mouse', ['None', 'X Only', 'Y only', 'X and Y']);
+		this.addDropdown(this.generalContainer, 'showFrameRate', 'Frame Rate', ['Hidden', 'Visible'], true);
 		this.addDropdown(this.generalContainer, 'showThousandths', 'Thousandths', ['Disabled', 'Enabled'], true);
 		this.addMarbleTexturePicker(this.generalContainer);
 		this.addDropdown(this.generalContainer, 'marbleReflectivity', 'Reflective Marble', ['Contextual', 'Disabled', 'Enabled']);
 		this.addDropdown(this.generalContainer, 'fancyShaders', 'Fancy Shaders', ['Disabled', 'Enabled'], true);
-		this.addDropdown(this.generalContainer, 'respectDevicePixelRatio', 'Respect Pixel Ratio', ['Disabled', 'Enabled'], true);
+		this.addDropdown(this.generalContainer, 'pixelRatio', 'Pixel Ratio', ['Max 0.5', 'Max 1.0', 'Max 1.5', 'Max 2.0', 'Max ∞']);
+		this.addDropdown(this.generalContainer, 'inputType', 'Input Type', ['Auto', 'Keyboard + Mouse', 'Touch'], undefined, () => {
+			let before = Util.isTouchDevice;
+			Util.isTouchDevice = (StorageManager.data.settings.inputType === 1)? false : (StorageManager.data.settings.inputType === 2)? true : Util.checkIsTouchDevice();
+
+			if (before !== Util.isTouchDevice) location.reload(); // Restart that shit, don't take any chances
+		});
+		this.addSlider(this.generalContainer, 'fov', 'Field of View', 30, 120, undefined, undefined, 1, x => x.toString());
 		this.addSlider(this.generalContainer, 'musicVolume', 'Music Volume', 0, 1, () => AudioManager.updateVolumes(), undefined, undefined, x => Math.ceil(x * 100).toString());
 		this.addSlider(this.generalContainer, 'mouseSensitivity', 'Mouse Speed', 0, 1);
 		this.addSlider(this.generalContainer, 'soundVolume', 'Sound Volume', 0, 1, () => AudioManager.updateVolumes(), () => {
@@ -98,7 +111,14 @@ export class MbpOptionsScreen extends OptionsScreen {
 			}
 		}, undefined, x => Math.ceil(x * 100).toString());
 		this.addSlider(this.generalContainer, 'keyboardSensitivity', 'Keyboard Speed', 0, 1);
-		this.addSlider(this.generalContainer, 'fov', 'Field of View', 30, 120, undefined, undefined, 1, x => x.toString());
+		this.addHeading(this.generalContainer, 'Touch Controls');
+		this.addDropdown(this.generalContainer, 'joystickPosition', 'Joystick Position', ['Fixed', 'Dynamic'], undefined, undefined, true);
+		this.addSlider(this.generalContainer, 'joystickSize', 'Joystick Size', 100, 500, undefined, undefined, 1, (x) => (x|0).toString(), true);
+		this.addSlider(this.generalContainer, 'joystickLeftOffset', 'Joystick Left Offset', 0, 300, undefined, undefined, 1, (x) => (x|0).toString(), true);
+		this.addSlider(this.generalContainer, 'joystickVerticalPosition', 'Joystick Vertical Pos', 0, 1, undefined, undefined, undefined, (x) => Math.floor(100 * x) + '%', true);
+		this.addSlider(this.generalContainer, 'actionButtonSize', 'Button Size', 50, 300, undefined, undefined, 1, (x) => (x|0).toString(), true);
+		this.addSlider(this.generalContainer, 'actionButtonRightOffset', 'Button Right Offset', 0, 300, undefined, undefined, 1, (x) => (x|0).toString(), true);
+		this.addSlider(this.generalContainer, 'actionButtonBottomOffset', 'Button Bottom Offset', 0, 300, undefined, undefined, 1, (x) => (x|0).toString(), true);
 
 		this.addHotkey(this.hotkeysContainer, 'up');
 		this.addHotkey(this.hotkeysContainer, 'left');
@@ -113,6 +133,9 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.addHotkey(this.hotkeysContainer, 'freeLook');
 		this.addHotkey(this.hotkeysContainer, 'restart');
 		this.addHotkey(this.hotkeysContainer, 'blast');
+
+		// Preload dropdown images
+		await ResourceManager.loadImages(['small', 'medium', 'large', 'xlarge'].map(x => './assets/ui_mbp/options/dropdown-' + x + '.png'));
 	}
 
 	/** Handles dragging of the currently active slider. */
@@ -121,13 +144,22 @@ export class MbpOptionsScreen extends OptionsScreen {
 		if (!this.currentSliderElement) return;
 
 		let box = this.currentSliderElement.getBoundingClientRect();
-		let leftOffset = currentMousePosition.x - box.left - SLIDER_KNOB_LEFT;
+		let leftOffset = currentMousePosition.x - box.left * SCALING_RATIO - SLIDER_KNOB_LEFT;
 		let completion = Util.clamp(leftOffset / (SLIDER_KNOB_RIGHT - SLIDER_KNOB_LEFT), 0, 1);
 		this.currentSliderCallback(completion);
 	}
 
+	/** Adds a heading element. */
+	addHeading(container: HTMLDivElement, label: string) {
+		let element = document.createElement('div');
+		element.classList.add('mbp-options-element', '_heading');
+		element.textContent = label;
+
+		container.appendChild(element);
+	}
+
 	/** Adds a dropdown element for a given option. */
-	addDropdown(container: HTMLDivElement, setting: keyof StorageData['settings'], label: string, choices: string[], boolean = false) {
+	addDropdown(container: HTMLDivElement, setting: keyof StorageData['settings'], label: string, choices: string[], boolean = false, onChange?: () => void, smallText = false) {
 		const close = () => {
 			// Hide the dropdown
 			clickPreventer.classList.add('hidden');
@@ -139,6 +171,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 
 		let element = document.createElement('div');
 		element.classList.add('mbp-options-element', '_dropdown');
+		if (smallText) element.classList.add('_small-text');
 
 		let p = document.createElement('p');
 		p.textContent = label + ':';
@@ -176,11 +209,12 @@ export class MbpOptionsScreen extends OptionsScreen {
 			elem.textContent = option;
 			optionsContainer.appendChild(elem);
 
-			elem.addEventListener('mousedown', () => {
+			elem.addEventListener('mousedown', async () => {
 				close();
 				selectionLabel.textContent = option;
 				StorageManager.data.settings[setting] = (boolean? Boolean(choices.indexOf(option)) : choices.indexOf(option)) as never; // TypeScript stupid and I'm lazy
-				StorageManager.store();
+				await StorageManager.store();
+				onChange?.();
 			});
 		}
 
@@ -191,7 +225,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 	}
 
 	/** Adds a slider element for a given option. */
-	addSlider(container: HTMLDivElement, setting: keyof StorageData['settings'], label: string, min: number, max: number, onChange?: () => any, onDragStart?: () => any, step = 0, showValue?: (val: number) => string) {
+	addSlider(container: HTMLDivElement, setting: keyof StorageData['settings'], label: string, min: number, max: number, onChange?: () => any, onDragStart?: () => any, step = 0, showValue?: (val: number) => string, smallText = false) {
 		const updateThumb = () => {
 			let completion = ((StorageManager.data.settings[setting] as number) - min) / (max - min);
 			thumb.style.left = Math.floor(Util.lerp(SLIDER_KNOB_LEFT, SLIDER_KNOB_RIGHT, completion)) + 'px';
@@ -200,13 +234,14 @@ export class MbpOptionsScreen extends OptionsScreen {
 
 		let element = document.createElement('div');
 		element.classList.add('mbp-options-element', '_slider');
+		if (smallText) element.classList.add('_small-text');
 
 		let p = document.createElement('p');
 		p.textContent = label + ':';
 
 		let bar = document.createElement('img');
 		bar.src = './assets/ui_mbp/options/bar.png';
-		bar.addEventListener('mousedown', () => {
+		const handler = () => {
 			this.currentSliderElement = element;
 			this.currentSliderCallback = (completion: number) => {
 				StorageManager.data.settings[setting] = Util.roundToMultiple(Util.lerp(min, max, completion), step) as never;
@@ -214,7 +249,9 @@ export class MbpOptionsScreen extends OptionsScreen {
 				onChange?.();
 			};
 			onDragStart?.();
-		});
+		};
+		bar.addEventListener('mousedown', handler);
+		bar.addEventListener('touchstart', handler);
 
 		let thumb = document.createElement('img');
 		thumb.src = './assets/ui_mbp/options/slider.png';

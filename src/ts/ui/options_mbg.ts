@@ -1,5 +1,6 @@
 import { AudioManager, AudioSource } from "../audio";
 import { currentMousePosition } from "../input";
+import { SCALING_RATIO } from "../rendering";
 import { ResourceManager } from "../resources";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
@@ -210,7 +211,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		});
 		menu.setupButton(this.graphicsApply, 'options/grafapply', () => {});
 
-		window.addEventListener('mouseup', () => {
+		const handler = () => {
 			if (!this.draggingMusicVolume && !this.draggingSoundVolume && !this.draggingMouseSensitivity) return;
 		
 			// Release all dragging things
@@ -222,11 +223,17 @@ export class MbgOptionsScreen extends OptionsScreen {
 				this.soundTestingSound.stop();
 				this.soundTestingSound = null;
 			}
-		});
+		};
+		window.addEventListener('mouseup', handler);
+		window.addEventListener('touchend', handler);
 		this.musicVolumeTrack.addEventListener('mousedown', () => this.draggingMusicVolume = true);
+		this.musicVolumeTrack.addEventListener('touchstart', () => this.draggingMusicVolume = true);
 		this.musicVolumeKnob.addEventListener('mousedown', () => this.draggingMusicVolume = true);
+		this.musicVolumeKnob.addEventListener('touchstart', () => this.draggingMusicVolume = true);
 		this.soundVolumeTrack.addEventListener('mousedown', () => this.draggingSoundVolume = true);
+		this.soundVolumeTrack.addEventListener('touchstart', () => this.draggingSoundVolume = true);
 		this.soundVolumeKnob.addEventListener('mousedown', () => this.draggingSoundVolume = true);
+		this.soundVolumeKnob.addEventListener('touchstart', () => this.draggingSoundVolume = true);
 
 		requestAnimationFrame(() => this.updateSliders());
 
@@ -247,6 +254,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		menu.setupButton(this.buttonCameraDown, 'options/cntr_cam_dwn', () => this.changeKeybinding('cameraDown'));
 
 		this.mouseSensitivityKnob.addEventListener('mousedown', () => this.draggingMouseSensitivity = true);
+		this.mouseSensitivityKnob.addEventListener('touchstart', () => this.draggingMouseSensitivity = true);
 
 		menu.setupButton(this.invertY, 'options/cntrl_mous_invrt', () => {
 			StorageManager.data.settings.invertMouse &= ~0b10;
@@ -439,7 +447,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		// Updates all sliders based on mouse position.
 	
 		if (this.draggingMusicVolume) {
-			let leftStart = this.div.getBoundingClientRect().left + this.musicVolumeKnobLeft;
+			let leftStart = this.div.getBoundingClientRect().left * SCALING_RATIO + this.musicVolumeKnobLeft;
 			let completion = Util.clamp(((currentMousePosition.x - 12) - leftStart) / this.trackLength, 0, 1);
 	
 			this.musicVolumeKnob.style.left = Math.floor(this.musicVolumeKnobLeft + completion * this.trackLength) + 'px';
@@ -448,7 +456,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		}
 	
 		if (this.draggingSoundVolume) {
-			let leftStart = this.div.getBoundingClientRect().left + this.soundVolumeKnobLeft;
+			let leftStart = this.div.getBoundingClientRect().left * SCALING_RATIO + this.soundVolumeKnobLeft;
 			let completion = Util.clamp(((currentMousePosition.x - 12) - leftStart) / this.trackLength, 0, 1);
 	
 			this.soundVolumeKnob.style.left = Math.floor(this.soundVolumeKnobLeft + completion * this.trackLength) + 'px';
@@ -463,7 +471,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		}
 	
 		if (this.draggingMouseSensitivity) {
-			let leftStart = this.div.getBoundingClientRect().left + this.mouseSensitivityKnobLeft;
+			let leftStart = this.div.getBoundingClientRect().left * SCALING_RATIO + this.mouseSensitivityKnobLeft;
 			let completion = Util.clamp(((currentMousePosition.x - 12) - leftStart) / this.trackLength, 0, 1);
 	
 			this.mouseSensitivityKnob.style.left = Math.floor(this.mouseSensitivityKnobLeft + completion * this.trackLength) + 'px';

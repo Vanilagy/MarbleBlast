@@ -38,6 +38,14 @@ export abstract class AudioManager {
 		this.updateVolumes();
 
 		if (typeof OggdecModule !== 'undefined') this.oggDecoder = OggdecModule();
+
+		window.onfocus = () => {
+			if (Util.isTouchDevice) this.masterGain.gain.value = 1;
+		};
+		window.onblur = () => {
+			// If we're on a touch device, mute the site when we blur it
+			if (Util.isTouchDevice) this.masterGain.gain.value = 0;
+		};
 	}
 
 	static setAssetPath(path: string) {
@@ -69,8 +77,8 @@ export abstract class AudioManager {
 				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 				let audioBuffer: AudioBuffer;
 
-				if (path.endsWith('.ogg') && Util.isSafari()) {
-					// Safari can't deal with .ogg
+				if (path.endsWith('.ogg') && (Util.isSafari() || Util.isFirefox())) {
+					// Safari can't deal with .ogg. Apparently Firefox can't deal with some of them either??
 					audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
 				} else if (window.AudioContext) {
 					audioBuffer = await this.context.decodeAudioData(arrayBuffer);
@@ -87,6 +95,7 @@ export abstract class AudioManager {
 				resolve(audioBuffer);
 			} catch (e) {
 				reject(e);
+				console.log("Errored path: " + path);
 			}
 		});
 
@@ -308,8 +317,16 @@ export class AudioSource {
 		this.stopped = true;
 		this.playing = false;
 		try {
-			if (this.audioElement) this.audioElement.pause();
-			else (this.node as AudioBufferSourceNode).stop();
+			if (this.audioElement) {
+				this.audioElement.pause();
+
+				// https://stackoverflow.com/questions/40843798/hide-html5-audio-video-notification-in-android-chrome
+				// Okay this doesn't seem to be working actually
+				this.audioElement.currentTime = 0;
+				this.audioElement.load();
+			} else {
+				(this.node as AudioBufferSourceNode).stop();
+			}
 		} catch (e) {}
 		Util.removeFromArray(AudioManager.audioSources, this);
 	}

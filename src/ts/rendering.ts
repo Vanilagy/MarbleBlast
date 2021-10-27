@@ -1,14 +1,18 @@
 import * as THREE from "three";
 import { StorageManager } from "./storage";
+import { Util } from "./util";
 
 export const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasElement;
 
 const MIN_WIDTH = 640;
 const MIN_HEIGHT = 600;
 
+/** Ratio by which the entire body gets scaled by, while still fitting into the screen. */
 export let SCALING_RATIO = 1;
 
-export const resize = () => {
+export const resize = async (wait = true) => {
+	if (wait) await Util.wait(100); // Sometimes you gotta give browser UI elements a little time to update
+
 	let ratio = Math.max(1, MIN_WIDTH / window.innerWidth, MIN_HEIGHT / window.innerHeight);
 	document.body.style.width = Math.ceil(window.innerWidth * ratio) + 'px';
 	document.body.style.height = Math.ceil(window.innerHeight * ratio) + 'px';
@@ -16,7 +20,7 @@ export const resize = () => {
 	SCALING_RATIO = ratio;
 
 	renderer.setSize(window.innerWidth, window.innerHeight);
-	renderer.setPixelRatio(StorageManager.data?.settings.respectDevicePixelRatio? window.devicePixelRatio : 1);
+	renderer.setPixelRatio(Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]));
 	mainCanvas.style.width = '100%';
 	mainCanvas.style.height = '100%';
 
@@ -29,7 +33,7 @@ export const resize = () => {
 	orthographicCamera.bottom = window.innerHeight;
 	orthographicCamera.updateProjectionMatrix();
 };
-window.addEventListener('resize', resize);
+window.addEventListener('resize', resize as any);
 
 export const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: false, logarithmicDepthBuffer: true }); // Just so much better with logarithmic
 renderer.shadowMap.enabled = true;

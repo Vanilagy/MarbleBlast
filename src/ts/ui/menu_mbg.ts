@@ -15,6 +15,7 @@ import { PauseScreen } from "./pause_screen";
 import { MbgPauseScreen } from "./pause_screen_mbg";
 import { FinishScreen } from "./finish_screen";
 import { MbgFinishScreen } from "./finish_screen_mbg";
+import { Util } from "../util";
 
 export class MbgMenu extends Menu {
 	get uiAssetPath() {
@@ -22,6 +23,10 @@ export class MbgMenu extends Menu {
 	}
 	audioAssetPath = './assets/data/sound/';
 	menuMusicSrc = 'shell.ogg';
+	popupBackgroundSrc = './assets/ui/common/dialog.png';
+	popupOkaySrc = 'common/ok';
+	popupNoSrc = 'common/no';
+	popupYesSrc = 'common/yes';
 
 	createHome(): HomeScreen {
 		return new MbgHomeScreen(this);
@@ -61,5 +66,13 @@ export class MbgMenu extends Menu {
 
 	getBackgroundImage() {
 		return document.querySelector('#background-image') as HTMLImageElement;
+	}
+
+	async init() {
+		if (Util.isWeeb) {
+			this.backgroundImage.src = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
+		}
+
+		await super.init();
 	}
 }

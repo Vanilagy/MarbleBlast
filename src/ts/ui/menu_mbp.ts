@@ -31,6 +31,10 @@ export class MbpMenu extends Menu {
 	}
 	audioAssetPath = './assets/data_mbp/sound/';
 	menuMusicSrc = 'music/pianoforte.ogg';
+	popupBackgroundSrc = './assets/ui_mbp/play/text_window.png';
+	popupOkaySrc = 'achiev/close';
+	popupNoSrc = 'exit/no';
+	popupYesSrc = 'exit/yes';
 
 	homeBg: string;
 	mbgBg: string;
@@ -89,6 +93,13 @@ export class MbpMenu extends Menu {
 		this.mbgBg = './assets/ui_mbp/backgrounds/' + 'gold/' + mbgIndex + '.jpg';
 		this.mbpBg = './assets/ui_mbp/backgrounds/' + 'platinum/' + mbpIndex + '.jpg';
 		this.mbuBg = './assets/ui_mbp/backgrounds/' + 'ultra/' + mbuIndex + '.jpg';
+
+		if (Util.isWeeb) {
+			this.homeBg = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
+			this.mbgBg = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
+			this.mbpBg = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
+			this.mbuBg = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
+		}
 
 		await ResourceManager.loadImages([this.homeBg, this.mbgBg, this.mbpBg, this.mbuBg]);
 

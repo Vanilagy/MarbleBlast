@@ -39,7 +39,17 @@ export interface StorageData {
 		showThousandths: boolean,
 		fov: number,
 		fancyShaders: boolean,
-		respectDevicePixelRatio: boolean
+		/** 0: Max 0.5, 1: Max 1.0, 2: Max 1.5, 3: Max 2.0, 4: Max Infinity */
+		pixelRatio: number,
+		inputType: number,
+
+		joystickPosition: number,
+		joystickSize: number,
+		joystickLeftOffset: number,
+		joystickVerticalPosition: number,
+		actionButtonSize: number,
+		actionButtonRightOffset: number,
+		actionButtonBottomOffset: number
 	},
 	bestTimes: Record<string, BestTimes>,
 	/** Used for the name entry in the post-game screen. */
@@ -89,7 +99,16 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		showThousandths: true,
 		fov: 60,
 		fancyShaders: true,
-		respectDevicePixelRatio: true
+		pixelRatio: 2,
+		inputType: 0,
+
+		joystickPosition: 0,
+		joystickSize: 250,
+		joystickLeftOffset: 75,
+		joystickVerticalPosition: 0.5,
+		actionButtonSize: 120,
+		actionButtonRightOffset: 30,
+		actionButtonBottomOffset: 30
 	},
 	bestTimes: {},
 	lastUsedName: '',
@@ -154,6 +173,10 @@ export abstract class StorageManager {
 		} else {
 			this.data = DEFAULT_STORAGE_DATA;
 		}
+
+		// Override the inferred type
+		if (this.data.settings.inputType === 1) Util.isTouchDevice = false;
+		else if (this.data.settings.inputType === 2) Util.isTouchDevice = true;
 
 		// Get the best times and uncompress them
 		this.data.bestTimes = {};

@@ -1,0 +1,108 @@
+#popup-container {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 420;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.popup {
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	margin: auto;
+}
+
+.popup > img:first-of-type {
+	display: block;
+}
+
+.popup > div:first-child {
+	position: absolute;
+	top: -5000px;
+	left: -5000px;
+	width: 10000px;
+	height: 10000px;
+}
+
+.popup ._heading {
+	position: absolute;
+	display: block;
+	top: 13px;
+	width: 100%;
+	text-align: center;
+	font-family: 'MarkerFelt';
+	margin: 0;
+	font-size: 20px;
+}
+
+.popup ._body {
+	position: absolute;
+	display: block;
+	top: 44px;
+	padding: 0 20px;
+	width: 100%;
+	font-family: 'MarkerFelt';
+	margin: 0;
+	font-size: 15px;
+	box-sizing: border-box;
+}
+
+.popup.mbg ._body {
+	padding: 0 30px;
+}
+
+.popup ._custom {
+	position: absolute;
+	display: block;
+	width: 100%;
+	top: 0;
+	left: 0;
+}
+
+.popup.mbp ._okay {
+	position: absolute;
+	display: block;
+	top: 144px;
+	left: 150px;
+}
+
+.popup.mbp ._no {
+	position: absolute;
+	display: block;
+	top: 144px;
+	left: 109px;
+}
+
+.popup.mbp ._yes {
+	position: absolute;
+	display: block;
+	top: 144px;
+	left: 202px;
+}
+
+.popup.mbg ._okay {
+	position: absolute;
+	display: block;
+	top: 172px;
+	left: 159px;
+}
+
+.popup.mbg ._no {
+	position: absolute;
+	display: block;
+	top: 174px;
+	left: 113px;
+}
+
+.popup.mbg ._yes {
+	position: absolute;
+	display: block;
+	top: 174px;
+	left: 205px;
+}

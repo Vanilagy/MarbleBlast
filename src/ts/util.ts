@@ -289,7 +289,9 @@ export abstract class Util {
 	}
 
 	static isInFullscreen() {
-		return window.innerWidth === screen.width && window.innerHeight === screen.height;
+		// Only check the height for now because Android has those nav buttons
+		// Also weird edge case here with phone thinking it's still in portrait
+		return (/*window.innerWidth === screen.width && */window.innerHeight === screen.height || (screen.orientation.type?.includes('portrait') && window.innerHeight === screen.width)) || !!document.fullscreenElement;
 	}
 
 	static swapInArray<T>(arr: T[], i1: number, i2: number) {
@@ -499,6 +501,10 @@ export abstract class Util {
 		return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 	}
 
+	static isFirefox() {
+		return navigator.userAgent.includes('Firefox');
+	}
+
 	static download(url: string, filename: string) {
 		let element = document.createElement('a');
 		element.setAttribute('href', url);
@@ -685,6 +691,30 @@ export abstract class Util {
 	static monospaceNumbers(element: Element, ems = 0.5) {
 		element.innerHTML = element.textContent.split('').map(x => (x >= '0' && x <= '9')? `<span style="width: ${ems}em; display: inline-block; text-align: center;">${x}</span>` : x).join('');
 	}
+
+	/** Fires a callback when the user has held down a given element for a longer amount of time. Allows "right clicking" on touch devices. */
+	static onLongTouch(element: HTMLElement, callback: (e: TouchEvent) => any) {
+		let id: number;
+		let kicked = false;
+
+		element.addEventListener('touchstart', (e) => {
+			id = setTimeout(() => {
+				callback(e);
+				kicked = true;
+			}, 500) as any as number;
+		});
+		element.addEventListener('touchend', (e) => {
+			clearTimeout(id);
+			if (kicked) {
+				e.stopPropagation();
+				e.preventDefault();
+				kicked = false;
+			}
+		});
+	}
+
+	/** Produces a funny easter egg once in a while based on a stupid pun. */
+	static isWeeb = Math.random() < 0.001; // Mazik <3
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 

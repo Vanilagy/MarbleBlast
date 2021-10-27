@@ -187,6 +187,7 @@
 	border: none;
 	font-family: inherit;
 	font-size: 26px;
+	width: 360px;
 }
 
 #mbp-name-entry-input:focus {

@@ -10,6 +10,7 @@ import { StorageManager } from "./storage";
 import { MisParser, MissionElementType } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
 import { camera, marbleReflectionCamera, marbleReflectionRenderTarget, renderer } from "./rendering";
+import { state } from "./state";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -328,6 +329,7 @@ export class Marble {
 		if (movementVec.y < -1.0)
 			movementVec.y = -1.0;
 
+		if (state.menu.finishScreen.showing) movementVec.multiplyScalar(0);
 		let inputStrength = movementVec.length();
 
 		// Rotate the vector accordingly
@@ -438,7 +440,7 @@ export class Marble {
 
 			// See if, out of all contact normals, there is one that's not at a 90° angle to the up vector.
 			let allContactNormalUpDots = allContactNormals.map(x => Math.abs(x.dot(this.level.currentUp)));
-			if (this.collisionTimeout <= 0 && (isPressed('jump') || this.level.jumpQueued) && allContactNormalUpDots.find(x => x > 1e-10)) {
+			if (this.collisionTimeout <= 0 && !state.menu.finishScreen.showing && (isPressed('jump') || this.level.jumpQueued) && allContactNormalUpDots.some(x => x > 1e-10)) {
 				// Handle jumping
 				this.setLinearVelocityInDirection(contactNormal, this.jumpImpulse + surfaceShape.getRigidBody().getLinearVelocity().dot(contactNormal), true, () => {
 					this.playJumpSound();
