@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { AudioManager, AudioSource } from "../audio";
 import OIMO from "../declarations/oimo";
 import { DEFAULT_PITCH, Level, TimeState } from "../level";
 import { MisParser, MissionElementTrigger } from "../parsing/mis_parser";
@@ -13,6 +13,8 @@ export class TeleportTrigger extends Trigger {
 	delay = 2000;
 	entryTime: number = null;
 	exitTime: number = null;
+	sounds = ["teleport.wav"];
+	teleportingSound: AudioSource = null;
 
 	constructor(element: MissionElementTrigger, level: Level) {
 		super(element, level);
@@ -28,6 +30,8 @@ export class TeleportTrigger extends Trigger {
 
 		this.entryTime = time.currentAttemptTime;
 		state.menu.hud.displayAlert("Teleporter has been activated, please wait.");
+		this.teleportingSound = AudioManager.createAudioSource('teleport.wav');
+		this.teleportingSound.play();
 	}
 
 	onMarbleLeave(time: TimeState) {
@@ -86,6 +90,8 @@ export class TeleportTrigger extends Trigger {
 		}
 
 		AudioManager.play('spawn.wav');
+		this.teleportingSound?.stop();
+		this.teleportingSound = null;
 	}
 
 	reset() {

@@ -1,5 +1,8 @@
 # Version History
 
+## 2.2.1
+- Fixed teleporting sound not playing
+
 ## 2.2.0
 - **Added proper touch device support.** This website now plays properly on touch devices such as phones or tablets using configurable on-screen touch controls.
 - **Added PWA functionality.** This website is now a Progressive Web App (PWA), meaning it can be installed on your home screen / desktop to feel like a native app. This is especially recommended on mobile as it allows proper fullscreen.
