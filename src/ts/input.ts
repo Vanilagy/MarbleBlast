@@ -302,11 +302,11 @@ const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameBu
 		let touch = e.changedTouches[0];
 		touchId = touch.identifier;
 
-		let oaenabled = getOpacityAndEnabled !== undefined ? getOpacityAndEnabled().enabled : true;
+		let oaenabled = getOpacityAndEnabled?.().enabled ?? true;
 		if (oaenabled)
 			element.style.opacity = '0.9';
 		else
-			element.style.opacity = '0.3';
+			element.style.opacity = '0.4';
 		setPressed(button, 'touch', true);
 		onStart?.(touch);
 	});
@@ -314,7 +314,7 @@ const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameBu
 	touchendFuncs.push((touch, force) => {
 		if (force || touch.identifier === touchId) {
 			touchId = null;
-			element.style.opacity = getOpacityAndEnabled !== undefined ? getOpacityAndEnabled().opacity : '';
+			element.style.opacity = getOpacityAndEnabled?.().opacity ?? '';
 			setPressed(button, 'touch', false);
 			onEnd?.(touch);
 		}
