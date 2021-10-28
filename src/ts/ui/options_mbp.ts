@@ -122,7 +122,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.addSlider(this.generalContainer, 'actionButtonSize', 'Button Size', 50, 300, undefined, undefined, 1, (x) => (x|0).toString(), true);
 		this.addSlider(this.generalContainer, 'actionButtonRightOffset', 'Button Right Offset', 0, 300, undefined, undefined, 1, (x) => (x|0).toString(), true);
 		this.addSlider(this.generalContainer, 'actionButtonBottomOffset', 'Button Bottom Offset', 0, 300, undefined, undefined, 1, (x) => (x | 0).toString(), true);
-		this.addSlider(this.generalContainer, 'actionButtonAsJoystickMultiplier', 'Button Camera Sensitivity', 0, 3, undefined, undefined, 0.1, (x) => (Math.floor(x * 10) / 10).toString(), true);
+		this.addSlider(this.generalContainer, 'actionButtonAsJoystickMultiplier', 'Button Sensitivity Fac', 0, 3, undefined, undefined, 0.1, (x) => (Math.floor(x * 10) / 10).toString(), true);
 
 		this.addHotkey(this.hotkeysContainer, 'up');
 		this.addHotkey(this.hotkeysContainer, 'left');

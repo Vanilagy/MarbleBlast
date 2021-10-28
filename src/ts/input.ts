@@ -288,7 +288,7 @@ export const setUseEnabled = (value: boolean) => {
 
 const getUseEnabledOpacityAndEnabled = () => {
 	return {
-		opacity: useEnabled ? '' : '0.2',
+		opacity: useEnabled ? '0.5' : '0.2',
 		enabled: useEnabled
 	}
 }
@@ -297,7 +297,6 @@ const getUseEnabledOpacityAndEnabled = () => {
 let touchendFuncs: ((touch: Touch, force: boolean) => void)[] = [];
 const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameButtons, onStart?: (touch: Touch) => void, onEnd?: (touch: Touch) => void, getOpacityAndEnabled?: () => { opacity: string, enabled: boolean }) => {
 	let touchId: number = null;
-	let elementOpacity = element.style.opacity;
 	
 	element.addEventListener('touchstart', (e) => {
 		let touch = e.changedTouches[0];
@@ -306,20 +305,18 @@ const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameBu
 		let oaenabled = getOpacityAndEnabled !== undefined ? getOpacityAndEnabled().enabled : true;
 		if (oaenabled)
 			element.style.opacity = '0.9';
+		else
+			element.style.opacity = '0.3';
 		setPressed(button, 'touch', true);
 		onStart?.(touch);
 	});
 
-	element.addEventListener('touchend', (e) => {
-		let touch = e.changedTouches[0];
-		onEnd?.(touch);
-	});
-
-	touchendFuncs.push(touch => {
-		if (touch.identifier === touchId) {
+	touchendFuncs.push((touch, force) => {
+		if (force || touch.identifier === touchId) {
 			touchId = null;
 			element.style.opacity = getOpacityAndEnabled !== undefined ? getOpacityAndEnabled().opacity : '';
 			setPressed(button, 'touch', false);
+			onEnd?.(touch);
 		}
 	});
 };
