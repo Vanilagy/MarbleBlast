@@ -1,6 +1,6 @@
 import { Interior } from "./interior";
 import * as THREE from "three";
-import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera, resize, SCALING_RATIO } from "./rendering";
+import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera, resize, SCALING_RATIO, FRAME_RATE_OPTIONS } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
@@ -157,6 +157,7 @@ export class Level extends Scheduler {
 	timeState: TimeState;
 	/** The last performance.now() time the physics were ticked. */
 	lastPhysicsTick: number = null;
+	lastFrameTime: number = null;
 	paused = true;
 	/** If the level is stopped, it shouldn't be used anymore. */
 	stopped = false;
@@ -802,8 +803,20 @@ export class Level extends Scheduler {
 
 	render() {
 		if (this.stopped) return;
+		requestAnimationFrame(() => this.render());
 
 		let time = performance.now();
+		if (this.lastFrameTime === null) {
+			this.lastFrameTime = time;
+		} else {
+			// Take care of frame rate limiting:
+			let elapsed = time - this.lastFrameTime;
+			let required = 1000 / FRAME_RATE_OPTIONS[StorageManager.data.settings.frameRateCap];
+			if (elapsed < required) return;
+
+			this.lastFrameTime += required * Math.floor(elapsed / required);
+		}
+
 		this.tick(time);
 
 		if (this.stopped) return; // Check it again here 'cuz the tick might've changed it
@@ -879,8 +892,6 @@ export class Level extends Scheduler {
 		hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, helpTextCompletion)})`;
 		hud.alertElement.style.opacity = (1 - alertTextCompletion).toString();
 		hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
-
-		requestAnimationFrame(() => this.render());
 	}
 
 	determineClockColor(timeToDisplay: number) {

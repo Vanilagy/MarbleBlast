@@ -42,6 +42,7 @@ export interface StorageData {
 		/** 0: Max 0.5, 1: Max 1.0, 2: Max 1.5, 3: Max 2.0, 4: Max Infinity */
 		pixelRatio: number,
 		inputType: number,
+		frameRateCap: number,
 
 		joystickPosition: number,
 		joystickSize: number,
@@ -101,6 +102,7 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		fancyShaders: true,
 		pixelRatio: 2,
 		inputType: 0,
+		frameRateCap: 7,
 
 		joystickPosition: 0,
 		joystickSize: 250,

@@ -1,6 +1,6 @@
 import { AudioManager, AudioSource } from "../audio";
 import { currentMousePosition } from "../input";
-import { SCALING_RATIO } from "../rendering";
+import { FRAME_RATE_OPTIONS, SCALING_RATIO } from "../rendering";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
 import { StorageData, StorageManager } from "../storage";
@@ -87,6 +87,9 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.addHeading(this.generalContainer, 'General');
 		this.addDropdown(this.generalContainer, 'alwaysFreeLook', 'Free-Look', ['Disabled', 'Enabled'], true);
 		this.addDropdown(this.generalContainer, 'invertMouse', 'Invert Mouse', ['None', 'X Only', 'Y only', 'X and Y']);
+		this.addDropdown(this.generalContainer, 'frameRateCap', 'Max Frame Rate', FRAME_RATE_OPTIONS.map(x => isFinite(x)? x.toString() : 'Unlimited'), undefined, undefined, undefined, () => {
+			this.menu.showAlertPopup('About unlocking frame rate', `Browsers are v-synced by default, causing some input lag. Chrome can unlock its FPS by starting it with a special flag. Check <a href="https://www.reddit.com/r/KrunkerIO/comments/esz4gt/unlock_browser_fps_this_one_is_for_you/" target="_blank">this Reddit post</a> for more info. Once your FPS are unlocked, use this setting to ensure your CPU doesn't overheat.`);
+		});
 		this.addDropdown(this.generalContainer, 'showFrameRate', 'Frame Rate', ['Hidden', 'Visible'], true);
 		this.addDropdown(this.generalContainer, 'showThousandths', 'Thousandths', ['Disabled', 'Enabled'], true);
 		this.addMarbleTexturePicker(this.generalContainer);
@@ -99,7 +102,6 @@ export class MbpOptionsScreen extends OptionsScreen {
 
 			if (before !== Util.isTouchDevice) location.reload(); // Restart that shit, don't take any chances
 		});
-		this.addSlider(this.generalContainer, 'fov', 'Field of View', 30, 120, undefined, undefined, 1, x => x.toString());
 		this.addSlider(this.generalContainer, 'musicVolume', 'Music Volume', 0, 1, () => AudioManager.updateVolumes(), undefined, undefined, x => Math.ceil(x * 100).toString());
 		this.addSlider(this.generalContainer, 'mouseSensitivity', 'Mouse Speed', 0, 1);
 		this.addSlider(this.generalContainer, 'soundVolume', 'Sound Volume', 0, 1, () => AudioManager.updateVolumes(), () => {
@@ -111,6 +113,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 			}
 		}, undefined, x => Math.ceil(x * 100).toString());
 		this.addSlider(this.generalContainer, 'keyboardSensitivity', 'Keyboard Speed', 0, 1);
+		this.addSlider(this.generalContainer, 'fov', 'Field of View', 30, 120, undefined, undefined, 1, x => x.toString());
 		this.addHeading(this.generalContainer, 'Touch Controls');
 		this.addDropdown(this.generalContainer, 'joystickPosition', 'Joystick Position', ['Fixed', 'Dynamic'], undefined, undefined, true);
 		this.addSlider(this.generalContainer, 'joystickSize', 'Joystick Size', 100, 500, undefined, undefined, 1, (x) => (x|0).toString(), true);
@@ -159,7 +162,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 	}
 
 	/** Adds a dropdown element for a given option. */
-	addDropdown(container: HTMLDivElement, setting: keyof StorageData['settings'], label: string, choices: string[], boolean = false, onChange?: () => void, smallText = false) {
+	addDropdown(container: HTMLDivElement, setting: keyof StorageData['settings'], label: string, choices: string[], boolean = false, onChange?: () => void, smallText = false, onInfoClick?: () => void) {
 		const close = () => {
 			// Hide the dropdown
 			clickPreventer.classList.add('hidden');
@@ -219,6 +222,16 @@ export class MbpOptionsScreen extends OptionsScreen {
 		}
 
 		element.append(p, button, selectionLabel, clickPreventer, dropdownBackground, optionsContainer);
+
+		if (onInfoClick) {
+			let infoButton = document.createElement('img');
+			infoButton.src = './assets/svg/info_black_24dp.svg';
+			infoButton.classList.add('_info');
+			element.append(infoButton);
+
+			infoButton.addEventListener('click', onInfoClick);
+		}
+
 		container.appendChild(element);
 
 		this.updateFuncs.push(() => selectionLabel.textContent = choices[Number(StorageManager.data.settings[setting])]);

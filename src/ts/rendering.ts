@@ -6,6 +6,7 @@ export const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasEl
 
 const MIN_WIDTH = 640;
 const MIN_HEIGHT = 600;
+export const FRAME_RATE_OPTIONS = [30, 60, 90, 120, 144, 240, 360, Infinity];
 
 /** Ratio by which the entire body gets scaled by, while still fitting into the screen. */
 export let SCALING_RATIO = 1;

@@ -175,6 +175,19 @@
 	background: rgba(0, 0, 0, 0.603);
 }
 
+.mbp-options-element._dropdown ._info {
+	position: absolute;
+	top: 6px;
+	left: 185px;
+	width: 16px;
+	filter: invert(1) drop-shadow(1px 1px 0px black);
+	opacity: 0.5;
+}
+
+.mbp-options-element._dropdown ._info:hover {
+	opacity: 1;
+}
+
 .mbp-options-element._slider > img:nth-of-type(1) {
 	position: absolute;
 	display: block;
