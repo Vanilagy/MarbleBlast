@@ -50,7 +50,8 @@ export interface StorageData {
 		joystickVerticalPosition: number,
 		actionButtonSize: number,
 		actionButtonRightOffset: number,
-		actionButtonBottomOffset: number
+		actionButtonBottomOffset: number,
+		actionButtonAsJoystickMultiplier: number
 	},
 	bestTimes: Record<string, BestTimes>,
 	/** Used for the name entry in the post-game screen. */
@@ -110,7 +111,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		joystickVerticalPosition: 0.5,
 		actionButtonSize: 120,
 		actionButtonRightOffset: 30,
-		actionButtonBottomOffset: 30
+		actionButtonBottomOffset: 30,
+		actionButtonAsJoystickMultiplier: 1.5
 	},
 	bestTimes: {},
 	lastUsedName: '',

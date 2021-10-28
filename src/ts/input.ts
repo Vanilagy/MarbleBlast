@@ -278,23 +278,47 @@ export let normalizedJoystickHandlePosition: {x: number, y: number} = null;
 let movementAreaTouchIdentifier: number = null;
 let cameraAreaTouchIdentifier: number = null;
 let lastCameraTouch: Touch = null;
+let joystickAsCameraTouches: Touch[] = [];
+
+export let useEnabled: boolean = false;
+
+export const setUseEnabled = (value: boolean) => {
+	useEnabled = value;
+}
+
+const getUseEnabledOpacityAndEnabled = () => {
+	return {
+		opacity: useEnabled ? '' : '0.2',
+		enabled: useEnabled
+	}
+}
+
 
 let touchendFuncs: ((touch: Touch, force: boolean) => void)[] = [];
-const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameButtons, onStart?: (touch: Touch) => void) => {
+const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameButtons, onStart?: (touch: Touch) => void, onEnd?: (touch: Touch) => void, getOpacityAndEnabled?: () => { opacity: string, enabled: boolean }) => {
 	let touchId: number = null;
-
+	let elementOpacity = element.style.opacity;
+	
 	element.addEventListener('touchstart', (e) => {
 		let touch = e.changedTouches[0];
 		touchId = touch.identifier;
-		element.style.opacity = '0.9';
+
+		let oaenabled = getOpacityAndEnabled !== undefined ? getOpacityAndEnabled().enabled : true;
+		if (oaenabled)
+			element.style.opacity = '0.9';
 		setPressed(button, 'touch', true);
 		onStart?.(touch);
 	});
 
-	touchendFuncs.push((touch, force) => {
-		if (force || touch.identifier === touchId) {
+	element.addEventListener('touchend', (e) => {
+		let touch = e.changedTouches[0];
+		onEnd?.(touch);
+	});
+
+	touchendFuncs.push(touch => {
+		if (touch.identifier === touchId) {
 			touchId = null;
-			element.style.opacity = '';
+			element.style.opacity = getOpacityAndEnabled !== undefined ? getOpacityAndEnabled().opacity : '';
 			setPressed(button, 'touch', false);
 		}
 	});
@@ -305,9 +329,18 @@ const startCameraMovement = (touch: Touch) => {
 	lastCameraTouch = touch;
 };
 
-setupTouchButton(jumpButton, 'jump', startCameraMovement);
-setupTouchButton(useButton, 'use', startCameraMovement);
-setupTouchButton(blastButton, 'blast', startCameraMovement);
+const startCameraMovementFromButton = (touch: Touch) => {
+	startCameraMovement(touch);
+	joystickAsCameraTouches.push(touch);
+}
+
+const endCameraMovementFromButton = (touch: Touch) => {
+	joystickAsCameraTouches.splice(joystickAsCameraTouches.indexOf(touch), 1);
+}
+
+setupTouchButton(jumpButton, 'jump', startCameraMovementFromButton, endCameraMovementFromButton);
+setupTouchButton(useButton, 'use', startCameraMovementFromButton, endCameraMovementFromButton, getUseEnabledOpacityAndEnabled);
+setupTouchButton(blastButton, 'blast', startCameraMovementFromButton, endCameraMovementFromButton);
 setupTouchButton(pauseButton, 'pause');
 setupTouchButton(restartButton, 'restart');
 setupTouchButton(freeLookButton, 'freeLook');
@@ -417,7 +450,7 @@ touchInputContainer.addEventListener('touchmove', (e) => {
 		let movementX = (touch.clientX - lastCameraTouch.clientX) * SCALING_RATIO;
 		let movementY = (touch.clientY - lastCameraTouch.clientY) * SCALING_RATIO;
 
-		let factor = Util.lerp(1 / 1500, 1 / 50, StorageManager.data.settings.mouseSensitivity);
+		let factor = Util.lerp(1 / 1500, 1 / 50, StorageManager.data.settings.mouseSensitivity) * ((joystickAsCameraTouches.length !== 0) ? StorageManager.data.settings.actionButtonAsJoystickMultiplier : 1);
 		let yFactor = (StorageManager.data.settings.invertMouse & 0b10)? -1 : 1;
 		let freeLook = StorageManager.data.settings.alwaysFreeLook || isPressed('freeLook');
 

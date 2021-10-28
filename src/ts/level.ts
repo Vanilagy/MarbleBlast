@@ -716,6 +716,7 @@ export class Level extends Scheduler {
 		}
 
 		let hud = state.menu.hud;
+		hud.setPowerupButtonState(false, true);
 
 		this.timeState.currentAttemptTime = 0;
 		this.timeState.gameplayClock = 0;
@@ -1311,6 +1312,7 @@ export class Level extends Scheduler {
 		if (!powerUp) return false;
 		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
 		this.heldPowerUp = powerUp;
+		state.menu.hud.setPowerupButtonState(true);
 
 		for (let overlayShape of this.overlayShapes) {
 			if (overlayShape.dtsPath.includes("gem")) continue;
@@ -1326,8 +1328,12 @@ export class Level extends Scheduler {
 	}
 
 	deselectPowerUp() {
-		if (!this.heldPowerUp) return;
+		if (!this.heldPowerUp) {
+			state.menu.hud.setPowerupButtonState(false);
+			return;
+		}
 		this.heldPowerUp = null;
+		state.menu.hud.setPowerupButtonState(false);
 
 		for (let overlayShape of this.overlayShapes) {
 			if (overlayShape.dtsPath.includes("gem")) continue;
@@ -1381,6 +1387,7 @@ export class Level extends Scheduler {
 	goOutOfBounds() {
 		if (this.outOfBounds || this.finishTime) return;
 
+		state.menu.hud.setPowerupButtonState(true);
 		this.updateCamera(this.timeState); // Update the camera at the point of OOB-ing
 		this.outOfBounds = true;
 		this.outOfBoundsTime = Util.jsonClone(this.timeState);

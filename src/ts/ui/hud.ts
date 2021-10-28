@@ -1,5 +1,5 @@
 import { AudioManager } from "../audio";
-import { actionButtonContainer, blastButton, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, movementJoystick, movementJoystickHandle, pauseButton, restartButton } from "../input";
+import { actionButtonContainer, blastButton, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setUseEnabled } from "../input";
 import { FRAME_RATE_OPTIONS } from "../rendering";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
@@ -24,6 +24,7 @@ const numberSources = {
 	"-": "dash.png"
 };
 const keybindRegex = /<func:bind (\w+)>/g;
+const useButton = document.querySelector('#use-button') as HTMLImageElement;
 
 export abstract class Hud {
 	menu: Menu;
@@ -159,6 +160,17 @@ export abstract class Hud {
 			this.clockCtx.drawImage(image, baseOffset + currentX, 0);
 			currentX += defaultWidth + defaultMarginRight;
 			if (char === ':' || char === '.') currentX -= 7;
+		}
+	}
+
+	/** Makes the powerup button visible/invisible depending on state and forceUpdate, see code. */
+	setPowerupButtonState(enabled: boolean, forceUpdate: boolean = false) {
+		if (Util.isTouchDevice) {
+			setUseEnabled(enabled);
+			if (enabled || forceUpdate) 
+				useButton.style.opacity = '0.5';
+			if (!enabled && forceUpdate)
+				useButton.style.opacity = '0.2';
 		}
 	}
 
