@@ -796,7 +796,7 @@ export class Marble {
 			(this.level.blastAmount > 1)? blastMaxParticleOptions : blastParticleOptions,
 			null,
 			() => Util.vecOimoToThree(this.body.getPosition().addScaledEq(this.level.currentUp, -this.radius * 0.4)),
-			new THREE.Vector3(1, 1, 1).addScaledVector(Util.vecOimoToThree(this.level.currentUp), -0.8)
+			new THREE.Vector3(1, 1, 1).addScaledVector(Util.absVector(Util.vecOimoToThree(this.level.currentUp)), -0.8)
 		);
 
 		this.level.blastAmount = 0;

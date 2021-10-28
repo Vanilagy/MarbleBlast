@@ -731,6 +731,15 @@ export abstract class Util {
 
 	/** Produces a funny easter egg once in a while based on a stupid pun. */
 	static isWeeb = Math.random() < 0.001; // Mazik <3
+
+	/** Turns each component's value into its absolute value. */
+	static absVector(vec: THREE.Vector3) {
+		vec.x = Math.abs(vec.x);
+		vec.y = Math.abs(vec.y);
+		vec.z = Math.abs(vec.z);
+
+		return vec;
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 
