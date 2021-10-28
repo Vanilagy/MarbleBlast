@@ -1,5 +1,5 @@
 import { AudioManager } from "../audio";
-import { actionButtonContainer, blastButton, blastEnabled, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setBlastEnabled, setUseEnabled } from "../input";
+import { actionButtonContainer, blastButton, blastEnabled, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setBlastEnabled, setUseEnabled, useButton } from "../input";
 import { FRAME_RATE_OPTIONS } from "../rendering";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
@@ -24,8 +24,6 @@ const numberSources = {
 	"-": "dash.png"
 };
 const keybindRegex = /<func:bind (\w+)>/g;
-const useButton = document.querySelector('#use-button') as HTMLImageElement;
-const blastButton = document.querySelector('#blast-button') as HTMLImageElement;
 
 export abstract class Hud {
 	menu: Menu;
