@@ -300,6 +300,8 @@ export class AudioSource {
 		if (this.stopped) return;
 
 		if (this.node instanceof AudioBufferSourceNode) {
+			if (this.node.buffer) return; // Async stuff idk, could happen
+
 			this.node.buffer = maybeBuffer as AudioBuffer;
 			this.node.start();
 			this.node.onended = () => {
