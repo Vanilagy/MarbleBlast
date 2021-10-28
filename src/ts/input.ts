@@ -281,15 +281,28 @@ let lastCameraTouch: Touch = null;
 let joystickAsCameraTouches: Touch[] = [];
 
 export let useEnabled: boolean = false;
+export let blastEnabled: boolean = false;
 
 export const setUseEnabled = (value: boolean) => {
 	useEnabled = value;
 }
 
+export const setBlastEnabled = (value: boolean) => {
+	blastEnabled = value;
+}
+
+
 const getUseEnabledOpacityAndEnabled = () => {
 	return {
 		opacity: useEnabled ? '0.5' : '0.2',
 		enabled: useEnabled
+	}
+}
+
+const getBlastEnabledOpacityAndEnabled = () => {
+	return {
+		opacity: blastEnabled ? '0.5' : '0.2',
+		enabled: blastEnabled
 	}
 }
 
@@ -337,7 +350,7 @@ const endCameraMovementFromButton = (touch: Touch) => {
 
 setupTouchButton(jumpButton, 'jump', startCameraMovementFromButton, endCameraMovementFromButton);
 setupTouchButton(useButton, 'use', startCameraMovementFromButton, endCameraMovementFromButton, getUseEnabledOpacityAndEnabled);
-setupTouchButton(blastButton, 'blast', startCameraMovementFromButton, endCameraMovementFromButton);
+setupTouchButton(blastButton, 'blast', startCameraMovementFromButton, endCameraMovementFromButton, getBlastEnabledOpacityAndEnabled);
 setupTouchButton(pauseButton, 'pause');
 setupTouchButton(restartButton, 'restart');
 setupTouchButton(freeLookButton, 'freeLook');

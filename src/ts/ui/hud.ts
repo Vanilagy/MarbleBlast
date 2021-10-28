@@ -1,5 +1,5 @@
 import { AudioManager } from "../audio";
-import { actionButtonContainer, blastButton, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setUseEnabled } from "../input";
+import { actionButtonContainer, blastButton, blastEnabled, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setBlastEnabled, setUseEnabled } from "../input";
 import { FRAME_RATE_OPTIONS } from "../rendering";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
@@ -25,6 +25,7 @@ const numberSources = {
 };
 const keybindRegex = /<func:bind (\w+)>/g;
 const useButton = document.querySelector('#use-button') as HTMLImageElement;
+const blastButton = document.querySelector('#blast-button') as HTMLImageElement;
 
 export abstract class Hud {
 	menu: Menu;
@@ -286,6 +287,16 @@ export abstract class Hud {
 	displayBlastMeterFullness(amount: number) {
 		if (amount > 1) this.blastMeterBody.src = './assets/ui_mbp/game/blastbar_charged.png';
 		else this.blastMeterBody.src = './assets/ui_mbp/game/blastbar.png';
+
+		if (amount >= 0.2) {
+			if (!blastEnabled)
+				blastButton.style.opacity = '0.5';
+			setBlastEnabled(true);
+		} else {
+			if (blastEnabled)
+				blastButton.style.opacity = '0.2';
+			setBlastEnabled(false);
+		}
 
 		this.blastMeterFill.style.width = Util.clamp(amount, 0, 1) * 109 + 'px';
 		this.blastMeterFill.src = `./assets/ui_mbp/game/blastbar_bar${(amount >= 0.2)? 'green' : 'gray'}.png`;
