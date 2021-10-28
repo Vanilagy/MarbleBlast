@@ -1,20 +1,23 @@
 self.addEventListener('fetch', event => {
 	if (!(event.request.url.endsWith('/') || event.request.url.endsWith('index.html'))) return; // Only file we wanna handle specially rn
 
-	event.respondWith((async () => {
+	event.respondWith(new Promise(async (resolve) => {
+		let errResponse = new Response(noInternetHtml, {
+			status: '200', // Technically wrong ig,
+			headers: {
+				'Content-Type': 'text/html'
+			}
+		});
+
+		setTimeout(() => resolve(errResponse), 10000);
+
 		try {
 			let response = await fetch(event.request);
-			return response;
+			resolve(response);
 		} catch (error) {
-			let response = new Response(noInternetHtml, {
-				status: '200', // Technically wrong ig,
-				headers: {
-					'Content-Type': 'text/html'
-				}
-			});
-			return response;
+			resolve(errResponse);
 		}
-	})());
+	}));
 });
 
 // Describes an HTML file that is shown when there's no internet. Reminds the user that internet is required to use the internet. Lol.
@@ -44,7 +47,7 @@ const noInternetHtml = `
 	</style>
 
 	<div>
-		Can't establish a connection to the server.<br>
+		Can't seem to establish a connection to the server.<br>
 		Marble Blast Web requires an active internet connection to function.<br><br><br>
 		<span style="font-size: 18px; opacity: 0.75;" onclick="document.body.style.display = 'none'; location.reload(true);">Try again</span>
 	</div>
