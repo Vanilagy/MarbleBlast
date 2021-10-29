@@ -18,9 +18,6 @@ export const escapeDiscord = (message: string) => {
 
 /** Converts seconds to a formatted time string. */
 export const secondsToTimeString = (seconds: number, decimalDigits = 3) => {
-	// Resolve float issues:
-	seconds = roundToMultiple(seconds, 1e-8);
-
 	let abs = Math.abs(seconds);
 	let minutes = Math.floor(abs / 60);
 	let string = leftPadZeroes(minutes.toString(), 2) + ':' + leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + leftPadZeroes(Math.floor(abs % 1 * 10**decimalDigits).toString(), decimalDigits);
@@ -37,9 +34,4 @@ export const leftPadZeroes = (str: string, amount: number) => {
 /** Uppercases the first letter of a given string. */
 export const uppercaseFirstLetter = (str: string) => {
 	return str[0].toUpperCase() + str.slice(1);
-};
-
-const roundToMultiple = (val: number, fac: number) => {
-	if (!fac) return val;
-	return Math.round(val / fac) * fac;
 };

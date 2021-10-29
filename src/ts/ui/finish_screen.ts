@@ -124,7 +124,7 @@ export abstract class FinishScreen {
 		this.div.classList.remove('hidden');
 	
 		let elapsedTime = Math.max(level.finishTime.currentAttemptTime - GO_TIME, 0);
-		let bonusTime = Math.max(0, elapsedTime - level.finishTime.gameplayClock);
+		let bonusTime = Util.roundToMultiple(Math.max(0, elapsedTime - level.finishTime.gameplayClock), 1e-8); // Fix 4999 bullshit
 		let failedToQualify = false;
 	
 		// Change the message based on having achieve gold time, qualified time or not having qualified.
