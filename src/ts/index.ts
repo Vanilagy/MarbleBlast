@@ -85,12 +85,12 @@ const init = async () => {
 		startGameDialog.children[0].textContent = `Press ${Util.isMac()? '^⌘F' : 'F11'} to start in fullscreen mode`;
 	}
 	startGameDialog.style.display = 'block';
-
+	
 	window.addEventListener('mousedown', () => {
 		if (started) return;
 		start();
 	});
-	window.addEventListener('touchdown', () => {
+	window.addEventListener('pointerdown', () => {
 		if (started) return;
 		start();
 	});

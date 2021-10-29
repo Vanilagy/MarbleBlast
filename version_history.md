@@ -1,5 +1,8 @@
 # Version History
 
+## 2.2.3
+- Fixed some iOS Safari-related bugs
+
 ## 2.2.2
 - Added reorderable touch action buttons
 - Added support for holding down prev/next buttons in level select
