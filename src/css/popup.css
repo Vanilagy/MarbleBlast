@@ -76,14 +76,14 @@
 	position: absolute;
 	display: block;
 	top: 144px;
-	left: 109px;
+	left: 202px;
 }
 
 .popup.mbp ._yes {
 	position: absolute;
 	display: block;
 	top: 144px;
-	left: 202px;
+	left: 109px;
 }
 
 .popup.mbg ._okay {
@@ -97,12 +97,12 @@
 	position: absolute;
 	display: block;
 	top: 174px;
-	left: 113px;
+	left: 205px;
 }
 
 .popup.mbg ._yes {
 	position: absolute;
 	display: block;
 	top: 174px;
-	left: 205px;
+	left: 113px;
 }
