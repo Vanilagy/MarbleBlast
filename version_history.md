@@ -4,6 +4,7 @@
 - Added reorderable touch action buttons
 - Added support for holding down prev/next buttons in level select
 - Fixed some styling
+- Fixed times varying by 1ms
 
 ## 2.2.1
 - Fixed teleporting sound not playing

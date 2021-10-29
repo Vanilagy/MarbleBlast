@@ -144,9 +144,6 @@ export abstract class Hud {
 	displayTime(seconds: number, specialColor?: 'red' | 'green') {
 		if (!this.supportNumberColors) specialColor = undefined;
 
-		// Remove dumb float issues:
-		seconds = Util.roundToMultiple(seconds, 1e-8);
-
 		let string = Util.secondsToTimeString(seconds);
 		const defaultWidth = 43;
 		const defaultMarginRight = -19;

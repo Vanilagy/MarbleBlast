@@ -571,6 +571,9 @@ export abstract class Util {
 
 	/** Converts seconds into a time string as seen in the game clock at the top, for example. */
 	static secondsToTimeString(seconds: number, decimalDigits = StorageManager.data?.settings.showThousandths? 3 : 2) {
+		// Resolve float issues:
+		seconds = Util.roundToMultiple(seconds, 1e-8);
+
 		let abs = Math.abs(seconds);
 		let minutes = Math.floor(abs / 60);
 		let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(abs * 10**decimalDigits % 10**decimalDigits).toString(), decimalDigits);
