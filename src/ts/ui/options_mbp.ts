@@ -119,6 +119,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		this.addSlider(this.generalContainer, 'joystickSize', 'Joystick Size', 100, 500, undefined, undefined, 1, (x) => (x|0).toString(), true);
 		this.addSlider(this.generalContainer, 'joystickLeftOffset', 'Joystick Left Offset', 0, 300, undefined, undefined, 1, (x) => (x|0).toString(), true);
 		this.addSlider(this.generalContainer, 'joystickVerticalPosition', 'Joystick Vertical Pos', 0, 1, undefined, undefined, undefined, (x) => Math.floor(100 * x) + '%', true);
+		this.addDropdown(this.generalContainer, 'actionButtonOrder', 'Button Order (⤾)', Util.getPermutations(['Blast', 'Jump', 'Use']).map(x => x.join(' - ')), undefined, undefined, true);
 		this.addSlider(this.generalContainer, 'actionButtonSize', 'Button Size', 50, 300, undefined, undefined, 1, (x) => (x|0).toString(), true);
 		this.addSlider(this.generalContainer, 'actionButtonRightOffset', 'Button Right Offset', 0, 300, undefined, undefined, 1, (x) => (x|0).toString(), true);
 		this.addSlider(this.generalContainer, 'actionButtonBottomOffset', 'Button Bottom Offset', 0, 300, undefined, undefined, 1, (x) => (x | 0).toString(), true);

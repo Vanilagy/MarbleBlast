@@ -66,11 +66,12 @@ export abstract class Menu {
 	abstract getBackgroundImage(): HTMLImageElement;
 
 	/** Sets up a Torque GUI button element which can take on different variants and switch between them quickly. */
-	setupVaryingButton(element: HTMLImageElement, paths: string[], onclick: (ev?: MouseEvent) => any, loadDisabledImage = false, triggerOnMouseDown = false, playHoverSound = true) {
+	setupVaryingButton(element: HTMLImageElement, paths: string[], onclick: (ev?: MouseEvent) => any, loadDisabledImage = false, triggerOnMouseDown = false, playHoverSound = true, rapidFireOnHold = false) {
 		let ogPaths = paths.slice();
 		paths = paths.map(x => this.uiAssetPath + x);
 		let held = false;
 		let hovered = false;
+		let rapidFireId: number;
 
 		const normal = () => paths[this.activeButtonVariant.get(element)] + '_n.png';
 		const hover = () => paths[this.activeButtonVariant.get(element)] + '_h.png';
@@ -113,7 +114,10 @@ export abstract class Menu {
 			held = true;
 			if (!element.hasAttribute('data-locked')) element.src = down();
 			AudioManager.play('buttonpress.wav');
-			if (triggerOnMouseDown) onclick(e);
+			if (triggerOnMouseDown) {
+				onclick(e);
+				if (rapidFireOnHold) rapidFireId = setTimeout(() => rapidFireId = setInterval(() => onclick(e), 30) as any, 500) as any;
+			}
 
 			window.addEventListener('mouseup', onMouseUp);
 			window.addEventListener('touchend', onTouchEnd);
@@ -127,12 +131,15 @@ export abstract class Menu {
 
 		const onMouseUp = () => {
 			held = false;
-			if (element.style.pointerEvents === 'none') return;
-			if (!element.hasAttribute('data-locked')) element.src = hovered? hover() : normal();
+			clearTimeout(rapidFireId);
+			clearInterval(rapidFireId);
 
 			// Remove the listeners to increase performance
 			window.removeEventListener('mouseup', onMouseUp);
 			window.removeEventListener('touchend', onTouchEnd);
+
+			if (element.style.pointerEvents === 'none') return;
+			if (!element.hasAttribute('data-locked')) element.src = hovered? hover() : normal();
 		};
 		const onTouchEnd = (e: TouchEvent) => {
 			if (held && !triggerOnMouseDown && touchInAabb()) {
@@ -169,8 +176,8 @@ export abstract class Menu {
 	}
 
 	/** Sets up a Torque GUI button element. Adds listeners to show the correct _n, _d and _h variants and plays sounds. */
-	setupButton(element: HTMLImageElement, path: string, onclick: (ev?: MouseEvent) => any, loadDisabledImage?: boolean, triggerOnMouseDown?: boolean, playHoverSound?: boolean) {
-		this.setupVaryingButton(element, [path], onclick, loadDisabledImage, triggerOnMouseDown, playHoverSound);
+	setupButton(element: HTMLImageElement, path: string, onclick: (ev?: MouseEvent) => any, loadDisabledImage?: boolean, triggerOnMouseDown?: boolean, playHoverSound?: boolean, radidFireOnHold?: boolean) {
+		this.setupVaryingButton(element, [path], onclick, loadDisabledImage, triggerOnMouseDown, playHoverSound, radidFireOnHold);
 	}
 
 	/** Sets the active button variant for a given button. */

@@ -37,6 +37,7 @@
 	-moz-user-select: none; /* Old versions of Firefox */
 	-ms-user-select: none; /* Internet Explorer/Edge */
 	-webkit-user-drag: none;
+	user-drag: none;
 }
 
 /** Necessary to not fuck up the iOS Safari keyboard: */

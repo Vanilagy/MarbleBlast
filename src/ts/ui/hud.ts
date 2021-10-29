@@ -1,5 +1,5 @@
 import { AudioManager } from "../audio";
-import { actionButtonContainer, blastButton, blastEnabled, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setBlastEnabled, setUseEnabled, useButton } from "../input";
+import { actionButtonContainer, blastButton, blastEnabled, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, jumpButton, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setBlastEnabled, setUseEnabled, useButton } from "../input";
 import { FRAME_RATE_OPTIONS } from "../rendering";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
@@ -130,6 +130,14 @@ export abstract class Hud {
 		actionButtonContainer.style.right = StorageManager.data.settings.actionButtonRightOffset/scale + 'px';
 		actionButtonContainer.style.bottom = StorageManager.data.settings.actionButtonBottomOffset/scale + 'px';
 		actionButtonContainer.style.transform = `scale(${scale})`;
+
+		// Reorder the action buttons as needed
+		let offsets = [{ right: 0, bottom: 135 }, { right: 0, bottom: 0 }, { right: 135, bottom: 0 }];
+		let arr = Util.getPermutations([blastButton, jumpButton, useButton])[StorageManager.data.settings.actionButtonOrder];
+		for (let button of arr) {
+			button.style.right = offsets[arr.indexOf(button)].right + 'px';
+			button.style.bottom = offsets[arr.indexOf(button)].bottom + 'px';
+		}
 	}
 
 	/** Updates the game clock canvas. */

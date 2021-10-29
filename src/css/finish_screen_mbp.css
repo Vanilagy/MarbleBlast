@@ -86,6 +86,11 @@
 	right: 0;
 }
 
+#mbp-finish-screen-top-times > div > div:first-child > span {
+	display: inline-block;
+	width: 20px;
+}
+
 #mbp-finish-screen-top-times > div:nth-child(1) > div:first-child > span {
 	color: rgb(238, 200, 132);
 }

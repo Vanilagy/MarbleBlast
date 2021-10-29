@@ -740,6 +740,24 @@ export abstract class Util {
 
 		return vec;
 	}
+
+	/** Returns an array of permutations of the input array. */
+	static getPermutations<T>(arr: T[]): T[][] {
+		if (arr.length === 0) return [];
+		if (arr.length === 1) return [arr.slice()];
+
+		let res: T[][] = [];
+
+		for (let i = 0; i < arr.length; i++) {
+			let first = arr[i];
+			let spliced = arr.slice();
+			spliced.splice(i, 1);
+			let subpermutations = this.getPermutations(spliced);
+			res.push(...subpermutations.map(x => (x.unshift(first), x)));
+		}
+
+		return res;
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 
