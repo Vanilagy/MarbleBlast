@@ -1,5 +1,8 @@
 # Version History
 
+## 2.2.4
+- Added MBG Xbox bonus levels to MBG customs (Black Diamond, Cube Root, Divergence, Endurance, Mountaintop Retreat, Skate to the Top, The Road Less Traveled, Timely Ascent, Urban Jungle)
+
 ## 2.2.3
 - Fixed some iOS Safari-related bugs
 
