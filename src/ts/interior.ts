@@ -7,6 +7,7 @@ import { Point3F } from "./parsing/binary_file_parser";
 import { Octree, OctreeObject } from "./octree";
 import { renderer } from "./rendering";
 import { StorageManager } from "./storage";
+import { Geometry, Mesh } from "./rendering/renderer";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -245,6 +246,8 @@ export class Interior {
 	canMove = false;
 	specialMaterials: Set<string>;
 
+	ownMesh = new Mesh(new Geometry());
+
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
 		this.dif = file;
 		this.difPath = path;
@@ -396,6 +399,8 @@ export class Interior {
 			this.mesh = mesh;
 		}
 
+		this.level.ownScene.add(this.ownMesh);
+
 		this.level.loadingState.loaded++;
 	}
 
@@ -438,6 +443,10 @@ export class Interior {
 				geometryData.uvs.push(u, v);
 
 				geometryData.normals.push(0, 0, 0); // Push a placeholder, we'll compute a proper normal later
+
+				this.ownMesh.geometry.positions.push(vertex.x, vertex.y, vertex.z);
+				this.ownMesh.geometry.normals.push(0, 0, 0);
+				this.ownMesh.geometry.uvs.push(0, 0);
 
 				// Find the buckets for this vertex
 				let buckets = vertexBuckets.get(vertex);
@@ -557,6 +566,8 @@ export class Interior {
 	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
 		this.worldMatrix.compose(position, orientation, scale);
 		this.scale = scale;
+
+		this.ownMesh.transform.copy(this.worldMatrix);
 
 		if (this.useInstancing) {
 			this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, this.worldMatrix);

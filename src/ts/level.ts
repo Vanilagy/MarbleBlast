@@ -1,6 +1,6 @@
 import { Interior } from "./interior";
 import * as THREE from "three";
-import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera, resize, SCALING_RATIO, FRAME_RATE_OPTIONS } from "./rendering";
+import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera, resize, SCALING_RATIO, FRAME_RATE_OPTIONS, ownRenderer, ownCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
@@ -59,6 +59,7 @@ import { Sky } from "./shapes/sky";
 import { Glass } from "./shapes/glass";
 import { Blast } from "./shapes/blast";
 import { MegaMarble } from "./shapes/mega_marble";
+import { Scene } from "./rendering/renderer";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -133,6 +134,7 @@ export class Level extends Scheduler {
 	loadingState: LoadingState;
 
 	scene: THREE.Scene;
+	ownScene = new Scene(ownRenderer);
 	sunlight: THREE.DirectionalLight;
 	sunDirection: THREE.Vector3;
 	envMap: THREE.Texture;
@@ -273,6 +275,8 @@ export class Level extends Scheduler {
 		for (let interior of this.interiors) await interior.onLevelStart();
 		for (let shape of this.shapes) await shape.onLevelStart();
 		AudioManager.normalizePositionalAudioVolume();
+
+		this.ownScene.compile();
 
 		resize(false); // To update renderer
 		mainCanvas.classList.remove('hidden');
@@ -846,8 +850,8 @@ export class Level extends Scheduler {
 		this.sunlight.position.copy(shadowCameraPosition);
 		this.sunlight.target.position.copy(this.marble.group.position);
 
-		this.marble.renderReflection();
-		renderer.render(this.scene, camera);
+		//this.marble.renderReflection();
+		//renderer.render(this.scene, camera);
 
 		// Update the overlay
 		for (let overlayShape of this.overlayShapes) {
@@ -866,8 +870,12 @@ export class Level extends Scheduler {
 		}
 
 		renderer.autoClear = false; // Make sure not to clear the previous canvas
-		renderer.render(this.overlayScene, orthographicCamera);
+		//renderer.render(this.overlayScene, orthographicCamera);
 		renderer.autoClear = true;
+
+		ownCamera.projectionMatrix.copy(camera.projectionMatrix);
+		ownCamera.viewMatrix.copy(camera.matrixWorld);
+		ownRenderer.render(this.ownScene, ownCamera);
 
 		// This might seem a bit strange, but the time we display is actually a few milliseconds in the PAST (unless the user is currently in TT or has finished), for the reason that time was able to go backwards upon finishing or collecting TTs due to CCD time correction. That felt wrong, so we accept this inaccuracy in displaying time for now.
 		let timeToDisplay = tempTimeState.gameplayClock;

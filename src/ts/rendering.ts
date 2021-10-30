@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { Camera, Renderer } from "./rendering/renderer";
 import { StorageManager } from "./storage";
 import { Util } from "./util";
 
@@ -10,6 +11,9 @@ export const FRAME_RATE_OPTIONS = [30, 60, 90, 120, 144, 240, 360, Infinity];
 
 /** Ratio by which the entire body gets scaled by, while still fitting into the screen. */
 export let SCALING_RATIO = 1;
+
+export let ownRenderer = new Renderer({ canvas :mainCanvas });
+export let ownCamera = new Camera();
 
 export const resize = async (wait = true) => {
 	if (wait) await Util.wait(100); // Sometimes you gotta give browser UI elements a little time to update
@@ -24,6 +28,7 @@ export const resize = async (wait = true) => {
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]));
 	mainCanvas.style.width = '100%';
 	mainCanvas.style.height = '100%';
+	ownRenderer.setSize(window.innerWidth, window.innerHeight);
 
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix(); // Necessary because changed aspect ratio
@@ -36,7 +41,8 @@ export const resize = async (wait = true) => {
 };
 window.addEventListener('resize', resize as any);
 
-export const renderer = new THREE.WebGLRenderer({ canvas: mainCanvas, antialias: false, logarithmicDepthBuffer: !Util.isIOS() }); // Just so much better with logarithmic. Doesn't seem to work on iOS so disable it there
+let fake = document.createElement('canvas');
+export const renderer = new THREE.WebGLRenderer({ canvas: fake, antialias: false, logarithmicDepthBuffer: !Util.isIOS() }); // Just so much better with logarithmic. Doesn't seem to work on iOS so disable it there
 renderer.shadowMap.enabled = true;
 
 /** Main camera. */

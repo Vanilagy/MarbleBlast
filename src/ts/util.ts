@@ -758,6 +758,10 @@ export abstract class Util {
 
 		return res;
 	}
+
+	static pushArray<T>(target: T[], toPush: T[]) {
+		for (let elem of toPush) target.push(elem);
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 
