@@ -548,6 +548,24 @@ export abstract class LevelSelect {
 				this.setMissionArray(MissionLibrary.goldIntermediate);
 			else if (this.currentMissionArray === MissionLibrary.goldCustom)
 				this.setMissionArray(MissionLibrary.goldAdvanced);
+			else if (this.currentMissionArray === MissionLibrary.platinumBeginner)
+				this.setMissionArray(MissionLibrary.goldCustom);
+			else if (this.currentMissionArray === MissionLibrary.platinumIntermediate)
+				this.setMissionArray(MissionLibrary.platinumBeginner);
+			else if (this.currentMissionArray === MissionLibrary.platinumAdvanced)
+				this.setMissionArray(MissionLibrary.platinumIntermediate);
+			else if (this.currentMissionArray === MissionLibrary.platinumExpert)
+				this.setMissionArray(MissionLibrary.platinumAdvanced);
+			else if (this.currentMissionArray === MissionLibrary.platinumCustom)
+				this.setMissionArray(MissionLibrary.platinumExpert);
+			else if (this.currentMissionArray === MissionLibrary.ultraBeginner)
+				this.setMissionArray(MissionLibrary.platinumCustom);
+			else if (this.currentMissionArray === MissionLibrary.ultraIntermediate)
+				this.setMissionArray(MissionLibrary.ultraBeginner);
+			else if (this.currentMissionArray === MissionLibrary.ultraAdvanced)
+				this.setMissionArray(MissionLibrary.ultraIntermediate);
+			else if (this.currentMissionArray === MissionLibrary.ultraCustom)
+				this.setMissionArray(MissionLibrary.ultraAdvanced);
 			AudioManager.play('buttonpress.wav');
 		}
 		if (gamepad.buttons[7].value > 0.5 && !previousButtonState[7]) {
@@ -558,6 +576,24 @@ export abstract class LevelSelect {
 				this.setMissionArray(MissionLibrary.goldAdvanced);
 			else if (this.currentMissionArray === MissionLibrary.goldAdvanced)
 				this.setMissionArray(MissionLibrary.goldCustom);
+			else if (this.currentMissionArray === MissionLibrary.goldCustom)
+				this.setMissionArray(MissionLibrary.platinumBeginner);
+			else if (this.currentMissionArray === MissionLibrary.platinumBeginner)
+				this.setMissionArray(MissionLibrary.platinumIntermediate);
+			else if (this.currentMissionArray === MissionLibrary.platinumIntermediate)
+				this.setMissionArray(MissionLibrary.platinumAdvanced);
+			else if (this.currentMissionArray === MissionLibrary.platinumAdvanced)
+				this.setMissionArray(MissionLibrary.platinumExpert);
+			else if (this.currentMissionArray === MissionLibrary.platinumExpert)
+				this.setMissionArray(MissionLibrary.platinumCustom);
+			else if (this.currentMissionArray === MissionLibrary.platinumCustom)
+				this.setMissionArray(MissionLibrary.ultraBeginner);
+			else if (this.currentMissionArray === MissionLibrary.ultraBeginner)
+				this.setMissionArray(MissionLibrary.ultraIntermediate);
+			else if (this.currentMissionArray === MissionLibrary.ultraIntermediate)
+				this.setMissionArray(MissionLibrary.ultraAdvanced);
+			else if (this.currentMissionArray === MissionLibrary.ultraAdvanced)
+				this.setMissionArray(MissionLibrary.ultraCustom);
 			AudioManager.play('buttonpress.wav');
 		}
 		// D-pad left+right to change missions
