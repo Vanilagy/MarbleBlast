@@ -1,5 +1,8 @@
 # Version History
 
+## 2.2.6
+- Fixed some MBP custom quasi-duplicates
+
 ## 2.2.5
 - Fixed music bug in MBG causing levels to crash
 
