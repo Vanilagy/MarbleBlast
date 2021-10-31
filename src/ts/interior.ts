@@ -5,9 +5,9 @@ import { TimeState, Level, PHYSICS_TICK_RATE } from "./level";
 import { Util, MaterialGeometry } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
 import { Octree, OctreeObject } from "./octree";
-import { renderer } from "./rendering";
+import { ownRenderer, renderer } from "./rendering";
 import { StorageManager } from "./storage";
-import { Geometry, Mesh } from "./rendering/renderer";
+import { Geometry, Mesh, Texture } from "./rendering/renderer";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -334,6 +334,8 @@ export class Interior {
 							texture.wrapS = THREE.RepeatWrapping;
 							texture.wrapT = THREE.RepeatWrapping;
 							mat.map = texture;
+
+							if (!/null|trigger|origin|forcefield/.test(fileName) && !this.ownMesh.material.map) this.ownMesh.material.map = new Texture(ownRenderer, 'assets/data/' + currentPath + '/' + name);
 		
 							break;
 						}
@@ -446,7 +448,7 @@ export class Interior {
 
 				this.ownMesh.geometry.positions.push(vertex.x, vertex.y, vertex.z);
 				this.ownMesh.geometry.normals.push(0, 0, 0);
-				this.ownMesh.geometry.uvs.push(0, 0);
+				this.ownMesh.geometry.uvs.push(u, v);
 
 				// Find the buckets for this vertex
 				let buckets = vertexBuckets.get(vertex);
@@ -568,6 +570,7 @@ export class Interior {
 		this.scale = scale;
 
 		this.ownMesh.transform.copy(this.worldMatrix);
+		console.log(position)
 
 		if (this.useInstancing) {
 			this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, this.worldMatrix);

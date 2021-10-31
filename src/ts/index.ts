@@ -24,11 +24,15 @@ const init = async () => {
 	await ResourceManager.init();
 
 	loadingDetail.textContent = 'Loading levels...';
-	await MissionLibrary.init();
+	MissionLibrary.init();
 	AudioManager.init();
 
 	loadingDetail.textContent = 'Loading UI...';
-	await setMenu(StorageManager.data.modification);
+	setMenu(StorageManager.data.modification);
+
+	loadingDetail.textContent = 'Loading leaderboard...';
+	Leaderboard.init();
+	if (Util.isWeeb) document.title = 'Marble Blast Weeb'; // <- humor
 
 	// If we're on a touch device, remind the user that the site can be installed as a PWA
 	if (Util.isTouchDevice && !location.search.includes('app')) {
@@ -54,10 +58,6 @@ const init = async () => {
 	if (Util.isTouchDevice) {
 		document.querySelectorAll('.mobile-support-reminder').forEach(x => (x as HTMLElement).style.display = 'none');
 	}
-
-	loadingDetail.textContent = 'Loading leaderboard...';
-	await Leaderboard.init();
-	if (Util.isWeeb) document.title = 'Marble Blast Weeb'; // <- humor
 
 	let started = false;
 	const start = async () => {
