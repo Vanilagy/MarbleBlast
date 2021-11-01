@@ -1,5 +1,8 @@
 # Version History
 
+## 2.2.7
+- Added proper controller support for MBP (thanks, Whirligig!)
+
 ## 2.2.6
 - Fixed some MBP custom quasi-duplicates
 
