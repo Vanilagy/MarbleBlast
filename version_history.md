@@ -1,5 +1,8 @@
 # Version History
 
+## 2.2.8
+- Fixed missing controller binding
+
 ## 2.2.7
 - Added proper controller support for MBP (thanks, Whirligig!)
 
