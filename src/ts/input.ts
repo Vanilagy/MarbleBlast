@@ -198,7 +198,7 @@ export const gamepadAxes = {
 
 /** TODO: Make this configurable */
 const gamepadAxisMappings = ['marbleX', 'marbleY', 'cameraX', 'cameraY'];
-const gamepadButtonMappings = ['jump', 'use', '', '', '', 'blast', 'jump', 'use', 'restart', 'pause', '', '', 'up', 'down', 'left', 'right', '', ''];
+const gamepadButtonMappings = ['jump', 'use', 'blast', '', '', 'blast', 'jump', 'use', 'restart', 'pause', '', '', 'up', 'down', 'left', 'right', '', ''];
 
 /** The most recent controller a button was pressed on, used to select the controller to poll */
 let mostRecentGamepad = 0;
