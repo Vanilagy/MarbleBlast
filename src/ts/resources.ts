@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { ownRenderer } from "./rendering";
+import { Texture } from "./rendering/texture";
 import { state } from "./state";
 import { Util } from "./util";
 
@@ -15,8 +17,8 @@ const MBP_REDIRECT_RULES = {
 
 /** Manages loading and caching of resources. */
 export abstract class ResourceManager {
-	static textureCache = new Map<string, THREE.Texture>();
-	static loadTexturePromises = new Map<string, Promise<THREE.Texture>>();
+	static textureCache = new Map<string, Texture>();
+	static loadTexturePromises = new Map<string, Promise<Texture>>();
 	static textureLoader = new THREE.TextureLoader();
 	/** The structure in the assets/data directory. Used mainly to look up file extensions. */
 	static dataDirectoryStructure: DirectoryStructure = {};
@@ -41,7 +43,7 @@ export abstract class ResourceManager {
 		this.dataMbpDirectoryStructure = JSON.parse(await this.readBlobAsText(responseMbp));
 	}
 
-	/** Creates a three.js texture from the path, or returned the cached version. */
+	/** Creates a three.js texture from the path, or returns the cached version. */
 	static getTexture(path: string, removeAlpha = false, prependPath = this.mainDataPath) {
 		let fullPath = prependPath + path;
 		let cached = this.textureCache.get(fullPath);
@@ -49,8 +51,14 @@ export abstract class ResourceManager {
 
 		if (this.loadTexturePromises.get(fullPath)) return this.loadTexturePromises.get(fullPath);
 
-		let promise = new Promise<THREE.Texture>(async (resolve) => {
+		let promise = new Promise<Texture>(async (resolve) => {
 			let image = await this.loadImage(fullPath);
+			let texture = new Texture(ownRenderer, image);
+
+			this.textureCache.set(fullPath, texture);
+			resolve(texture);
+
+			/*
 			let texture = new THREE.Texture(image);
 			texture.flipY = false; // Why is the default true?
 			texture.anisotropy = 4; // Make it crispier
@@ -62,7 +70,7 @@ export abstract class ResourceManager {
 			}
 	
 			this.textureCache.set(fullPath, texture);
-			resolve(texture);
+			resolve(texture);*/
 		});
 		this.loadTexturePromises.set(fullPath, promise);
 

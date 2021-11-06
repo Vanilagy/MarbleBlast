@@ -21,7 +21,7 @@ export class AntiGravity extends PowerUp {
 
 	pickUp() {
 		let direction = new THREE.Vector3(0, 0, -1);
-		direction.applyQuaternion(this.worldOrientation);
+		direction.applyQuaternion(this.worldOrientation).normalize();
 		return !Util.isSameVector(direction, this.level.currentUp);
 	}
 

@@ -59,7 +59,11 @@ import { Sky } from "./shapes/sky";
 import { Glass } from "./shapes/glass";
 import { Blast } from "./shapes/blast";
 import { MegaMarble } from "./shapes/mega_marble";
-import { Scene } from "./rendering/renderer";
+import { Scene } from "./rendering/scene";
+import { CubeTexture } from "./rendering/cube_texture";
+import { Material, MaterialType } from "./rendering/material";
+import { Mesh } from "./rendering/mesh";
+import { Geometry } from "./rendering/geometry";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -240,7 +244,7 @@ export class Level extends Scheduler {
 				if (element._type === MissionElementType.StaticShape && element.datablock?.toLowerCase() === 'endpad') this.endPadElement = element;
 			}
 		}
-		this.loadingState.total += 6 + 1 + 3 + 6; // For the scene, marble, UI and sounds (includes music!)
+		this.loadingState.total += 6 + 1 + 3 + 6 + 1; // For the scene, marble, UI, sounds (includes music!), and scene compile
 
 		this.timeState = {
 			timeSinceLoad: 0,
@@ -263,6 +267,7 @@ export class Level extends Scheduler {
 		await this.addSimGroup(this.mission.root);
 		await this.initUi(); this.loadingState.loaded += 3;
 		await soundPromise; this.loadingState.loaded += 6;
+		await this.ownScene.compile(); this.loadingState.loaded += 1;
 
 		this.replay = new Replay(this);
 	}
@@ -275,8 +280,6 @@ export class Level extends Scheduler {
 		for (let interior of this.interiors) await interior.onLevelStart();
 		for (let shape of this.shapes) await shape.onLevelStart();
 		AudioManager.normalizePositionalAudioVolume();
-
-		this.ownScene.compile();
 
 		resize(false); // To update renderer
 		mainCanvas.classList.remove('hidden');
@@ -307,10 +310,12 @@ export class Level extends Scheduler {
 			ambientLight.position.z = 0;
 			ambientLight.position.y = 5;
 			this.scene.add(ambientLight);
+			this.ownScene.addAmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z));
 
 			// Create the sunlight and set up the shadow camera
 			let sunlight = new THREE.DirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), 1);
 			this.scene.add(sunlight);
+			this.ownScene.addDirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), sunDirection.clone());
 
 			// The first sun will be the "shadow sun"
 			if (!addedShadow) {
@@ -353,11 +358,25 @@ export class Level extends Scheduler {
 		marbleReflectionCamera.far = camera.far;
 		camera.updateProjectionMatrix();
 		marbleReflectionCamera.updateProjectionMatrix();
+		ownCamera.far = camera.far;
 
 		if (skyElement.useskytextures === "1") {
 			// Create the skybox
 			let skyboxCubeTexture = await this.createSkyboxCubeTexture(skyElement.materiallist.slice(skyElement.materiallist.indexOf('data/') + 'data/'.length), true);
-			if (skyboxCubeTexture) this.scene.background = skyboxCubeTexture;
+			//if (skyboxCubeTexture) this.scene.background = skyboxCubeTexture;
+			if (skyboxCubeTexture) {
+				let material = new Material();
+				material.type = MaterialType.Sky;
+				material.cubeMap = skyboxCubeTexture;
+				let geometry = new Geometry();
+				geometry.positions.push(-1, -1, 1);
+				geometry.positions.push(3, -1, 1);
+				geometry.positions.push(-1, 3, 1);
+				geometry.materials.push(0, 0, 0);
+				geometry.fillRest();
+				let mesh = new Mesh(geometry, [material]);
+				this.ownScene.add(mesh);
+			}
 		}
 
 		let envmapCubeTexture = await this.createSkyboxCubeTexture('skies/sky_day.dml', false); // Always the default MBG skybox
@@ -371,7 +390,7 @@ export class Level extends Scheduler {
 		if (dmlFile) {
 			// Get all skybox images
 			let lines = (await ResourceManager.readBlobAsText(dmlFile)).split('\n').map(x => x.trim().toLowerCase());
-			let skyboxImages: (HTMLImageElement | HTMLCanvasElement)[] = [];
+			let skyboxImages: HTMLImageElement[] = [];
 
 			for (let i = 0; i < 6; i++) {
 				let line = lines[i];
@@ -387,19 +406,10 @@ export class Level extends Scheduler {
 				if (increaseLoading) this.loadingState.loaded++;
 			}
 
-			// Reorder them to three.js order
-			skyboxImages = Util.remapIndices(skyboxImages, [3, 1, 2, 0, 4, 5]);
+			// Reorder them to the proper order
+			skyboxImages = Util.remapIndices(skyboxImages, [1, 3, 4, 5, 0, 2]);
 
-			// three.js skyboxes are aligned with respect to y-up, but everything here is z-up. Therefore we need to do some manual image transformation hackery.
-			skyboxImages[0] = Util.modifyImageWithCanvas(skyboxImages[0], -Math.PI/2, true);
-			skyboxImages[1] = Util.modifyImageWithCanvas(skyboxImages[1], Math.PI/2, true);
-			skyboxImages[2] = Util.modifyImageWithCanvas(skyboxImages[2], 0, true);
-			skyboxImages[3] = Util.modifyImageWithCanvas(skyboxImages[3], Math.PI, true);
-			skyboxImages[4] = Util.modifyImageWithCanvas(skyboxImages[4], Math.PI, true);
-			skyboxImages[5] = Util.modifyImageWithCanvas(skyboxImages[5], 0, true);
-			let skyboxTexture = new THREE.CubeTexture(skyboxImages);
-			skyboxTexture.needsUpdate = true;
-
+			let skyboxTexture = new CubeTexture(ownRenderer, skyboxImages);
 			return skyboxTexture;
 		} else {
 			if (increaseLoading) this.loadingState.loaded += 6;
@@ -464,7 +474,7 @@ export class Level extends Scheduler {
 		}
 
 		// Render everything once to force a GPU upload
-		renderer.render(this.overlayScene, orthographicCamera);
+		//renderer.render(this.overlayScene, orthographicCamera);
 
 		// Remove everything but gems again
 		for (let shape of this.overlayShapes) {
@@ -643,7 +653,7 @@ export class Level extends Scheduler {
 
 		shape.setTransform(shapePosition, shapeRotation, shapeScale);
 
-		this.scene.add(shape.group);
+		this.ownScene.add(shape.group);
 		this.physics.addShape(shape);
 	}
 
@@ -853,8 +863,15 @@ export class Level extends Scheduler {
 		//this.marble.renderReflection();
 		//renderer.render(this.scene, camera);
 
+		camera.updateMatrixWorld();
+
+		ownCamera.projectionMatrix.copy(camera.projectionMatrix);
+		ownCamera.viewMatrix.copy(camera.matrixWorldInverse);
+		ownCamera.position.copy(camera.position);
+		ownRenderer.render(this.ownScene, ownCamera);
+
 		// Update the overlay
-		for (let overlayShape of this.overlayShapes) {
+		if (false) for (let overlayShape of this.overlayShapes) {
 			overlayShape.group.position.x = 500;
 			overlayShape.render(this.timeState);
 
@@ -872,10 +889,6 @@ export class Level extends Scheduler {
 		renderer.autoClear = false; // Make sure not to clear the previous canvas
 		//renderer.render(this.overlayScene, orthographicCamera);
 		renderer.autoClear = true;
-
-		ownCamera.projectionMatrix.copy(camera.projectionMatrix);
-		ownCamera.viewMatrix.copy(camera.matrixWorld);
-		ownRenderer.render(this.ownScene, ownCamera);
 
 		// This might seem a bit strange, but the time we display is actually a few milliseconds in the PAST (unless the user is currently in TT or has finished), for the reason that time was able to go backwards upon finishing or collecting TTs due to CCD time correction. That felt wrong, so we accept this inaccuracy in displaying time for now.
 		let timeToDisplay = tempTimeState.gameplayClock;

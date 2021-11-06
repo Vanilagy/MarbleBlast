@@ -7,7 +7,10 @@ import { Point3F } from "./parsing/binary_file_parser";
 import { Octree, OctreeObject } from "./octree";
 import { ownRenderer, renderer } from "./rendering";
 import { StorageManager } from "./storage";
-import { Geometry, Mesh, Texture } from "./rendering/renderer";
+import { Geometry } from "./rendering/geometry";
+import { Mesh } from "./rendering/mesh";
+import { Material } from "./rendering/material";
+import { Texture } from "./rendering/texture";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -196,21 +199,19 @@ const customMaterialFactories: Record<string, (interior: Interior) => Promise<TH
 /** Stores a list of all vertices with similar face normal. */
 interface VertexBucket {
 	referenceNormal: THREE.Vector3,
-	/** The index of the material used for each vertex. */
-	materialIndices: number[],
 	/** The index at which to write the normal vector. */
 	normalIndices: number[],
 	/** The face normal per vertex. */
 	normals: THREE.Vector3[]
 }
 
-interface SharedInteriorData {
-	instancedMesh: THREE.InstancedMesh,
-	instanceIndex: number
-}
-
 interface ConvexHullOctreeObject extends OctreeObject {
 	hullIndex: number
+}
+
+interface InitCacheType {
+	geometry: Geometry,
+	materials: Material[]
 }
 
 /** Represents a Torque 3D Interior, used for the main surfaces and geometry of levels. */
@@ -220,7 +221,7 @@ export class Interior {
 	level: Level;
 	dif: DifFile;
 	difPath: string;
-	mesh: THREE.Mesh;
+	mesh: Mesh;
 	/** The collision body of the interior. */
 	body: OIMO.RigidBody;
 	/** The relevant detail level to read from (non-default for pathed interiors) */
@@ -228,15 +229,11 @@ export class Interior {
 	worldMatrix = new THREE.Matrix4();
 	scale: THREE.Vector3;
 	materials: THREE.Material[];
-	materialGeometry: MaterialGeometry = [];
+	//materialGeometry: MaterialGeometry = [];
 	/** Simply contains the file names of the materials without the path to them. */
 	materialNames: string[] = [];
 	forceShapes = new WeakMap<OIMO.Shape, number>();
 	randomForces = new WeakSet<OIMO.Shape>();
-	/** The data shared with other interiors with the same detail level (used for instancing). */
-	sharedData: SharedInteriorData;
-	/** Whether or not to use instancing. Usually true, but not for Macs. */
-	useInstancing = true;
 	/** Whether or not frictions and bouncy floors work on this interior. */
 	allowSpecialMaterials = true;
 	instanceIndex: number;
@@ -246,7 +243,7 @@ export class Interior {
 	canMove = false;
 	specialMaterials: Set<string>;
 
-	ownMesh = new Mesh(new Geometry());
+	static initCache = new WeakMap<InteriorDetailLevel, Promise<InitCacheType>>();
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
 		this.dif = file;
@@ -258,7 +255,6 @@ export class Interior {
 		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
 		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
 		this.body = new OIMO.RigidBody(rigidBodyConfig);
-		this.useInstancing = Util.supportsInstancing(renderer);
 
 		// Combine the default special materials with the special ones specified in the .mis file
 		this.specialMaterials = new Set([...specialMaterials, ...Object.keys(this.level.mission.misFile.materialMappings)]);
@@ -267,45 +263,29 @@ export class Interior {
 	async init(id: number) {
 		this.id = id;
 
-		// Check if there's already shared data from another interior
-		let sharedDataPromise = this.level.sharedInteriorData.get(this.detailLevel);
-		if (this.useInstancing && sharedDataPromise) {
-			// If so, wait for that interior to complete initiation...
-			this.sharedData = await sharedDataPromise;
-			this.instanceIndex = ++this.sharedData.instanceIndex;
-		} else {
-			let materials: THREE.Material[] = [];
-			this.materials = materials;
+		let cached = await Interior.initCache.get(this.detailLevel);
+		if (!cached) {
+			let resolveFunc: (data: InitCacheType) => any;
+			let promise = new Promise<InitCacheType>(resolve => resolveFunc = resolve);
+			Interior.initCache.set(this.detailLevel, promise);
 
-			// If we're here, we're the first interior of this type, so let's prepare the shared data (if we're instanced)
-			let resolveFunc: (data: SharedInteriorData) => any;
-			if (this.useInstancing && this.level) {
-				let sharedDataPromise = new Promise<SharedInteriorData>((resolve) => resolveFunc = resolve);
-				this.level.sharedInteriorData.set(this.detailLevel, sharedDataPromise);
-			}
+			let materials: Material[] = [];
 
 			for (let i = 0; i < this.detailLevel.materialList.materials.length; i++) {
-				this.materialGeometry.push({
-					vertices: [],
-					normals: [],
-					uvs: [],
-					indices: []
-				});
+				let mat = new Material();
+				materials.push(mat);
 
 				let texName = this.detailLevel.materialList.materials[i].toLowerCase();
 				let fileName = texName.split('/').pop();
 
-				if (StorageManager.data.settings.fancyShaders && this.level.mission.modification === 'ultra' && customMaterialFactories[fileName]) {
+				if (false && StorageManager.data.settings.fancyShaders && this.level.mission.modification === 'ultra' && customMaterialFactories[fileName]) {
 					// There's a special way to create this material, prefer this instead of the normal way
 					materials.push(await customMaterialFactories[fileName](this));
 					continue;
 				}
 
-				let mat = new THREE.MeshLambertMaterial();
-				materials.push(mat);
-
 				// Check for this special material which just makes the surface invisible (like a colmesh)
-				if (this.level.mission.modification === 'ultra' && fileName === 'tools_invisible') {
+				if (false) if (this.level.mission.modification === 'ultra' && fileName === 'tools_invisible') {
 					mat.transparent = true;
 					mat.opacity = 0;
 					continue;
@@ -331,11 +311,8 @@ export class Interior {
 		
 							// We found the texture file; create the texture.
 							let texture = await this.level.mission.getTexture(currentPath + '/' + name);
-							texture.wrapS = THREE.RepeatWrapping;
-							texture.wrapT = THREE.RepeatWrapping;
+							mat.availableTextures.push(texture);
 							mat.map = texture;
-
-							if (!/null|trigger|origin|forcefield/.test(fileName) && !this.ownMesh.material.map) this.ownMesh.material.map = new Texture(ownRenderer, 'assets/data/' + currentPath + '/' + name);
 		
 							break;
 						}
@@ -349,11 +326,12 @@ export class Interior {
 					await lookForTexture();
 				}
 			}
-	
+
+			let geometry = new Geometry();
 			let vertexBuckets = new Map<Point3F, VertexBucket[]>(); // Used for computing vertex normals by averaging face normals
-	
+
 			// Add every surface
-			for (let surface of this.detailLevel.surfaces) this.addSurface(surface, vertexBuckets);
+			for (let surface of this.detailLevel.surfaces) this.addSurface(geometry, surface, vertexBuckets);
 	
 			// In order to achieve smooth shading, compute vertex normals by average face normals of faces with similar angles
 			for (let [, buckets] of vertexBuckets) {
@@ -366,9 +344,8 @@ export class Interior {
 					avgNormal.multiplyScalar(1 / bucket.normals.length);
 	
 					// Write the normal vector into the buffers
-					for (let j = 0; j < bucket.materialIndices.length; j++) {
-						let index = bucket.materialIndices[j];
-						let arr = this.materialGeometry[index].normals;
+					for (let j = 0; j < bucket.normalIndices.length; j++) {
+						let arr = geometry.normals;
 						let start = bucket.normalIndices[j];
 						arr[start + 0] = avgNormal.x;
 						arr[start + 1] = avgNormal.y;
@@ -377,37 +354,19 @@ export class Interior {
 				}
 			}
 
-			let geometry = Util.createGeometryFromMaterialGeometry(this.materialGeometry);
-			let mesh: THREE.Mesh;
-
-			if (this.useInstancing) {
-				// Create the instanced mesh with appropriate instance count
-				let instanceCount = this.level.interiors.filter(x => x.detailLevel === this.detailLevel).length;	
-				mesh = new THREE.InstancedMesh(geometry, materials, instanceCount);
-
-				this.instanceIndex = 0;
-				this.sharedData = {
-					instancedMesh: mesh as THREE.InstancedMesh,
-					instanceIndex: this.instanceIndex
-				};
-				resolveFunc(this.sharedData);
-			} else {
-				mesh = new THREE.Mesh(geometry, materials);
-			}
-			
-			mesh.receiveShadow = true;
-			mesh.matrixAutoUpdate = false;
-			this.level.scene.add(mesh);
-			this.mesh = mesh;
+			cached = { geometry, materials };
+			resolveFunc(cached);
 		}
 
-		this.level.ownScene.add(this.ownMesh);
+		let mesh = new Mesh(cached.geometry, cached.materials);
+		this.mesh = mesh;
+		this.level.ownScene.add(mesh);
 
 		this.level.loadingState.loaded++;
 	}
 
 	/** Adds one surface worth of geometry. */
-	addSurface(surface: InteriorDetailLevel["surfaces"][number], vertexBuckets: Map<Point3F, VertexBucket[]>) {
+	addSurface(geometry: Geometry, surface: InteriorDetailLevel["surfaces"][number], vertexBuckets: Map<Point3F, VertexBucket[]>) {
 		let detailLevel = this.detailLevel;
 		let texGenEqs = detailLevel.texGenEqs[surface.texGenIndex];
 		// These are needed for UVs
@@ -415,7 +374,7 @@ export class Interior {
 		let texPlaneY = new THREE.Plane(new THREE.Vector3(texGenEqs.planeY.x, texGenEqs.planeY.y, texGenEqs.planeY.z), texGenEqs.planeY.d);
 		let planeData = detailLevel.planes[surface.planeIndex & ~0x8000]; // Mask it here because the bit at 0x8000 specifies whether or not to invert the plane's normal.
 		let planeNormal = detailLevel.normals[planeData.normalIndex];
-		let geometryData = this.materialGeometry[surface.textureIndex];
+		//let geometryData = this.materialGeometry[surface.textureIndex];
 		let material = this.materialNames[surface.textureIndex];
 
 		let k = 0; // Keep track of the face's index for corrent vertex winding order.
@@ -435,27 +394,24 @@ export class Interior {
 			if (surface.planeIndex & 0x8000) faceNormal.multiplyScalar(-1); // Invert the plane if so specified
 
 			for (let index of [i1, i2, i3]) {
-				let vertex = this.detailLevel.points[index];
-				geometryData.vertices.push(vertex.x, vertex.y, vertex.z);
+				let position = this.detailLevel.points[index];
 
 				// Figure out UV coordinates by getting the distances of the corresponding vertices to the plane.
-				let u = texPlaneX.distanceToPoint(new THREE.Vector3(vertex.x, vertex.y, vertex.z));
-				let v = texPlaneY.distanceToPoint(new THREE.Vector3(vertex.x, vertex.y, vertex.z));
+				let u = texPlaneX.distanceToPoint(new THREE.Vector3(position.x, position.y, position.z));
+				let v = texPlaneY.distanceToPoint(new THREE.Vector3(position.x, position.y, position.z));
 				if (this.level.mission.modification === 'ultra' && material === 'plate_1') u /= 2, v/= 2; // This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
-				geometryData.uvs.push(u, v);
 
-				geometryData.normals.push(0, 0, 0); // Push a placeholder, we'll compute a proper normal later
-
-				this.ownMesh.geometry.positions.push(vertex.x, vertex.y, vertex.z);
-				this.ownMesh.geometry.normals.push(0, 0, 0);
-				this.ownMesh.geometry.uvs.push(u, v);
+				geometry.positions.push(position.x, position.y, position.z);
+				geometry.normals.push(0, 0, 0); // Push a placeholder, we'll compute a proper normal later
+				geometry.uvs.push(u, v);
+				geometry.materials.push(surface.textureIndex);
 
 				// Find the buckets for this vertex
-				let buckets = vertexBuckets.get(vertex);
+				let buckets = vertexBuckets.get(position);
 				if (!buckets) {
 					// Create a new list of buckets if necessary
 					buckets = [];
-					vertexBuckets.set(vertex, buckets);
+					vertexBuckets.set(position, buckets);
 				}
 				// Find the bucket for this vertex
 				let bucket: VertexBucket;
@@ -469,7 +425,6 @@ export class Interior {
 					// Create a new bucket if necessary
 					bucket = {
 						referenceNormal: faceNormal,
-						materialIndices: [],
 						normalIndices: [],
 						normals: []
 					};
@@ -477,8 +432,7 @@ export class Interior {
 				}
 
 				// Add data
-				bucket.materialIndices.push(surface.textureIndex);
-				bucket.normalIndices.push(geometryData.normals.length - 3);
+				bucket.normalIndices.push(geometry.normals.length - 3);
 				bucket.normals.push(faceNormal);
 			}
 
@@ -568,17 +522,8 @@ export class Interior {
 	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
 		this.worldMatrix.compose(position, orientation, scale);
 		this.scale = scale;
-
-		this.ownMesh.transform.copy(this.worldMatrix);
-		console.log(position)
-
-		if (this.useInstancing) {
-			this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, this.worldMatrix);
-			this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
-		} else {
-			this.mesh.matrix.copy(this.worldMatrix);
-		}
-
+		this.mesh.transform.copy(this.worldMatrix);
+		
 		this.initConvexHullOctree();
 
 		this.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
@@ -625,6 +570,7 @@ export class Interior {
 	}
 
 	dispose() {
+		return;
 		if (this.materials) for (let material of this.materials) material.dispose();
 		if (this.mesh?.geometry) this.mesh.geometry.dispose();
 	}

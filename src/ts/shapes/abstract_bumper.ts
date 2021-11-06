@@ -3,6 +3,7 @@ import OIMO from "../declarations/oimo";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
+import THREE from "three";
 
 /** A bumper is a shape which knocks the marble away on contact. */
 export abstract class AbstractBumper extends Shape {
@@ -38,6 +39,7 @@ export abstract class AbstractBumper extends Shape {
 		let wiggleX = 1 + 0.4 * sine;
 		let wiggleY = 1 - 0.4 * sine;
 
-		this.group.scale.set(this.worldScale.x * wiggleX, this.worldScale.y * wiggleY, this.worldScale.z);
+		this.group.transform.compose(this.worldPosition, this.worldOrientation, new THREE.Vector3(this.worldScale.x * wiggleX, this.worldScale.y * wiggleY, this.worldScale.z));
+		this.group.changedTransform();
 	}
 }

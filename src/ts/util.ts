@@ -109,7 +109,7 @@ export abstract class Util {
 	}
 
 	static leftPadZeroes(str: string, amount: number) {
-		return "000000000000000000".slice(0, Math.max(0, amount - str.length)) + str;
+		return "0".repeat(amount).slice(0, Math.max(0, amount - str.length)) + str;
 	}
 
 	/** Forces an element's layout to be recalculated. */

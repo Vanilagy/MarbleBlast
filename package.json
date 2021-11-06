@@ -31,6 +31,7 @@
     "rollup": "^2.0.0",
     "rollup-plugin-external-globals": "^0.6.0",
     "rollup-plugin-node-externals": "^2.2.0",
+    "rollup-plugin-string": "^3.0.0",
     "rollup-plugin-typescript": "^1.0.1",
     "rollup-plugin-typescript2": "^0.27.2",
     "sarcina": "^1.7.5",

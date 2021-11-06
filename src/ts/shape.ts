@@ -9,6 +9,11 @@ import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./inter
 import { AudioManager } from "./audio";
 import { MissionElement } from "./parsing/mis_parser";
 import { renderer } from "./rendering";
+import { Group } from "./rendering/group";
+import { Material } from "./rendering/material";
+import { Geometry } from "./rendering/geometry";
+import { Mesh } from "./rendering/mesh";
+import { Texture } from "./rendering/texture";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
@@ -66,8 +71,7 @@ interface SkinMeshData {
 	meshIndex: number,
 	vertices: THREE.Vector3[],
 	normals: THREE.Vector3[],
-	indices: number[],
-	geometry: THREE.BufferGeometry
+	mesh: Mesh
 }
 
 interface ColliderInfo {
@@ -140,7 +144,7 @@ export class Shape {
 	/** Whether or not this shape is being used as a TSStatic. TSStatic are static, non-moving shapes that basically can't do anything. */
 	isTSStatic = false;
 	
-	group: THREE.Group;
+	group: Group;
 	/** Either the meshes or dummy Object3D's used for instancing. */
 	objects: THREE.Object3D[] = [];
 	bodies: OIMO.RigidBody[];
@@ -159,11 +163,11 @@ export class Shape {
 
 	/** Can be used to override certain material names. */
 	matNamesOverride: Record<string, string | THREE.Texture> = {};
-	materials: (THREE.MeshLambertMaterial | THREE.MeshBasicMaterial)[];
+	materials: Material[];
 	/** Used for collision objects. */
 	shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
 	/** Stores information used to animate materials. */
-	materialInfo: WeakMap<THREE.Material, MaterialInfo>;
+	materialInfo: WeakMap<Material, MaterialInfo>;
 	castShadow = false;
 
 	/** Stores all nodes from the node tree. */
@@ -212,6 +216,7 @@ export class Shape {
 
 	async init(level?: Level, srcElement: MissionElement = null) {
 		if (!Util.supportsInstancing(renderer)) this.useInstancing = false;
+		this.useInstancing = false; // temp
 
 		this.id = srcElement?._id ?? 0;
 		this.level = level;
@@ -221,15 +226,167 @@ export class Shape {
 		this.colliderDts = (this.dtsPath === this.colliderDtsPath)? this.dts : await ((this.level)? this.level.mission.getDts(this.colliderDtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.colliderDtsPath));
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
 
+		this.group = new Group();
+		this.bodies = [];
+		this.materials = [];
+		this.materialInfo = new WeakMap();
+
+		for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
+
+		await this.computeMaterials();
+	
+		// Build the node tree
+		let graphNodes: GraphNode[] = [];
+		for (let i = 0; i < this.dts.nodes.length; i++) {
+			let graphNode: GraphNode = {
+				index: i,
+				node: this.dts.nodes[i],
+				children: [],
+				parent: null
+			};
+			graphNodes.push(graphNode);
+		}
+		for (let i = 0; i < this.dts.nodes.length; i++) {
+			let node = this.dts.nodes[i];
+			if (node.parentIndex !== -1) {
+				graphNodes[i].parent = graphNodes[node.parentIndex];
+				graphNodes[node.parentIndex].children.push(graphNodes[i]);
+			}
+		}
+		this.graphNodes = graphNodes;
+		this.rootGraphNodes = graphNodes.filter((node) => !node.parent);
+		this.updateNodeTransforms();
+
+		let geometries: Geometry[] = [];
+		let geometryMatrices: THREE.Matrix4[] = [];
+		let collisionGeometries = new Set<Geometry>();
+		
+		// Go through all nodes and objects and create the geometry
+		for (let i = 0; i < this.dts.nodes.length; i++) {
+			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
+
+			for (let object of objects) {
+				// Torque requires collision objects to start with "Col", so we use that here
+				let isCollisionObject = this.dts.names[object.nameIndex].toLowerCase().startsWith("col");
+
+				if (!isCollisionObject || this.collideable) {
+					let mat = this.nodeTransforms[i];
+	
+					for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
+						let mesh = this.dts.meshes[i];
+						if (!mesh) continue;
+						if (mesh.parentMesh >= 0) continue; // If the node has a parent, skip it. Why? Don't know. Made teleport pad look correct.
+						if (mesh.verts.length === 0) continue; // No need
+	
+						let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+						let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+
+						let geometry = this.generateGeometryFromMesh(mesh, vertices, vertexNormals);
+						geometries.push(geometry);
+						geometryMatrices.push(mat);
+
+						// Flag it
+						if (isCollisionObject) collisionGeometries.add(geometry);
+					}
+				}
+			}
+		}
+
+		// Search for a skinned mesh (only in use for the tornado)
+		let skinnedMeshIndex: number = null;
+		for (let i = 0; i < this.dts.meshes.length; i++) {
+			let dtsMesh = this.dts.meshes[i];
+			if (!dtsMesh || dtsMesh.type !== MeshType.Skin) continue;
+
+			// Create arrays of zero vectors as they will get changed later anyway
+			let vertices = new Array(dtsMesh.verts.length).fill(null).map(() => new THREE.Vector3());
+			let vertexNormals = new Array(dtsMesh.norms.length).fill(null).map(() => new THREE.Vector3());
+			let geometry = this.generateGeometryFromMesh(dtsMesh, vertices, vertexNormals);
+			geometries.push(geometry); // Even though the mesh is animated, it doesn't count as dynamic because it's not part of any node and therefore cannot follow its transforms.
+			geometryMatrices.push(null);
+
+			skinnedMeshIndex = i;
+			break; // This is technically not correct. A shape could have many skinned meshes, but the tornado only has one, so we gucci.
+		}
+
+		for (let geometry of geometries) {
+			if (collisionGeometries.has(geometry)) continue;
+
+			let mesh = new Mesh(geometry, this.materials);
+			let mat = geometryMatrices[geometries.indexOf(geometry)];
+			if (mat) mesh.transform = mat;
+			this.group.add(mesh);
+
+			if (skinnedMeshIndex !== null && !this.skinMeshInfo) {
+				// Will be used for animating the skin later
+				this.skinMeshInfo = {
+					meshIndex: skinnedMeshIndex,
+					vertices: this.dts.meshes[skinnedMeshIndex].verts.map(x => new THREE.Vector3()),
+					normals: this.dts.meshes[skinnedMeshIndex].norms.map(x => new THREE.Vector3()),
+					mesh: mesh
+				};
+			}
+		}
+
+		// Now, create an actual collision body for each collision object (will be initiated with geometry later)
+		for (let i = 0; i < this.colliderDts.nodes.length; i++) {
+			let objects = this.colliderDts.objects.filter((object) => object.nodeIndex === i);
+
+			for (let object of objects) {
+				let isCollisionObject = this.colliderDts.names[object.nameIndex].toLowerCase().startsWith("col");
+				if (isCollisionObject) {
+					let config = new OIMO.RigidBodyConfig();
+					config.type = OIMO.RigidBodyType.STATIC;
+					let body = new OIMO.RigidBody(config);
+					body.userData = { nodeIndex: i, objectIndex: this.colliderDts.objects.indexOf(object) };
+
+					this.bodies.push(body);
+				}
+			}
+		}
+
+		// If there are no collision objects, add a single body which will later be filled with bounding box geometry.
+		if (this.bodies.length === 0 && !this.isTSStatic) {
+			let config = new OIMO.RigidBodyConfig();
+			config.type = OIMO.RigidBodyType.STATIC;
+			let body = new OIMO.RigidBody(config);
+			this.bodies.push(body);
+		}
+
+		// Preload all sounds
+		await AudioManager.loadBuffers(this.sounds);
+
+		if (this.level) this.level.loadingState.loaded++;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		return;
+
 		this.group = new THREE.Group();
 		this.bodies = [];
 		this.materials = [];
 		this.materialInfo = new WeakMap();
 
+		/*
 		let staticGeometries: THREE.BufferGeometry[] = [];
 		let dynamicGeometries: THREE.BufferGeometry[] = [];
 		let dynamicGeometriesMatrices: THREE.Matrix4[] = [];
 		let collisionGeometries = new Set<THREE.BufferGeometry>();
+		*/
 
 		// Check if there's already shared data from another shape of the same type
 		let sharedDataPromise = this.level?.sharedShapeData.get(this.dtsPath + ' ' + this.constructor.name + ' ' + this.shareId.toString());
@@ -482,9 +639,7 @@ export class Shape {
 		}
 
 		// Preload all sounds
-		for (let sound of this.sounds) {
-			await AudioManager.loadBuffer(sound);
-		}
+		await AudioManager.loadBuffers(this.sounds);
 
 		if (this.level) this.level.loadingState.loaded++;
 	}
@@ -505,15 +660,18 @@ export class Shape {
 				continue;
 			}
 
-			// If the material is self-illuminated, we can get away with a MeshBasicMaterial
-			let material = ((flags & MaterialFlags.SelfIlluminating) || environmentMaterial) ? new THREE.MeshBasicMaterial() : new THREE.MeshLambertMaterial();
+			let material = new Material();
+			if ((flags & MaterialFlags.SelfIlluminating) || environmentMaterial) material.emissive = true;
+
 			this.materials.push(material);
 			
+			/*
 			material.onBeforeCompile = shader => {
 				if (this.normalizeVertexNormals) shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader;
 				this.onBeforeMaterialCompile?.(shader);
 			};
 			material.customProgramCacheKey = () => material.onBeforeCompile.toString() + this.onBeforeMaterialCompile?.toString(); // The default cache key is the onBeforeCompile, but that can differ for us here.
+			*/
 
 			if (matName instanceof THREE.Texture) {
 				if (flags & MaterialFlags.S_Wrap) matName.wrapS = THREE.RepeatWrapping;
@@ -542,15 +700,18 @@ export class Shape {
 				this.materialInfo.set(material, { keyframes });
 
 				// Preload all frames of the material animation
-				let promises: Promise<any>[] = [];
+				let promises: Promise<Texture>[] = [];
 				for (let frame of new Set(keyframes)) {
 					promises.push(ResourceManager.getTexture(this.directoryPath + '/' + frame));
 				}
-				await Promise.all(promises);
+				let textures = await Promise.all(promises);
+				material.availableTextures.push(...textures);
 			} else {
 				let texture = await ResourceManager.getTexture(this.directoryPath + '/' + fullName, (flags & MaterialFlags.Translucent) === 0); // Make sure to remove the alpha of the texture if it's not flagged as translucent
-				if (flags & MaterialFlags.S_Wrap) texture.wrapS = THREE.RepeatWrapping;
-				if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
+				// Is it fine to have these always-on?
+				//if (flags & MaterialFlags.S_Wrap) texture.wrapS = THREE.RepeatWrapping;
+				//if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
+				material.availableTextures.push(texture),
 				material.map = texture;
 			}
 
@@ -581,18 +742,11 @@ export class Shape {
 		};
 	}
 
-	/** Generates material geometry info from a given DTS mesh. */
-	generateMaterialGeometry(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[]) {
-		let materialGeometry = this.materials.map(() => {
-			return {
-				vertices: [] as number[],
-				normals: [] as number[],
-				uvs: [] as number[],
-				indices: [] as number[]
-			};
-		});
+	/** Generates geometry info from a given DTS mesh. */
+	generateGeometryFromMesh(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[]) {
+		let geometry = new Geometry();
 
-		const addTriangleFromIndices = (i1: number, i2: number, i3: number, geometryData: typeof materialGeometry[number]) => {
+		const addTriangleFromIndices = (i1: number, i2: number, i3: number, materialIndex: number) => {
 			// We first perform a check: If the computed face normal points in the opposite direction of all vertex normals, we need to invert the winding order of the vertices.
 			let ab = new THREE.Vector3(vertices[i2].x - vertices[i1].x, vertices[i2].y - vertices[i1].y, vertices[i2].z - vertices[i1].z);
 			let ac = new THREE.Vector3(vertices[i3].x - vertices[i1].x, vertices[i3].y - vertices[i1].y, vertices[i3].z - vertices[i1].z);
@@ -605,20 +759,21 @@ export class Shape {
 
 			for (let index of [i1, i2, i3]) {
 				let vertex = vertices[index];
-				geometryData.vertices.push(vertex.x, vertex.y, vertex.z);
+				geometry.positions.push(vertex.x, vertex.y, vertex.z);
 
 				let uv = dtsMesh.tverts[index];
-				geometryData.uvs.push(uv.x, uv.y);
+				geometry.uvs.push(uv.x, uv.y);
 
 				let normal = vertexNormals[index];
-				geometryData.normals.push(normal.x, normal.y, normal.z);
-			}
+				geometry.normals.push(normal.x, normal.y, normal.z);
 
-			geometryData.indices.push(i1, i2, i3);
+				geometry.indices.push(index);
+				geometry.materials.push(materialIndex);
+			}
 		};
 
 		for (let primitive of dtsMesh.primitives) {
-			let geometryData = materialGeometry[primitive.matIndex & TSDrawPrimitive.MaterialMask];
+			let materialIndex = primitive.matIndex & TSDrawPrimitive.MaterialMask;
 			let drawType = primitive.matIndex & TSDrawPrimitive.TypeMask;
 
 			if (drawType === TSDrawPrimitive.Triangles) {
@@ -627,7 +782,7 @@ export class Shape {
 					let i2 = dtsMesh.indices[i+1];
 					let i3 = dtsMesh.indices[i+2];
 	
-					addTriangleFromIndices(i1, i2, i3, geometryData);
+					addTriangleFromIndices(i1, i2, i3, materialIndex);
 				}
 			} else if (drawType === TSDrawPrimitive.Strip) {
 				let k = 0; // Keep track of current face for correct vertex winding order
@@ -643,7 +798,7 @@ export class Shape {
 						i3 = temp;
 					}
 	
-					addTriangleFromIndices(i1, i2, i3, geometryData);
+					addTriangleFromIndices(i1, i2, i3, materialIndex);
 	
 					k++;
 				}
@@ -653,12 +808,12 @@ export class Shape {
 					let i2 = dtsMesh.indices[i+1];
 					let i3 = dtsMesh.indices[i+2];
 
-					addTriangleFromIndices(i1, i2, i3, geometryData);
+					addTriangleFromIndices(i1, i2, i3, materialIndex);
 				}
 			}
 		}
 
-		return materialGeometry;
+		return geometry;
 	}
 
 	/** Generates collision objects for this shape. Geometry will be generated later. */
@@ -789,6 +944,8 @@ export class Shape {
 			let rootNode = this.rootGraphNodes[i];
 			traverse(rootNode, false);
 		}
+
+		this.group.changedTransform();
 	}
 
 	/** Updates the geometries of the bodies matching the bitfield based on node transforms. */
@@ -975,22 +1132,20 @@ export class Shape {
 			}
 
 			// Update the values in the buffer attributes
-			let positionAttribute = info.geometry.getAttribute('position');
-			let normalAttribute = info.geometry.getAttribute('normal');
-			let pos = 0;
-			for (let index of info.indices) {
+			let geometry = info.mesh.geometry;
+			for (let i = 0; i < geometry.indices.length; i++) {
+				let index = geometry.indices[i];
 				let vertex = info.vertices[index];
 				let normal = info.normals[index];
 
-				positionAttribute.setXYZ(pos, vertex.x, vertex.y, vertex.z);
-				normalAttribute.setXYZ(pos, normal.x, normal.y, normal.z);
-
-				pos++;
+				geometry.positions[3*i + 0] = vertex.x;
+				geometry.positions[3*i + 1] = vertex.y;
+				geometry.positions[3*i + 2] = vertex.z;
+				geometry.normals[3*i + 0] = normal.x;
+				geometry.normals[3*i + 1] = normal.y;
+				geometry.normals[3*i + 2] = normal.z;
 			}
-
-			// They need an upload to the GPU, so flag them
-			positionAttribute.needsUpdate = true;
-			normalAttribute.needsUpdate = true;
+			info.mesh.needsVertexBufferUpdate = true;
 		}
 
 		// Handle animated materials
@@ -1024,7 +1179,8 @@ export class Shape {
 			let orientation = this.worldOrientation.clone();
 			spinAnimation.multiplyQuaternions(orientation, spinAnimation);
 
-			this.group.quaternion.copy(spinAnimation);
+			this.group.transform.compose(this.worldPosition, spinAnimation, this.worldScale);
+			this.group.changedTransform();
 		}
 	}
 
@@ -1037,9 +1193,11 @@ export class Shape {
 		this.worldScale = scale;
 		this.worldMatrix.compose(position, orientation, scale);
 
+		this.group.transform.compose(position, orientation, scale);
+		/*
 		this.group.position.copy(position);
 		this.group.quaternion.copy(orientation);
-		this.group.scale.copy(scale);
+		this.group.scale.copy(scale);*/
 
 		let colliderMatrix = new THREE.Matrix4();
 		colliderMatrix.compose(this.worldPosition, this.worldOrientation, new THREE.Vector3(1, 1, 1));
@@ -1146,6 +1304,7 @@ export class Shape {
 	}
 
 	dispose() {
+		return;
 		for (let material of this.materials) material.dispose();
 		for (let geometry of this.geometries) geometry.dispose();
 	}

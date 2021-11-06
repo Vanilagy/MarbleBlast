@@ -249,12 +249,8 @@ export class PathedInterior extends Interior {
 	render(time: TimeState) {
 		let transform = this.getTransformAtTime(this.getInternalTime(time.currentAttemptTime));
 
-		if (this.useInstancing) {
-			this.sharedData.instancedMesh.setMatrixAt(this.instanceIndex, transform);
-			this.sharedData.instancedMesh.instanceMatrix.needsUpdate = true;
-		} else {
-			this.mesh.matrix.copy(transform);
-		}
+		this.mesh.transform.copy(transform);
+		this.mesh.changedTransform();
 
 		let position = new THREE.Vector3().setFromMatrixPosition(transform);
 		this.body.setPosition(Util.vecThreeToOimo(position)); // Set the position of the body as well for correct camera raycasting results

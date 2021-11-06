@@ -5,7 +5,7 @@ sarcina.bundle({
 	dist: './dist',
 	verbose: true,
 	minifyMarkup: false,
-	ignore: ['ts'],
+	ignore: ['ts', 'assets'],
 	keep: ['lib/pako.js', 'lib/oggdec.js', 'manifest.json', 'sw.js'],
 	transpileScript: sarcina.ES2017,
 	insertPolyfill: true,

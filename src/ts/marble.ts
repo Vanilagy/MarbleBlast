@@ -228,7 +228,7 @@ export class Marble {
 			if (this.isReflective()) ballShape.onBeforeMaterialCompile = applyReflectiveMarbleShader;
 			if (customTextureBlob) ballShape.matNamesOverride['base.marble'] = marbleTexture;
 			await ballShape.init(this.level);
-			this.innerGroup.add(ballShape.group);
+			//this.innerGroup.add(ballShape.group);
 			this.ballShape = ballShape;
 		}
 
@@ -270,7 +270,7 @@ export class Marble {
 		await this.forcefield.init(this.level);
 		this.forcefield.setOpacity(0);
 		this.forcefield.showSequences = false; // Hide the weird default animation it does
-		this.innerGroup.add(this.forcefield.group);
+		//this.innerGroup.add(this.forcefield.group);
 
 		this.helicopter = new Shape();
 		// Easter egg: Due to an iconic bug where the helicopter would instead look like a glow bounce, this can now happen 0.1% of the time.
@@ -278,7 +278,7 @@ export class Marble {
 		this.helicopter.castShadow = true;
 		await this.helicopter.init(this.level);
 		this.helicopter.setOpacity(0);
-		this.group.add(this.helicopter.group);
+		//this.group.add(this.helicopter.group);
 
 		// Load the necessary rolling sounds
 		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"];
@@ -814,7 +814,7 @@ export class Marble {
 		geom._gjkMargin = radius;
 		this.body.addShape(null); // I hacked OIMO a bit, this will trigger a recompute of the mass and stuff
 
-		this.forcefield.group.scale.setScalar(this.radius / DEFAULT_RADIUS);
+		//this.forcefield.group.scale.setScalar(this.radius / DEFAULT_RADIUS);
 	}
 
 	reset() {

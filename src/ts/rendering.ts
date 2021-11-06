@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { Camera, Renderer } from "./rendering/renderer";
+import { Camera } from "./rendering/camera";
+import { Renderer } from "./rendering/renderer";
 import { StorageManager } from "./storage";
 import { Util } from "./util";
 
