@@ -14,6 +14,8 @@ export class Material {
 	private _map: Texture = null;
 	cubeMap: CubeTexture = null;
 	type: MaterialType = MaterialType.Regular;
+	normalizeNormals = false;
+	flipY = false;
 
 	get map() {
 		return this._map;
@@ -43,7 +45,9 @@ export class Material {
 		addBits(Number(this.emissive), 1);
 		addBits(Number(this.transparent), 1);
 		addBits(Number(this.blending === THREE.AdditiveBlending), 1);
-		addBits(0, 26);
+		addBits(Number(this.normalizeNormals), 1);
+		addBits(Number(this.flipY), 1);
+		addBits(0, 24);
 
 		if (this.type === MaterialType.Sky) {
 			addBits(cubeTextures.indexOf(this.cubeMap), 2);

@@ -727,6 +727,7 @@ export class Shape {
 				material.reflectivity = this.dts.matNames.length === 1? 1 : environmentMaterial? 0.5 : 0.333;
 				material.envMap = this.level.envMap;
 			}
+			material.normalizeNormals = this.normalizeVertexNormals;
 		}
 
 		// If there are no materials, atleast add one environment one
@@ -1232,42 +1233,9 @@ export class Shape {
 	/** Sets the opacity of the shape. Since there's no quick and easy way of doing this, this method recursively sets it for all materials. */
 	setOpacity(opacity: number) {
 		if (opacity === this.currentOpacity) return;
+
 		this.currentOpacity = opacity;
-
-		if (opacity === 0) {
-			this.group.visible = false;
-			return;
-		} else {
-			this.group.visible = true;
-		}
-
-		const updateMaterial = (material: THREE.Material) => {
-			material.transparent = true;
-			
-			if (material instanceof THREE.ShadowMaterial) {
-				material.opacity = opacity * 0.25; // Make sure the shadow isn't too dark
-			} else {
-				material.depthWrite = opacity > 0;
-				material.opacity = opacity;
-			}
-		};
-
-		const setOpacityOfChildren = (group: THREE.Group) => {
-			for (let child of group.children) {
-				if (child.type === 'Group') {
-					setOpacityOfChildren(child as THREE.Group);
-					continue;
-				}
-
-				let mesh = child as THREE.Mesh;
-				if (!mesh.material) continue;
-	
-				if (mesh.material instanceof THREE.Material) updateMaterial(mesh.material);
-				else for (let material of (mesh.material as THREE.Material[])) updateMaterial(material);
-			}
-		};
-
-		setOpacityOfChildren(this.group);
+		this.group.setOpacity(opacity);
 	}
 
 	/** Adds a collider geometry. Whenever the marble overlaps with the geometry, a callback is fired. */

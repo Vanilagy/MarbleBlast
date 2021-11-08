@@ -1,4 +1,5 @@
 import { Util } from "../util";
+import { Mesh } from "./mesh";
 import { Object3D } from "./object_3d";
 
 export class Group extends Object3D {
@@ -26,8 +27,6 @@ export class Group extends Object3D {
 	}
 
 	changedTransform() {
-		if (this.needsWorldTransformUpdate) return;
-		
 		super.changedTransform();
 		for (let child of this.children) child.changedTransform();
 	}
@@ -38,6 +37,13 @@ export class Group extends Object3D {
 		for (let child of this.children) {
 			if (child instanceof Group) child.traverse(fn);
 			else fn(child);
+		}
+	}
+
+	setOpacity(value: number) {
+		for (let child of this.children) {
+			if (child instanceof Group) child.setOpacity(value);
+			else (child as Mesh).opacity = value;
 		}
 	}
 }

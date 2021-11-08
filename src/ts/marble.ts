@@ -11,6 +11,11 @@ import { MisParser, MissionElementType } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
 import { camera, marbleReflectionCamera, marbleReflectionRenderTarget, renderer } from "./rendering";
 import { state } from "./state";
+import { Group } from "./rendering/group";
+import { Geometry } from "./rendering/geometry";
+import { Material } from "./rendering/material";
+import { Texture } from "./rendering/texture";
+import { Mesh } from "./rendering/mesh";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -136,9 +141,9 @@ const applyReflectiveMarbleShader = (shader: THREE.Shader) => {
 /** Controls marble behavior and responds to player input. */
 export class Marble {
 	level: Level;
-	group: THREE.Group;
-	innerGroup: THREE.Group;
-	sphere: THREE.Mesh;
+	group: Group;
+	innerGroup: Group;
+	sphere: Mesh;
 	ballShape: Shape;
 	shape: OIMO.Shape;
 	body: OIMO.RigidBody;
@@ -191,8 +196,8 @@ export class Marble {
 	}
 
 	async init() {
-		this.group = new THREE.Group();
-		this.innerGroup = new THREE.Group();
+		this.group = new Group();
+		this.innerGroup = new Group();
 		this.group.add(this.innerGroup);
 
 		if (this.level.mission.misFile.marbleAttributes["jumpImpulse"] !== undefined) 
@@ -201,7 +206,7 @@ export class Marble {
 			this.bounceRestitution = MisParser.parseNumber(this.level.mission.misFile.marbleAttributes["bounceRestitution"]);
 
 		// Get the correct texture
-		let marbleTexture: THREE.Texture;
+		let marbleTexture: Texture;
 		let customTextureBlob = await StorageManager.databaseGet('keyvalue', 'marbleTexture');
 		if (customTextureBlob) {
 			try {
@@ -228,23 +233,28 @@ export class Marble {
 			if (this.isReflective()) ballShape.onBeforeMaterialCompile = applyReflectiveMarbleShader;
 			if (customTextureBlob) ballShape.matNamesOverride['base.marble'] = marbleTexture;
 			await ballShape.init(this.level);
-			//this.innerGroup.add(ballShape.group);
+			this.innerGroup.add(ballShape.group);
 			this.ballShape = ballShape;
+			ballShape.group.bitch = true;
 		}
 
-		let geometry = new THREE.SphereBufferGeometry(1, 32, 16);
-		let sphereMaterial = new THREE.MeshLambertMaterial({ map: marbleTexture, color: 0xffffff });
-		let sphere = new THREE.Mesh(geometry, sphereMaterial);
-		sphere.material.onBeforeCompile = shader => shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader; // Same thing as with ballShape
-		sphere.castShadow = true;
+		let geometry = Geometry.createSphereGeometry(1, 32, 16);
+		let sphereMaterial = new Material();
+		sphereMaterial.availableTextures.push(marbleTexture);
+		sphereMaterial.map = marbleTexture;
+		sphereMaterial.normalizeNormals = true;
+		sphereMaterial.flipY = true;
+		let sphere = new Mesh(geometry, [sphereMaterial]);
 		this.sphere = sphere;
 		this.innerGroup.add(sphere);
 
+		/*
 		sphere.material.onBeforeCompile = shader => {
 			shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader; // Same thing as with ballShape
 			if (this.isReflective()) applyReflectiveMarbleShader(shader);
 		};
 		sphere.material.customProgramCacheKey = () => sphere.material.onBeforeCompile.toString() + (this.isReflective()? applyReflectiveMarbleShader.toString() : null);
+		*/
 
 		// Create the collision geometry
 		let shapeConfig = new OIMO.ShapeConfig();
@@ -705,39 +715,27 @@ export class Marble {
 		let bodyPosition = Util.lerpOimoVectors(this.body.getPosition(), this.predictedPosition, time.physicsTickCompletion);
 		let bodyOrientation = this.body.getOrientation().slerp(this.predictedOrientation, time.physicsTickCompletion);
 		this.group.position.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
-		this.innerGroup.quaternion.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
+		this.innerGroup.orientation.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
+		
+		this.group.recomputeTransform();
+		this.innerGroup.recomputeTransform();
 
 		this.forcefield.render(time);
 		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) this.helicopter.render(time);
 
 		// Update the teleporting look:
 
-		let mat = this.sphere.material as THREE.MeshLambertMaterial;
 		let teleportFadeCompletion = 0;
 
 		if (this.teleportEnableTime !== null) teleportFadeCompletion = Util.clamp((time.currentAttemptTime - this.teleportEnableTime) / TELEPORT_FADE_DURATION, 0, 1);
 		if (this.teleportDisableTime !== null) teleportFadeCompletion = Util.clamp(1 - (time.currentAttemptTime - this.teleportDisableTime) / TELEPORT_FADE_DURATION, 0, 1);
 
 		if (teleportFadeCompletion > 0) {
-			if (mat.map) {
-				mat.map = null;
-				mat.needsUpdate = true;
-			}
-			mat.opacity = Util.lerp(1, 0.25, teleportFadeCompletion);
-			mat.transparent = true;
-			mat.flatShading = true;
-			this.sphere.castShadow = false;
-			this.sphere.visible = true;
+			//this.sphere.castShadow = false;
+			this.sphere.opacity = Util.lerp(1, 0.25, teleportFadeCompletion);
 		} else {
-			if (!mat.map) {
-				mat.map = this.marbleTexture;
-				mat.needsUpdate = true;
-			}
-			mat.opacity = 1;
-			mat.transparent = false;
-			mat.flatShading = false;
-			this.sphere.castShadow = true;
-			this.sphere.visible = !this.ballShape;
+			//this.sphere.castShadow = true;
+			this.sphere.opacity = Number(!this.ballShape);
 		}
 	}
 
@@ -807,6 +805,7 @@ export class Marble {
 	setRadius(radius: number) {
 		this.radius = radius;
 		this.sphere.scale.setScalar(radius);
+		this.sphere.recomputeTransform();
 		this.ballShape?.setTransform(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3().setScalar(radius / DEFAULT_RADIUS));
 
 		let geom = this.body.getShapeList()._geom as OIMO.SphereGeometry;
@@ -833,9 +832,5 @@ export class Marble {
 		this.predictedPosition = this.body.getPosition();
 		this.predictedOrientation = this.body.getOrientation();
 		this.setRadius(this.level.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
-
-		let mat = this.sphere.material as THREE.MeshLambertMaterial;
-		mat.map = this.marbleTexture;
-		mat.needsUpdate = true;
 	}
 }

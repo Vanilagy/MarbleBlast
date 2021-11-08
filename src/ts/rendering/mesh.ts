@@ -1,4 +1,5 @@
 import THREE from "three";
+import { BufferAttribute } from "./buffer_attribute";
 import { Geometry } from "./geometry";
 import { Material } from "./material";
 import { Object3D } from "./object_3d";
@@ -6,8 +7,9 @@ import { Object3D } from "./object_3d";
 export class Mesh extends Object3D {
 	geometry: Geometry;
 	materials: Material[];
-	needsTransformBufferUpdate = true;
+	needsMeshInfoBufferUpdate = true;
 	needsVertexBufferUpdate = false;
+	private _opacity = 1.0;
 
 	constructor(geometry: Geometry, materials: Material[]) {
 		super();
@@ -19,6 +21,23 @@ export class Mesh extends Object3D {
 		if (this.needsWorldTransformUpdate) return;
 
 		super.changedTransform();
-		this.needsTransformBufferUpdate = true;
+		this.needsMeshInfoBufferUpdate = true;
+	}
+
+	get opacity() {
+		return this._opacity;
+	}
+
+	set opacity(value: number) {
+		if (value === this._opacity) return;
+		this._opacity = value;
+		this.needsMeshInfoBufferUpdate = true;
+	}
+
+	updateMeshInfoBuffer(buffer: Float32Array, index: number) {
+		buffer.set(this.worldTransform.elements, index);
+		buffer[index + 3] = this._opacity;
+
+		this.needsMeshInfoBufferUpdate = false;
 	}
 }

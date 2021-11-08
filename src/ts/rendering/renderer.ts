@@ -42,11 +42,11 @@ export class Renderer {
 		let uniformCounts = this.getUniformsCounts();
 
 		defaultVert = defaultVert.replace('#include <definitions>', `
-			#define TRANSFORM_COUNT ${uniformCounts.transformVectors / 4}
+			#define MESH_COUNT ${uniformCounts.transformVectors / 4}
 			#define MATERIAL_COUNT ${uniformCounts.materialVectors}
 		`);
 		defaultFrag = defaultFrag.replace('#include <definitions>', `
-			#define TRANSFORM_COUNT ${uniformCounts.transformVectors / 4}
+			#define MESH_COUNT ${uniformCounts.transformVectors / 4}
 			#define MATERIAL_COUNT ${uniformCounts.materialVectors}
 		`);
 		this.defaultProgram = new Program(this, defaultVert, defaultFrag);
@@ -93,7 +93,7 @@ export class Renderer {
 		this.defaultProgram.bindBufferAttribute(scene.positionBuffer);
 		this.defaultProgram.bindBufferAttribute(scene.normalBuffer);
 		this.defaultProgram.bindBufferAttribute(scene.uvBuffer);
-		this.defaultProgram.bindBufferAttribute(scene.transformIndexBuffer);
+		this.defaultProgram.bindBufferAttribute(scene.meshInfoIndexBuffer);
 		this.defaultProgram.bindBufferAttribute(scene.materialIndexBuffer);
 
 		scene.updateWorldTransform();
@@ -108,9 +108,8 @@ export class Renderer {
 					scene.uvBuffer.set(mesh.geometry.uvs, offset);
 				}
 
-				if (mesh.needsTransformBufferUpdate) {
-					drawCall.transformsBuffer.set(mesh.worldTransform.elements, 16 * i);
-					mesh.needsTransformBufferUpdate = false;
+				if (mesh.needsMeshInfoBufferUpdate) {
+					mesh.updateMeshInfoBuffer(drawCall.meshInfoBuffer, 16 * i);
 				}
 			}
 			for (let i = 0; i < drawCall.materials.length; i++) {
@@ -126,21 +125,23 @@ export class Renderer {
 		scene.uvBuffer.update();
 
 		let transparentTris: number[] = [];
-		let transparentTriDistances: number[] = [];
+		let transparentTriDistances = new Map<number, number>();
 		let tempVec = new THREE.Vector3();
 		for (let i = 0; i < scene.materialIndexBuffer.data.length; i += 3) {
 			let drawCall = scene.drawCalls[scene.indexToDrawCall[i]];
 			let material = drawCall.materials[scene.materialIndexBuffer.data[i]];
-			if (material.transparent) {
+			let mesh = drawCall.meshes[scene.meshInfoIndexBuffer.data[i]];
+
+			if (material.transparent || (mesh.opacity > 0 && mesh.opacity < 1)) {
 				transparentTris.push(i);
-				let transform = drawCall.meshes[scene.transformIndexBuffer.data[i]].worldTransform;
+				let transform = mesh.worldTransform;
 				tempVec.set(scene.positionBuffer.data[3*i + 0], scene.positionBuffer.data[3*i + 1], scene.positionBuffer.data[3*i + 2]);
 				tempVec.applyMatrix4(transform);
-				transparentTriDistances.push(tempVec.distanceToSquared(camera.position));
+				transparentTriDistances.set(i, tempVec.distanceToSquared(camera.position));
 			}
 		}
 		transparentTris.sort((a, b) => {
-			return transparentTriDistances[b] - transparentTriDistances[a];
+			return transparentTriDistances.get(b) - transparentTriDistances.get(a);
 		});
 		for (let i = 0; i < transparentTris.length; i++) {
 			scene.indexBufferData[3*i + 0] = transparentTris[i] + 0;
@@ -170,7 +171,7 @@ export class Renderer {
 			2.0 / (Math.log(camera.far + 1.0) / Math.LN2)
 		);
 
-		let transformsLoc = this.defaultProgram.getUniformLocation('transforms');
+		let meshInfoLoc = this.defaultProgram.getUniformLocation('meshInfos');
 		let materialsLoc = this.defaultProgram.getUniformLocation('materials');
 		let texturesLoc = this.defaultProgram.getUniformLocation('textures');
 		let cubeTexturesLoc = this.defaultProgram.getUniformLocation('cubeTextures');
@@ -190,7 +191,7 @@ export class Renderer {
 				gl.bindTexture(gl.TEXTURE_CUBE_MAP, tex.glTexture);
 			}
 
-			gl.uniformMatrix4fv(transformsLoc, false, drawCall.transformsBuffer);
+			gl.uniformMatrix4fv(meshInfoLoc, false, drawCall.meshInfoBuffer);
 			gl.uniform4uiv(materialsLoc, drawCall.materialsBuffer);
 
 			gl.activeTexture(gl.TEXTURE0);
@@ -202,6 +203,7 @@ export class Renderer {
 		gl.uniform1i(this.defaultProgram.getUniformLocation('skipTransparent'), 0);
 		gl.depthMask(false);
 
+		let currentStart = 0;
 		for (let i = 0; i < transparentTris.length; i++) {
 			let index = transparentTris[i];
 			let nextIndex = transparentTris[i+1];
@@ -216,13 +218,15 @@ export class Renderer {
 				gl.bindTexture(gl.TEXTURE_CUBE_MAP, tex.glTexture);
 			}
 
-			gl.uniformMatrix4fv(transformsLoc, false, drawCall.transformsBuffer);
+			gl.uniformMatrix4fv(meshInfoLoc, false, drawCall.meshInfoBuffer);
 			gl.uniform4uiv(materialsLoc, drawCall.materialsBuffer);
 
 			gl.activeTexture(gl.TEXTURE0);
 			gl.bindTexture(gl.TEXTURE_2D_ARRAY, scene.textures[drawCall.textureId]);
 
-			gl.drawElements(gl.TRIANGLES, transparentTris.length * 3, gl.UNSIGNED_INT, 0);
+			gl.drawElements(gl.TRIANGLES, (i - currentStart + 1) * 3, gl.UNSIGNED_INT, currentStart);
+
+			currentStart = i + 1;
 		}
 	}
 }

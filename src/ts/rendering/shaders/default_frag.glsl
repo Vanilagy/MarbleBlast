@@ -1,5 +1,6 @@
 #version 300 es
 precision mediump float;
+precision highp int;
 
 #include <definitions>
 
@@ -9,6 +10,7 @@ in vec2 vUv;
 in vec3 vNormal;
 in float vFragDepth;
 in float vIsPerspective;
+in float vOpacity;
 
 uniform highp uvec4 materials[MATERIAL_COUNT];
 uniform mediump sampler2DArray textures;
@@ -30,7 +32,7 @@ float lambert(vec3 normal, vec3 lightPosition) {
 }
 
 void main() {
-	uvec4 material = materials[int(vMaterialIndex)];
+	uvec4 material = materials[int(round(vMaterialIndex))];
 	uint materialType = (material.x >> 29) & 7u;
 
 	if (materialType == 1u) {
@@ -55,18 +57,23 @@ void main() {
 
 		if (textureIndex != -1) { 
 			bool transparent = ((material.x >> 27) & 1u) != 0u;
-			vec4 sampled = texture(textures, vec3(vUv, float(textureIndex)));
+			bool flipY = ((material.x >> 24) & 1u) != 0u;
+			vec2 uv = vUv;
+			if (flipY) uv.t = 1.0 - uv.t;
+
+			vec4 sampled = texture(textures, vec3(uv, textureIndex));
 			if (!transparent) sampled.a = 1.0;
 			diffuse = sampled;
 		} else {
-			diffuse = vec4(1.0, 1.0, 1.0, 1.0);
+			diffuse = vec4(1.0);
 		}
 
-		vec3 incomingLight = vec3(0.0, 0.0, 0.0);
+		vec3 incomingLight = vec3(0.0);
 		bool emissive = ((material.x >> 28) & 1u) != 0u;
+		bool normalizeNormal = ((material.x >> 25) & 1u) != 0u;
 
 		if (emissive) {
-			incomingLight = vec3(1.0, 1.0, 1.0);
+			incomingLight = vec3(1.0);
 		} else {
 			incomingLight += ambientLight;
 
@@ -74,13 +81,17 @@ void main() {
 				vec3 color = directionalLightColor[i];
 				vec3 direction = directionalLightDirection[i];
 
-				incomingLight += color * lambert(vNormal, -direction);
-				incomingLight = min(vec3(1.0, 1.0, 1.0), incomingLight);
+				vec3 normal = vNormal;
+				if (normalizeNormal) normal = normalize(normal);
+
+				incomingLight += color * lambert(normal, -direction);
+				incomingLight = min(vec3(1.0), incomingLight);
 			}
 		}
 		
 		bool additive = ((material.x >> 26) & 1u) != 0u;
 		FragColor = diffuse * vec4(incomingLight, 1.0);
+		FragColor.a *= vOpacity;
 		FragColor.rgb *= FragColor.a;
 		if (additive) FragColor.a = 0.0;
 

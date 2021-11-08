@@ -421,7 +421,8 @@ export class Level extends Scheduler {
 		this.marble = new Marble(this);
 		await this.marble.init();
 
-		this.scene.add(this.marble.group);
+		//this.scene.add(this.marble.group);
+		this.ownScene.add(this.marble.group);
 		this.physics.initMarble();
 	}
 
@@ -709,7 +710,7 @@ export class Level extends Scheduler {
 
 		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
-		this.scene.add(shape.group);
+		this.ownScene.add(shape.group);
 		if (shape.worldScale.x !== 0 && shape.worldScale.y !== 0 && shape.worldScale.z !== 0) this.physics.addShape(shape); // Only add the shape if it actually has any volume
 	}
 
@@ -760,6 +761,7 @@ export class Level extends Scheduler {
 		// Place the marble a bit above the start pad position
 		this.marble.body.setPosition(new OIMO.Vec3(startPosition.x, startPosition.y, startPosition.z + 3));
 		this.marble.group.position.copy(Util.vecOimoToThree(this.marble.body.getPosition()));
+		this.marble.group.recomputeTransform();
 		this.marble.reset();
 		this.marble.calculatePredictiveTransforms();
 

@@ -11,7 +11,7 @@ export interface DrawCall {
 	start: number,
 	count: number,
 	meshes: Mesh[],
-	transformsBuffer: Float32Array,
+	meshInfoBuffer: Float32Array,
 	materialsBuffer: Uint32Array,
 	textureId: number,
 	materials: Material[],
@@ -25,7 +25,7 @@ export class Scene extends Group {
 	positionBuffer: BufferAttribute;
 	normalBuffer: BufferAttribute;
 	uvBuffer: BufferAttribute;
-	transformIndexBuffer: BufferAttribute;
+	meshInfoIndexBuffer: BufferAttribute;
 	materialIndexBuffer: BufferAttribute;
 	drawCalls: DrawCall[];
 	textures: WebGLTexture[] = [];
@@ -94,7 +94,7 @@ export class Scene extends Group {
 		let positions: number[] = [];
 		let normals: number[] = [];
 		let uvs: number[] = [];
-		let transformIndices: number[] = [];
+		let meshInfoIndices: number[] = [];
 		let materialIndices: number[] = [];
 
 		let { gl } = this.renderer;
@@ -121,7 +121,7 @@ export class Scene extends Group {
 					start: currentStart,
 					count: currentCount,
 					meshes: currentMeshes,
-					transformsBuffer: new Float32Array(currentMeshes.length * 16),
+					meshInfoBuffer: new Float32Array(currentMeshes.length * 16),
 					materialsBuffer: new Uint32Array(currentMaterials.length * 4),
 					textureId: currentTextureIndex,
 					materials: currentMaterials,
@@ -184,7 +184,7 @@ export class Scene extends Group {
 			pushArray(positions, mesh.geometry.positions);
 			pushArray(normals, mesh.geometry.normals);
 			pushArray(uvs, mesh.geometry.uvs);
-			pushArray(transformIndices, new Array(tris).fill(currentMeshes.indexOf(mesh)));
+			pushArray(meshInfoIndices, new Array(tris).fill(currentMeshes.indexOf(mesh)));
 			pushArray(materialIndices, mesh.geometry.materials.map(x => currentMaterials.indexOf(mesh.materials[x])));
 			pushArray(this.indexToDrawCall, new Array(tris).fill(drawCalls.length));
 		}
@@ -197,7 +197,7 @@ export class Scene extends Group {
 		this.positionBuffer = new BufferAttribute(this.renderer, 'position', new Float32Array(positions), 3);
 		this.normalBuffer = new BufferAttribute(this.renderer, 'normal', new Float32Array(normals), 3);
 		this.uvBuffer = new BufferAttribute(this.renderer, 'uv', new Float32Array(uvs), 2);
-		this.transformIndexBuffer = new BufferAttribute(this.renderer, 'transformIndex', new Float32Array(transformIndices), 1);
+		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, 'meshInfoIndex', new Float32Array(meshInfoIndices), 1);
 		this.materialIndexBuffer = new BufferAttribute(this.renderer, 'materialIndex', new Float32Array(materialIndices), 1);
 
 		this.ambientLightBuffer = new Float32Array(this.ambientLight.toArray());
@@ -210,7 +210,7 @@ export class Scene extends Group {
 			...(this.directionalLights[1]?.direction ?? new THREE.Vector3()).toArray()
 		]);
 
-		this.indexBufferData = new Uint32Array(transformIndices.length);
+		this.indexBufferData = new Uint32Array(meshInfoIndices.length);
 		this.indexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indexBufferData, gl.DYNAMIC_DRAW);
