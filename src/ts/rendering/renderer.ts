@@ -1,20 +1,29 @@
-import VERTEX_SHADER from './shaders/default_vert.glsl';
-import FRAGMENT_SHADER from './shaders/default_frag.glsl';
-import { DrawCall, Scene } from "./scene";
-import { Camera } from "./camera";
+import defaultVert from './shaders/default_vert.glsl';
+import defaultFrag from './shaders/default_frag.glsl';
+import shadowMapVert from './shaders/shadow_map_vert.glsl';
+import shadowMapFrag from './shaders/shadow_map_frag.glsl';
+import { CUBE_MAPS_PER_DRAW_CALL, DIRECTIONAL_LIGHT_COUNT, Scene } from "./scene";
 import { Program } from './program';
 import THREE from 'three';
-import { Mesh } from './mesh';
+
+let query;
 
 export class Renderer {
 	options: { canvas: HTMLCanvasElement };
 	gl: WebGL2RenderingContext;
+	currentProgram: Program = null;
 	defaultProgram: Program;
+	shadowMapProgram: Program;
+	width: number;
+	height: number;
 
 	extensions = {
-		EXT_texture_filter_anisotropic: null as any,
-		EXT_frag_depth: null as any,
-		OES_element_index_uint: null as any
+		EXT_texture_filter_anisotropic: null as EXT_texture_filter_anisotropic,
+		EXT_frag_depth: null as EXT_frag_depth,
+		OES_element_index_uint: null as OES_element_index_uint,
+		WEBGL_depth_texture: null as WEBGL_depth_texture,
+		OES_standard_derivatives: null as OES_standard_derivatives,
+		EXT_disjoint_timer_query_webgl2: null as EXT_disjoint_timer_query_webgl2
 	};
 
 	constructor(options: { canvas: HTMLCanvasElement }) {
@@ -36,20 +45,14 @@ export class Renderer {
 			gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
 		this.extensions.EXT_frag_depth = gl.getExtension('EXT_frag_depth'); // Enabled in WebGL2 by default
 		this.extensions.OES_element_index_uint = gl.getExtension('OES_element_index_uint');
-		
-		let defaultVert = VERTEX_SHADER;
-		let defaultFrag = FRAGMENT_SHADER;
-		let uniformCounts = this.getUniformsCounts();
+		this.extensions.WEBGL_depth_texture = gl.getExtension('WEBGL_depth_texture');
+		this.extensions.OES_standard_derivatives = gl.getExtension('OES_standard_derivatives');
+		this.extensions.EXT_disjoint_timer_query_webgl2 = gl.getExtension('EXT_disjoint_timer_query_webgl2');
 
-		defaultVert = defaultVert.replace('#include <definitions>', `
-			#define MESH_COUNT ${uniformCounts.transformVectors / 4}
-			#define MATERIAL_COUNT ${uniformCounts.materialVectors}
-		`);
-		defaultFrag = defaultFrag.replace('#include <definitions>', `
-			#define MESH_COUNT ${uniformCounts.transformVectors / 4}
-			#define MATERIAL_COUNT ${uniformCounts.materialVectors}
-		`);
+		console.log(this.extensions.EXT_disjoint_timer_query_webgl2) 
+		
 		this.defaultProgram = new Program(this, defaultVert, defaultFrag);
+		this.shadowMapProgram = new Program(this, shadowMapVert, shadowMapFrag);
 
 		gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		gl.clearDepth(1.0);
@@ -67,7 +70,8 @@ export class Renderer {
 	getUniformsCounts() {
 		let { gl } = this;
 		let maxVertexUniformVectors = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS) as number;
-		maxVertexUniformVectors -= 13; // Taken up by other uniforms
+		maxVertexUniformVectors -= 14; // Taken up by other uniforms
+		maxVertexUniformVectors -= 4 * DIRECTIONAL_LIGHT_COUNT;
 
 		let fifth = Math.floor(maxVertexUniformVectors / 5);
 
@@ -78,55 +82,51 @@ export class Renderer {
 	}
 
 	setSize(width: number, height: number) {
+		this.width = width;
+		this.height = height;
+
 		this.options.canvas.setAttribute('width', width.toString());
 		this.options.canvas.setAttribute('height', height.toString());
-		this.gl.viewport(0, 0, width, height);
 	}
 
-	render(scene: Scene, camera: Camera) {
+	render(scene: Scene, camera: THREE.PerspectiveCamera) {
 		let { gl } = this;
 
+		let ext = this.extensions.EXT_disjoint_timer_query_webgl2;
+
+		
+		const available = query && gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE);
+		if (available) {
+			const elapsedNanos = gl.getQueryParameter(query, gl.QUERY_RESULT);
+			console.log(elapsedNanos / 1000 / 1000); // in millis
+		}
+
+		if (available || !query) {
+			query = gl.createQuery();
+			gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
+		}
+		
+
+		scene.update();
+		for (let light of scene.directionalLights) light.renderShadowMap(scene);
+
+		gl.depthMask(true);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.viewport(0, 0, this.width, this.height);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 		this.defaultProgram.use();
-
 		this.defaultProgram.bindBufferAttribute(scene.positionBuffer);
 		this.defaultProgram.bindBufferAttribute(scene.normalBuffer);
+		this.defaultProgram.bindBufferAttribute(scene.tangentBuffer);
 		this.defaultProgram.bindBufferAttribute(scene.uvBuffer);
 		this.defaultProgram.bindBufferAttribute(scene.meshInfoIndexBuffer);
 		this.defaultProgram.bindBufferAttribute(scene.materialIndexBuffer);
 
-		scene.updateWorldTransform();
-		for (let drawCall of scene.drawCalls) {
-			for (let i = 0; i < drawCall.meshes.length; i++) {
-				let mesh = drawCall.meshes[i];
-
-				if (mesh.needsVertexBufferUpdate) {
-					let offset = drawCall.meshVertexStarts[i];
-					scene.positionBuffer.set(mesh.geometry.positions, offset);
-					scene.normalBuffer.set(mesh.geometry.normals, offset);
-					scene.uvBuffer.set(mesh.geometry.uvs, offset);
-				}
-
-				if (mesh.needsMeshInfoBufferUpdate) {
-					mesh.updateMeshInfoBuffer(drawCall.meshInfoBuffer, 16 * i);
-				}
-			}
-			for (let i = 0; i < drawCall.materials.length; i++) {
-				let material = drawCall.materials[i];
-				if (!material.needsMaterialBufferUpdate) continue;
-
-				drawCall.materialsBuffer.set(material.encode(drawCall.textures, drawCall.cubeTextures), 4 * i);
-				material.needsMaterialBufferUpdate = false;
-			}
-		}
-		scene.positionBuffer.update();
-		scene.normalBuffer.update();
-		scene.uvBuffer.update();
-
 		let transparentTris: number[] = [];
 		let transparentTriDistances = new Map<number, number>();
 		let tempVec = new THREE.Vector3();
+		/*
 		for (let i = 0; i < scene.materialIndexBuffer.data.length; i += 3) {
 			let drawCall = scene.drawCalls[scene.indexToDrawCall[i]];
 			let material = drawCall.materials[scene.materialIndexBuffer.data[i]];
@@ -150,11 +150,12 @@ export class Renderer {
 		}
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.indexBuffer);
 		gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, scene.indexBufferData, 0, transparentTris.length * 3);
+		*/
 
 		gl.uniformMatrix4fv(
 			this.defaultProgram.getUniformLocation('viewMatrix'),
 			false,
-			new Float32Array(camera.viewMatrix.elements)
+			new Float32Array(camera.matrixWorldInverse.elements)
 		);
 		gl.uniformMatrix4fv(
 			this.defaultProgram.getUniformLocation('projectionMatrix'),
@@ -170,17 +171,24 @@ export class Renderer {
 			this.defaultProgram.getUniformLocation('logDepthBufFC'),
 			2.0 / (Math.log(camera.far + 1.0) / Math.LN2)
 		);
+		gl.uniform3fv(
+			this.defaultProgram.getUniformLocation('eyePosition'),
+			new Float32Array(camera.position.toArray())
+		);
 
 		let meshInfoLoc = this.defaultProgram.getUniformLocation('meshInfos');
 		let materialsLoc = this.defaultProgram.getUniformLocation('materials');
 		let texturesLoc = this.defaultProgram.getUniformLocation('textures');
 		let cubeTexturesLoc = this.defaultProgram.getUniformLocation('cubeTextures');
 		gl.uniform1i(texturesLoc, 0);
-		gl.uniform1iv(cubeTexturesLoc, new Uint32Array([1, 2, 3, 4]));
+		gl.uniform1iv(cubeTexturesLoc, new Uint32Array(new Array(CUBE_MAPS_PER_DRAW_CALL).fill(null).map((_, i) => 1 + i)));
 
 		gl.uniform3fv(this.defaultProgram.getUniformLocation('ambientLight'), scene.ambientLightBuffer);
 		gl.uniform3fv(this.defaultProgram.getUniformLocation('directionalLightColor'), scene.directionalLightColorBuffer);
 		gl.uniform3fv(this.defaultProgram.getUniformLocation('directionalLightDirection'), scene.directionalLightDirectionBuffer);
+		gl.uniform1iv(this.defaultProgram.getUniformLocation('directionalLightShadowMap'), scene.directionalLightShadowMapBuffer);
+		gl.uniformMatrix4fv(this.defaultProgram.getUniformLocation('directionalLightTransform'), false, scene.directionalLightTransformBuffer);
+		for (let [i, light] of scene.directionalLights.entries()) light.bindShadowMap(i);
 
 		gl.uniform1i(this.defaultProgram.getUniformLocation('skipTransparent'), 1);
 		gl.depthMask(true);
@@ -200,8 +208,12 @@ export class Renderer {
 			gl.drawArrays(gl.TRIANGLES, drawCall.start, drawCall.count);
 		}
 
+		gl.endQuery(ext.TIME_ELAPSED_EXT);
+
+		return;
+
 		gl.uniform1i(this.defaultProgram.getUniformLocation('skipTransparent'), 0);
-		gl.depthMask(false);
+		//gl.depthMask(false);
 
 		let currentStart = 0;
 		for (let i = 0; i < transparentTris.length; i++) {

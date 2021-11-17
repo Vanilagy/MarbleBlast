@@ -12,7 +12,6 @@ export class TrapDoor extends Shape {
 	dtsPath = "shapes/hazards/trapdoor.dts";
 	hasNonVisualSequences = true;
 	shareNodeTransforms = false;
-	useInstancing = true;
 	lastContactTime = -Infinity;
 	/** The time it takes from the moment of touching the trapdoor to it opening. */
 	timeout = 0;

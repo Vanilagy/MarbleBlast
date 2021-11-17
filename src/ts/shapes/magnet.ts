@@ -4,7 +4,6 @@ import { ForceShape } from "./force_shape";
 /** Magnets pull the marble towards itself. */
 export class Magnet extends ForceShape {
 	dtsPath = "shapes/hazards/magnet/magnet.dts";
-	useInstancing = true;
 	collideable = false;
 	sounds = ["magnet.wav"];
 	soundSource: AudioSource;

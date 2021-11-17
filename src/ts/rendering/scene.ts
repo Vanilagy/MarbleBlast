@@ -1,11 +1,16 @@
 import THREE from "three";
+import { AmbientLight } from "./ambient_light";
 import { BufferAttribute } from "./buffer_attribute";
 import { CubeTexture } from "./cube_texture";
+import { DirectionalLight } from "./directional_light";
 import { Group } from "./group";
 import { Material } from "./material";
 import { Mesh } from "./mesh";
 import { Renderer } from "./renderer";
 import { Texture } from "./texture";
+
+export const DIRECTIONAL_LIGHT_COUNT = 2;
+export const CUBE_MAPS_PER_DRAW_CALL = 4;
 
 export interface DrawCall {
 	start: number,
@@ -24,6 +29,7 @@ export class Scene extends Group {
 	renderer: Renderer;
 	positionBuffer: BufferAttribute;
 	normalBuffer: BufferAttribute;
+	tangentBuffer: BufferAttribute;
 	uvBuffer: BufferAttribute;
 	meshInfoIndexBuffer: BufferAttribute;
 	materialIndexBuffer: BufferAttribute;
@@ -32,28 +38,30 @@ export class Scene extends Group {
 	indexToDrawCall: number[] = [];
 	indexBuffer: WebGLBuffer;
 	indexBufferData: Uint32Array;
+	shadowCasterIndices: number[];
+	shadowCasterIndexBuffer: WebGLBuffer;
 
-	ambientLight = new THREE.Color(0);
-	directionalLights: {
-		color: THREE.Color,
-		direction: THREE.Vector3
-	}[] = [];
+	ambientLights: AmbientLight[] = [];
+	directionalLights: DirectionalLight[] = [];
 
 	ambientLightBuffer: Float32Array;
 	directionalLightColorBuffer: Float32Array;
 	directionalLightDirectionBuffer: Float32Array;
+	directionalLightTransformBuffer: Float32Array;
+	directionalLightShadowMapBuffer: Uint32Array;
+	firstUpdate = true;
 
 	constructor(renderer: Renderer) {
 		super();
 		this.renderer = renderer;
 	}
 
-	addAmbientLight(color: THREE.Color) {
-		this.ambientLight.add(color);
+	addAmbientLight(light: AmbientLight) {
+		this.ambientLights.push(light);
 	}
 
-	addDirectionalLight(color: THREE.Color, direction: THREE.Vector3) {
-		this.directionalLights.push({ color, direction });
+	addDirectionalLight(light: DirectionalLight) {
+		this.directionalLights.push(light);
 	}
 
 	makeTexture(textures: Texture[]) {
@@ -61,6 +69,7 @@ export class Scene extends Group {
 		for (let texture of textures) {
 			maxDim = Math.max(maxDim, texture.image.naturalWidth, texture.image.naturalHeight);
 		}
+		//maxDim = 4;
 
 		console.log(textures);
 
@@ -96,6 +105,7 @@ export class Scene extends Group {
 		let uvs: number[] = [];
 		let meshInfoIndices: number[] = [];
 		let materialIndices: number[] = [];
+		let shadowCasterIndices: number[] = [];
 
 		let { gl } = this.renderer;
 
@@ -161,14 +171,16 @@ export class Scene extends Group {
 			let newTextures: Texture[] = [];
 			let newCubeTextures: CubeTexture[] = [];
 
+			mesh.geometry.validate();
+
 			for (let mat of mesh.materials) {
 				if (!currentMaterials.includes(mat)) newMaterials.push(mat);
 				for (let tex of mat.availableTextures) if (!currentTextures.includes(tex)) newTextures.push(tex);
-				if (mat.cubeMap && !currentCubeTextures.includes(mat.cubeMap)) newCubeTextures.push(mat.cubeMap);
+				if (mat.envMap && !currentCubeTextures.includes(mat.envMap)) newCubeTextures.push(mat.envMap);
 			}
 			
 			if (currentTextures.length + newTextures.length > maxArrayTextureLayers) commitTexture();
-			if (currentCubeTextures.length + newCubeTextures.length > 4) commitDrawCall();
+			if (currentCubeTextures.length + newCubeTextures.length > CUBE_MAPS_PER_DRAW_CALL) commitDrawCall();
 			if ((currentMeshes.length + 1) * 4 > uniformCounts.transformVectors) commitDrawCall();
 			if ((currentMeshes.length + 1) * 1 > uniformCounts.materialVectors) commitDrawCall();
 
@@ -176,43 +188,168 @@ export class Scene extends Group {
 			currentTextures.push(...newTextures);
 			currentCubeTextures.push(...newCubeTextures);
 
-			let tris = mesh.geometry.positions.length / 3;
-			currentCount += tris;
+			let verts = mesh.geometry.positions.length / 3;
+			currentCount += verts;
 			currentMeshes.push(mesh);
 			currentMeshVertexStarts.push(positions.length/3);
+
+			if (mesh.castShadows) pushArray(shadowCasterIndices, new Array(verts).fill(null).map((_, i) => positions.length/3 + i));
 
 			pushArray(positions, mesh.geometry.positions);
 			pushArray(normals, mesh.geometry.normals);
 			pushArray(uvs, mesh.geometry.uvs);
-			pushArray(meshInfoIndices, new Array(tris).fill(currentMeshes.indexOf(mesh)));
+			pushArray(meshInfoIndices, new Array(verts).fill(currentMeshes.indexOf(mesh)));
 			pushArray(materialIndices, mesh.geometry.materials.map(x => currentMaterials.indexOf(mesh.materials[x])));
-			pushArray(this.indexToDrawCall, new Array(tris).fill(drawCalls.length));
+			pushArray(this.indexToDrawCall, new Array(verts).fill(drawCalls.length));
 		}
 		commitDrawCall();
 		commitTexture();
 
-		//console.log(textureIds.filter((_, i) => textureIds[i] !== textureIds[i+1]))
 		console.log(drawCalls);
+
+		let tangents = this.computeTangents(positions, normals, uvs);
 
 		this.positionBuffer = new BufferAttribute(this.renderer, 'position', new Float32Array(positions), 3);
 		this.normalBuffer = new BufferAttribute(this.renderer, 'normal', new Float32Array(normals), 3);
+		this.tangentBuffer = new BufferAttribute(this.renderer, 'tangent', new Float32Array(tangents), 4);
 		this.uvBuffer = new BufferAttribute(this.renderer, 'uv', new Float32Array(uvs), 2);
 		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, 'meshInfoIndex', new Float32Array(meshInfoIndices), 1);
 		this.materialIndexBuffer = new BufferAttribute(this.renderer, 'materialIndex', new Float32Array(materialIndices), 1);
 
-		this.ambientLightBuffer = new Float32Array(this.ambientLight.toArray());
-		this.directionalLightColorBuffer = new Float32Array([
-			...(this.directionalLights[0]?.color ?? new THREE.Color(0)).toArray(),
-			...(this.directionalLights[1]?.color ?? new THREE.Color(0)).toArray()
-		]);
-		this.directionalLightDirectionBuffer = new Float32Array([
-			...(this.directionalLights[0]?.direction ?? new THREE.Vector3()).toArray(),
-			...(this.directionalLights[1]?.direction ?? new THREE.Vector3()).toArray()
-		]);
+		let totalAmbientLight = new THREE.Color(0);
+		this.ambientLights.forEach(x => totalAmbientLight.add(x.color));
+		this.ambientLightBuffer = new Float32Array(totalAmbientLight.toArray());
+
+		const shadowMapStartIndex = 1 + CUBE_MAPS_PER_DRAW_CALL;
+		this.directionalLightColorBuffer = new Float32Array(3 * DIRECTIONAL_LIGHT_COUNT);
+		this.directionalLightDirectionBuffer = new Float32Array(3 * DIRECTIONAL_LIGHT_COUNT);
+		this.directionalLightTransformBuffer = new Float32Array(16 * DIRECTIONAL_LIGHT_COUNT);
+		this.directionalLightShadowMapBuffer = new Uint32Array(new Array(DIRECTIONAL_LIGHT_COUNT).fill(shadowMapStartIndex));
 
 		this.indexBufferData = new Uint32Array(meshInfoIndices.length);
 		this.indexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indexBufferData, gl.DYNAMIC_DRAW);
+
+		this.shadowCasterIndices = shadowCasterIndices;
+		this.shadowCasterIndexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.shadowCasterIndexBuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(shadowCasterIndices), gl.STATIC_DRAW);
+	}
+
+	// https://www.cs.upc.edu/~virtual/G/1.%20Teoria/06.%20Textures/Tangent%20Space%20Calculation.pdf
+	computeTangents(positions: number[], normals: number[], uvs: number[]) {
+		let tangents: number[] = [];
+
+		let verts = positions.length / 3;
+		let tris = verts / 3;
+
+		let v1 = new THREE.Vector3();
+		let v2 = new THREE.Vector3();
+		let v3 = new THREE.Vector3();
+		let w1 = new THREE.Vector2();
+		let w2 = new THREE.Vector2();
+		let w3 = new THREE.Vector2();
+		let sdir = new THREE.Vector3();
+		let tdir = new THREE.Vector3();
+		let normal = new THREE.Vector3();
+		let tangent = new THREE.Vector3();
+
+		for (let i = 0; i < tris; i++) {
+			v1.set(positions[9*i + 0], positions[9*i + 1], positions[9*i + 2]);
+			v2.set(positions[9*i + 3], positions[9*i + 4], positions[9*i + 5]);
+			v3.set(positions[9*i + 6], positions[9*i + 7], positions[9*i + 8]);
+
+			w1.set(uvs[6*i + 0], uvs[6*i + 1]);
+			w2.set(uvs[6*i + 2], uvs[6*i + 3]);
+			w3.set(uvs[6*i + 4], uvs[6*i + 5]);
+
+			let x1 = v2.x - v1.x;
+			let x2 = v3.x - v1.x;
+			let y1 = v2.y - v1.y;
+			let y2 = v3.y - v1.y;
+			let z1 = v2.z - v1.z;
+			let z2 = v3.z - v1.z;
+
+			let s1 = w2.x - w1.x;
+			let s2 = w3.x - w1.x;
+			let t1 = w2.y - w1.y;
+			let t2 = w3.y - w1.y;
+
+			let r = 1 / (s1 * t2 - s2 * t1);
+			sdir.set(
+				(t2 * x1 - t1 * x2) * r,
+				(t2 * y1 - t1 * y2) * r,
+				(t2 * z1 - t1 * z2) * r
+			);
+			tdir.set(
+				(s1 * x2 - s2 * x1) * r,
+				(s1 * y2 - s2 * y1) * r,
+				(s1 * z2 - s2 * z1) * r
+			);
+
+			for (let j = 0; j < 3; j++) {
+				normal.set(normals[9*i + 3*j + 0], normals[9*i + 3*j + 1], normals[9*i + 3*j + 2]);
+				
+				// Gram-Schmidt orthogonalize
+				tangent.copy(sdir).addScaledVector(normal, -normal.dot(sdir)).normalize();
+				// Calculate handedness
+				let w = (normal.cross(sdir).dot(tdir) < 0)? -1 : 1;
+
+				tangents.push(tangent.x, tangent.y, tangent.z, w);
+			}
+		}
+
+		return tangents;
+	}
+
+	update() {
+		this.updateWorldTransform();
+		for (let drawCall of this.drawCalls) {
+			for (let i = 0; i < drawCall.meshes.length; i++) {
+				let mesh = drawCall.meshes[i];
+
+				if (this.firstUpdate || mesh.needsVertexBufferUpdate) {
+					let offset = drawCall.meshVertexStarts[i];
+					this.positionBuffer.set(mesh.geometry.positions, offset);
+					this.normalBuffer.set(mesh.geometry.normals, offset);
+					this.uvBuffer.set(mesh.geometry.uvs, offset);
+				}
+
+				if (this.firstUpdate || mesh.needsMeshInfoBufferUpdate) {
+					mesh.updateMeshInfoBuffer(drawCall.meshInfoBuffer, 16 * i);
+				}
+			}
+			for (let i = 0; i < drawCall.materials.length; i++) {
+				let material = drawCall.materials[i];
+				if (!this.firstUpdate && !material.needsMaterialBufferUpdate) continue;
+
+				drawCall.materialsBuffer.set(material.encode(drawCall.textures, drawCall.cubeTextures), 4 * i);
+				material.needsMaterialBufferUpdate = false;
+			}
+		}
+		this.positionBuffer.update();
+		this.normalBuffer.update();
+		this.uvBuffer.update();
+
+		this.updateDirectionalLightBuffers();
+
+		this.firstUpdate = false;
+	}
+
+	updateDirectionalLightBuffers() {
+		let mat4 = new THREE.Matrix4();
+		const shadowMapStartIndex = 1 + CUBE_MAPS_PER_DRAW_CALL;
+
+		for (let [i, light] of this.directionalLights.entries()) {
+			this.directionalLightColorBuffer.set(light.color.toArray(), 3 * i);
+			this.directionalLightDirectionBuffer.set(light.direction.toArray(), 3 * i);
+			this.directionalLightShadowMapBuffer[i] = shadowMapStartIndex + i;
+
+			if (light.camera) {
+				mat4.multiplyMatrices(light.camera.projectionMatrix, light.camera.matrixWorldInverse);
+				this.directionalLightTransformBuffer.set(mat4.elements, 16 * i);
+			}
+		}
 	}
 }

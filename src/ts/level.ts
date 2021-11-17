@@ -64,6 +64,8 @@ import { CubeTexture } from "./rendering/cube_texture";
 import { Material, MaterialType } from "./rendering/material";
 import { Mesh } from "./rendering/mesh";
 import { Geometry } from "./rendering/geometry";
+import { AmbientLight } from "./rendering/ambient_light";
+import { DirectionalLight } from "./rendering/directional_light";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -141,7 +143,7 @@ export class Level extends Scheduler {
 	ownScene = new Scene(ownRenderer);
 	sunlight: THREE.DirectionalLight;
 	sunDirection: THREE.Vector3;
-	envMap: THREE.Texture;
+	envMap: CubeTexture;
 	physics: PhysicsHelper;
 	particles: ParticleManager;
 	marble: Marble;
@@ -310,12 +312,25 @@ export class Level extends Scheduler {
 			ambientLight.position.z = 0;
 			ambientLight.position.y = 5;
 			this.scene.add(ambientLight);
-			this.ownScene.addAmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z));
+			this.ownScene.addAmbientLight(new AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z)));
 
 			// Create the sunlight and set up the shadow camera
 			let sunlight = new THREE.DirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), 1);
 			this.scene.add(sunlight);
-			this.ownScene.addDirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), sunDirection.clone());
+			let directionalLight = new DirectionalLight(
+				ownRenderer,
+				new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z),
+				sunDirection.clone()
+			);
+			this.ownScene.addDirectionalLight(directionalLight);
+
+			if (!addedShadow) {
+				addedShadow = true;
+
+				let shadowCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
+				//let shadowCamera = new THREE.PerspectiveCamera(100, 1, 0.1, 1000);
+				directionalLight.enableShadowCasting(250, shadowCamera);
+			}
 
 			// The first sun will be the "shadow sun"
 			if (!addedShadow) {
@@ -367,7 +382,7 @@ export class Level extends Scheduler {
 			if (skyboxCubeTexture) {
 				let material = new Material();
 				material.type = MaterialType.Sky;
-				material.cubeMap = skyboxCubeTexture;
+				material.envMap = skyboxCubeTexture;
 				let geometry = new Geometry();
 				geometry.positions.push(-1, -1, 1);
 				geometry.positions.push(3, -1, 1);
@@ -379,12 +394,12 @@ export class Level extends Scheduler {
 			}
 		}
 
-		let envmapCubeTexture = await this.createSkyboxCubeTexture('skies/sky_day.dml', false); // Always the default MBG skybox
-		// Create the environment map from the skybox. Don't use the actual envmap image file because its projection requires like three PhDs in mathematics.
-		this.envMap = Util.downsampleCubeTexture(renderer, envmapCubeTexture as any);
+		let envmapCubeTexture = await this.createSkyboxCubeTexture('skies/sky_day.dml', false, 128); // Always the default MBG skybox
+		// Use the skybox as the environment map. Don't use the actual envmap image file because its projection requires like three PhDs in mathematics.
+		this.envMap = envmapCubeTexture;
 	}
 
-	async createSkyboxCubeTexture(dmlPath: string, increaseLoading: boolean) {
+	async createSkyboxCubeTexture(dmlPath: string, increaseLoading: boolean, downsampleTo?: number) {
 		let dmlDirectoryPath = dmlPath.slice(0, dmlPath.lastIndexOf('/'));
 		let dmlFile = await this.mission.getResource(dmlPath);
 		if (dmlFile) {
@@ -408,6 +423,7 @@ export class Level extends Scheduler {
 
 			// Reorder them to the proper order
 			skyboxImages = Util.remapIndices(skyboxImages, [1, 3, 4, 5, 0, 2]);
+			if (downsampleTo) skyboxImages = await Promise.all(skyboxImages.map(x => Util.downsampleImage(x, downsampleTo, downsampleTo)));
 
 			let skyboxTexture = new CubeTexture(ownRenderer, skyboxImages);
 			return skyboxTexture;
@@ -695,7 +711,6 @@ export class Level extends Scheduler {
 		shape.dtsPath = shapeName.slice(index + 'data/'.length);
 		shape.isTSStatic = true;
 		shape.shareId = 1;
-		shape.useInstancing = true; // We can safely instance all TSStatics
 		if (shapeName.includes('colmesh')) shape.receiveShadows = false; // Special case for colmesh
 
 		this.shapes.push(shape);
@@ -856,11 +871,14 @@ export class Level extends Scheduler {
 		this.updateCamera(tempTimeState);
 
 		// Update the shadow camera
+		for (let light of this.ownScene.directionalLights) light.updateCamera(this.marble.group.position.clone(), -1);
+		/*
 		let shadowCameraPosition = this.marble.group.position.clone();
 		shadowCameraPosition.sub(this.sunDirection.clone().multiplyScalar(5));
 		this.sunlight.shadow.camera.position.copy(shadowCameraPosition);
 		this.sunlight.position.copy(shadowCameraPosition);
 		this.sunlight.target.position.copy(this.marble.group.position);
+		*/
 
 		//this.marble.renderReflection();
 		//renderer.render(this.scene, camera);
@@ -868,7 +886,7 @@ export class Level extends Scheduler {
 		camera.updateMatrixWorld();
 
 		ownCamera.projectionMatrix.copy(camera.projectionMatrix);
-		ownCamera.viewMatrix.copy(camera.matrixWorldInverse);
+		ownCamera.matrixWorldInverse.copy(camera.matrixWorldInverse);
 		ownCamera.position.copy(camera.position);
 		ownRenderer.render(this.ownScene, ownCamera);
 

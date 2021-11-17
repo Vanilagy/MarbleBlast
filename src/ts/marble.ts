@@ -147,7 +147,6 @@ export class Marble {
 	ballShape: Shape;
 	shape: OIMO.Shape;
 	body: OIMO.RigidBody;
-	marbleTexture: THREE.Texture;
 	/** The predicted position of the marble in the next tick. */
 	predictedPosition: OIMO.Vec3;
 	/** The predicted orientation of the marble in the next tick. */
@@ -218,8 +217,6 @@ export class Marble {
 		} else {
 			marbleTexture = await ResourceManager.getTexture("shapes/balls/base.marble.png");
 		}
-		marbleTexture.flipY = true; // Because THREE.js UVs are different from what Torque would do
-		this.marbleTexture = marbleTexture;
 
 		let has2To1Texture = marbleTexture.image.width === marbleTexture.image.height * 2;
 
@@ -228,14 +225,14 @@ export class Marble {
 			let ballShape = new Shape();
 			ballShape.shareMaterials = false;
 			ballShape.dtsPath = 'shapes/balls/pack1/pack1marble.dts';
-			ballShape.castShadow = true;
+			ballShape.castShadows = true;
 			ballShape.normalizeVertexNormals = true; // We do this so that the marble doesn't get darker the larger it gets
+			ballShape.flipY = true;
 			if (this.isReflective()) ballShape.onBeforeMaterialCompile = applyReflectiveMarbleShader;
 			if (customTextureBlob) ballShape.matNamesOverride['base.marble'] = marbleTexture;
 			await ballShape.init(this.level);
 			this.innerGroup.add(ballShape.group);
 			this.ballShape = ballShape;
-			ballShape.group.bitch = true;
 		}
 
 		let geometry = Geometry.createSphereGeometry(1, 32, 16);
@@ -245,6 +242,7 @@ export class Marble {
 		sphereMaterial.normalizeNormals = true;
 		sphereMaterial.flipY = true;
 		let sphere = new Mesh(geometry, [sphereMaterial]);
+		sphere.castShadows = true;
 		this.sphere = sphere;
 		this.innerGroup.add(sphere);
 
@@ -285,7 +283,7 @@ export class Marble {
 		this.helicopter = new Shape();
 		// Easter egg: Due to an iconic bug where the helicopter would instead look like a glow bounce, this can now happen 0.1% of the time.
 		this.helicopter.dtsPath = (Math.random() < 1 / 1000)? "shapes/images/glow_bounce.dts" : "shapes/images/helicopter.dts";
-		this.helicopter.castShadow = true;
+		this.helicopter.castShadows = true;
 		await this.helicopter.init(this.level);
 		this.helicopter.setOpacity(0);
 		//this.group.add(this.helicopter.group);

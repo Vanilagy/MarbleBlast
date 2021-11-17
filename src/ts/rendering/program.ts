@@ -1,5 +1,6 @@
 import { BufferAttribute } from "./buffer_attribute";
 import { Renderer } from "./renderer";
+import { DIRECTIONAL_LIGHT_COUNT } from "./scene";
 
 export class Program {
 	renderer: Renderer;
@@ -11,6 +12,15 @@ export class Program {
 		this.renderer = renderer;
 
 		let { gl } = renderer;
+
+		let uniformCounts = renderer.getUniformsCounts();
+		let definitions = `
+			#define MESH_COUNT ${uniformCounts.transformVectors / 4}
+			#define MATERIAL_COUNT ${uniformCounts.materialVectors}
+			#define DIRECTIONAL_LIGHT_COUNT ${DIRECTIONAL_LIGHT_COUNT}
+		`
+		vertexSource = vertexSource.replace('#include <definitions>', definitions);
+		fragmentSource = fragmentSource.replace('#include <definitions>', definitions);
 
 		let vertexShader = gl.createShader(gl.VERTEX_SHADER);
 		let fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
@@ -44,7 +54,10 @@ export class Program {
 	}
 
 	use() {
+		if (this.renderer.currentProgram === this) return;
+		
 		this.renderer.gl.useProgram(this.glProgram);
+		this.renderer.currentProgram = this;
 	}
 
 	bindBufferAttribute(buf: BufferAttribute) {

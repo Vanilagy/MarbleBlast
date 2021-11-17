@@ -8,7 +8,6 @@ import THREE from "three";
 /** A bumper is a shape which knocks the marble away on contact. */
 export abstract class AbstractBumper extends Shape {
 	wiggleAnimationStart = -Infinity;
-	useInstancing = true;
 
 	onMarbleContact(time: TimeState, contact?: OIMO.Contact) {
 		this.wiggleAnimationStart = time.timeSinceLoad;

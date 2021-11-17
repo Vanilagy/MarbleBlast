@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { ownRenderer } from "./rendering";
 import { Texture } from "./rendering/texture";
 import { state } from "./state";
-import { Util } from "./util";
 
 const imageCacheElement = document.querySelector('#image-cache');
 

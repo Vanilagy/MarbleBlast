@@ -214,6 +214,8 @@ export abstract class StorageManager {
 		}
 
 		if (changed) await this.storeBestTimes();
+
+		Util.getDefaultSecondsToTimeStringDecimalDigits = () => this.data.settings.showThousandths? 3 : 2;
 	}
 
 	/** Migrates from localStorage to IndexedDB. */

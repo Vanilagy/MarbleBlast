@@ -1,8 +1,6 @@
 import { Shape } from "../shape";
 
 export class Glass extends Shape {
-	useInstancing = true;
-
 	constructor(dataBlock: string) {
 		super();
 

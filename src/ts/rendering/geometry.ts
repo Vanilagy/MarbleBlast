@@ -12,6 +12,24 @@ export class Geometry {
 		while (this.uvs.length/2 < this.positions.length/3) this.uvs.push(0, 0);
 	}
 
+	validate() {
+		let verts = this.positions.length/3;
+
+		if (new Set([verts, this.normals.length/3, this.uvs.length/2, this.materials.length/1]).size !== 1) {
+			console.error(this);
+			throw new Error(`Geometry is invalid (vertex counts don't match):
+Positions: ${verts}
+Normals: ${this.normals.length/3}
+Uvs: ${this.uvs.length/2},
+Material Indices: ${this.materials.length/1}
+			`);
+		}
+
+		if (verts % 3)
+			throw new Error("Geometry is invalid (triangle count isn't a whole number): " + verts/3);
+	}
+
+	// Largely taken from three.js source
 	static createSphereGeometry(radius = 1, widthSegments = 32, heightSegments = 16, phiStart = 0, phiLength = Math.PI * 2, thetaStart = 0, thetaLength = Math.PI) {
 		let geometry = new Geometry();
 

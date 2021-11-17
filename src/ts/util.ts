@@ -1,7 +1,6 @@
 import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
-import { StorageManager } from "./storage";
 
 export interface RGBAColor {
 	r: number,
@@ -69,6 +68,23 @@ export abstract class Util {
 		return canvas;
 	}
 
+	static async downsampleImage(image: HTMLImageElement, newWidth: number, newHeight: number) {
+		let canvas = document.createElement('canvas');
+		canvas.setAttribute('width', newWidth.toString());
+		canvas.setAttribute('height', newHeight.toString());
+
+		let ctx = canvas.getContext('2d');
+		ctx.drawImage(image, 0, 0, newWidth, newHeight);
+
+		let data = canvas.toDataURL();
+		let newImage = new Image();
+		newImage.src = data;
+
+		await new Promise(resolve => newImage.onload = resolve);
+
+		return newImage;
+	}
+
 	static clamp(value: number, min: number, max: number) {
 		if (value < min) return min;
 		if (value > max) return max;
@@ -109,7 +125,7 @@ export abstract class Util {
 	}
 
 	static leftPadZeroes(str: string, amount: number) {
-		return "0".repeat(amount).slice(0, Math.max(0, amount - str.length)) + str;
+		return "0".repeat(Math.max(0, amount - str.length)) + str;
 	}
 
 	/** Forces an element's layout to be recalculated. */
@@ -386,19 +402,6 @@ export abstract class Util {
 		return str;
 	}
 
-	/** Creates a downsampled version of a cube texture. */
-	static downsampleCubeTexture(renderer: THREE.WebGLRenderer, cubeTexture: THREE.CubeTexture) {
-		let scene = new THREE.Scene();
-		scene.background = cubeTexture;
-
-		let target = new THREE.WebGLCubeRenderTarget(128);
-		let camera = new THREE.CubeCamera(1, 100000, target);
-
-		camera.update(renderer, scene);
-	
-		return camera.renderTarget.texture;
-	}
-
 	/** Splits a string like String.prototype.split, but ignores the splitter if it appears inside string literal tokens. */
 	static splitIgnoreStringLiterals(str: string, splitter: string, strLiteralToken = '"') {
 		let indices: number[] = [];
@@ -569,8 +572,10 @@ export abstract class Util {
 		|| (navigator.userAgent.includes("Mac") && "ontouchend" in document);
 	}
 
+	/** Override dis if you want. */
+	static getDefaultSecondsToTimeStringDecimalDigits = () => 3;
 	/** Converts seconds into a time string as seen in the game clock at the top, for example. */
-	static secondsToTimeString(seconds: number, decimalDigits = StorageManager.data?.settings.showThousandths? 3 : 2) {
+	static secondsToTimeString(seconds: number, decimalDigits = this.getDefaultSecondsToTimeStringDecimalDigits()) {
 		let abs = Math.abs(seconds);
 		let minutes = Math.floor(abs / 60);
 		let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(abs * 10**decimalDigits % 10**decimalDigits).toString(), decimalDigits);

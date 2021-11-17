@@ -8,7 +8,6 @@ const RESET_TIME = 5000;
 /** A simple shape representing a button that is pushed down when the shape is touched. */
 export class PushButton extends Shape {
 	dtsPath = 'shapes/buttons/pushbutton.dts';
-	useInstancing = true;
 	lastContactTime = -Infinity;
 	shareNodeTransforms = false;
 

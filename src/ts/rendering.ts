@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { Camera } from "./rendering/camera";
 import { Renderer } from "./rendering/renderer";
 import { StorageManager } from "./storage";
 import { Util } from "./util";
@@ -14,7 +13,7 @@ export const FRAME_RATE_OPTIONS = [30, 60, 90, 120, 144, 240, 360, Infinity];
 export let SCALING_RATIO = 1;
 
 export let ownRenderer = new Renderer({ canvas :mainCanvas });
-export let ownCamera = new Camera();
+export let ownCamera = new THREE.PerspectiveCamera();
 
 export const resize = async (wait = true) => {
 	if (wait) await Util.wait(100); // Sometimes you gotta give browser UI elements a little time to update

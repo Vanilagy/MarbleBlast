@@ -10,7 +10,7 @@ import { AudioManager } from "./audio";
 import { MissionElement } from "./parsing/mis_parser";
 import { renderer } from "./rendering";
 import { Group } from "./rendering/group";
-import { Material } from "./rendering/material";
+import { Material, MaterialType } from "./rendering/material";
 import { Geometry } from "./rendering/geometry";
 import { Mesh } from "./rendering/mesh";
 import { Texture } from "./rendering/texture";
@@ -84,15 +84,13 @@ interface ColliderInfo {
 
 /** Data that is shared with other shapes of the same type. */
 export interface SharedShapeData {
-	materials: (THREE.MeshBasicMaterial | THREE.MeshLambertMaterial)[],
-	staticGeometries: THREE.BufferGeometry[],
-	dynamicGeometries: THREE.BufferGeometry[],
-	dynamicGeometriesMatrixIndices: number[],
-	collisionGeometries: Set<THREE.BufferGeometry>,
+	materials: Material[],
+	geometries: Geometry[],
+	geometryMatrixIndices: number[],
+	collisionGeometries: Set<Geometry>,
 	nodeTransforms: THREE.Matrix4[],
 	rootGraphNodes: GraphNode[],
-	instancedMeshes: THREE.InstancedMesh[],
-	instanceIndex: number
+	skinnedMeshIndex: number
 }
 
 enum MaterialFlags {
@@ -145,10 +143,8 @@ export class Shape {
 	isTSStatic = false;
 	
 	group: Group;
-	/** Either the meshes or dummy Object3D's used for instancing. */
-	objects: THREE.Object3D[] = [];
+	meshes: Mesh[] = [];
 	bodies: OIMO.RigidBody[];
-	geometries: THREE.BufferGeometry[] = [];
 	/** Whether the marble can physically collide with this shape. */
 	collideable = true;
 	/** Not physical colliders, but a list bodies that overlap is checked with. This is used for things like force fields. */
@@ -162,13 +158,13 @@ export class Shape {
 	worldMatrix = new THREE.Matrix4();
 
 	/** Can be used to override certain material names. */
-	matNamesOverride: Record<string, string | THREE.Texture> = {};
+	matNamesOverride: Record<string, string | Texture> = {};
 	materials: Material[];
-	/** Used for collision objects. */
-	shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.25, depthWrite: false });
 	/** Stores information used to animate materials. */
 	materialInfo: WeakMap<Material, MaterialInfo>;
-	castShadow = false;
+	castShadows = false;
+	/** Whether or not to flip the v texture axes. */
+	flipY = false;
 
 	/** Stores all nodes from the node tree. */
 	graphNodes: GraphNode[];
@@ -198,26 +194,22 @@ export class Shape {
 	normalizeVertexNormals = false;
 	onBeforeMaterialCompile: (shader: THREE.Shader) => void = null;
 
-	/** Same shapes with the same shareId will share data. */
+	/** Same shapes with a different shareId cannot share data. */
 	shareId: number = 0;
-	/** Data shared with other shapes of the same type. */
-	sharedData: SharedShapeData;
 	/** Whether or not to share the same node transforms with other shapes of the same type. */
 	shareNodeTransforms = true;
 	/** Whether or not to share the same materials with other shapes of the same type. */
 	shareMaterials = true;
-	/** Whether or not to use instancing. Instancing drastically improves rendering performance but configuration per instance becomes very limited. */
-	useInstancing = false;
-	instancedMeshes: THREE.InstancedMesh[] = [];
-	/** The assigned instance index of this shape. */
-	instanceIndex = 0;
+	/** A shape is a master if it was the first shape to run init() amongst those that share data with it. */
+	isMaster = false;
 
 	sounds: string[] = [];
 
-	async init(level?: Level, srcElement: MissionElement = null) {
-		if (!Util.supportsInstancing(renderer)) this.useInstancing = false;
-		this.useInstancing = false; // temp
+	getShareHash() {
+		return this.dtsPath + ' ' + this.constructor.name + ' ' + this.shareId;
+	}
 
+	async init(level?: Level, srcElement: MissionElement = null) {
 		this.id = srcElement?._id ?? 0;
 		this.level = level;
 		this.srcElement = srcElement;
@@ -225,202 +217,29 @@ export class Shape {
 		this.dts = await ((this.level)? this.level.mission.getDts(this.dtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.dtsPath));
 		this.colliderDts = (this.dtsPath === this.colliderDtsPath)? this.dts : await ((this.level)? this.level.mission.getDts(this.colliderDtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.colliderDtsPath));
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
-
 		this.group = new Group();
 		this.bodies = [];
 		this.materials = [];
 		this.materialInfo = new WeakMap();
 
-		for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
-
-		await this.computeMaterials();
-	
-		// Build the node tree
-		let graphNodes: GraphNode[] = [];
-		for (let i = 0; i < this.dts.nodes.length; i++) {
-			let graphNode: GraphNode = {
-				index: i,
-				node: this.dts.nodes[i],
-				children: [],
-				parent: null
-			};
-			graphNodes.push(graphNode);
-		}
-		for (let i = 0; i < this.dts.nodes.length; i++) {
-			let node = this.dts.nodes[i];
-			if (node.parentIndex !== -1) {
-				graphNodes[i].parent = graphNodes[node.parentIndex];
-				graphNodes[node.parentIndex].children.push(graphNodes[i]);
-			}
-		}
-		this.graphNodes = graphNodes;
-		this.rootGraphNodes = graphNodes.filter((node) => !node.parent);
-		this.updateNodeTransforms();
-
-		let geometries: Geometry[] = [];
-		let geometryMatrices: THREE.Matrix4[] = [];
-		let collisionGeometries = new Set<Geometry>();
-		
-		// Go through all nodes and objects and create the geometry
-		for (let i = 0; i < this.dts.nodes.length; i++) {
-			let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
-
-			for (let object of objects) {
-				// Torque requires collision objects to start with "Col", so we use that here
-				let isCollisionObject = this.dts.names[object.nameIndex].toLowerCase().startsWith("col");
-
-				if (!isCollisionObject || this.collideable) {
-					let mat = this.nodeTransforms[i];
-	
-					for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
-						let mesh = this.dts.meshes[i];
-						if (!mesh) continue;
-						if (mesh.parentMesh >= 0) continue; // If the node has a parent, skip it. Why? Don't know. Made teleport pad look correct.
-						if (mesh.verts.length === 0) continue; // No need
-	
-						let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-						let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-
-						let geometry = this.generateGeometryFromMesh(mesh, vertices, vertexNormals);
-						geometries.push(geometry);
-						geometryMatrices.push(mat);
-
-						// Flag it
-						if (isCollisionObject) collisionGeometries.add(geometry);
-					}
-				}
-			}
-		}
-
-		// Search for a skinned mesh (only in use for the tornado)
-		let skinnedMeshIndex: number = null;
-		for (let i = 0; i < this.dts.meshes.length; i++) {
-			let dtsMesh = this.dts.meshes[i];
-			if (!dtsMesh || dtsMesh.type !== MeshType.Skin) continue;
-
-			// Create arrays of zero vectors as they will get changed later anyway
-			let vertices = new Array(dtsMesh.verts.length).fill(null).map(() => new THREE.Vector3());
-			let vertexNormals = new Array(dtsMesh.norms.length).fill(null).map(() => new THREE.Vector3());
-			let geometry = this.generateGeometryFromMesh(dtsMesh, vertices, vertexNormals);
-			geometries.push(geometry); // Even though the mesh is animated, it doesn't count as dynamic because it's not part of any node and therefore cannot follow its transforms.
-			geometryMatrices.push(null);
-
-			skinnedMeshIndex = i;
-			break; // This is technically not correct. A shape could have many skinned meshes, but the tornado only has one, so we gucci.
-		}
-
-		for (let geometry of geometries) {
-			if (collisionGeometries.has(geometry)) continue;
-
-			let mesh = new Mesh(geometry, this.materials);
-			let mat = geometryMatrices[geometries.indexOf(geometry)];
-			if (mat) mesh.transform = mat;
-			this.group.add(mesh);
-
-			if (skinnedMeshIndex !== null && !this.skinMeshInfo) {
-				// Will be used for animating the skin later
-				this.skinMeshInfo = {
-					meshIndex: skinnedMeshIndex,
-					vertices: this.dts.meshes[skinnedMeshIndex].verts.map(x => new THREE.Vector3()),
-					normals: this.dts.meshes[skinnedMeshIndex].norms.map(x => new THREE.Vector3()),
-					mesh: mesh
-				};
-			}
-		}
-
-		// Now, create an actual collision body for each collision object (will be initiated with geometry later)
-		for (let i = 0; i < this.colliderDts.nodes.length; i++) {
-			let objects = this.colliderDts.objects.filter((object) => object.nodeIndex === i);
-
-			for (let object of objects) {
-				let isCollisionObject = this.colliderDts.names[object.nameIndex].toLowerCase().startsWith("col");
-				if (isCollisionObject) {
-					let config = new OIMO.RigidBodyConfig();
-					config.type = OIMO.RigidBodyType.STATIC;
-					let body = new OIMO.RigidBody(config);
-					body.userData = { nodeIndex: i, objectIndex: this.colliderDts.objects.indexOf(object) };
-
-					this.bodies.push(body);
-				}
-			}
-		}
-
-		// If there are no collision objects, add a single body which will later be filled with bounding box geometry.
-		if (this.bodies.length === 0 && !this.isTSStatic) {
-			let config = new OIMO.RigidBodyConfig();
-			config.type = OIMO.RigidBodyType.STATIC;
-			let body = new OIMO.RigidBody(config);
-			this.bodies.push(body);
-		}
-
-		// Preload all sounds
-		await AudioManager.loadBuffers(this.sounds);
-
-		if (this.level) this.level.loadingState.loaded++;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		return;
-
-		this.group = new THREE.Group();
-		this.bodies = [];
-		this.materials = [];
-		this.materialInfo = new WeakMap();
-
-		/*
-		let staticGeometries: THREE.BufferGeometry[] = [];
-		let dynamicGeometries: THREE.BufferGeometry[] = [];
-		let dynamicGeometriesMatrices: THREE.Matrix4[] = [];
-		let collisionGeometries = new Set<THREE.BufferGeometry>();
-		*/
-
 		// Check if there's already shared data from another shape of the same type
-		let sharedDataPromise = this.level?.sharedShapeData.get(this.dtsPath + ' ' + this.constructor.name + ' ' + this.shareId.toString());
-		if (sharedDataPromise) {
-			// If so, wait for that shape to complete initiation...
-			this.sharedData = await sharedDataPromise;
+		let sharedDataPromise = this.level?.sharedShapeData.get(this.getShareHash());
+		let sharedData: SharedShapeData;
 
-			// ...then copy values.
-			this.nodeTransforms = this.sharedData.nodeTransforms;
-			if (!this.shareNodeTransforms) this.nodeTransforms = this.nodeTransforms.map(x => x.clone());
-			if (this.shareMaterials) this.materials = this.sharedData.materials;
-			else await this.computeMaterials();
-			// These geometries can be reused without a problem
-			staticGeometries = this.sharedData.staticGeometries;
-			dynamicGeometries = this.sharedData.dynamicGeometries;
-			collisionGeometries = this.sharedData.collisionGeometries;
-			dynamicGeometriesMatrices = this.sharedData.dynamicGeometriesMatrixIndices.map(x => this.nodeTransforms[x]);
-			// The node graph is also necessarily identical
-			this.rootGraphNodes = this.sharedData.rootGraphNodes;
-			// Instancing:
-			this.instancedMeshes = this.sharedData.instancedMeshes;
-			this.instanceIndex = ++this.sharedData.instanceIndex; // Assigns itself a new unique instance index by pre-incrementing the counter
+		if (sharedDataPromise) {
+			sharedData = await sharedDataPromise;
 		} else {
 			// If we're here, we're the first shape of this type, so let's prepare the shared data
 			let resolveFunc: (data: SharedShapeData) => any;
 			if (this.level) {
-				let sharedDataPromise = new Promise<SharedShapeData>((resolve) => resolveFunc = resolve);
-				this.level.sharedShapeData.set(this.dtsPath + ' ' + this.constructor.name + ' ' + this.shareId.toString(), sharedDataPromise);
+				sharedDataPromise = new Promise<SharedShapeData>((resolve) => resolveFunc = resolve);
+				this.level.sharedShapeData.set(this.getShareHash(), sharedDataPromise);
 			}
 
 			for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
 
 			await this.computeMaterials();
-	
+		
 			// Build the node tree
 			let graphNodes: GraphNode[] = [];
 			for (let i = 0; i < this.dts.nodes.length; i++) {
@@ -442,49 +261,35 @@ export class Shape {
 			this.graphNodes = graphNodes;
 			this.rootGraphNodes = graphNodes.filter((node) => !node.parent);
 			this.updateNodeTransforms();
-	
-			let affectedBySequences = this.dts.sequences[0]? (this.dts.sequences[0].rotationMatters[0] ?? 0) | (this.dts.sequences[0].translationMatters[0] ?? 0) : 0;
-			/** Stores the material geometries of all static parts of this shape. These will be merged a single geometry for performance. */
-			let staticMaterialGeometries: MaterialGeometry[] = [];
-			/** Stores the material geometries of all dynamic (moving) parts. */
-			let dynamicMaterialGeometries: MaterialGeometry[] = [];
-			/** Stores which material geometry is collision geometry. */
-			let collisionMaterialGeometries = new Set<MaterialGeometry>();
+
+			let geometries: Geometry[] = [];
+			let geometryMatrixIndices: number[] = [];
+			let collisionGeometries = new Set<Geometry>();
 			
 			// Go through all nodes and objects and create the geometry
 			for (let i = 0; i < this.dts.nodes.length; i++) {
 				let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
-				let sequenceAffected = ((1 << i) & affectedBySequences) !== 0;
-	
+
 				for (let object of objects) {
 					// Torque requires collision objects to start with "Col", so we use that here
 					let isCollisionObject = this.dts.names[object.nameIndex].toLowerCase().startsWith("col");
-	
+
 					if (!isCollisionObject || this.collideable) {
-						let mat = this.nodeTransforms[i];
-		
-						for (let i = object.startMeshIndex; i < object.startMeshIndex + object.numMeshes; i++) {
-							let mesh = this.dts.meshes[i];
+						for (let j = object.startMeshIndex; j < object.startMeshIndex + object.numMeshes; j++) {
+							let mesh = this.dts.meshes[j];
 							if (!mesh) continue;
 							if (mesh.parentMesh >= 0) continue; // If the node has a parent, skip it. Why? Don't know. Made teleport pad look correct.
+							if (mesh.verts.length === 0) continue; // No need
 		
 							let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
 							let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-	
-							// We can pre-apply the transformation matrices here since they won't ever change (it's static, after all)
-							if (!sequenceAffected) vertices.forEach((vert) => vert.applyMatrix4(mat));
-							if (!sequenceAffected) vertexNormals.forEach((norm) => Util.m_matF_x_vectorF(mat, norm));
-	
-							let geometry = this.generateMaterialGeometry(mesh, vertices, vertexNormals);
-							if (!sequenceAffected) {
-								staticMaterialGeometries.push(geometry);
-							} else {
-								dynamicMaterialGeometries.push(geometry);
-								dynamicGeometriesMatrices.push(mat);
-							}
+
+							let geometry = this.generateGeometryFromMesh(mesh, vertices, vertexNormals);
+							geometries.push(geometry);
+							geometryMatrixIndices.push(i);
 
 							// Flag it
-							if (isCollisionObject) collisionMaterialGeometries.add(geometry);
+							if (isCollisionObject) collisionGeometries.add(geometry);
 						}
 					}
 				}
@@ -495,122 +300,66 @@ export class Shape {
 			for (let i = 0; i < this.dts.meshes.length; i++) {
 				let dtsMesh = this.dts.meshes[i];
 				if (!dtsMesh || dtsMesh.type !== MeshType.Skin) continue;
-	
+
 				// Create arrays of zero vectors as they will get changed later anyway
 				let vertices = new Array(dtsMesh.verts.length).fill(null).map(() => new THREE.Vector3());
 				let vertexNormals = new Array(dtsMesh.norms.length).fill(null).map(() => new THREE.Vector3());
-				let materialGeometry = this.generateMaterialGeometry(dtsMesh, vertices, vertexNormals);
-				staticMaterialGeometries.push(materialGeometry); // Even though the mesh is animated, it doesn't count as dynamic because it's not part of any node and therefore cannot follow its transforms.
+				let geometry = this.generateGeometryFromMesh(dtsMesh, vertices, vertexNormals);
+				geometries.push(geometry); // Even though the mesh is animated, it doesn't count as dynamic because it's not part of any node and therefore cannot follow its transforms.
+				geometryMatrixIndices.push(null);
 
 				skinnedMeshIndex = i;
 				break; // This is technically not correct. A shape could have many skinned meshes, but the tornado only has one, so we gucci.
 			}
 
-			let staticNonCollision = staticMaterialGeometries.filter(x => !collisionMaterialGeometries.has(x));
-			let staticCollision = staticMaterialGeometries.filter(x => collisionMaterialGeometries.has(x));
-
-			if (staticNonCollision.length > 0) {
-				// Merge all non-collision static geometries into one thing
-				let merged = Util.mergeMaterialGeometries(staticNonCollision);
-				let geometry = Util.createGeometryFromMaterialGeometry(merged);
-				staticGeometries.push(geometry);
-				this.geometries.push(geometry);
-
-				if (skinnedMeshIndex !== null) {
-					// Will be used for animating the skin later
-					this.skinMeshInfo = {
-						meshIndex: skinnedMeshIndex,
-						vertices: this.dts.meshes[skinnedMeshIndex].verts.map(x => new THREE.Vector3()),
-						normals: this.dts.meshes[skinnedMeshIndex].norms.map(x => new THREE.Vector3()),
-						indices: Util.concatArrays(merged.map(x => x.indices)),
-						geometry: geometry
-					};
-				}
-			}
-
-			if (staticCollision.length > 0) {
-				// Create the collision mesh geometry
-				let geometry = Util.createGeometryFromMaterialGeometry(Util.mergeMaterialGeometries(staticCollision));
-				staticGeometries.push(geometry);
-				collisionGeometries.add(geometry);
-				this.geometries.push(geometry);
-			}
-
-			for (let materialGeom of dynamicMaterialGeometries) {
-				// Create one geometry for each dynamic material geometry; we cannot merge here.
-				let geometry = Util.createGeometryFromMaterialGeometry(materialGeom);
-				dynamicGeometries.push(geometry);
-				if (collisionMaterialGeometries.has(materialGeom)) collisionGeometries.add(geometry);
-				this.geometries.push(geometry);
-			}
-
-			if (this.level && this.useInstancing) {
-				// Count how many shapes of the same type there are.
-				let instanceCount = this.level?.shapes.filter(x => x.constructor === this.constructor && x.shareId === this.shareId).length ?? 0;
-	
-				// We know there will be one mesh per static geometry and dynamic geometry, so we create the appropriate amount of InstancedMeshes here.
-				for (let geometry of staticGeometries.concat(dynamicGeometries)) {
-					let instancedMesh = new THREE.InstancedMesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials, instanceCount);
-					if (collisionGeometries.has(geometry)) instancedMesh.receiveShadow = this.receiveShadows;
-					if (this.castShadow) instancedMesh.castShadow = true;
-					instancedMesh.matrixAutoUpdate = false;
-	
-					this.level.scene.add(instancedMesh);
-					this.instancedMeshes.push(instancedMesh);
-				}
-			}
-
-			if (resolveFunc) resolveFunc({
+			sharedData = {
 				materials: this.materials,
-				staticGeometries: staticGeometries,
-				dynamicGeometries: dynamicGeometries,
-				dynamicGeometriesMatrixIndices: dynamicGeometriesMatrices.map(x => this.nodeTransforms.indexOf(x)),
-				collisionGeometries: collisionGeometries,
-				nodeTransforms: this.nodeTransforms,
 				rootGraphNodes: this.rootGraphNodes,
-				instancedMeshes: this.instancedMeshes,
-				instanceIndex: 0
-			});
+				nodeTransforms: this.nodeTransforms,
+				geometries,
+				geometryMatrixIndices,
+				collisionGeometries,
+				skinnedMeshIndex
+			}
+			this.isMaster = true;
+
+			resolveFunc?.(sharedData);
 		}
 
-		// Generate the static meshes
-		for (let geometry of staticGeometries) {
-			let obj: THREE.Object3D;
-
-			if (this.instancedMeshes.length > 0) {
-				// Create a simple dummy object whose only purpose is to hold transformation data for the instanced mesh.
-				obj = new THREE.Object3D();
-			} else {
-				let mesh = new THREE.Mesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials);
-				if (collisionGeometries.has(geometry)) mesh.receiveShadow = this.receiveShadows;
-				if (this.castShadow) mesh.castShadow = true;
-				obj = mesh;
-			}
-
-			obj.matrixAutoUpdate = false; // It doesn't even move anymore
-			this.group.add(obj);
-			this.objects.push(obj);
+		if (!this.isMaster) {
+			this.nodeTransforms = sharedData.nodeTransforms;
+			if (!this.shareNodeTransforms) this.nodeTransforms = this.nodeTransforms.map(x => x.clone());
+			if (this.shareMaterials) this.materials = sharedData.materials;
+			else await this.computeMaterials();
+			this.rootGraphNodes = sharedData.rootGraphNodes; // The node graph is necessarily identical
 		}
 
-		// Generate the dynamic meshes
-		for (let i = 0; i < dynamicGeometries.length; i++) {
-			let obj: THREE.Object3D;
-
-			if (this.instancedMeshes.length > 0) {
-				// Create a simple dummy object whose only purpose is to hold transformation data for the instanced mesh.
-				obj = new THREE.Object3D();
-			} else {
-				let geometry = dynamicGeometries[i];
-				let mesh = new THREE.Mesh(geometry, collisionGeometries.has(geometry)? this.shadowMaterial : this.materials);
-				if (collisionGeometries.has(geometry)) mesh.receiveShadow = this.receiveShadows;
-				if (this.castShadow) mesh.castShadow = true;
-				obj = mesh;
+		for (let [i, geometry] of sharedData.geometries.entries()) {
+			let materials = this.materials;
+			if (sharedData.collisionGeometries.has(geometry)) {
+				let shadowMaterial = new Material();
+				shadowMaterial.type = MaterialType.Shadow;
+				shadowMaterial.transparent = true;
+				materials = [shadowMaterial];
+				geometry.materials.fill(0);
 			}
-			
-			obj.matrixAutoUpdate = false; // We'll move it manually
-			obj.matrix = dynamicGeometriesMatrices[i];
-			this.group.add(obj);
-			this.objects.push(obj);
+
+			let mesh = new Mesh(geometry, materials);
+			let transform = this.nodeTransforms[sharedData.geometryMatrixIndices[i]];
+			if (transform) mesh.transform = transform;
+			if (this.castShadows) mesh.castShadows = true;
+			this.group.add(mesh);
+			this.meshes.push(mesh);
+
+			if (sharedData.skinnedMeshIndex !== null && !this.skinMeshInfo) {
+				// Will be used for animating the skin later
+				this.skinMeshInfo = {
+					meshIndex: sharedData.skinnedMeshIndex,
+					vertices: this.dts.meshes[sharedData.skinnedMeshIndex].verts.map(_ => new THREE.Vector3()),
+					normals: this.dts.meshes[sharedData.skinnedMeshIndex].norms.map(_ => new THREE.Vector3()),
+					mesh: mesh
+				};
+			}
 		}
 
 		// Now, create an actual collision body for each collision object (will be initiated with geometry later)
@@ -646,7 +395,7 @@ export class Shape {
 
 	/** Creates the materials for this shape. */
 	async computeMaterials() {
-		let environmentMaterial: THREE.MeshBasicMaterial = null;
+		let environmentMaterial: Material = null;
 
 		for (let i = 0; i < this.dts.matNames.length; i++) {
 			let matName = this.matNamesOverride[this.dts.matNames[i]] || this.dts.matNames[i]; // Check the override
@@ -662,6 +411,7 @@ export class Shape {
 
 			let material = new Material();
 			if ((flags & MaterialFlags.SelfIlluminating) || environmentMaterial) material.emissive = true;
+			material.flipY = this.flipY;
 
 			this.materials.push(material);
 			
@@ -673,16 +423,13 @@ export class Shape {
 			material.customProgramCacheKey = () => material.onBeforeCompile.toString() + this.onBeforeMaterialCompile?.toString(); // The default cache key is the onBeforeCompile, but that can differ for us here.
 			*/
 
-			if (matName instanceof THREE.Texture) {
-				if (flags & MaterialFlags.S_Wrap) matName.wrapS = THREE.RepeatWrapping;
-				if (flags & MaterialFlags.T_Wrap) matName.wrapT = THREE.RepeatWrapping;
+			if (matName instanceof Texture) {
 				material.map = matName;
 			} else if (!fullName || (this.isTSStatic && (flags & MaterialFlags.ReflectanceMapOnly))) {
 				// Usually do nothing. It's an plain white material without a texture.
 				// Ah EXCEPT if we're a TSStatic.
 				if (this.isTSStatic) {
-					material = new THREE.MeshBasicMaterial({ envMap: this.level.envMap });
-					this.materials[this.materials.length - 1] = material;
+					material.emissive = true;
 					if (flags & MaterialFlags.ReflectanceMapOnly) environmentMaterial = material;
 				}
 			} else if (fullName.endsWith('.ifl')) {
@@ -709,21 +456,15 @@ export class Shape {
 			} else {
 				let texture = await ResourceManager.getTexture(this.directoryPath + '/' + fullName, (flags & MaterialFlags.Translucent) === 0); // Make sure to remove the alpha of the texture if it's not flagged as translucent
 				// Is it fine to have these always-on?
-				//if (flags & MaterialFlags.S_Wrap) texture.wrapS = THREE.RepeatWrapping;
-				//if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
 				material.availableTextures.push(texture),
 				material.map = texture;
 			}
 
 			// Set some properties based on the flags
-			if (flags & MaterialFlags.Translucent) {
-				material.transparent = true;
-				material.depthWrite = false;
-			}
+			if (flags & MaterialFlags.Translucent) material.transparent = true;
 			if (flags & MaterialFlags.Additive) material.blending = THREE.AdditiveBlending;
-			if (flags & MaterialFlags.Subtractive) material.blending = THREE.SubtractiveBlending;
+			if (flags & MaterialFlags.Subtractive) material.blending = THREE.SubtractiveBlending; // Not supported tho
 			if (this.isTSStatic && !(flags & MaterialFlags.NeverEnvMap)) {
-				material.combine = THREE.MixOperation;
 				material.reflectivity = this.dts.matNames.length === 1? 1 : environmentMaterial? 0.5 : 0.333;
 				material.envMap = this.level.envMap;
 			}
@@ -732,15 +473,12 @@ export class Shape {
 
 		// If there are no materials, atleast add one environment one
 		if (this.materials.length === 0) {
-			let mat = new THREE.MeshBasicMaterial({ envMap: this.level.envMap });
+			let mat = new Material();
+			mat.emissive = true;
+			mat.envMap = this.level.envMap;
+			mat.reflectivity = 1;
 			this.materials.push(mat);
 		}
-
-		// Modify it to work with log depth buffers
-		this.shadowMaterial.onBeforeCompile = shader => {
-			shader.vertexShader = SHADOW_MATERIAL_VERTEX;
-			shader.fragmentShader = SHADOW_MATERIAL_FRAGMENT;
-		};
 	}
 
 	/** Generates geometry info from a given DTS mesh. */
@@ -945,8 +683,6 @@ export class Shape {
 			let rootNode = this.rootGraphNodes[i];
 			traverse(rootNode, false);
 		}
-
-		this.group.changedTransform();
 	}
 
 	/** Updates the geometries of the bodies matching the bitfield based on node transforms. */
@@ -988,79 +724,86 @@ export class Shape {
 	tick(time: TimeState, onlyVisual = false) {
 		// If onlyVisual is set, collision bodies need not be updated.
 
-		if (!this.sharedData || !this.shareNodeTransforms) for (let sequence of this.dts.sequences) {
-			if (!this.showSequences) break;
-			if (!onlyVisual && !this.hasNonVisualSequences) break;
+		let needsSequenceUpdate = true;
+		if (!this.showSequences) needsSequenceUpdate = false;
+		if (!onlyVisual && !this.hasNonVisualSequences) needsSequenceUpdate = false;
 
-			let rot = sequence.rotationMatters[0] ?? 0;
-			let trans = sequence.translationMatters[0] ?? 0;
-			let affectedCount = 0;
-			let completion = time.timeSinceLoad / (sequence.duration * 1000);
-			let quaternions: THREE.Quaternion[];
-			let translations: THREE.Vector3[];
-
-			// Possibly get the keyframe from the overrides
-			let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
-			if (this.lastSequenceKeyframes.get(sequence) === actualKeyframe) continue;
-			this.lastSequenceKeyframes.set(sequence, actualKeyframe);
-
-			let keyframeLow = Math.floor(actualKeyframe);
-			let keyframeHigh = Math.ceil(actualKeyframe) % sequence.numKeyframes;
-			let t = (actualKeyframe - keyframeLow) % 1; // The completion between two keyframes
-
-			// Handle rotation sequences
-			if (rot > 0) quaternions = this.dts.nodes.map((node, index) => {
-				let affected = ((1 << index) & rot) !== 0;
-
-				if (affected) {
-					let rot1 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeLow];
-					let rot2 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeHigh];
-
-					let quaternion1 = new THREE.Quaternion(rot1.x, rot1.y, rot1.z, rot1.w);
-					quaternion1.normalize();
-					quaternion1.conjugate();
-
-					let quaternion2 = new THREE.Quaternion(rot2.x, rot2.y, rot2.z, rot2.w);
-					quaternion2.normalize();
-					quaternion2.conjugate();
-					
-					// Interpolate between the two quaternions
-					quaternion1.slerp(quaternion2, t);
-
-					affectedCount++;
-					return quaternion1;
-				} else {
-					// The rotation for this node is not animated and therefore we returns the default rotation.
-					let rotation = this.dts.defaultRotations[index];
-					let quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
-					quaternion.normalize();
-					quaternion.conjugate();
-
-					return quaternion;
+		if (needsSequenceUpdate) {
+			if (!this.shareNodeTransforms || this.isMaster) for (let sequence of this.dts.sequences) {
+				let rot = sequence.rotationMatters[0] ?? 0;
+				let trans = sequence.translationMatters[0] ?? 0;
+				let affectedCount = 0;
+				let completion = time.timeSinceLoad / (sequence.duration * 1000);
+				let quaternions: THREE.Quaternion[];
+				let translations: THREE.Vector3[];
+	
+				// Possibly get the keyframe from the overrides
+				let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
+				if (this.lastSequenceKeyframes.get(sequence) === actualKeyframe) continue;
+				this.lastSequenceKeyframes.set(sequence, actualKeyframe);
+	
+				let keyframeLow = Math.floor(actualKeyframe);
+				let keyframeHigh = Math.ceil(actualKeyframe) % sequence.numKeyframes;
+				let t = (actualKeyframe - keyframeLow) % 1; // The completion between two keyframes
+	
+				// Handle rotation sequences
+				if (rot > 0) quaternions = this.dts.nodes.map((node, index) => {
+					let affected = ((1 << index) & rot) !== 0;
+	
+					if (affected) {
+						let rot1 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeLow];
+						let rot2 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeHigh];
+	
+						let quaternion1 = new THREE.Quaternion(rot1.x, rot1.y, rot1.z, rot1.w);
+						quaternion1.normalize();
+						quaternion1.conjugate();
+	
+						let quaternion2 = new THREE.Quaternion(rot2.x, rot2.y, rot2.z, rot2.w);
+						quaternion2.normalize();
+						quaternion2.conjugate();
+						
+						// Interpolate between the two quaternions
+						quaternion1.slerp(quaternion2, t);
+	
+						affectedCount++;
+						return quaternion1;
+					} else {
+						// The rotation for this node is not animated and therefore we returns the default rotation.
+						let rotation = this.dts.defaultRotations[index];
+						let quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+						quaternion.normalize();
+						quaternion.conjugate();
+	
+						return quaternion;
+					}
+				});
+	
+				// Handle translation sequences
+				affectedCount = 0;
+				if (trans > 0) translations = this.dts.nodes.map((node, index) => {
+					let affected = ((1 << index) & trans) !== 0;
+	
+					if (affected) {
+						let trans1 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeLow];
+						let trans2 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeHigh];
+	
+						// Interpolate between the two translations
+						return new THREE.Vector3(Util.lerp(trans1.x, trans2.x, t), Util.lerp(trans1.y, trans2.y, t), Util.lerp(trans1.z, trans2.z, t));
+					} else {
+						// The translation for this node is not animated and therefore we returns the default translation.
+						let translation = this.dts.defaultTranslations[index];
+						return new THREE.Vector3(translation.x, translation.y, translation.z);
+					}
+				});
+	
+				if (rot || trans) {
+					this.updateNodeTransforms(quaternions, translations, rot | trans);
+					if (!onlyVisual) this.updateCollisionGeometry(rot | trans);
 				}
-			});
+			}
 
-			// Handle translation sequences
-			affectedCount = 0;
-			if (trans > 0) translations = this.dts.nodes.map((node, index) => {
-				let affected = ((1 << index) & trans) !== 0;
-
-				if (affected) {
-					let trans1 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeLow];
-					let trans2 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeHigh];
-
-					// Interpolate between the two translations
-					return new THREE.Vector3(Util.lerp(trans1.x, trans2.x, t), Util.lerp(trans1.y, trans2.y, t), Util.lerp(trans1.z, trans2.z, t));
-				} else {
-					// The translation for this node is not animated and therefore we returns the default translation.
-					let translation = this.dts.defaultTranslations[index];
-					return new THREE.Vector3(translation.x, translation.y, translation.z);
-				}
-			});
-
-			if (rot || trans) {
-				this.updateNodeTransforms(quaternions, translations, rot | trans);
-				if (!onlyVisual) this.updateCollisionGeometry(rot | trans);
+			for (let mesh of this.meshes) {
+				mesh.changedTransform();
 			}
 		}
 	}
@@ -1068,17 +811,7 @@ export class Shape {
 	render(time: TimeState) {
 		this.tick(time, true); // Execute an only-visual tick
 
-		if (this.instancedMeshes.length > 0) {
-			// If there are instanced meshes, update the corresponding matrices.
-			for (let i = 0; i < this.objects.length; i++) {
-				let obj = this.objects[i];
-				obj.updateMatrixWorld();
-				this.instancedMeshes[i].setMatrixAt(this.instanceIndex, obj.matrixWorld);
-				this.instancedMeshes[i].instanceMatrix.needsUpdate = true;
-			}
-		}
-
-		if (!this.sharedData && this.skinMeshInfo) {
+		if (this.skinMeshInfo && this.isMaster) {
 			// Update the skin mesh.
 			let info = this.skinMeshInfo;
 			let mesh = this.dts.meshes[info.meshIndex];
@@ -1146,11 +879,12 @@ export class Shape {
 				geometry.normals[3*i + 1] = normal.y;
 				geometry.normals[3*i + 2] = normal.z;
 			}
-			info.mesh.needsVertexBufferUpdate = true;
 		}
 
+		if (this.skinMeshInfo) this.skinMeshInfo.mesh.needsVertexBufferUpdate = true;
+
 		// Handle animated materials
-		if (!this.sharedData || !this.shareMaterials) for (let i = 0; i < this.materials.length; i++) {
+		if (!this.shareMaterials || this.isMaster) for (let i = 0; i < this.materials.length; i++) {
 			let info = this.materialInfo.get(this.materials[i]);
 			if (!info) continue;
 
@@ -1162,13 +896,8 @@ export class Shape {
 			let currentFile = info.keyframes[keyframe];
 
 			// Select the correct texture based on the frame and apply it
-			let flags = this.dts.matFlags[i];
 			let texture = ResourceManager.getTextureFromCache(this.directoryPath + '/' + currentFile);
-			if (flags & MaterialFlags.S_Wrap) texture.wrapS = THREE.RepeatWrapping;
-			if (flags & MaterialFlags.T_Wrap) texture.wrapT = THREE.RepeatWrapping;
-
 			this.materials[i].map = texture;
-			if (this.isTSStatic || this.materials[i] instanceof THREE.MeshBasicMaterial) this.materials[i].needsUpdate = true;
 		}
 
 		// Spin the shape round 'n' round
@@ -1195,10 +924,6 @@ export class Shape {
 		this.worldMatrix.compose(position, orientation, scale);
 
 		this.group.transform.compose(position, orientation, scale);
-		/*
-		this.group.position.copy(position);
-		this.group.quaternion.copy(orientation);
-		this.group.scale.copy(scale);*/
 
 		let colliderMatrix = new THREE.Matrix4();
 		colliderMatrix.compose(this.worldPosition, this.worldOrientation, new THREE.Vector3(1, 1, 1));

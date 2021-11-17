@@ -10,6 +10,8 @@ export class Mesh extends Object3D {
 	needsMeshInfoBufferUpdate = true;
 	needsVertexBufferUpdate = false;
 	private _opacity = 1.0;
+	castShadows = false;
+	receiveShadows = false;
 
 	constructor(geometry: Geometry, materials: Material[]) {
 		super();
@@ -37,6 +39,9 @@ export class Mesh extends Object3D {
 	updateMeshInfoBuffer(buffer: Float32Array, index: number) {
 		buffer.set(this.worldTransform.elements, index);
 		buffer[index + 3] = this._opacity;
+
+		let flags = Number(this.receiveShadows) << 0;
+		buffer[index + 7] = flags;
 
 		this.needsMeshInfoBufferUpdate = false;
 	}

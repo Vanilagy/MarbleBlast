@@ -16,7 +16,7 @@ export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
 const SMOOTH_SHADING_ANGLE_THRESHOLD = Math.cos(Util.degToRad(15));
 
-const specialFrictionFactor: Record<string, number> = {
+export const specialFrictionFactor: Record<string, number> = {
 	"friction_high": 1.5,
 	"friction_low": 0.2,
 	"friction_none": 0.01,
@@ -61,111 +61,63 @@ const specialMaterials = new Set([...Object.keys(specialFrictionFactor), ...Obje
 
 /** Creates a material with an additional normal map. */
 const createNormalMapMaterial = async (interior: Interior, baseTexture: string, normalTexture: string) => {
+	let diffuseMap = await interior.level.mission.getTexture(`interiors_mbu/${baseTexture}`);
 	let normalMap = await interior.level.mission.getTexture(`shaders/tex/${normalTexture}`);
-	normalMap.wrapS = THREE.RepeatWrapping;
-	normalMap.wrapT = THREE.RepeatWrapping;
 
-	let texture = await interior.level.mission.getTexture(`interiors_mbu/${baseTexture}`);
-	texture.wrapS = THREE.RepeatWrapping;
-	texture.wrapT = THREE.RepeatWrapping;
+	let mat = new Material();
 
-	let mat = new THREE.MeshPhongMaterial();
-	mat.map = texture;
-	mat.specular.set(0);
+	mat.availableTextures.push(normalMap, diffuseMap);
 	mat.normalMap = normalMap;
+	mat.map = diffuseMap;
+	mat.saturateIncomingLight = false;
 
 	return mat;
 };
 
 /** Creates a material with an additional normal and specularity map. */
-const createPhongMaterial = async (interior: Interior, baseTexture: string, specTexture: string, normalTexture: string, shininess: number) => {
+const createPhongMaterial = async (interior: Interior, baseTexture: string, specTexture: string, normalTexture: string, shininess: number, specularIntensity: number, doubleSecondaryMapUvs = false) => {
 	let specularMap = await interior.level.mission.getTexture(`shaders/tex/${specTexture}`);
-	specularMap.wrapS = THREE.RepeatWrapping;
-	specularMap.wrapT = THREE.RepeatWrapping;
-
 	let normalMap = await interior.level.mission.getTexture(`shaders/tex/${normalTexture}`);
-	normalMap.wrapS = THREE.RepeatWrapping;
-	normalMap.wrapT = THREE.RepeatWrapping;
-
 	let texture = await interior.level.mission.getTexture(`interiors_mbu/${baseTexture}`);
-	texture.wrapS = THREE.RepeatWrapping;
-	texture.wrapT = THREE.RepeatWrapping;
 
-	let mat = new THREE.MeshPhongMaterial();
+	let mat = new Material();
+
+	mat.availableTextures.push(texture, normalMap, specularMap);
 	mat.map = texture;
-	mat.shininess = shininess;
 	mat.specularMap = specularMap;
-	mat.specular.set(0xaaaaaa);
 	mat.normalMap = normalMap;
+	mat.shininess = shininess;
+	mat.specularIntensity = specularIntensity;
+	mat.doubleSecondaryMapUvs = doubleSecondaryMapUvs;
+	mat.saturateIncomingLight = false;
 
 	return mat;
 };
 
 /** Creates a material for a tile texture using an overlaid noise pattern. */
 const createNoiseTileMaterial = async (interior: Interior, baseTexture: string, noiseSuffix: string) => {
-	let specularMap = await interior.level.mission.getTexture('shaders/tex/tile_mbu.spec.jpg');
-	specularMap.wrapS = THREE.RepeatWrapping;
-	specularMap.wrapT = THREE.RepeatWrapping;
-
-	let noiseMap = await interior.level.mission.getTexture(`shaders/tex/noise${noiseSuffix}.jpg`);
-	noiseMap.wrapS = THREE.RepeatWrapping;
-	noiseMap.wrapT = THREE.RepeatWrapping;
-
-	let normalMap = await interior.level.mission.getTexture('shaders/tex/tile_mbu.normal.png');
-	normalMap.wrapS = THREE.RepeatWrapping;
-	normalMap.wrapT = THREE.RepeatWrapping;
-
 	let diffuseMap = await interior.level.mission.getTexture(`interiors_mbu/${baseTexture}`);
-	diffuseMap.wrapS = THREE.RepeatWrapping;
-	diffuseMap.wrapT = THREE.RepeatWrapping;
+	let specularMap = await interior.level.mission.getTexture('shaders/tex/tile_mbu.spec.jpg');
+	let noiseMap = await interior.level.mission.getTexture(`shaders/tex/noise${noiseSuffix}.jpg`);
+	let normalMap = await interior.level.mission.getTexture('shaders/tex/tile_mbu.normal.png');
 
-	let mat = new THREE.MeshPhongMaterial();
+	let mat = new Material();
+
+	mat.availableTextures.push(diffuseMap, specularMap, normalMap, noiseMap);
 	mat.map = diffuseMap;
-	mat.shininess = 40;
 	mat.specularMap = specularMap;
-	mat.specular.set(0x2d2d2d);
 	mat.normalMap = normalMap;
-
-	mat.onBeforeCompile = shader => {
-		shader.uniforms.noiseMap = { value: noiseMap };
-
-		// Modify the shader to apply the noise
-		shader.fragmentShader = shader.fragmentShader.replace('#include <common>', 'uniform sampler2D noiseMap;\n#include <common>');
-		shader.fragmentShader = shader.fragmentShader.replace('#include <logdepthbuf_fragment>', `
-			vec2 noiseIndex;
-			vec4 noiseColor[4];
-			vec2 halfPixel = vec2(1.0 / 64.0, 1.0 / 64.0);
-
-			noiseIndex.x = floor(vUv.x - halfPixel.x) / 63.0 + 0.5/64.0;
-			noiseIndex.y = floor(vUv.y - halfPixel.y) / 63.0 + 0.5/64.0;
-			noiseColor[0] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
-
-			noiseIndex.x = floor(vUv.x - halfPixel.x) / 63.0 + 0.5/64.0;
-			noiseIndex.y = floor(vUv.y + halfPixel.y) / 63.0 + 0.5/64.0;
-			noiseColor[1] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
-
-			noiseIndex.x = floor(vUv.x + halfPixel.x) / 63.0 + 0.5/64.0;
-			noiseIndex.y = floor(vUv.y + halfPixel.y) / 63.0 + 0.5/64.0;
-			noiseColor[2] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
-
-			noiseIndex.x = floor(vUv.x + halfPixel.x) / 63.0 + 0.5/64.0;
-			noiseIndex.y = floor(vUv.y - halfPixel.y) / 63.0 + 0.5/64.0;
-			noiseColor[3] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
-
-			vec4 finalNoiseCol = (noiseColor[0] + noiseColor[1] + noiseColor[2] + noiseColor[3]) / 4.0;
-
-			diffuseColor += finalNoiseCol;
-
-			#include <logdepthbuf_fragment>
-		`);
-	};
+	mat.noiseMap = noiseMap;
+	mat.shininess = 40;
+	mat.specularIntensity = 0.7;
+	mat.saturateIncomingLight = false;
 
 	return mat;
 };
 
 /** A list of custom materials for MBU. */
-const customMaterialFactories: Record<string, (interior: Interior) => Promise<THREE.Material>> = {
-	'plate_1': (interior: Interior) => createPhongMaterial(interior, 'plate_1.jpg', 'plate_mbu.spec.jpg', 'plate_mbu.normal.png', 8),
+const customMaterialFactories: Record<string, (interior: Interior) => Promise<Material>> = {
+	'plate_1': (interior: Interior) => createPhongMaterial(interior, 'plate_1.jpg', 'plate_mbu.spec.jpg', 'plate_mbu.normal.png', 30, 0.5),
 	'tile_beginner': (interior: Interior) => createNoiseTileMaterial(interior, 'tile_beginner.png', ''),
 	'tile_beginner_shadow': (interior: Interior) => createNoiseTileMaterial(interior, 'tile_beginner_shadow.png', ''),
 	'tile_beginner_red': (interior: Interior) => createNoiseTileMaterial(interior, 'tile_beginner_red.jpg', ''),
@@ -185,15 +137,15 @@ const customMaterialFactories: Record<string, (interior: Interior) => Promise<TH
 	'tile_advanced_green': (interior: Interior) => createNoiseTileMaterial(interior, 'tile_advanced_green.jpg', ''),
 	'tile_advanced_green_shadow': (interior: Interior) => createNoiseTileMaterial(interior, 'tile_advanced_green_shadow.png', ''),
 	'tile_underside': (interior: Interior) => createNoiseTileMaterial(interior, 'tile_underside.jpg', ''),
-	'wall_beginner': (interior: Interior) => createPhongMaterial(interior, 'wall_beginner.png', 'wall_mbu.spec.png', 'wall_mbu.normal.png', 30),
-	'edge_white': (interior: Interior) => createPhongMaterial(interior, 'edge_white.jpg', 'edge_white_mbu.spec.jpg', 'edge_white_mbu.normal.jpg', 50),
-	'edge_white_shadow': (interior: Interior) => createPhongMaterial(interior, 'edge_white_shadow.png', 'edge_white_mbu.spec.jpg', 'edge_white_mbu.normal.jpg', 50),
+	'wall_beginner': (interior: Interior) => createPhongMaterial(interior, 'wall_beginner.png', 'wall_mbu.spec.png', 'wall_mbu.normal.png', 30, 0.5),
+	'edge_white': (interior: Interior) => createPhongMaterial(interior, 'edge_white.jpg', 'edge_white_mbu.spec.jpg', 'edge_white_mbu.normal.jpg', 50, 4),
+	'edge_white_shadow': (interior: Interior) => createPhongMaterial(interior, 'edge_white_shadow.png', 'edge_white_mbu.spec.jpg', 'edge_white_mbu.normal.jpg', 50, 4),
 	'beam': (interior: Interior) => createNormalMapMaterial(interior, 'beam.png', 'beam_side_mbu.normal.png'),
 	'beam_side': (interior: Interior) => createNormalMapMaterial(interior, 'beam_side.png', 'beam_side_mbu.normal.png'),
-	'friction_low': (interior: Interior) => createPhongMaterial(interior, 'friction_low.jpg', 'friction_low_mbu.spec.png', 'friction_low_mbu.normal.png', 128),
-	'friction_low_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_low_shadow.png', 'friction_low_mbu.spec.png', 'friction_low_mbu.normal.png', 128),
-	'friction_high': (interior: Interior) => createPhongMaterial(interior, 'friction_high.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 10),
-	'friction_high_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_high_shadow.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 10),
+	'friction_low': (interior: Interior) => createPhongMaterial(interior, 'friction_low.jpg', 'friction_low_mbu.spec.png', 'friction_low_mbu.normal.png', 50, 4),
+	'friction_low_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_low_shadow.png', 'friction_low_mbu.spec.png', 'friction_low_mbu.normal.png', 50, 4),
+	'friction_high': (interior: Interior) => createPhongMaterial(interior, 'friction_high.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 30, 0.8, true),
+	'friction_high_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_high_shadow.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 30, 0.8, true),
 };
 
 /** Stores a list of all vertices with similar face normal. */
@@ -236,7 +188,6 @@ export class Interior {
 	randomForces = new WeakSet<OIMO.Shape>();
 	/** Whether or not frictions and bouncy floors work on this interior. */
 	allowSpecialMaterials = true;
-	instanceIndex: number;
 	/** An octree containing all Torque convex hulls of this interior. Used to build OIMO collision geometry quickly and on-demand. */
 	convexHullOctree = new Octree();
 	addedHulls = new Set<number>();
@@ -272,20 +223,20 @@ export class Interior {
 			let materials: Material[] = [];
 
 			for (let i = 0; i < this.detailLevel.materialList.materials.length; i++) {
-				let mat = new Material();
-				materials.push(mat);
-
 				let texName = this.detailLevel.materialList.materials[i].toLowerCase();
 				let fileName = texName.split('/').pop();
 
-				if (false && StorageManager.data.settings.fancyShaders && this.level.mission.modification === 'ultra' && customMaterialFactories[fileName]) {
+				if (StorageManager.data.settings.fancyShaders && this.level.mission.modification === 'ultra' && customMaterialFactories[fileName]) {
 					// There's a special way to create this material, prefer this instead of the normal way
 					materials.push(await customMaterialFactories[fileName](this));
 					continue;
 				}
 
+				let mat = new Material();
+				materials.push(mat);
+
 				// Check for this special material which just makes the surface invisible (like a colmesh)
-				if (false) if (this.level.mission.modification === 'ultra' && fileName === 'tools_invisible') {
+				if (this.level.mission.modification === 'ultra' && fileName === 'tools_invisible') {
 					mat.transparent = true;
 					mat.opacity = 0;
 					continue;
@@ -359,6 +310,7 @@ export class Interior {
 		}
 
 		let mesh = new Mesh(cached.geometry, cached.materials);
+		mesh.receiveShadows = true;
 		this.mesh = mesh;
 		this.level.ownScene.add(mesh);
 

@@ -9,7 +9,6 @@ import OIMO from "../declarations/oimo";
 /** The finish pad. */
 export class EndPad extends Shape {
 	dtsPath = "shapes/pads/endarea.dts";
-	useInstancing = true;
 	fireworks: Firework[] = [];
 	sounds = ['firewrks.wav'];
 	inArea = 0; // Used to only trigger the event once

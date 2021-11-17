@@ -6,7 +6,6 @@ export class DuctFan extends ForceShape {
 	dtsPath = "shapes/hazards/ductfan.dts";
 	sounds = ["fan_loop.wav"];
 	soundSource: AudioSource;
-	useInstancing = true;
 
 	constructor() {
 		super();
