@@ -150,20 +150,18 @@ export abstract class StorageManager {
 				let db = (e.target as any).result as IDBDatabase;
 				let transaction = (e.target as any).transaction as IDBTransaction;
 
-				let objectStore: IDBObjectStore;
-
 				// For storing replays
 				try {
-					objectStore = db.createObjectStore('replays', {});
+					db.createObjectStore('replays', {});
 				} catch (error) {
-					objectStore = transaction.objectStore('replays');
+					transaction.objectStore('replays');
 				}
 
 				// A simple key-value store
 				try {
-					objectStore = db.createObjectStore('keyvalue', {});
+					db.createObjectStore('keyvalue', {});
 				} catch (error) {
-					objectStore = transaction.objectStore('keyvalue');
+					transaction.objectStore('keyvalue');
 				}
 			};
 		});

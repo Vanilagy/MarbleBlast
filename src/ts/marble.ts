@@ -520,7 +520,7 @@ export class Marble {
 			angVel.addScaledEq(direction, dot2);
 
 			if (angVel.length() > 285 * this.speedFac) angVel.scaleEq(285 * this.speedFac / angVel.length()); // Absolute max angular speed
-		 	this.body.setAngularVelocity(angVel);
+			this.body.setAngularVelocity(angVel);
 
 			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot * this.speedFac) {
 				// Cap the rolling velocity

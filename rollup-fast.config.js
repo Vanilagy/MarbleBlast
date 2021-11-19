@@ -8,7 +8,7 @@ import externals from 'rollup-plugin-node-externals';
 
 export default [{
 	input: './src/ts/index.ts',
-    plugins: [
+	plugins: [
 		resolve({
 			browser: true
 		}),
@@ -19,10 +19,10 @@ export default [{
 			'./declarations/oimo': 'OIMO',
 			'../declarations/oimo': 'OIMO'
 		})
-    ],
-    output: {
-        format: 'iife',
-        file: './src/js/bundle.js',
+	],
+	output: {
+		format: 'iife',
+		file: './src/js/bundle.js',
 		name: '' // Empty string here to create an unnamed IIFE
 	},
 	onwarn: function (message) {
@@ -33,13 +33,13 @@ export default [{
 	}
 }, {
 	input: './server/ts/index.ts',
-    plugins: [
+	plugins: [
 		externals(),
 		typescript()
-    ],
-    output: {
-        format: 'cjs',
-        file: './server/bundle.js'
+	],
+	output: {
+		format: 'cjs',
+		file: './server/bundle.js'
 	},
 	onwarn: function (message) {
 		if (message.code === 'CIRCULAR_DEPENDENCY' || message.code === "MISSING_GLOBAL_NAME" || message.code === "UNRESOLVED_IMPORT") {

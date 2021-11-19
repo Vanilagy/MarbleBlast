@@ -195,7 +195,7 @@ export class Shape {
 	onBeforeMaterialCompile: (shader: THREE.Shader) => void = null;
 
 	/** Same shapes with the same shareId will share data. */
-	shareId: number = 0;
+	shareId = 0;
 	/** Data shared with other shapes of the same type. */
 	sharedData: SharedShapeData;
 	/** Whether or not to share the same node transforms with other shapes of the same type. */
@@ -363,8 +363,8 @@ export class Shape {
 					// Will be used for animating the skin later
 					this.skinMeshInfo = {
 						meshIndex: skinnedMeshIndex,
-						vertices: this.dts.meshes[skinnedMeshIndex].verts.map(x => new THREE.Vector3()),
-						normals: this.dts.meshes[skinnedMeshIndex].norms.map(x => new THREE.Vector3()),
+						vertices: this.dts.meshes[skinnedMeshIndex].verts.map(_ => new THREE.Vector3()),
+						normals: this.dts.meshes[skinnedMeshIndex].norms.map(_ => new THREE.Vector3()),
 						indices: Util.concatArrays(merged.map(x => x.indices)),
 						geometry: geometry
 					};
@@ -538,7 +538,7 @@ export class Shape {
 					fullNameCache.set(x, fullName);
 
 					return fullName;
-				})
+				});
 				this.materialInfo.set(material, { keyframes });
 
 				// Preload all frames of the material animation
@@ -679,7 +679,7 @@ export class Shape {
 
 					for (let primitive of mesh.primitives) {
 						// Create the geometry but with all zero vectors for now
-						let geometry = new OIMO.ConvexHullGeometry(Array(primitive.numElements).fill(null).map(x => new OIMO.Vec3()));
+						let geometry = new OIMO.ConvexHullGeometry(Array(primitive.numElements).fill(null).map(_ => new OIMO.Vec3()));
 
 						let shapeConfig = new OIMO.ShapeConfig();
 						shapeConfig.geometry = geometry;
@@ -722,7 +722,7 @@ export class Shape {
 			].map(x => Util.vecOimoToThree(x));
 
 			// Create an empty geometry for now
-			let geometry = new OIMO.ConvexHullGeometry(Array(8).fill(null).map(x => new OIMO.Vec3()));
+			let geometry = new OIMO.ConvexHullGeometry(Array(8).fill(null).map(_ => new OIMO.Vec3()));
 			let shapeConfig = new OIMO.ShapeConfig();
 			shapeConfig.geometry = geometry;
 			shapeConfig.restitution = this.restitution;
@@ -1150,6 +1150,7 @@ export class Shape {
 		for (let geometry of this.geometries) geometry.dispose();
 	}
 
+	/* eslint-disable  @typescript-eslint/no-unused-vars */
 	onMarbleContact(time: TimeState, contact?: OIMO.Contact): (boolean | void) {}
 	onMarbleInside(time: TimeState) {}
 	onMarbleEnter(time: TimeState) {}

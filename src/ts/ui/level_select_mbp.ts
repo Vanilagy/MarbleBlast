@@ -201,7 +201,7 @@ export class MbpLevelSelect extends LevelSelect {
 
 	displayEmptyMetadata() {
 		this.levelTitle.innerHTML = '<br>';
-		this.levelArtist.innerHTML = '<br>'
+		this.levelArtist.innerHTML = '<br>';
 		this.levelDescription.innerHTML = '<br>';
 		this.levelQualifyTime.innerHTML = '';
 		this.easterEggIcon.classList.add('hidden');

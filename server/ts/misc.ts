@@ -98,7 +98,7 @@ export const registerActivity = async (res: http.ServerResponse, urlObject: url.
 		'Cache-Control': 'no-cache, no-store' // Don't cache this
 	});
 	res.end();
-}
+};
 
 setInterval(() => {
 	let now = Date.now();

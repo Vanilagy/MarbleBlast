@@ -327,7 +327,7 @@ export class ParticleManager {
 
 					group.particles.length--;
 					group.geometry.instanceCount--;
-					i--
+					i--;
 				}
 			}
 

@@ -622,7 +622,7 @@ export class Interior {
 		let marble = this.level.marble;
 		// Get the contact normal
 		let contactNormal = contact.getManifold().getNormal();
-		if (contact.getShape1().userData === this.id) contactNormal.scaleEq(-1);;
+		if (contact.getShape1().userData === this.id) contactNormal.scaleEq(-1);
 
 		if (this.forceShapes.has(contactShape)) {
 			// Set the velocity along the contact normal, but make sure it's capped
@@ -643,6 +643,7 @@ export class Interior {
 		return true;
 	}
 
+	/* eslint-disable @typescript-eslint/no-unused-vars */
 	tick(time: TimeState) {}
 	render(time: TimeState) {}
 	reset() {}

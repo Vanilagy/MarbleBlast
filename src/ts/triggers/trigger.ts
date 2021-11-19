@@ -69,6 +69,7 @@ export class Trigger {
 		}
 	}
 
+	/* eslint-disable  @typescript-eslint/no-unused-vars */
 	onMarbleInside(time: TimeState) {}
 	onMarbleEnter(time: TimeState) {}
 	onMarbleLeave(time: TimeState) {}

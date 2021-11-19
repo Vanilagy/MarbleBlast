@@ -31,7 +31,7 @@ export abstract class Menu {
 	popupContainer = document.querySelector('#popup-container') as HTMLDivElement;
 
 	activeButtonVariant = new Map<HTMLImageElement, number>();
-	variantChangeListeners = new Map<HTMLImageElement, Function>();
+	variantChangeListeners = new Map<HTMLImageElement, () => void>();
 
 	abstract get uiAssetPath(): string;
 	abstract audioAssetPath: string;

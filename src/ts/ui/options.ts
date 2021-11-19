@@ -174,7 +174,7 @@ export abstract class OptionsScreen {
 			fileInput.setAttribute('type', 'file');
 			fileInput.setAttribute('accept', "image/x-png,image/gif,image/jpeg");
 
-			fileInput.onchange = async (e) => {
+			fileInput.onchange = async () => {
 				let file = fileInput.files[0];
 				await StorageManager.databasePut('keyvalue', file, 'marbleTexture'); // Store the Blob in the IndexedDB
 				resolve();

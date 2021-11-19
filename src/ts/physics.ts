@@ -215,11 +215,11 @@ export class PhysicsHelper {
 		// Search for the first intersect if we were to move the marble in a straight line given its current position and velocity
 		let { mid, collisionNormal } = this.findSweptSphereIntersection(this.world, this.level.marble.radius * (1 - reduction), marble.body.getPosition(), movementDiff, 24,
 			(x) => x !== marble.shape && x.getRigidBody().getType() === OIMO.RigidBodyType.STATIC // Make sure to ignore pathed interiors
-		, this.level.marble.radius * reduction);
+			, this.level.marble.radius * reduction);
 
-		outer:
+		//outer:
 		if (mid > 0 && mid < 1) {
-			let dot = Math.abs(movementDiff.dot(collisionNormal));
+			//let dot = Math.abs(movementDiff.dot(collisionNormal));
 			//if (dot < 0.05) break outer; // Not needed?
 
 			// Snap the marble to the exact point of collision
@@ -449,7 +449,7 @@ export class PhysicsHelper {
 			mid = low + (high - low) / 2;
 
 			// Construct the capsule geometry in a way where it represents a swept volume of a sphere
-			let height = translationLength * mid + addedLength
+			let height = translationLength * mid + addedLength;
 			capsuleGeom._halfHeight = height/2;
 			let capsulePosition = start.addScaled(translation, mid / 2);
 			capsuleBody.setPosition(capsulePosition);

@@ -1,5 +1,4 @@
 import { Trigger } from "./trigger";
-import { AudioManager } from "../audio";
 import { state } from "../state";
 
 /** A help trigger displays an info message when the player touches one. */

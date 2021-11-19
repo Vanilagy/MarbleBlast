@@ -531,24 +531,24 @@ export class Level extends Scheduler {
 
 		for (let element of simGroup.elements) {
 			switch (element._type) {
-				case MissionElementType.SimGroup: {
+				case MissionElementType.SimGroup:
 					promises.push(this.addSimGroup(element));
-				}; break;
-				case MissionElementType.InteriorInstance: {
+					break;
+				case MissionElementType.InteriorInstance:
 					promises.push(this.addInterior(element));
-				}; break;
-				case MissionElementType.StaticShape: case MissionElementType.Item: {
+					break;
+				case MissionElementType.StaticShape: case MissionElementType.Item:
 					promises.push(this.addShape(element));
-				}; break;
-				case MissionElementType.Trigger: {
+					break;
+				case MissionElementType.Trigger:
 					promises.push(this.addTrigger(element));
-				}; break;
-				case MissionElementType.TSStatic: {
+					break;
+				case MissionElementType.TSStatic:
 					promises.push(this.addTSStatic(element));
-				}; break;
-				case MissionElementType.ParticleEmitterNode: {
+					break;
+				case MissionElementType.ParticleEmitterNode:
 					this.addParticleEmitterNode(element);
-				}; break;
+					break;
 			}
 		}
 
@@ -585,7 +585,7 @@ export class Level extends Scheduler {
 
 		// Add the correct shape based on type
 		let dataBlockLowerCase = element.datablock?.toLowerCase();
-		if (!dataBlockLowerCase) {} // Make sure we don't do anything if there's no data block
+		if (!dataBlockLowerCase) { /* Make sure we don't do anything if there's no data block */ }
 		else if (dataBlockLowerCase === "startpad") shape = new StartPad();
 		else if (dataBlockLowerCase === "endpad") shape = new EndPad(element === this.endPadElement);
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
@@ -1014,7 +1014,7 @@ export class Level extends Scheduler {
 		} else {
 			// Simply look at the marble
 			camera.position.copy(this.oobCameraPosition);
-			camera.position.sub(this.lastVerticalTranslation)
+			camera.position.sub(this.lastVerticalTranslation);
 			camera.lookAt(Util.vecOimoToThree(marblePosition));
 			camera.position.add(this.lastVerticalTranslation);
 		}
@@ -1296,7 +1296,7 @@ export class Level extends Scheduler {
 		if (totalDistance > 350 && this.previousMouseMovementDistance * 4 < totalDistance) {
 			this.previousMouseMovementDistance *= 1.5; // Make the condition harder to hit the next time
 			return;
-		};
+		}
 		this.previousMouseMovementDistance = totalDistance;
 
 		let factor = Util.lerp(1 / 2500, 1 / 100, StorageManager.data.settings.mouseSensitivity);

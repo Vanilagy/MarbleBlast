@@ -183,7 +183,7 @@ export class MbpFinishScreen extends FinishScreen {
 			}; else {
 				// Move on to the next mission array
 				let l = MissionLibrary;
-				let order = [l.goldBeginner, l.goldIntermediate, l.goldAdvanced, l.goldCustom, l.platinumBeginner, l.platinumIntermediate, l.platinumAdvanced, l.platinumExpert, l.platinumCustom, l.ultraBeginner, l.ultraIntermediate, l.ultraAdvanced, l.ultraCustom]
+				let order = [l.goldBeginner, l.goldIntermediate, l.goldAdvanced, l.goldCustom, l.platinumBeginner, l.platinumIntermediate, l.platinumAdvanced, l.platinumExpert, l.platinumCustom, l.ultraBeginner, l.ultraIntermediate, l.ultraAdvanced, l.ultraCustom];
 				let next = order[order.indexOf(levelSelect.currentMissionArray) + 1];
 
 				return {

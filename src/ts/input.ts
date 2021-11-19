@@ -280,32 +280,31 @@ let cameraAreaTouchIdentifier: number = null;
 let lastCameraTouch: Touch = null;
 let joystickAsCameraTouches: Touch[] = [];
 
-export let useEnabled: boolean = false;
-export let blastEnabled: boolean = false;
+export let useEnabled = false;
+export let blastEnabled = false;
 
 export const setUseEnabled = (value: boolean) => {
 	useEnabled = value;
-}
+};
 
 export const setBlastEnabled = (value: boolean) => {
 	blastEnabled = value;
-}
+};
 
 
 const getUseEnabledOpacityAndEnabled = () => {
 	return {
 		opacity: useEnabled ? '0.5' : '0.2',
 		enabled: useEnabled
-	}
-}
+	};
+};
 
 const getBlastEnabledOpacityAndEnabled = () => {
 	return {
 		opacity: blastEnabled ? '0.5' : '0.2',
 		enabled: blastEnabled
-	}
-}
-
+	};
+};
 
 let touchendFuncs: ((touch: Touch, force: boolean) => void)[] = [];
 const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameButtons, onStart?: (touch: Touch) => void, onEnd?: (touch: Touch) => void, getOpacityAndEnabled?: () => { opacity: string, enabled: boolean }) => {
@@ -342,11 +341,11 @@ const startCameraMovement = (touch: Touch) => {
 const startCameraMovementFromButton = (touch: Touch) => {
 	startCameraMovement(touch);
 	joystickAsCameraTouches.push(touch);
-}
+};
 
 const endCameraMovementFromButton = (touch: Touch) => {
 	joystickAsCameraTouches.splice(joystickAsCameraTouches.indexOf(touch), 1);
-}
+};
 
 setupTouchButton(jumpButton, 'jump', startCameraMovementFromButton, endCameraMovementFromButton);
 setupTouchButton(useButton, 'use', startCameraMovementFromButton, endCameraMovementFromButton, getUseEnabledOpacityAndEnabled);

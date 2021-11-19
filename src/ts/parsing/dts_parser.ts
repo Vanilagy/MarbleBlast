@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { BinaryFileParser, Point2F, Point3F, Box3F } from "./binary_file_parser";
 import { ResourceManager } from "../resources";
 
