@@ -277,7 +277,7 @@ const marbleAttributesRegEx = /setMarbleAttributes\("(\w+)",\s*(.+?)\);/g;
 const activatePackageRegEx = /activatePackage\((.+?)\);/g;
 const materialPropertyRegEx = /new MaterialProperty *\( *(.+?) *\)\s*{\s*((?:\w+ *= *(\d|\.)+;\s*)*)}/gi;
 const addMaterialMappingRegEx = /addMaterialMapping *\( *"(.+?)" *, *(.+?) *\)/gi;
-const keyValuePairRegEx = /\s*(.+?)\s*=\s*"(.*?)"\s*;/g;
+const keyValuePairRegEx = /([^\s]+?)\s*=\s*"(.*?)"\s*;/g;
 
 /** A parser for .mis files, which hold mission information. */
 export class MisParser {

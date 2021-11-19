@@ -48,18 +48,18 @@ export abstract class LoadingScreen {
 		// Give the UI a bit of time to breathe before we begin to load the level.
 		await Util.wait(50);
 
-		await mission.load();
-
-		if (this.loadingIndex !== indexAtStart) return;
-
-		this.refresher = setInterval(() => {
-			// Constantly refresh the loading bar's width
-			let completion = level.getLoadingCompletion();
-			this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
-		}) as unknown as number;
-
-		let level = new Level(mission);
 		try {
+			await mission.load();
+
+			if (this.loadingIndex !== indexAtStart) return;
+
+			this.refresher = setInterval(() => {
+				// Constantly refresh the loading bar's width
+				let completion = level.getLoadingCompletion();
+				this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
+			}) as unknown as number;
+
+			let level = new Level(mission);
 			state.level = level;
 			await level.init();
 

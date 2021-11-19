@@ -1,5 +1,9 @@
 # Version History
 
+## 2.2.9
+- Fixed same Gravity Modifiers apply repeatedly
+- Fixed some .mis files not parsing correctly
+
 ## 2.2.8
 - Fixed missing controller binding
 
