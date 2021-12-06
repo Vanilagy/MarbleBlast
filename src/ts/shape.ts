@@ -337,6 +337,7 @@ export class Shape {
 		for (let [i, geometry] of sharedData.geometries.entries()) {
 			let materials = this.materials;
 			if (sharedData.collisionGeometries.has(geometry)) {
+				continue;
 				let shadowMaterial = new Material();
 				shadowMaterial.type = MaterialType.Shadow;
 				shadowMaterial.transparent = true;
@@ -424,7 +425,7 @@ export class Shape {
 			*/
 
 			if (matName instanceof Texture) {
-				material.map = matName;
+				material.diffuseMap = matName;
 			} else if (!fullName || (this.isTSStatic && (flags & MaterialFlags.ReflectanceMapOnly))) {
 				// Usually do nothing. It's an plain white material without a texture.
 				// Ah EXCEPT if we're a TSStatic.
@@ -452,12 +453,11 @@ export class Shape {
 					promises.push(ResourceManager.getTexture(this.directoryPath + '/' + frame));
 				}
 				let textures = await Promise.all(promises);
-				material.availableTextures.push(...textures);
+
+				material.diffuseMap = textures[0]; // So that we compile the material in the right type of shader
 			} else {
 				let texture = await ResourceManager.getTexture(this.directoryPath + '/' + fullName, (flags & MaterialFlags.Translucent) === 0); // Make sure to remove the alpha of the texture if it's not flagged as translucent
-				// Is it fine to have these always-on?
-				material.availableTextures.push(texture),
-				material.map = texture;
+				material.diffuseMap = texture;
 			}
 
 			// Set some properties based on the flags
@@ -473,8 +473,7 @@ export class Shape {
 
 		// If there are no materials, atleast add one environment one
 		if (this.materials.length === 0) {
-			let mat = new Material();
-			mat.emissive = true;
+			let mat = new EmissiveMaterial();
 			mat.envMap = this.level.envMap;
 			mat.reflectivity = 1;
 			this.materials.push(mat);
@@ -897,7 +896,7 @@ export class Shape {
 
 			// Select the correct texture based on the frame and apply it
 			let texture = ResourceManager.getTextureFromCache(this.directoryPath + '/' + currentFile);
-			this.materials[i].map = texture;
+			this.materials[i].diffuseMap = texture;
 		}
 
 		// Spin the shape round 'n' round

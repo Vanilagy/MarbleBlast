@@ -1,6 +1,6 @@
 import THREE from "three";
 import { Renderer } from "./renderer";
-import { CUBE_MAPS_PER_DRAW_CALL, Scene } from "./scene";
+import { Scene } from "./scene";
 
 export class DirectionalLight {
 	renderer: Renderer;

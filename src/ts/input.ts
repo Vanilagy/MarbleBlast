@@ -244,7 +244,7 @@ const updateGamepadInput = () => {
 	}
 
 	// Check for input on the level select screen
-	if (!state.menu.levelSelect.div.classList.contains('hidden')) 
+	if (state.menu?.levelSelect && !state.menu.levelSelect.div.classList.contains('hidden')) 
 		state.menu.levelSelect.handleControllerInput(gamepads[mostRecentGamepad]);
 		
 	if (state.level?.paused)

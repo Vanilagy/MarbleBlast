@@ -237,8 +237,7 @@ export class Marble {
 
 		let geometry = Geometry.createSphereGeometry(1, 32, 16);
 		let sphereMaterial = new Material();
-		sphereMaterial.availableTextures.push(marbleTexture);
-		sphereMaterial.map = marbleTexture;
+		sphereMaterial.diffuseMap = marbleTexture;
 		sphereMaterial.normalizeNormals = true;
 		sphereMaterial.flipY = true;
 		let sphere = new Mesh(geometry, [sphereMaterial]);

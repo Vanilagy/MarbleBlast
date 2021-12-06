@@ -1,7 +1,5 @@
 import THREE from "three";
-import { Util } from "../util";
 import { CubeTexture } from "./cube_texture";
-import { CUBE_MAPS_PER_DRAW_CALL } from "./scene";
 import { Texture } from "./texture";
 
 export enum MaterialType {
@@ -9,6 +7,34 @@ export enum MaterialType {
 	Sky = 1,
 	Shadow = 2
 }
+
+export class Material {
+	diffuseMap: Texture = null;
+	envMap: CubeTexture = null;
+	emissive = false;
+	transparent = false;
+	opacity = 1;
+	blending = THREE.NormalBlending;
+	normalizeNormals = false;
+	flipY = false;
+	isSky = false;
+
+	buildDefineChunk() {
+		let defines: string[] = [];
+
+		if (this.diffuseMap) defines.push('USE_DIFFUSE');
+		if (this.envMap) defines.push('USE_ENV_MAP');
+		if (this.emissive) defines.push('EMISSIVE');
+		if (this.transparent) defines.push('TRANSPARENT');
+		if (this.normalizeNormals) defines.push('NORMALIZE_NORMALS');
+		if (this.flipY) defines.push('FLIP_Y');
+		if (this.isSky) defines.push('IS_SKY');
+
+		return defines.map(x => `#define ${x}\n`).join('');
+	}
+}
+
+/*
 
 export class Material {
 	needsMaterialBufferUpdate = true;
@@ -98,3 +124,5 @@ export class Material {
 		return uints;
 	}
 }
+
+*/

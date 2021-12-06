@@ -1,19 +1,15 @@
-import defaultVert from './shaders/default_vert.glsl';
-import defaultFrag from './shaders/default_frag.glsl';
-import shadowMapVert from './shaders/shadow_map_vert.glsl';
-import shadowMapFrag from './shaders/shadow_map_frag.glsl';
-import { CUBE_MAPS_PER_DRAW_CALL, DIRECTIONAL_LIGHT_COUNT, Scene } from "./scene";
+import { Scene } from "./scene";
 import { Program } from './program';
 import THREE from 'three';
-
-let query;
 
 export class Renderer {
 	options: { canvas: HTMLCanvasElement };
 	gl: WebGL2RenderingContext;
 	currentProgram: Program = null;
-	defaultProgram: Program;
-	shadowMapProgram: Program;
+	materialShaders = new Map<string, Program>();
+	//defaultProgram: Program;
+	//shadowMapProgram: Program;
+	//lambertProgram: Program;
 	width: number;
 	height: number;
 
@@ -22,8 +18,7 @@ export class Renderer {
 		EXT_frag_depth: null as EXT_frag_depth,
 		OES_element_index_uint: null as OES_element_index_uint,
 		WEBGL_depth_texture: null as WEBGL_depth_texture,
-		OES_standard_derivatives: null as OES_standard_derivatives,
-		EXT_disjoint_timer_query_webgl2: null as EXT_disjoint_timer_query_webgl2
+		OES_standard_derivatives: null as OES_standard_derivatives
 	};
 
 	constructor(options: { canvas: HTMLCanvasElement }) {
@@ -47,12 +42,10 @@ export class Renderer {
 		this.extensions.OES_element_index_uint = gl.getExtension('OES_element_index_uint');
 		this.extensions.WEBGL_depth_texture = gl.getExtension('WEBGL_depth_texture');
 		this.extensions.OES_standard_derivatives = gl.getExtension('OES_standard_derivatives');
-		this.extensions.EXT_disjoint_timer_query_webgl2 = gl.getExtension('EXT_disjoint_timer_query_webgl2');
-
-		console.log(this.extensions.EXT_disjoint_timer_query_webgl2) 
 		
-		this.defaultProgram = new Program(this, defaultVert, defaultFrag);
-		this.shadowMapProgram = new Program(this, shadowMapVert, shadowMapFrag);
+		//this.defaultProgram = new Program(this, defaultVert, defaultFrag);
+		//this.shadowMapProgram = new Program(this, shadowMapVert, shadowMapFrag);
+		//this.lambertProgram = new Program(this, lambertVert, lambertFrag);
 
 		gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		gl.clearDepth(1.0);
@@ -71,13 +64,12 @@ export class Renderer {
 		let { gl } = this;
 		let maxVertexUniformVectors = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS) as number;
 		maxVertexUniformVectors -= 14; // Taken up by other uniforms
-		maxVertexUniformVectors -= 4 * DIRECTIONAL_LIGHT_COUNT;
+		maxVertexUniformVectors -= 4; // Lights
 
-		let fifth = Math.floor(maxVertexUniformVectors / 5);
+		let quarter = Math.floor(maxVertexUniformVectors / 4);
 
 		return {
-			transformVectors: 4 * fifth,
-			materialVectors: 1 * fifth
+			meshInfoVectors: 4 * quarter
 		};
 	}
 
@@ -90,38 +82,25 @@ export class Renderer {
 	}
 
 	render(scene: Scene, camera: THREE.PerspectiveCamera) {
-		let { gl } = this;
-
-		let ext = this.extensions.EXT_disjoint_timer_query_webgl2;
-
-		
-		const available = query && gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE);
-		if (available) {
-			const elapsedNanos = gl.getQueryParameter(query, gl.QUERY_RESULT);
-			console.log(elapsedNanos / 1000 / 1000); // in millis
-		}
-
-		if (available || !query) {
-			query = gl.createQuery();
-			gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
-		}
-		
+		let { gl } = this;		
 
 		scene.update();
-		for (let light of scene.directionalLights) light.renderShadowMap(scene);
+		//for (let light of scene.directionalLights) light.renderShadowMap(scene);
 
 		gl.depthMask(true);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(0, 0, this.width, this.height);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-		this.defaultProgram.use();
-		this.defaultProgram.bindBufferAttribute(scene.positionBuffer);
-		this.defaultProgram.bindBufferAttribute(scene.normalBuffer);
-		this.defaultProgram.bindBufferAttribute(scene.tangentBuffer);
-		this.defaultProgram.bindBufferAttribute(scene.uvBuffer);
-		this.defaultProgram.bindBufferAttribute(scene.meshInfoIndexBuffer);
-		this.defaultProgram.bindBufferAttribute(scene.materialIndexBuffer);
+		/*
+		this.lambertProgram.use();
+		this.lambertProgram.bindBufferAttribute(scene.positionBuffer);
+		this.lambertProgram.bindBufferAttribute(scene.normalBuffer);
+		//this.defaultProgram.bindBufferAttribute(scene.tangentBuffer);
+		this.lambertProgram.bindBufferAttribute(scene.uvBuffer);
+		this.lambertProgram.bindBufferAttribute(scene.meshInfoIndexBuffer);
+		//this.defaultProgram.bindBufferAttribute(scene.materialIndexBuffer);
+		*/
 
 		let transparentTris: number[] = [];
 		let transparentTriDistances = new Map<number, number>();
@@ -152,31 +131,51 @@ export class Renderer {
 		gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, scene.indexBufferData, 0, transparentTris.length * 3);
 		*/
 
-		gl.uniformMatrix4fv(
-			this.defaultProgram.getUniformLocation('viewMatrix'),
-			false,
-			new Float32Array(camera.matrixWorldInverse.elements)
-		);
-		gl.uniformMatrix4fv(
-			this.defaultProgram.getUniformLocation('projectionMatrix'),
-			false,
-			new Float32Array(camera.projectionMatrix.elements)
-		);
-		gl.uniformMatrix4fv(
-			this.defaultProgram.getUniformLocation('inverseProjectionMatrix'),
-			false,
-			new Float32Array(new THREE.Matrix4().getInverse(camera.projectionMatrix).elements)
-		);
-		gl.uniform1f(
-			this.defaultProgram.getUniformLocation('logDepthBufFC'),
-			2.0 / (Math.log(camera.far + 1.0) / Math.LN2)
-		);
-		gl.uniform3fv(
-			this.defaultProgram.getUniformLocation('eyePosition'),
-			new Float32Array(camera.position.toArray())
-		);
+		let seen = new WeakSet<Program>();
+		for (let group of scene.materialGroups) {
+			let program = this.materialShaders.get(group.defineChunk);
+			if (seen.has(program)) continue;
+			seen.add(program);
 
-		let meshInfoLoc = this.defaultProgram.getUniformLocation('meshInfos');
+			program.use();
+			program.bindBufferAttribute(scene.positionBuffer);
+			program.bindBufferAttribute(scene.normalBuffer);
+			//this.defaultProgram.bindBufferAttribute(scene.tangentBuffer);
+			program.bindBufferAttribute(scene.uvBuffer);
+			program.bindBufferAttribute(scene.meshInfoIndexBuffer);
+
+			gl.uniformMatrix4fv(
+				program.getUniformLocation('viewMatrix'),
+				false,
+				new Float32Array(camera.matrixWorldInverse.elements)
+			);
+			gl.uniformMatrix4fv(
+				program.getUniformLocation('projectionMatrix'),
+				false,
+				new Float32Array(camera.projectionMatrix.elements)
+			);
+			gl.uniformMatrix4fv(
+				program.getUniformLocation('inverseProjectionMatrix'),
+				false,
+				new Float32Array(new THREE.Matrix4().getInverse(camera.projectionMatrix).elements)
+			);
+			gl.uniform1f(
+				program.getUniformLocation('logDepthBufFC'),
+				2.0 / (Math.log(camera.far + 1.0) / Math.LN2)
+			);
+			gl.uniform3fv(
+				program.getUniformLocation('eyePosition'),
+				new Float32Array(camera.position.toArray())
+			);
+
+			gl.uniform3fv(program.getUniformLocation('ambientLight'), scene.ambientLightBuffer);
+			gl.uniform3fv(program.getUniformLocation('directionalLightColor'), scene.directionalLightColorBuffer);
+			gl.uniform3fv(program.getUniformLocation('directionalLightDirection'), scene.directionalLightDirectionBuffer);
+			gl.uniform1i(program.getUniformLocation('directionalLightShadowMap'), 8);
+			gl.uniformMatrix4fv(program.getUniformLocation('directionalLightTransform'), false, scene.directionalLightTransformBuffer);
+		}
+
+		/*
 		let materialsLoc = this.defaultProgram.getUniformLocation('materials');
 		let texturesLoc = this.defaultProgram.getUniformLocation('textures');
 		let cubeTexturesLoc = this.defaultProgram.getUniformLocation('cubeTextures');
@@ -191,7 +190,47 @@ export class Renderer {
 		for (let [i, light] of scene.directionalLights.entries()) light.bindShadowMap(i);
 
 		gl.uniform1i(this.defaultProgram.getUniformLocation('skipTransparent'), 1);
+		*/
+
+		/*
+		gl.uniform3fv(this.lambertProgram.getUniformLocation('ambientLight'), scene.ambientLightBuffer);
+		gl.uniform3fv(this.lambertProgram.getUniformLocation('directionalLightColor'), scene.directionalLightColorBuffer);
+		gl.uniform3fv(this.lambertProgram.getUniformLocation('directionalLightDirection'), scene.directionalLightDirectionBuffer);
+		gl.uniform1i(this.lambertProgram.getUniformLocation('directionalLightShadowMap'), 8);
+		gl.uniformMatrix4fv(this.lambertProgram.getUniformLocation('directionalLightTransform'), false, scene.directionalLightTransformBuffer);
+		*/
+
 		gl.depthMask(true);
+
+		for (let group of scene.materialGroups) {
+			if (group.positions.length === 0) continue;
+
+			let program = this.materialShaders.get(group.defineChunk);
+			program.use();
+
+			let meshInfoLoc = program.getUniformLocation('meshInfos');
+			let diffuseMapLoc = program.getUniformLocation('diffuseMap');
+			let envMapLoc = program.getUniformLocation('envMap');
+			gl.uniform1i(diffuseMapLoc, 0);
+			gl.uniform1i(envMapLoc, 1);
+
+			if (group.material.diffuseMap) {
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, group.material.diffuseMap.glTexture);
+			}
+			if (group.material.envMap) {
+				gl.activeTexture(gl.TEXTURE1);
+				gl.bindTexture(gl.TEXTURE_CUBE_MAP, group.material.envMap.glTexture);
+			}
+
+			for (let drawCall of group.drawCalls) {
+				gl.uniformMatrix4fv(meshInfoLoc, false, drawCall.meshInfoGroup.buffer);
+				
+				gl.drawArrays(gl.TRIANGLES, group.offset + drawCall.start, drawCall.count);
+			}
+		}
+
+		/*
 		for (let drawCall of scene.drawCalls) {
 			for (let i = 0; i < drawCall.cubeTextures.length; i++) {
 				let tex = drawCall.cubeTextures[i];
@@ -207,8 +246,7 @@ export class Renderer {
 
 			gl.drawArrays(gl.TRIANGLES, drawCall.start, drawCall.count);
 		}
-
-		gl.endQuery(ext.TIME_ELAPSED_EXT);
+		*/
 
 		return;
 

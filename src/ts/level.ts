@@ -381,7 +381,7 @@ export class Level extends Scheduler {
 			//if (skyboxCubeTexture) this.scene.background = skyboxCubeTexture;
 			if (skyboxCubeTexture) {
 				let material = new Material();
-				material.type = MaterialType.Sky;
+				material.isSky = true;
 				material.envMap = skyboxCubeTexture;
 				let geometry = new Geometry();
 				geometry.positions.push(-1, -1, 1);

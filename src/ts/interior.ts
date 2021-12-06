@@ -262,8 +262,7 @@ export class Interior {
 		
 							// We found the texture file; create the texture.
 							let texture = await this.level.mission.getTexture(currentPath + '/' + name);
-							mat.availableTextures.push(texture);
-							mat.map = texture;
+							mat.diffuseMap = texture;
 		
 							break;
 						}
@@ -271,7 +270,7 @@ export class Interior {
 				};
 	
 				await lookForTexture(); // First look for the texture regularly
-				if (!mat.map && fullPath.includes('interiors/')) {
+				if (!mat.diffuseMap && fullPath.includes('interiors/')) {
 					// If we didn't find the texture, try looking for it in the MBP folder.
 					fullPath = fullPath.replace('interiors/', 'interiors_mbp/');
 					await lookForTexture();

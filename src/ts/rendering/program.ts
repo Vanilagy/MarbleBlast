@@ -1,6 +1,5 @@
 import { BufferAttribute } from "./buffer_attribute";
 import { Renderer } from "./renderer";
-import { DIRECTIONAL_LIGHT_COUNT } from "./scene";
 
 export class Program {
 	renderer: Renderer;
@@ -8,16 +7,15 @@ export class Program {
 	boundBuffers = new Set<BufferAttribute>();
 	uniformLocations = new Map<string, WebGLUniformLocation>();
 
-	constructor(renderer: Renderer, vertexSource: string, fragmentSource: string) {
+	constructor(renderer: Renderer, vertexSource: string, fragmentSource: string, defineChunk = "") {
 		this.renderer = renderer;
 
 		let { gl } = renderer;
 
 		let uniformCounts = renderer.getUniformsCounts();
 		let definitions = `
-			#define MESH_COUNT ${uniformCounts.transformVectors / 4}
-			#define MATERIAL_COUNT ${uniformCounts.materialVectors}
-			#define DIRECTIONAL_LIGHT_COUNT ${DIRECTIONAL_LIGHT_COUNT}
+			#define MESH_COUNT ${uniformCounts.meshInfoVectors / 4}
+			${defineChunk}
 		`
 		vertexSource = vertexSource.replace('#include <definitions>', definitions);
 		fragmentSource = fragmentSource.replace('#include <definitions>', definitions);
@@ -30,12 +28,12 @@ export class Program {
 		gl.shaderSource(fragmentShader, fragmentSource);
 		gl.compileShader(fragmentShader);
 
-		if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+		if (false) if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
 			alert('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(vertexShader));
 			return null;
 		}
 
-		if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+		if (false) if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
 			alert('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(fragmentShader));
 			return null;
 		}
@@ -45,7 +43,7 @@ export class Program {
 		gl.attachShader(program, fragmentShader);
 		gl.linkProgram(program);
 
-		if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+		if (false) if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
 			alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(program));
 			return null;
 		}

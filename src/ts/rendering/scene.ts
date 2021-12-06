@@ -1,3 +1,5 @@
+import materialVert from './shaders/material_vert.glsl';
+import materialFrag from './shaders/material_frag.glsl';
 import THREE from "three";
 import { AmbientLight } from "./ambient_light";
 import { BufferAttribute } from "./buffer_attribute";
@@ -8,9 +10,28 @@ import { Material } from "./material";
 import { Mesh } from "./mesh";
 import { Renderer } from "./renderer";
 import { Texture } from "./texture";
+import { Program } from './program';
 
-export const DIRECTIONAL_LIGHT_COUNT = 2;
-export const CUBE_MAPS_PER_DRAW_CALL = 4;
+interface MaterialGroup {
+	material: Material,
+	meshes: Mesh[],
+	positions: number[],
+	normals: number[],
+	uvs: number[],
+	meshInfoIndices: number[],
+	drawCalls: {
+		start: number,
+		count: number,
+		meshInfoGroup: MeshInfoGroup
+	}[],
+	offset: number,
+	defineChunk: string
+}
+
+interface MeshInfoGroup {
+	meshes: Mesh[],
+	buffer: Float32Array
+}
 
 export interface DrawCall {
 	start: number,
@@ -32,10 +53,13 @@ export class Scene extends Group {
 	tangentBuffer: BufferAttribute;
 	uvBuffer: BufferAttribute;
 	meshInfoIndexBuffer: BufferAttribute;
-	materialIndexBuffer: BufferAttribute;
-	drawCalls: DrawCall[];
-	textures: WebGLTexture[] = [];
-	indexToDrawCall: number[] = [];
+
+	materialGroups: MaterialGroup[];
+	meshInfoGroups: MeshInfoGroup[];
+	//materialIndexBuffer: BufferAttribute;
+	//drawCalls: DrawCall[];
+	//textures: WebGLTexture[] = [];
+	//indexToDrawCall: number[] = [];
 	indexBuffer: WebGLBuffer;
 	indexBufferData: Uint32Array;
 	shadowCasterIndices: number[];
@@ -100,6 +124,134 @@ export class Scene extends Group {
 	}
 
 	async compile() {
+		let materialMap = new Map<Material, MaterialGroup>();
+		let uniformCounts = this.renderer.getUniformsCounts();
+
+		let allMeshes: Mesh[] = [];
+		this.traverse(obj => obj instanceof Mesh && allMeshes.push(obj));
+
+		for (let mesh of allMeshes) {
+			for (let material of mesh.materials) {
+				if (!materialMap.has(material)) materialMap.set(material, {
+					material,
+					meshes: [],
+					positions: [],
+					normals: [],
+					uvs:[],
+					meshInfoIndices: [],
+					drawCalls: [],
+					offset: 0,
+					defineChunk: material.buildDefineChunk()
+				});
+
+				let group = materialMap.get(material);
+				group.meshes.push(mesh);
+			}
+		}
+
+		let materialGroups = [...materialMap].map(x => x[1]);
+		materialGroups.sort((a, b) => a.defineChunk.localeCompare(b.defineChunk));
+		this.materialGroups = materialGroups;
+
+		for (let group of materialGroups) {
+			if (this.renderer.materialShaders.has(group.defineChunk)) continue;
+
+			let program = new Program(this.renderer, materialVert, materialFrag, group.defineChunk);
+			this.renderer.materialShaders.set(group.defineChunk, program);
+		}
+
+		let orderedMeshes = [...new Set(materialGroups.map(group => group.meshes).flat())];
+		let meshInfoGroups: MeshInfoGroup[] = [];
+		let currentMeshInfoGroup: MeshInfoGroup;
+		let meshToMeshInfoGroup = new Map<Mesh, MeshInfoGroup>();
+
+		const finalizeMeshInfoGroup = () => {
+			if (currentMeshInfoGroup?.meshes.length) {
+				currentMeshInfoGroup.buffer = new Float32Array(16 * currentMeshInfoGroup.meshes.length);
+				meshInfoGroups.push(currentMeshInfoGroup);
+			}
+
+			currentMeshInfoGroup = {
+				meshes: [],
+				buffer: null
+			};
+		};
+		finalizeMeshInfoGroup();
+
+		for (let mesh of orderedMeshes) {
+			currentMeshInfoGroup.meshes.push(mesh);
+			meshToMeshInfoGroup.set(mesh, currentMeshInfoGroup);
+
+			if (currentMeshInfoGroup.meshes.length >= uniformCounts.meshInfoVectors/4)
+				finalizeMeshInfoGroup();
+		}
+		finalizeMeshInfoGroup();
+		this.meshInfoGroups = meshInfoGroups;
+
+		for (let mesh of orderedMeshes) {
+			let verts = mesh.geometry.positions.length/3;
+			let meshInfoGroup = meshToMeshInfoGroup.get(mesh);
+			let meshInfoIndex = meshInfoGroup.meshes.indexOf(mesh);
+
+			for (let i = 0; i < verts; i++) {
+				let { positions, normals, uvs } = mesh.geometry;
+				let material = mesh.materials[mesh.geometry.materials[i]];
+				let materialGroup = materialMap.get(material);
+
+				if (materialGroup.drawCalls.length === 0) {
+					materialGroup.drawCalls.push({ meshInfoGroup, start: 0, count: 0 });
+				} else {
+					let last = materialGroup.drawCalls[materialGroup.drawCalls.length - 1];
+					if (last.meshInfoGroup !== meshInfoGroup) {
+						materialGroup.drawCalls.push({ meshInfoGroup, start: last.start + last.count, count: 0 });
+					}
+				}
+				let drawCall = materialGroup.drawCalls[materialGroup.drawCalls.length - 1];
+
+				materialGroup.positions.push(positions[3*i + 0], positions[3*i + 1], positions[3*i + 2]);
+				materialGroup.normals.push(normals[3*i + 0], normals[3*i + 1], normals[3*i + 2]);
+				materialGroup.uvs.push(uvs[2*i + 0], uvs[2*i + 1]);
+				materialGroup.meshInfoIndices.push(meshInfoIndex);
+				drawCall.count++;
+			}
+		}
+
+		let offset = 0;
+		for (let group of materialGroups) {
+			group.offset = offset;
+			offset += group.positions.length / 3;
+		}
+
+		let positions = materialGroups.map(x => x.positions).flat();
+		let normals = materialGroups.map(x => x.normals).flat();
+		let uvs = materialGroups.map(x => x.uvs).flat();
+		let meshInfoIndices = materialGroups.map(x => x.meshInfoIndices).flat();
+
+		this.positionBuffer = new BufferAttribute(this.renderer, 'position', new Float32Array(positions), 3);
+		this.normalBuffer = new BufferAttribute(this.renderer, 'normal', new Float32Array(normals), 3);
+		this.uvBuffer = new BufferAttribute(this.renderer, 'uv', new Float32Array(uvs), 2);
+		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, 'meshInfoIndex', new Float32Array(meshInfoIndices), 1);
+
+		let totalAmbientLight = new THREE.Color(0);
+		this.ambientLights.forEach(x => totalAmbientLight.add(x.color));
+		this.ambientLightBuffer = new Float32Array(totalAmbientLight.toArray());
+
+		let totalDirectionalLight = new THREE.Color(0);
+		let directionalLightDirection = new THREE.Vector3();
+		for (let light of this.directionalLights) {
+			totalDirectionalLight.add(light.color);
+			directionalLightDirection.addScaledVector(light.direction, 1 / this.directionalLights.length);
+		}
+
+		this.directionalLightColorBuffer = new Float32Array(totalDirectionalLight.toArray());
+		this.directionalLightDirectionBuffer = new Float32Array(directionalLightDirection.toArray());
+		this.directionalLightTransformBuffer = new Float32Array(16);
+
+		console.log(materialGroups, meshInfoGroups)
+
+
+		/*
+
 		let positions: number[] = [];
 		let normals: number[] = [];
 		let uvs: number[] = [];
@@ -235,6 +387,7 @@ export class Scene extends Group {
 		this.shadowCasterIndexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.shadowCasterIndexBuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(shadowCasterIndices), gl.STATIC_DRAW);
+		*/
 	}
 
 	// https://www.cs.upc.edu/~virtual/G/1.%20Teoria/06.%20Textures/Tangent%20Space%20Calculation.pdf
@@ -305,6 +458,26 @@ export class Scene extends Group {
 
 	update() {
 		this.updateWorldTransform();
+
+		for (let group of this.meshInfoGroups) {
+			for (let i = 0; i < group.meshes.length; i++) {
+				let mesh = group.meshes[i];
+
+				if (mesh.needsVertexBufferUpdate) {
+					let offset = drawCall.meshVertexStarts[i];
+					this.positionBuffer.set(mesh.geometry.positions, offset);
+					this.normalBuffer.set(mesh.geometry.normals, offset);
+					this.uvBuffer.set(mesh.geometry.uvs, offset);
+					mesh.needsVertexBufferUpdate = false;
+				}
+
+				if (this.firstUpdate || mesh.needsMeshInfoBufferUpdate) {
+					mesh.updateMeshInfoBuffer(group.buffer, 16 * i);
+				}
+			}
+		}
+
+		/*
 		for (let drawCall of this.drawCalls) {
 			for (let i = 0; i < drawCall.meshes.length; i++) {
 				let mesh = drawCall.meshes[i];
@@ -328,6 +501,7 @@ export class Scene extends Group {
 				material.needsMaterialBufferUpdate = false;
 			}
 		}
+		*/
 		this.positionBuffer.update();
 		this.normalBuffer.update();
 		this.uvBuffer.update();
@@ -338,18 +512,13 @@ export class Scene extends Group {
 	}
 
 	updateDirectionalLightBuffers() {
-		let mat4 = new THREE.Matrix4();
-		const shadowMapStartIndex = 1 + CUBE_MAPS_PER_DRAW_CALL;
+		let firstLight = this.directionalLights[0];
+		if (!firstLight) return;
 
-		for (let [i, light] of this.directionalLights.entries()) {
-			this.directionalLightColorBuffer.set(light.color.toArray(), 3 * i);
-			this.directionalLightDirectionBuffer.set(light.direction.toArray(), 3 * i);
-			this.directionalLightShadowMapBuffer[i] = shadowMapStartIndex + i;
-
-			if (light.camera) {
-				mat4.multiplyMatrices(light.camera.projectionMatrix, light.camera.matrixWorldInverse);
-				this.directionalLightTransformBuffer.set(mat4.elements, 16 * i);
-			}
+		if (firstLight.camera) {
+			let mat4 = new THREE.Matrix4();
+			mat4.multiplyMatrices(firstLight.camera.projectionMatrix, firstLight.camera.matrixWorldInverse);
+			this.directionalLightTransformBuffer.set(mat4.elements, 0);
 		}
 	}
 }
