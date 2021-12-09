@@ -1,6 +1,8 @@
+import { Util } from "../util";
 import { Renderer } from "./renderer";
 
 export class Texture {
+	id = Util.getRandomId();
 	glTexture: WebGLTexture;
 	image: HTMLImageElement;
 

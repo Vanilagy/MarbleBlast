@@ -9,13 +9,15 @@ import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
 import { MisParser, MissionElementType } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
-import { camera, marbleReflectionCamera, marbleReflectionRenderTarget, renderer } from "./rendering";
+import { ownCamera, ownRenderer } from "./rendering";
 import { state } from "./state";
 import { Group } from "./rendering/group";
 import { Geometry } from "./rendering/geometry";
 import { Material } from "./rendering/material";
 import { Texture } from "./rendering/texture";
 import { Mesh } from "./rendering/mesh";
+import { CubeTexture } from "./rendering/cube_texture";
+import { CubeCamera } from "./rendering/cube_camera";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -74,70 +76,6 @@ blastMaxParticleOptions.ejectionPeriod = 0.7;
 blastMaxParticleOptions.particleOptions.dragCoefficient = 0.3;
 blastMaxParticleOptions.particleOptions.colors = blastMaxParticleOptions.particleOptions.colors.map(x => { x.r = 255/255; x.g = 159/255; x.b = 25/255; return x; });
 
-const applyReflectiveMarbleShader = (shader: THREE.Shader) => {
-	shader.vertexShader = `
-		varying vec3 vTransformedNormal;
-	` + shader.vertexShader;
-	shader.vertexShader = shader.vertexShader.replace('#include <defaultnormal_vertex>', `
-		#include <defaultnormal_vertex>
-		vTransformedNormal = transformedNormal;
-	`);
-	
-	shader.fragmentShader = `
-		${Util.isSafari()? '#define SAFARI': ''} // This browser is just fucking stupid man idk
-		varying vec3 vPosition;
-		varying vec3 vTransformedNormal;
-		uniform sampler2D selfMadeEnvMap;
-
-		#ifdef SAFARI
-		float tanh(float x) {
-			return (exp(2.0 * x) - 1.0) / (exp(2.0 * x) + 1.0);
-		}
-		#endif
-		#ifdef SAFARI
-		float atanh(float x) {
-			return 0.5 * log((1.0 + x) / (1.0 - x));
-		}
-		#endif
-		float sigmoid(float x) {
-			return 0.5 + 0.5 * tanh(2.0 * x - 1.0);
-		}
-		float invSigmoid(float x) {
-			return 0.5 + 0.5 * atanh(2.0 * x - 1.0);
-		}
-	` + shader.fragmentShader;
-	shader.fragmentShader = shader.fragmentShader.replace('#include <envmap_fragment>', `
-		/*
-		 * The idea here is the following: Our env map is in a normal perspective projection, and we want to map points on the sphere to where
-		 * they would reflect off in the texture. The following math just performs some trig to find out the UV coords that correspond to the
-		 * surface normal to create an accurate reflection.
-		*/
-
-		vec3 normal = normalize(vTransformedNormal);
-		float fovHalves = 150.0 * PI / 180.0 / 2.0;
-		float xAngle = -asin(normalize(normal * vec3(1, 0, 1)).x);
-		float yAngle = asin(normalize(normal * vec3(0, 1, 1)).y);
-
-		float u = tan(xAngle) / tan(fovHalves);
-		float v = tan(yAngle) / tan(fovHalves);
-		u = (u + 1.0) / 2.0;
-		v = (v + 1.0) / 2.0;
-
-		//float reflectAmount = invSigmoid(0.01 + 0.98 * texture2D(map, vUv).a);
-		//reflectAmount = max(0.25, reflectAmount);
-		float reflectAmount = 0.3; // For now
-		reflectAmount -= 0.7 * (2.0 * normal.z - 1.0); // Fresnel thingy
-		reflectAmount = sigmoid(reflectAmount);
-		reflectAmount = 0.95 * reflectAmount;
-
-		outgoingLight = mix(outgoingLight, texture2D(selfMadeEnvMap, vec2(u, v)).rgb, reflectAmount);
-
-		#include <envmap_fragment>
-	`);
-
-	shader.uniforms.selfMadeEnvMap =  { value: marbleReflectionRenderTarget.texture };
-};
-
 /** Controls marble behavior and responds to player input. */
 export class Marble {
 	level: Level;
@@ -190,6 +128,9 @@ export class Marble {
 	rollingMegaMarbleSound: AudioSource;
 	slidingSound: AudioSource;
 
+	cubeMap: CubeTexture;
+	cubeCamera: CubeCamera;
+
 	constructor(level: Level) {
 		this.level = level;
 	}
@@ -220,15 +161,29 @@ export class Marble {
 
 		let has2To1Texture = marbleTexture.image.width === marbleTexture.image.height * 2;
 
+		if (this.isReflective()) {
+			this.cubeMap = new CubeTexture(ownRenderer, 128);
+			this.cubeCamera = new CubeCamera(0.025, ownCamera.far);
+		}
+
 		// Create the 3D object
 		if (has2To1Texture || (this.level.mission.modification === 'ultra' && !customTextureBlob)) {
 			let ballShape = new Shape();
 			ballShape.shareMaterials = false;
 			ballShape.dtsPath = 'shapes/balls/pack1/pack1marble.dts';
 			ballShape.castShadows = true;
-			ballShape.normalizeVertexNormals = true; // We do this so that the marble doesn't get darker the larger it gets
-			ballShape.flipY = true;
-			if (this.isReflective()) ballShape.onBeforeMaterialCompile = applyReflectiveMarbleShader;
+			ballShape.materialPostprocessor = m => {
+				m.normalizeNormals = true; // We do this so that the marble doesn't get darker the larger it gets
+				m.flipY = true;
+
+				if (this.isReflective()) {
+					m.envMap = this.cubeMap;
+					m.envMapZUp = false;
+					m.reflectivity = 0.7;
+					m.useFresnel = true;
+				}
+			};
+
 			if (customTextureBlob) ballShape.matNamesOverride['base.marble'] = marbleTexture;
 			await ballShape.init(this.level);
 			this.innerGroup.add(ballShape.group);
@@ -240,18 +195,18 @@ export class Marble {
 		sphereMaterial.diffuseMap = marbleTexture;
 		sphereMaterial.normalizeNormals = true;
 		sphereMaterial.flipY = true;
+
+		if (this.isReflective()) {
+			sphereMaterial.envMap = this.cubeMap;
+			sphereMaterial.envMapZUp = false;
+			sphereMaterial.reflectivity = 0.7;
+			sphereMaterial.useFresnel = true;
+		}
+
 		let sphere = new Mesh(geometry, [sphereMaterial]);
 		sphere.castShadows = true;
 		this.sphere = sphere;
 		this.innerGroup.add(sphere);
-
-		/*
-		sphere.material.onBeforeCompile = shader => {
-			shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader; // Same thing as with ballShape
-			if (this.isReflective()) applyReflectiveMarbleShader(shader);
-		};
-		sphere.material.customProgramCacheKey = () => sphere.material.onBeforeCompile.toString() + (this.isReflective()? applyReflectiveMarbleShader.toString() : null);
-		*/
 
 		// Create the collision geometry
 		let shapeConfig = new OIMO.ShapeConfig();
@@ -277,7 +232,7 @@ export class Marble {
 		await this.forcefield.init(this.level);
 		this.forcefield.setOpacity(0);
 		this.forcefield.showSequences = false; // Hide the weird default animation it does
-		//this.innerGroup.add(this.forcefield.group);
+		this.innerGroup.add(this.forcefield.group);
 
 		this.helicopter = new Shape();
 		// Easter egg: Due to an iconic bug where the helicopter would instead look like a glow bounce, this can now happen 0.1% of the time.
@@ -285,7 +240,7 @@ export class Marble {
 		this.helicopter.castShadows = true;
 		await this.helicopter.init(this.level);
 		this.helicopter.setOpacity(0);
-		//this.group.add(this.helicopter.group);
+		this.group.add(this.helicopter.group);
 
 		// Load the necessary rolling sounds
 		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"];
@@ -738,19 +693,9 @@ export class Marble {
 
 	renderReflection() {
 		if (!this.isReflective()) return;
-		
-		marbleReflectionCamera.position.copy(camera.position);
-		marbleReflectionCamera.quaternion.copy(camera.quaternion);
-		Util.cameraLookAtDirect(marbleReflectionCamera, this.group.position);
-		marbleReflectionCamera.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), Math.PI); // Flip it 180
-		marbleReflectionCamera.position.copy(this.group.position);
 
-		this.group.visible = false; // To avoid framebuffer recursion ("feedback loop")
-		let renderTargetBefore = renderer.getRenderTarget();
-		renderer.setRenderTarget(marbleReflectionRenderTarget);
-		renderer.render(this.level.scene, marbleReflectionCamera);
-		renderer.setRenderTarget(renderTargetBefore);
-		this.group.visible = true;
+		this.cubeCamera.position.copy(this.group.position);
+		this.cubeMap.render(this.level.ownScene, this.cubeCamera, 4);
 	}
 
 	enableSuperBounce(time: TimeState) {

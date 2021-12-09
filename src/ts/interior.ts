@@ -66,30 +66,30 @@ const createNormalMapMaterial = async (interior: Interior, baseTexture: string, 
 
 	let mat = new Material();
 
-	mat.availableTextures.push(normalMap, diffuseMap);
 	mat.normalMap = normalMap;
-	mat.map = diffuseMap;
+	mat.diffuseMap = diffuseMap;
 	mat.saturateIncomingLight = false;
+	mat.receiveShadows = true;
 
 	return mat;
 };
 
 /** Creates a material with an additional normal and specularity map. */
-const createPhongMaterial = async (interior: Interior, baseTexture: string, specTexture: string, normalTexture: string, shininess: number, specularIntensity: number, doubleSecondaryMapUvs = false) => {
-	let specularMap = await interior.level.mission.getTexture(`shaders/tex/${specTexture}`);
-	let normalMap = await interior.level.mission.getTexture(`shaders/tex/${normalTexture}`);
+const createPhongMaterial = async (interior: Interior, baseTexture: string, specTexture: string, normalTexture: string, shininess: number, specularIntensity: number, secondaryMapUvFactor = 1) => {
+	let specularMap = specTexture && await interior.level.mission.getTexture(`shaders/tex/${specTexture}`);
+	let normalMap = normalTexture && await interior.level.mission.getTexture(`shaders/tex/${normalTexture}`);
 	let texture = await interior.level.mission.getTexture(`interiors_mbu/${baseTexture}`);
 
 	let mat = new Material();
 
-	mat.availableTextures.push(texture, normalMap, specularMap);
-	mat.map = texture;
+	mat.diffuseMap = texture;
 	mat.specularMap = specularMap;
 	mat.normalMap = normalMap;
 	mat.shininess = shininess;
 	mat.specularIntensity = specularIntensity;
-	mat.doubleSecondaryMapUvs = doubleSecondaryMapUvs;
+	mat.secondaryMapUvFactor = secondaryMapUvFactor;
 	mat.saturateIncomingLight = false;
+	mat.receiveShadows = true;
 
 	return mat;
 };
@@ -103,14 +103,14 @@ const createNoiseTileMaterial = async (interior: Interior, baseTexture: string, 
 
 	let mat = new Material();
 
-	mat.availableTextures.push(diffuseMap, specularMap, normalMap, noiseMap);
-	mat.map = diffuseMap;
+	mat.diffuseMap = diffuseMap;
 	mat.specularMap = specularMap;
 	mat.normalMap = normalMap;
 	mat.noiseMap = noiseMap;
 	mat.shininess = 40;
 	mat.specularIntensity = 0.7;
 	mat.saturateIncomingLight = false;
+	mat.receiveShadows = true;
 
 	return mat;
 };
@@ -142,10 +142,10 @@ const customMaterialFactories: Record<string, (interior: Interior) => Promise<Ma
 	'edge_white_shadow': (interior: Interior) => createPhongMaterial(interior, 'edge_white_shadow.png', 'edge_white_mbu.spec.jpg', 'edge_white_mbu.normal.jpg', 50, 4),
 	'beam': (interior: Interior) => createNormalMapMaterial(interior, 'beam.png', 'beam_side_mbu.normal.png'),
 	'beam_side': (interior: Interior) => createNormalMapMaterial(interior, 'beam_side.png', 'beam_side_mbu.normal.png'),
-	'friction_low': (interior: Interior) => createPhongMaterial(interior, 'friction_low.jpg', 'friction_low_mbu.spec.png', 'friction_low_mbu.normal.png', 50, 4),
-	'friction_low_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_low_shadow.png', 'friction_low_mbu.spec.png', 'friction_low_mbu.normal.png', 50, 4),
-	'friction_high': (interior: Interior) => createPhongMaterial(interior, 'friction_high.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 30, 0.8, true),
-	'friction_high_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_high_shadow.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 30, 0.8, true),
+	'friction_low': (interior: Interior) => createPhongMaterial(interior, 'friction_low.jpg', null/*'friction_low_mbu.spec.png'*/, 'friction_low_mbu.normal.png', 100, 3),
+	'friction_low_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_low_shadow.png', null/*'friction_low_mbu.spec.png'*/, 'friction_low_mbu.normal.png', 100, 3),
+	'friction_high': (interior: Interior) => createPhongMaterial(interior, 'friction_high.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 30, 0.8, 2),
+	'friction_high_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_high_shadow.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 30, 0.8, 2),
 };
 
 /** Stores a list of all vertices with similar face normal. */
@@ -233,6 +233,7 @@ export class Interior {
 				}
 
 				let mat = new Material();
+				mat.receiveShadows = true;
 				materials.push(mat);
 
 				// Check for this special material which just makes the surface invisible (like a colmesh)
@@ -309,7 +310,6 @@ export class Interior {
 		}
 
 		let mesh = new Mesh(cached.geometry, cached.materials);
-		mesh.receiveShadows = true;
 		this.mesh = mesh;
 		this.level.ownScene.add(mesh);
 
@@ -356,6 +356,7 @@ export class Interior {
 				geometry.normals.push(0, 0, 0); // Push a placeholder, we'll compute a proper normal later
 				geometry.uvs.push(u, v);
 				geometry.materials.push(surface.textureIndex);
+				geometry.indices.push(geometry.indices.length);
 
 				// Find the buckets for this vertex
 				let buckets = vertexBuckets.get(position);

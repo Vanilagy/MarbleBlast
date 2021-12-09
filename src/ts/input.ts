@@ -27,7 +27,7 @@ window.addEventListener('touchmove', (e) => {
 window.addEventListener('mousedown', (e) => {
 	if (!StorageManager.data) return;
 	// Request pointer lock if we're currently in-game
-	if (state.level && !state.level.paused && !state.level.finishTime && !Util.isTouchDevice) document.documentElement.requestPointerLock?.();
+	if (state.level && !state.level.paused && !state.level.finishTime && !Util.isTouchDevice) Util.requestPointerLock();
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName && document.pointerLockElement) {

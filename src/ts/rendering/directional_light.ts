@@ -71,11 +71,7 @@ export class DirectionalLight {
 
 		shadowMapProgram.use();
 		shadowMapProgram.bindBufferAttribute(scene.positionBuffer);
-		shadowMapProgram.bindBufferAttribute(scene.normalBuffer);
-		shadowMapProgram.bindBufferAttribute(scene.tangentBuffer);
-		shadowMapProgram.bindBufferAttribute(scene.uvBuffer);
 		shadowMapProgram.bindBufferAttribute(scene.meshInfoIndexBuffer);
-		shadowMapProgram.bindBufferAttribute(scene.materialIndexBuffer);
 
 		gl.uniformMatrix4fv(
 			shadowMapProgram.getUniformLocation('viewMatrix'),
@@ -89,31 +85,16 @@ export class DirectionalLight {
 		);
 
 		let meshInfoLoc = shadowMapProgram.getUniformLocation('meshInfos');
-		let currentStart = 0;
-
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.shadowCasterIndexBuffer);
-		for (let i = 0; i < scene.shadowCasterIndices.length; i++) {
-			let index = scene.shadowCasterIndices[i];
-			let nextIndex = scene.shadowCasterIndices[i+1];
-			let drawCall = scene.drawCalls[scene.indexToDrawCall[index]];
-			let nextDrawCall = scene.drawCalls[scene.indexToDrawCall[nextIndex]];
 
-			if (drawCall === nextDrawCall) continue;
-
-			gl.uniformMatrix4fv(meshInfoLoc, false, drawCall.meshInfoBuffer);
-
-			gl.drawElements(gl.TRIANGLES, i - currentStart + 1, gl.UNSIGNED_INT, currentStart);
-			currentStart = i + 1;
+		for (let drawCall of scene.shadowCasterDrawCalls) {
+			gl.uniformMatrix4fv(meshInfoLoc, false, drawCall.meshInfoGroup.buffer);
+			gl.drawElements(gl.TRIANGLES, drawCall.count, gl.UNSIGNED_INT, drawCall.start * Uint32Array.BYTES_PER_ELEMENT);
 		}
 	}
 
-	bindShadowMap(lightIndex: number) {
-		if (!this.depthTexture) return;
-
+	bindShadowMap() {
 		let { gl } = this.renderer;
-
-		const shadowMapStartIndex = 1 + CUBE_MAPS_PER_DRAW_CALL;
-		gl.activeTexture((gl as any)['TEXTURE' + (shadowMapStartIndex + lightIndex)]);
-		gl.bindTexture(gl.TEXTURE_2D, this.depthTexture);
+		this.renderer.bindTexture(this.depthTexture, 2, gl.TEXTURE_2D);
 	}
 }

@@ -1,14 +1,9 @@
-#version 300 es
 precision highp float;
 
 #include <definitions>
 
-in vec3 position;
-in vec3 normal;
-in vec4 tangent;
-in vec2 uv;
-in float meshInfoIndex;
-in float materialIndex;
+attribute vec3 position;
+attribute float meshInfoIndex;
 
 uniform mat4 meshInfos[MESH_COUNT];
 uniform mat4 viewMatrix;

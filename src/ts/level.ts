@@ -383,12 +383,25 @@ export class Level extends Scheduler {
 				let material = new Material();
 				material.isSky = true;
 				material.envMap = skyboxCubeTexture;
+				material.depthWrite = false;
+				material.renderOrder = -1000; // Render before everything else
+
 				let geometry = new Geometry();
+				geometry.positions.push(-1, -1, 0);
+				geometry.positions.push(3, -1, 0);
+				geometry.positions.push(-1, 3, 0);
+
+				/*
+				geometry.positions.length = 0;
+				geometry.positions.push(1, -1, 1);
+				
+				geometry.positions.push(-1, 1, 1);
 				geometry.positions.push(-1, -1, 1);
-				geometry.positions.push(3, -1, 1);
-				geometry.positions.push(-1, 3, 1);
+				*/
 				geometry.materials.push(0, 0, 0);
+				geometry.indices.push(0, 1, 2);
 				geometry.fillRest();
+
 				let mesh = new Mesh(geometry, [material]);
 				this.ownScene.add(mesh);
 			}
@@ -869,6 +882,10 @@ export class Level extends Scheduler {
 		this.particles.render(tempTimeState.timeSinceLoad);
 
 		this.updateCamera(tempTimeState);
+		camera.updateMatrixWorld();
+		ownCamera.projectionMatrix.copy(camera.projectionMatrix);
+		ownCamera.matrixWorldInverse.copy(camera.matrixWorldInverse);
+		ownCamera.position.copy(camera.position);
 
 		// Update the shadow camera
 		for (let light of this.ownScene.directionalLights) light.updateCamera(this.marble.group.position.clone(), -1);
@@ -883,11 +900,8 @@ export class Level extends Scheduler {
 		//this.marble.renderReflection();
 		//renderer.render(this.scene, camera);
 
-		camera.updateMatrixWorld();
-
-		ownCamera.projectionMatrix.copy(camera.projectionMatrix);
-		ownCamera.matrixWorldInverse.copy(camera.matrixWorldInverse);
-		ownCamera.position.copy(camera.position);
+		this.ownScene.prepareForRender(ownCamera);
+		this.marble.renderReflection();
 		ownRenderer.render(this.ownScene, ownCamera);
 
 		// Update the overlay
@@ -1610,7 +1624,7 @@ export class Level extends Scheduler {
 	/** Unpauses the level. */
 	unpause() {
 		this.paused = false;
-		if (!Util.isTouchDevice) document.documentElement.requestPointerLock?.();
+		if (!Util.isTouchDevice) Util.requestPointerLock();
 		state.menu.pauseScreen.hide();
 		this.lastPhysicsTick = performance.now();
 		maybeShowTouchControls();

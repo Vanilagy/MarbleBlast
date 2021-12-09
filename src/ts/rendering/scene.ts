@@ -7,43 +7,30 @@ import { CubeTexture } from "./cube_texture";
 import { DirectionalLight } from "./directional_light";
 import { Group } from "./group";
 import { Material } from "./material";
-import { Mesh } from "./mesh";
+import { MaterialIndexData, Mesh } from "./mesh";
 import { Renderer } from "./renderer";
 import { Texture } from "./texture";
 import { Program } from './program';
+import { Util } from '../util';
 
-interface MaterialGroup {
+export interface MaterialGroup {
 	material: Material,
-	meshes: Mesh[],
-	positions: number[],
-	normals: number[],
-	uvs: number[],
-	meshInfoIndices: number[],
-	drawCalls: {
-		start: number,
-		count: number,
-		meshInfoGroup: MeshInfoGroup
-	}[],
+	indexGroups: MaterialIndexData[],
+	defineChunk: string,
+	drawCalls: DrawCall[],
 	offset: number,
-	defineChunk: string
+	minDistance?: number
 }
 
-interface MeshInfoGroup {
+export interface MeshInfoGroup {
 	meshes: Mesh[],
 	buffer: Float32Array
 }
 
-export interface DrawCall {
+interface DrawCall {
 	start: number,
 	count: number,
-	meshes: Mesh[],
-	meshInfoBuffer: Float32Array,
-	materialsBuffer: Uint32Array,
-	textureId: number,
-	materials: Material[],
-	textures: Texture[],
-	cubeTextures: CubeTexture[],
-	meshVertexStarts: number[]
+	meshInfoGroup: MeshInfoGroup
 }
 
 export class Scene extends Group {
@@ -54,15 +41,18 @@ export class Scene extends Group {
 	uvBuffer: BufferAttribute;
 	meshInfoIndexBuffer: BufferAttribute;
 
-	materialGroups: MaterialGroup[];
+	allMeshes: Mesh[];
+	opaqueMaterialGroups: MaterialGroup[];
+	transparentMaterialGroups: MaterialGroup[];
 	meshInfoGroups: MeshInfoGroup[];
 	//materialIndexBuffer: BufferAttribute;
 	//drawCalls: DrawCall[];
 	//textures: WebGLTexture[] = [];
 	//indexToDrawCall: number[] = [];
-	indexBuffer: WebGLBuffer;
-	indexBufferData: Uint32Array;
-	shadowCasterIndices: number[];
+	opaqueIndexBuffer: WebGLBuffer;
+	transparentIndexBuffer: WebGLBuffer;
+	transparentIndexBufferData: Uint32Array;
+	shadowCasterDrawCalls: DrawCall[];
 	shadowCasterIndexBuffer: WebGLBuffer;
 
 	ambientLights: AmbientLight[] = [];
@@ -88,149 +78,105 @@ export class Scene extends Group {
 		this.directionalLights.push(light);
 	}
 
-	makeTexture(textures: Texture[]) {
-		let maxDim = 0;
-		for (let texture of textures) {
-			maxDim = Math.max(maxDim, texture.image.naturalWidth, texture.image.naturalHeight);
-		}
-		//maxDim = 4;
-
-		console.log(textures);
-
-		let data = new Uint8ClampedArray(4 * maxDim**2 * textures.length);
-		let canvas = document.createElement('canvas');
-		canvas.setAttribute('width', maxDim.toString());
-		canvas.setAttribute('height', maxDim.toString());
-		let ctx = canvas.getContext('2d');
-		
-		for (let texture of textures) {
-			ctx.clearRect(0, 0, maxDim, maxDim);
-			ctx.drawImage(texture.image, 0, 0, maxDim, maxDim);
-
-			let imageData = ctx.getImageData(0, 0, maxDim, maxDim);
-			data.set(imageData.data, 4 * maxDim**2 * textures.indexOf(texture));
-		}
-
-		let gl = this.renderer.gl;
-		let tex = gl.createTexture();
-		gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex);
-		gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA, maxDim, maxDim, textures.length, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-		gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
-		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D_ARRAY, this.renderer.extensions.EXT_texture_filter_anisotropic.TEXTURE_MAX_ANISOTROPY_EXT, 16);
-
-		return tex;
-	}
-
 	async compile() {
-		let materialMap = new Map<Material, MaterialGroup>();
+		let { gl } = this.renderer;
+		let materialMap = new Map<string, MaterialGroup>();
 		let uniformCounts = this.renderer.getUniformsCounts();
 
 		let allMeshes: Mesh[] = [];
 		this.traverse(obj => obj instanceof Mesh && allMeshes.push(obj));
+		this.allMeshes = allMeshes;
 
-		for (let mesh of allMeshes) {
-			for (let material of mesh.materials) {
-				if (!materialMap.has(material)) materialMap.set(material, {
-					material,
-					meshes: [],
-					positions: [],
-					normals: [],
-					uvs:[],
-					meshInfoIndices: [],
-					drawCalls: [],
-					offset: 0,
-					defineChunk: material.buildDefineChunk()
-				});
+		const meshesPerMeshInfoGroup = Math.floor(uniformCounts.meshInfoVectors / 4);
 
-				let group = materialMap.get(material);
-				group.meshes.push(mesh);
-			}
-		}
-
-		let materialGroups = [...materialMap].map(x => x[1]);
-		materialGroups.sort((a, b) => a.defineChunk.localeCompare(b.defineChunk));
-		this.materialGroups = materialGroups;
-
-		for (let group of materialGroups) {
-			if (this.renderer.materialShaders.has(group.defineChunk)) continue;
-
-			let program = new Program(this.renderer, materialVert, materialFrag, group.defineChunk);
-			this.renderer.materialShaders.set(group.defineChunk, program);
-		}
-
-		let orderedMeshes = [...new Set(materialGroups.map(group => group.meshes).flat())];
+		let positions: number[] = [];
+		let normals: number[] = [];
+		let tangents: number[] = [];
+		let uvs: number[] = [];
+		let meshInfoIndices: number[] = [];
 		let meshInfoGroups: MeshInfoGroup[] = [];
-		let currentMeshInfoGroup: MeshInfoGroup;
-		let meshToMeshInfoGroup = new Map<Mesh, MeshInfoGroup>();
+		let shadowCasterIndices: number[] = [];
 
-		const finalizeMeshInfoGroup = () => {
-			if (currentMeshInfoGroup?.meshes.length) {
-				currentMeshInfoGroup.buffer = new Float32Array(16 * currentMeshInfoGroup.meshes.length);
-				meshInfoGroups.push(currentMeshInfoGroup);
-			}
+		for (let i = 0; i < allMeshes.length; i += meshesPerMeshInfoGroup) {
+			let meshes = allMeshes.slice(i, i + meshesPerMeshInfoGroup);
+			let buffer = new Float32Array(16 * meshes.length);
 
-			currentMeshInfoGroup = {
-				meshes: [],
-				buffer: null
-			};
-		};
-		finalizeMeshInfoGroup();
-
-		for (let mesh of orderedMeshes) {
-			currentMeshInfoGroup.meshes.push(mesh);
-			meshToMeshInfoGroup.set(mesh, currentMeshInfoGroup);
-
-			if (currentMeshInfoGroup.meshes.length >= uniformCounts.meshInfoVectors/4)
-				finalizeMeshInfoGroup();
+			meshInfoGroups.push({ meshes, buffer });
 		}
-		finalizeMeshInfoGroup();
+
 		this.meshInfoGroups = meshInfoGroups;
+		this.shadowCasterDrawCalls = [{ meshInfoGroup: meshInfoGroups[0], start: 0, count: 0 }];
 
-		for (let mesh of orderedMeshes) {
-			let verts = mesh.geometry.positions.length/3;
-			let meshInfoGroup = meshToMeshInfoGroup.get(mesh);
-			let meshInfoIndex = meshInfoGroup.meshes.indexOf(mesh);
+		for (let [index, mesh] of allMeshes.entries()) {
+			mesh.vboOffset = meshInfoIndices.length;
+			mesh.compileMaterialIndices();
 
-			for (let i = 0; i < verts; i++) {
-				let { positions, normals, uvs } = mesh.geometry;
-				let material = mesh.materials[mesh.geometry.materials[i]];
-				let materialGroup = materialMap.get(material);
+			let verts = mesh.geometry.positions.length / 3;
+			let meshInfoGroup = meshInfoGroups[Math.floor(index / meshesPerMeshInfoGroup)];
+			let indexInMeshInfoGroup = index % meshesPerMeshInfoGroup;
+			mesh.meshInfoGroup = meshInfoGroup;
 
-				if (materialGroup.drawCalls.length === 0) {
-					materialGroup.drawCalls.push({ meshInfoGroup, start: 0, count: 0 });
-				} else {
-					let last = materialGroup.drawCalls[materialGroup.drawCalls.length - 1];
-					if (last.meshInfoGroup !== meshInfoGroup) {
-						materialGroup.drawCalls.push({ meshInfoGroup, start: last.start + last.count, count: 0 });
-					}
+			Util.pushArray(positions, mesh.geometry.positions);
+			Util.pushArray(normals, mesh.geometry.normals);
+			Util.pushArray(uvs, mesh.geometry.uvs);
+			Util.pushArray(meshInfoIndices, Array(verts).fill(indexInMeshInfoGroup));
+
+			let hasNormalMap = mesh.materials.some(x => x.normalMap);
+			if (hasNormalMap) {
+				this.computeTangents(mesh.geometry.positions, mesh.geometry.normals, mesh.geometry.uvs, tangents);
+			} else {
+				Util.pushArray(tangents, Array(4 * verts).fill(0));
+			}
+
+			for (let data of mesh.materialIndices) {
+				let material = data.material;
+				let defineChunk = material.getDefineChunk();
+
+				if (!this.renderer.materialShaders.has(defineChunk)) {
+					let program = new Program(this.renderer, materialVert, materialFrag, defineChunk);
+					this.renderer.materialShaders.set(defineChunk, program);
 				}
-				let drawCall = materialGroup.drawCalls[materialGroup.drawCalls.length - 1];
 
-				materialGroup.positions.push(positions[3*i + 0], positions[3*i + 1], positions[3*i + 2]);
-				materialGroup.normals.push(normals[3*i + 0], normals[3*i + 1], normals[3*i + 2]);
-				materialGroup.uvs.push(uvs[2*i + 0], uvs[2*i + 1]);
-				materialGroup.meshInfoIndices.push(meshInfoIndex);
-				drawCall.count++;
+				if (mesh.castShadows) {
+					Util.pushArray(shadowCasterIndices, data.indices);
+					this.extendDrawCall(this.shadowCasterDrawCalls, data.indices.length, meshInfoGroup);
+				}
+
+				if (material.transparent) continue; // We do only opaque stuff
+
+				this.updateMaterialGroup(materialMap, data, meshInfoGroup);
 			}
 		}
 
-		let offset = 0;
-		for (let group of materialGroups) {
-			group.offset = offset;
-			offset += group.positions.length / 3;
-		}
+		let opaqueMaterialGroups = [...materialMap].map(x => x[1]);
+		opaqueMaterialGroups.sort((a, b) => a.defineChunk.localeCompare(b.defineChunk)).sort((a, b) => a.material.renderOrder - b.material.renderOrder);
+		this.opaqueMaterialGroups = opaqueMaterialGroups;
 
-		let positions = materialGroups.map(x => x.positions).flat();
-		let normals = materialGroups.map(x => x.normals).flat();
-		let uvs = materialGroups.map(x => x.uvs).flat();
-		let meshInfoIndices = materialGroups.map(x => x.meshInfoIndices).flat();
+		let indices: number[] = [];
+
+		for (let group of opaqueMaterialGroups) {
+			group.offset = indices.length;
+			for (let data of group.indexGroups) Util.pushArray(indices, data.indices);
+		}
 
 		this.positionBuffer = new BufferAttribute(this.renderer, 'position', new Float32Array(positions), 3);
 		this.normalBuffer = new BufferAttribute(this.renderer, 'normal', new Float32Array(normals), 3);
+		this.tangentBuffer = new BufferAttribute(this.renderer, 'tangent', new Float32Array(tangents), 4);
 		this.uvBuffer = new BufferAttribute(this.renderer, 'uv', new Float32Array(uvs), 2);
 		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, 'meshInfoIndex', new Float32Array(meshInfoIndices), 1);
+		
+		let opaqueIndexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, opaqueIndexBuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
+		this.opaqueIndexBuffer = opaqueIndexBuffer;
+
+		let totalIndexCount = allMeshes.map(x => x.geometry.indices.length).reduce((a, b) => a + b);
+		let transparentIndexBuffer = gl.createBuffer();
+		let transparentIndexBufferData = new Uint32Array(totalIndexCount);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, transparentIndexBuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, transparentIndexBufferData, gl.DYNAMIC_DRAW);
+		this.transparentIndexBuffer = transparentIndexBuffer;
+		this.transparentIndexBufferData = transparentIndexBufferData;
 
 		let totalAmbientLight = new THREE.Color(0);
 		this.ambientLights.forEach(x => totalAmbientLight.add(x.color));
@@ -247,153 +193,46 @@ export class Scene extends Group {
 		this.directionalLightDirectionBuffer = new Float32Array(directionalLightDirection.toArray());
 		this.directionalLightTransformBuffer = new Float32Array(16);
 
-		console.log(materialGroups, meshInfoGroups)
-
-
-		/*
-
-		let positions: number[] = [];
-		let normals: number[] = [];
-		let uvs: number[] = [];
-		let meshInfoIndices: number[] = [];
-		let materialIndices: number[] = [];
-		let shadowCasterIndices: number[] = [];
-
-		let { gl } = this.renderer;
-
-		let allMeshes: Mesh[] = [];
-		this.traverse(obj => obj instanceof Mesh && allMeshes.push(obj));
-
-		let maxArrayTextureLayers = gl.getParameter(gl.MAX_ARRAY_TEXTURE_LAYERS) as number;
-		let uniformCounts = this.renderer.getUniformsCounts();
-
-		let drawCalls: DrawCall[] = [];
-		let currentStart = 0;
-		let currentCount = 0;
-		let currentTextureIndex = 0;
-		let currentTextures: Texture[] = [];
-		let currentMeshes: Mesh[] = [];
-		let currentMeshVertexStarts: number[] = [];
-		let currentMaterials: Material[] = [];
-		let currentCubeTextures: CubeTexture[] = [];
-
-		const commitDrawCall = () => {
-			if (currentCount > 0) {
-				let drawCall: DrawCall = {
-					start: currentStart,
-					count: currentCount,
-					meshes: currentMeshes,
-					meshInfoBuffer: new Float32Array(currentMeshes.length * 16),
-					materialsBuffer: new Uint32Array(currentMaterials.length * 4),
-					textureId: currentTextureIndex,
-					materials: currentMaterials,
-					textures: currentTextures.slice(),
-					cubeTextures: currentCubeTextures,
-					meshVertexStarts: currentMeshVertexStarts
-				};
-				drawCalls.push(drawCall);
-			}
-
-			currentStart += currentCount;
-			currentCount = 0;
-			currentMeshes = [];
-			currentMaterials = [];
-			currentCubeTextures = [];
-			currentTextureIndex = this.textures.length;
-		};
-
-		const commitTexture = async () => {
-			let tex = this.makeTexture(currentTextures);
-			this.textures.push(tex);
-			currentTextures = [];
-			commitDrawCall();
-		};
-
-		this.drawCalls = drawCalls;
-
-		const pushArray = <T>(target: T[], toPush: T[]) => {
-			for (let elem of toPush) target.push(elem);
-		};
-
-		console.log(allMeshes)
-
-		for (let i = 0; i < allMeshes.length; i++) {
-			let mesh = allMeshes[i];
-			let newMaterials: Material[] = [];
-			let newTextures: Texture[] = [];
-			let newCubeTextures: CubeTexture[] = [];
-
-			mesh.geometry.validate();
-
-			for (let mat of mesh.materials) {
-				if (!currentMaterials.includes(mat)) newMaterials.push(mat);
-				for (let tex of mat.availableTextures) if (!currentTextures.includes(tex)) newTextures.push(tex);
-				if (mat.envMap && !currentCubeTextures.includes(mat.envMap)) newCubeTextures.push(mat.envMap);
-			}
-			
-			if (currentTextures.length + newTextures.length > maxArrayTextureLayers) commitTexture();
-			if (currentCubeTextures.length + newCubeTextures.length > CUBE_MAPS_PER_DRAW_CALL) commitDrawCall();
-			if ((currentMeshes.length + 1) * 4 > uniformCounts.transformVectors) commitDrawCall();
-			if ((currentMeshes.length + 1) * 1 > uniformCounts.materialVectors) commitDrawCall();
-
-			currentMaterials.push(...newMaterials);
-			currentTextures.push(...newTextures);
-			currentCubeTextures.push(...newCubeTextures);
-
-			let verts = mesh.geometry.positions.length / 3;
-			currentCount += verts;
-			currentMeshes.push(mesh);
-			currentMeshVertexStarts.push(positions.length/3);
-
-			if (mesh.castShadows) pushArray(shadowCasterIndices, new Array(verts).fill(null).map((_, i) => positions.length/3 + i));
-
-			pushArray(positions, mesh.geometry.positions);
-			pushArray(normals, mesh.geometry.normals);
-			pushArray(uvs, mesh.geometry.uvs);
-			pushArray(meshInfoIndices, new Array(verts).fill(currentMeshes.indexOf(mesh)));
-			pushArray(materialIndices, mesh.geometry.materials.map(x => currentMaterials.indexOf(mesh.materials[x])));
-			pushArray(this.indexToDrawCall, new Array(verts).fill(drawCalls.length));
-		}
-		commitDrawCall();
-		commitTexture();
-
-		console.log(drawCalls);
-
-		let tangents = this.computeTangents(positions, normals, uvs);
-
-		this.positionBuffer = new BufferAttribute(this.renderer, 'position', new Float32Array(positions), 3);
-		this.normalBuffer = new BufferAttribute(this.renderer, 'normal', new Float32Array(normals), 3);
-		this.tangentBuffer = new BufferAttribute(this.renderer, 'tangent', new Float32Array(tangents), 4);
-		this.uvBuffer = new BufferAttribute(this.renderer, 'uv', new Float32Array(uvs), 2);
-		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, 'meshInfoIndex', new Float32Array(meshInfoIndices), 1);
-		this.materialIndexBuffer = new BufferAttribute(this.renderer, 'materialIndex', new Float32Array(materialIndices), 1);
-
-		let totalAmbientLight = new THREE.Color(0);
-		this.ambientLights.forEach(x => totalAmbientLight.add(x.color));
-		this.ambientLightBuffer = new Float32Array(totalAmbientLight.toArray());
-
-		const shadowMapStartIndex = 1 + CUBE_MAPS_PER_DRAW_CALL;
-		this.directionalLightColorBuffer = new Float32Array(3 * DIRECTIONAL_LIGHT_COUNT);
-		this.directionalLightDirectionBuffer = new Float32Array(3 * DIRECTIONAL_LIGHT_COUNT);
-		this.directionalLightTransformBuffer = new Float32Array(16 * DIRECTIONAL_LIGHT_COUNT);
-		this.directionalLightShadowMapBuffer = new Uint32Array(new Array(DIRECTIONAL_LIGHT_COUNT).fill(shadowMapStartIndex));
-
-		this.indexBufferData = new Uint32Array(meshInfoIndices.length);
-		this.indexBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indexBufferData, gl.DYNAMIC_DRAW);
-
-		this.shadowCasterIndices = shadowCasterIndices;
 		this.shadowCasterIndexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.shadowCasterIndexBuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(shadowCasterIndices), gl.STATIC_DRAW);
-		*/
+	}
+
+	updateMaterialGroup(materialMap: Map<string, MaterialGroup>, data: MaterialIndexData, meshInfoGroup: MeshInfoGroup) {
+		let material = data.material;
+		let materialHash = material.getHash();
+		let materialGroup = materialMap.get(materialHash);
+
+		if (!materialGroup) {
+			materialGroup = {
+				material,
+				indexGroups: [],
+				defineChunk: material.getDefineChunk(),
+				drawCalls: [{ meshInfoGroup, start: 0, count: 0 }],
+				offset: 0,
+				minDistance: Infinity
+			};
+			materialMap.set(materialHash, materialGroup);
+		}
+
+		this.extendDrawCall(materialGroup.drawCalls, data.indices.length, meshInfoGroup);
+		materialGroup.indexGroups.push(data);
+		
+		return materialGroup;
+	}
+
+	extendDrawCall(drawCalls: DrawCall[], count: number, meshInfoGroup: MeshInfoGroup) {
+		let lastDrawCall = Util.last(drawCalls);
+		if (lastDrawCall.meshInfoGroup !== meshInfoGroup) {
+			lastDrawCall = { meshInfoGroup, start: lastDrawCall.start + lastDrawCall.count, count: 0 };
+			drawCalls.push(lastDrawCall);
+		}
+
+		lastDrawCall.count += count;
 	}
 
 	// https://www.cs.upc.edu/~virtual/G/1.%20Teoria/06.%20Textures/Tangent%20Space%20Calculation.pdf
-	computeTangents(positions: number[], normals: number[], uvs: number[]) {
-		let tangents: number[] = [];
-
+	computeTangents(positions: number[], normals: number[], uvs: number[], tangents: number[]) {
 		let verts = positions.length / 3;
 		let tris = verts / 3;
 
@@ -452,8 +291,50 @@ export class Scene extends Group {
 				tangents.push(tangent.x, tangent.y, tangent.z, w);
 			}
 		}
+	}
 
-		return tangents;
+	prepareForRender(camera: THREE.PerspectiveCamera) {
+		let { gl } = this.renderer;
+
+		this.update();
+		this.directionalLights[0]?.renderShadowMap(this);
+
+		let temp = new THREE.Vector3();
+		let cameraPosition = camera.position;
+		let sortedMeshes = this.allMeshes.slice().sort((a, b) => {
+			let distA = temp.setFromMatrixPosition(a.worldTransform).distanceToSquared(cameraPosition);
+			let distB = temp.setFromMatrixPosition(b.worldTransform).distanceToSquared(cameraPosition)
+			return distB - distA;
+		});
+		let materialMap = new Map<string, MaterialGroup>();
+
+		for (let mesh of sortedMeshes) {
+			let meshInfoGroup = mesh.meshInfoGroup;
+			let distance = temp.setFromMatrixPosition(mesh.worldTransform).distanceToSquared(cameraPosition);
+
+			for (let data of mesh.materialIndices) {
+				let material = data.material;
+				if (!material.transparent && (mesh.opacity === 1 || mesh.opacity === 0)) continue;
+
+				let group = this.updateMaterialGroup(materialMap, data, meshInfoGroup);
+				group.minDistance = Math.min(group.minDistance, distance);
+			}
+		}
+
+		let materialGroups = [...materialMap].map(x => x[1]);
+		materialGroups.sort((a, b) => b.minDistance - a.minDistance);
+		this.transparentMaterialGroups = materialGroups;
+
+		let offset = 0;
+		for (let group of materialGroups) {
+			group.offset = offset;
+			for (let data of group.indexGroups) {
+				this.transparentIndexBufferData.set(data.indexBuffer, offset);
+				offset += data.indices.length;
+			}
+		}
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.transparentIndexBuffer);
+		gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, this.transparentIndexBufferData, 0, offset);
 	}
 
 	update() {
@@ -464,7 +345,7 @@ export class Scene extends Group {
 				let mesh = group.meshes[i];
 
 				if (mesh.needsVertexBufferUpdate) {
-					let offset = drawCall.meshVertexStarts[i];
+					let offset = mesh.vboOffset;
 					this.positionBuffer.set(mesh.geometry.positions, offset);
 					this.normalBuffer.set(mesh.geometry.normals, offset);
 					this.uvBuffer.set(mesh.geometry.uvs, offset);
@@ -476,32 +357,7 @@ export class Scene extends Group {
 				}
 			}
 		}
-
-		/*
-		for (let drawCall of this.drawCalls) {
-			for (let i = 0; i < drawCall.meshes.length; i++) {
-				let mesh = drawCall.meshes[i];
-
-				if (this.firstUpdate || mesh.needsVertexBufferUpdate) {
-					let offset = drawCall.meshVertexStarts[i];
-					this.positionBuffer.set(mesh.geometry.positions, offset);
-					this.normalBuffer.set(mesh.geometry.normals, offset);
-					this.uvBuffer.set(mesh.geometry.uvs, offset);
-				}
-
-				if (this.firstUpdate || mesh.needsMeshInfoBufferUpdate) {
-					mesh.updateMeshInfoBuffer(drawCall.meshInfoBuffer, 16 * i);
-				}
-			}
-			for (let i = 0; i < drawCall.materials.length; i++) {
-				let material = drawCall.materials[i];
-				if (!this.firstUpdate && !material.needsMaterialBufferUpdate) continue;
-
-				drawCall.materialsBuffer.set(material.encode(drawCall.textures, drawCall.cubeTextures), 4 * i);
-				material.needsMaterialBufferUpdate = false;
-			}
-		}
-		*/
+		
 		this.positionBuffer.update();
 		this.normalBuffer.update();
 		this.uvBuffer.update();

@@ -767,6 +767,11 @@ export abstract class Util {
 	static pushArray<T>(target: T[], toPush: T[]) {
 		for (let elem of toPush) target.push(elem);
 	}
+
+	static requestPointerLock() {
+		let ret = document.documentElement.requestPointerLock?.() as any as Promise<void>;
+		if (ret && ret instanceof Promise) ret.catch(() => {});
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 

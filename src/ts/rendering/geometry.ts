@@ -1,11 +1,12 @@
 import THREE from "three";
+import { Util } from "../util";
 
 export class Geometry {
-	positions: number[] = [];
-	normals: number[] = [];
-	uvs: number[] = [];
-	materials: number[] = [];
-	indices: number[] = []; // Doesn't have to be filled, but is needed for some Shape stuff
+	readonly positions: number[] = [];
+	readonly normals: number[] = [];
+	readonly uvs: number[] = [];
+	readonly materials: number[] = [];
+	readonly indices: number[] = [];
 
 	fillRest() {
 		while (this.normals.length/3 < this.positions.length/3) this.normals.push(0, 0, 0);
@@ -13,9 +14,9 @@ export class Geometry {
 	}
 
 	validate() {
-		let verts = this.positions.length/3;
+		let verts = this.indices.length/3;
 
-		if (new Set([verts, this.normals.length/3, this.uvs.length/2, this.materials.length/1]).size !== 1) {
+		if (new Set([this.positions.length/3, this.normals.length/3, this.uvs.length/2, this.materials.length/1]).size !== 1) {
 			console.error(this);
 			throw new Error(`Geometry is invalid (vertex counts don't match):
 Positions: ${verts}
@@ -23,6 +24,14 @@ Normals: ${this.normals.length/3}
 Uvs: ${this.uvs.length/2},
 Material Indices: ${this.materials.length/1}
 			`);
+		}
+
+		for (let i = 0; i < this.indices.length; i++) {
+			let index = this.indices[i];
+			if (index >= this.positions.length/3) {
+				console.error(this);
+				throw new Error("Geometry is invalid (index points out of bounds)");
+			}
 		}
 
 		if (verts % 3)
@@ -101,6 +110,10 @@ Material Indices: ${this.materials.length/1}
 
 		}
 
+		Util.pushArray(geometry.positions, vertices);
+		Util.pushArray(geometry.normals, normals);
+		Util.pushArray(geometry.uvs, uvs);
+
 		// indices
 
 		for ( let iy = 0; iy < heightSegments; iy ++ ) {
@@ -112,20 +125,13 @@ Material Indices: ${this.materials.length/1}
 				const c = grid[ iy + 1 ][ ix ];
 				const d = grid[ iy + 1 ][ ix + 1 ];
 
-				let indices: number[] = [];
-
-				if ( iy !== 0 || thetaStart > 0 ) indices.push(a, b, d);
-				if ( iy !== heightSegments - 1 || thetaEnd < Math.PI ) indices.push(b, c, d);
-
-				for (let index of indices) {
-					geometry.positions.push(vertices[3*index + 0], vertices[3*index + 1], vertices[3*index + 2]);
-					geometry.normals.push(normals[3*index + 0], normals[3*index + 1], normals[3*index + 2]);
-					geometry.uvs.push(uvs[2*index + 0], uvs[2*index + 1]);
-					geometry.materials.push(0);
-				}
+				if ( iy !== 0 || thetaStart > 0 ) geometry.indices.push(a, b, d);
+				if ( iy !== heightSegments - 1 || thetaEnd < Math.PI ) geometry.indices.push(b, c, d);
 			}
 
 		}
+
+		Util.pushArray(geometry.materials, Array(geometry.indices.length).fill(0));
 
 		return geometry;
 	}

@@ -163,8 +163,6 @@ export class Shape {
 	/** Stores information used to animate materials. */
 	materialInfo: WeakMap<Material, MaterialInfo>;
 	castShadows = false;
-	/** Whether or not to flip the v texture axes. */
-	flipY = false;
 
 	/** Stores all nodes from the node tree. */
 	graphNodes: GraphNode[];
@@ -190,9 +188,7 @@ export class Shape {
 	ambientSpinFactor = -1 / 3000 * Math.PI * 2;
 	/** Whether or not collision meshes will receive shadows. */
 	receiveShadows = true;
-	/** Whether or not to normalize vertex normals on the GPU. This is off by default because that's what Torque does. It's what makes stuff dark when it gets scaled. */
-	normalizeVertexNormals = false;
-	onBeforeMaterialCompile: (shader: THREE.Shader) => void = null;
+	materialPostprocessor: (mat: Material) => void = null;
 
 	/** Same shapes with a different shareId cannot share data. */
 	shareId: number = 0;
@@ -337,10 +333,10 @@ export class Shape {
 		for (let [i, geometry] of sharedData.geometries.entries()) {
 			let materials = this.materials;
 			if (sharedData.collisionGeometries.has(geometry)) {
-				continue;
 				let shadowMaterial = new Material();
-				shadowMaterial.type = MaterialType.Shadow;
+				shadowMaterial.isShadow = true;
 				shadowMaterial.transparent = true;
+				shadowMaterial.depthWrite = false;
 				materials = [shadowMaterial];
 				geometry.materials.fill(0);
 			}
@@ -412,17 +408,8 @@ export class Shape {
 
 			let material = new Material();
 			if ((flags & MaterialFlags.SelfIlluminating) || environmentMaterial) material.emissive = true;
-			material.flipY = this.flipY;
 
 			this.materials.push(material);
-			
-			/*
-			material.onBeforeCompile = shader => {
-				if (this.normalizeVertexNormals) shader.vertexShader = '#define NORMALIZE_TRANSFORMED_NORMAL\n' + shader.vertexShader;
-				this.onBeforeMaterialCompile?.(shader);
-			};
-			material.customProgramCacheKey = () => material.onBeforeCompile.toString() + this.onBeforeMaterialCompile?.toString(); // The default cache key is the onBeforeCompile, but that can differ for us here.
-			*/
 
 			if (matName instanceof Texture) {
 				material.diffuseMap = matName;
@@ -455,25 +442,31 @@ export class Shape {
 				let textures = await Promise.all(promises);
 
 				material.diffuseMap = textures[0]; // So that we compile the material in the right type of shader
+				material.differentiator = ResourceManager.mainDataPath + this.directoryPath + '/' + fullName;
 			} else {
 				let texture = await ResourceManager.getTexture(this.directoryPath + '/' + fullName, (flags & MaterialFlags.Translucent) === 0); // Make sure to remove the alpha of the texture if it's not flagged as translucent
 				material.diffuseMap = texture;
 			}
 
 			// Set some properties based on the flags
-			if (flags & MaterialFlags.Translucent) material.transparent = true;
+			if (flags & MaterialFlags.Translucent) {
+				material.transparent = true;
+				material.depthWrite = false;
+			}
 			if (flags & MaterialFlags.Additive) material.blending = THREE.AdditiveBlending;
-			if (flags & MaterialFlags.Subtractive) material.blending = THREE.SubtractiveBlending; // Not supported tho
+			if (flags & MaterialFlags.Subtractive) material.blending = THREE.SubtractiveBlending;
 			if (this.isTSStatic && !(flags & MaterialFlags.NeverEnvMap)) {
 				material.reflectivity = this.dts.matNames.length === 1? 1 : environmentMaterial? 0.5 : 0.333;
 				material.envMap = this.level.envMap;
 			}
-			material.normalizeNormals = this.normalizeVertexNormals;
+
+			this.materialPostprocessor?.(material);
 		}
 
 		// If there are no materials, atleast add one environment one
 		if (this.materials.length === 0) {
-			let mat = new EmissiveMaterial();
+			let mat = new Material();
+			mat.emissive = true;
 			mat.envMap = this.level.envMap;
 			mat.reflectivity = 1;
 			this.materials.push(mat);
@@ -484,10 +477,22 @@ export class Shape {
 	generateGeometryFromMesh(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[]) {
 		let geometry = new Geometry();
 
+		for (let i = 0; i < vertices.length; i++) {
+			let vertex = vertices[i];
+			let uv = dtsMesh.tverts[i];
+			let normal = vertexNormals[i];
+
+			geometry.positions.push(vertex.x, vertex.y, vertex.z);
+			geometry.normals.push(normal.x, normal.y, normal.z);
+			geometry.uvs.push(uv.x, uv.y);
+		}
+
+		let ab = new THREE.Vector3();
+		let ac = new THREE.Vector3();
 		const addTriangleFromIndices = (i1: number, i2: number, i3: number, materialIndex: number) => {
 			// We first perform a check: If the computed face normal points in the opposite direction of all vertex normals, we need to invert the winding order of the vertices.
-			let ab = new THREE.Vector3(vertices[i2].x - vertices[i1].x, vertices[i2].y - vertices[i1].y, vertices[i2].z - vertices[i1].z);
-			let ac = new THREE.Vector3(vertices[i3].x - vertices[i1].x, vertices[i3].y - vertices[i1].y, vertices[i3].z - vertices[i1].z);
+			ab.set(vertices[i2].x - vertices[i1].x, vertices[i2].y - vertices[i1].y, vertices[i2].z - vertices[i1].z);
+			ac.set(vertices[i3].x - vertices[i1].x, vertices[i3].y - vertices[i1].y, vertices[i3].z - vertices[i1].z);
 			let normal = ab.cross(ac).normalize();
 			let dot1 = normal.dot(vertexNormals[i1]);
 			let dot2 = normal.dot(vertexNormals[i2]);
@@ -495,19 +500,8 @@ export class Shape {
 			if (!this.dtsPath.includes('helicopter.dts')) if (dot1 < 0 && dot2 < 0 && dot3 < 0) [i1, i3] = [i3, i1];
 			// ^ temp hardcoded fix
 
-			for (let index of [i1, i2, i3]) {
-				let vertex = vertices[index];
-				geometry.positions.push(vertex.x, vertex.y, vertex.z);
-
-				let uv = dtsMesh.tverts[index];
-				geometry.uvs.push(uv.x, uv.y);
-
-				let normal = vertexNormals[index];
-				geometry.normals.push(normal.x, normal.y, normal.z);
-
-				geometry.indices.push(index);
-				geometry.materials.push(materialIndex);
-			}
+			geometry.indices.push(i1, i2, i3);
+			geometry.materials.push(materialIndex, materialIndex, materialIndex);
 		};
 
 		for (let primitive of dtsMesh.primitives) {
@@ -866,10 +860,9 @@ export class Shape {
 
 			// Update the values in the buffer attributes
 			let geometry = info.mesh.geometry;
-			for (let i = 0; i < geometry.indices.length; i++) {
-				let index = geometry.indices[i];
-				let vertex = info.vertices[index];
-				let normal = info.normals[index];
+			for (let i = 0; i < info.vertices.length; i++) {
+				let vertex = info.vertices[i];
+				let normal = info.normals[i];
 
 				geometry.positions[3*i + 0] = vertex.x;
 				geometry.positions[3*i + 1] = vertex.y;
