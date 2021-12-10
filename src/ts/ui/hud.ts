@@ -41,6 +41,8 @@ export abstract class Hud {
 	blastMeter: HTMLDivElement;
 	blastMeterBody: HTMLImageElement;
 	blastMeterFill: HTMLImageElement;
+	lastBlastMeterBodySrc: string = null;
+	lastBlastMeterFillSrc: string = null;
 
 	abstract gemCountMinDigits: number;
 	abstract showClockBackground: boolean;
@@ -288,8 +290,15 @@ export abstract class Hud {
 	}
 
 	displayBlastMeterFullness(amount: number) {
-		if (amount > 1) this.blastMeterBody.src = './assets/ui_mbp/game/blastbar_charged.png';
-		else this.blastMeterBody.src = './assets/ui_mbp/game/blastbar.png';
+		// The src inequality checks are here for performance reasons
+
+		let blastMeterBodySrc: string;
+		if (amount > 1) blastMeterBodySrc = './assets/ui_mbp/game/blastbar_charged.png';
+		else blastMeterBodySrc = './assets/ui_mbp/game/blastbar.png';
+		if (blastMeterBodySrc !== this.lastBlastMeterBodySrc) {
+			this.blastMeterBody.src = blastMeterBodySrc;
+			this.lastBlastMeterBodySrc = blastMeterBodySrc;
+		}
 
 		if (amount >= 0.2) {
 			if (!blastEnabled)
@@ -301,7 +310,12 @@ export abstract class Hud {
 			setBlastEnabled(false);
 		}
 
+		let blastMeterFillSrc: string;
 		this.blastMeterFill.style.width = Util.clamp(amount, 0, 1) * 109 + 'px';
-		this.blastMeterFill.src = `./assets/ui_mbp/game/blastbar_bar${(amount >= 0.2)? 'green' : 'gray'}.png`;
+		blastMeterFillSrc = `./assets/ui_mbp/game/blastbar_bar${(amount >= 0.2)? 'green' : 'gray'}.png`;
+		if (blastMeterFillSrc !== this.lastBlastMeterFillSrc) {
+			this.blastMeterFill.src = blastMeterFillSrc;
+			this.lastBlastMeterFillSrc = blastMeterFillSrc;
+		}
 	}
 }

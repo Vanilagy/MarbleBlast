@@ -3,17 +3,18 @@ import { Renderer } from "./renderer";
 export class BufferAttribute {
 	renderer: Renderer;
 	buffer: WebGLBuffer;
-	name: string;
 	data: Float32Array;
-	itemSize: number;
+	attributes: Record<string, number>; // name: itemSize
+	stride: number;
 	updateRange = { start: Infinity, end: 0 };
 
-	constructor(renderer: Renderer, name: string, data: Float32Array, itemSize: number) {
+	constructor(renderer: Renderer, data: Float32Array, attributes: BufferAttribute['attributes']) {
 		this.renderer = renderer;
 		this.buffer = renderer.gl.createBuffer();
-		this.name = name;
 		this.data = data;
-		this.itemSize = itemSize;
+		this.attributes = attributes;
+		this.stride = Object.values(attributes).reduce((a, b) => a + b);
+		if (Object.keys(attributes).length === 0) this.stride = 0; // Indicates a tightly-packed vertex attribute
 		
 		let { gl } = renderer;
 
@@ -23,9 +24,9 @@ export class BufferAttribute {
 	}
 
 	set(data: ArrayLike<number>, offset: number) {
-		this.data.set(data, offset * this.itemSize);
-		this.updateRange.start = Math.min(this.updateRange.start, offset * this.itemSize);
-		this.updateRange.end = Math.max(this.updateRange.end, offset * this.itemSize + data.length);
+		this.data.set(data, offset);
+		this.updateRange.start = Math.min(this.updateRange.start, offset);
+		this.updateRange.end = Math.max(this.updateRange.end, offset + data.length);
 	}
 
 	update() {

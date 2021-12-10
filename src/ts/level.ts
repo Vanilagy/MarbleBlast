@@ -264,7 +264,8 @@ export class Level extends Scheduler {
 		await this.initScene();
 		await this.initMarble(); this.loadingState.loaded += 1;
 		this.particles = new ParticleManager(this);
-		await this.particles.init();
+		await this.particles.init(ownRenderer);
+		this.ownScene.particleManager = this.particles;
 		let soundPromise = this.initSounds();
 		await this.addSimGroup(this.mission.root);
 		await this.initUi(); this.loadingState.loaded += 3;

@@ -12,6 +12,7 @@ import { Renderer } from "./renderer";
 import { Texture } from "./texture";
 import { Program } from './program';
 import { Util } from '../util';
+import { ParticleManager } from '../particles';
 
 export interface MaterialGroup {
 	material: Material,
@@ -45,10 +46,6 @@ export class Scene extends Group {
 	opaqueMaterialGroups: MaterialGroup[];
 	transparentMaterialGroups: MaterialGroup[];
 	meshInfoGroups: MeshInfoGroup[];
-	//materialIndexBuffer: BufferAttribute;
-	//drawCalls: DrawCall[];
-	//textures: WebGLTexture[] = [];
-	//indexToDrawCall: number[] = [];
 	opaqueIndexBuffer: WebGLBuffer;
 	transparentIndexBuffer: WebGLBuffer;
 	transparentIndexBufferData: Uint32Array;
@@ -62,8 +59,9 @@ export class Scene extends Group {
 	directionalLightColorBuffer: Float32Array;
 	directionalLightDirectionBuffer: Float32Array;
 	directionalLightTransformBuffer: Float32Array;
-	directionalLightShadowMapBuffer: Uint32Array;
 	firstUpdate = true;
+
+	particleManager: ParticleManager = null;
 
 	constructor(renderer: Renderer) {
 		super();
@@ -159,11 +157,11 @@ export class Scene extends Group {
 			for (let data of group.indexGroups) Util.pushArray(indices, data.indices);
 		}
 
-		this.positionBuffer = new BufferAttribute(this.renderer, 'position', new Float32Array(positions), 3);
-		this.normalBuffer = new BufferAttribute(this.renderer, 'normal', new Float32Array(normals), 3);
-		this.tangentBuffer = new BufferAttribute(this.renderer, 'tangent', new Float32Array(tangents), 4);
-		this.uvBuffer = new BufferAttribute(this.renderer, 'uv', new Float32Array(uvs), 2);
-		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, 'meshInfoIndex', new Float32Array(meshInfoIndices), 1);
+		this.positionBuffer = new BufferAttribute(this.renderer, new Float32Array(positions), { 'position': 3 });
+		this.normalBuffer = new BufferAttribute(this.renderer, new Float32Array(normals), { 'normal': 3 });
+		this.tangentBuffer = new BufferAttribute(this.renderer, new Float32Array(tangents), { 'tangent': 4 } );
+		this.uvBuffer = new BufferAttribute(this.renderer, new Float32Array(uvs), { 'uv': 2 });
+		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, new Float32Array(meshInfoIndices), { 'meshInfoIndex': 1 });
 		
 		let opaqueIndexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, opaqueIndexBuffer);
@@ -346,9 +344,9 @@ export class Scene extends Group {
 
 				if (mesh.needsVertexBufferUpdate) {
 					let offset = mesh.vboOffset;
-					this.positionBuffer.set(mesh.geometry.positions, offset);
-					this.normalBuffer.set(mesh.geometry.normals, offset);
-					this.uvBuffer.set(mesh.geometry.uvs, offset);
+					this.positionBuffer.set(mesh.geometry.positions, offset * 3);
+					this.normalBuffer.set(mesh.geometry.normals, offset * 3);
+					this.uvBuffer.set(mesh.geometry.uvs, offset * 2);
 					mesh.needsVertexBufferUpdate = false;
 				}
 

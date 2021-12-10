@@ -41,25 +41,25 @@ float lambert(vec3 normal, vec3 lightPosition) {
 }
 
 #ifdef IS_WEBGL1
-mat3 transpose(mat3 inMatrix) {
-	vec3 i0 = inMatrix[0];
-	vec3 i1 = inMatrix[1];
-	vec3 i2 = inMatrix[2];
+	mat3 transpose(mat3 inMatrix) {
+		vec3 i0 = inMatrix[0];
+		vec3 i1 = inMatrix[1];
+		vec3 i2 = inMatrix[2];
 
-	mat3 outMatrix = mat3(
-		vec3(i0.x, i1.x, i2.x),
-		vec3(i0.y, i1.y, i2.y),
-		vec3(i0.z, i1.z, i2.z)
-	);
+		mat3 outMatrix = mat3(
+			vec3(i0.x, i1.x, i2.x),
+			vec3(i0.y, i1.y, i2.y),
+			vec3(i0.z, i1.z, i2.z)
+		);
 
-	return outMatrix;
-}
+		return outMatrix;
+	}
 #endif
 
 vec4 sampleCubeTexture(samplerCube tex, vec3 uvw) {
-#ifdef ENV_MAP_Z_UP
-	uvw.yz = vec2(uvw.z, -uvw.y); // Rotate the "cube" about the x-axis because by default, cubemaps are Y-up but we're in Z-up space
-#endif
+	#ifdef ENV_MAP_Z_UP
+		uvw.yz = vec2(uvw.z, -uvw.y); // Rotate the "cube" about the x-axis because by default, cubemaps are Y-up but we're in Z-up space
+	#endif
 
 	return textureCube(tex, uvw);
 }
@@ -103,109 +103,116 @@ float fresnel(vec3 direction, vec3 normal, bool invert) {
 }
 
 void main() {
-#if defined(LOG_DEPTH_BUF) && !defined(IS_SKY)
-	gl_FragDepthEXT = log2(vFragDepth) * logDepthBufFC * 0.5;
-#endif
+	#if defined(LOG_DEPTH_BUF) && !defined(IS_SKY)
+		gl_FragDepthEXT = log2(vFragDepth) * logDepthBufFC * 0.5;
+	#endif
 
-#ifdef IS_SKY
-	vec4 sampled = sampleCubeTexture(envMap, eyeDirection);
-	gl_FragColor = sampled;
-#elif defined(IS_SHADOW)
-	float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
-	gl_FragColor = vec4(vec3(0.0), intensity * 0.25);
-#else
-	vec4 diffuse = vec4(1.0);
+	#ifdef IS_SKY
+		vec4 sampled = sampleCubeTexture(envMap, eyeDirection);
+		gl_FragColor = sampled;
+	#elif defined(IS_SHADOW)
+		float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
+		gl_FragColor = vec4(vec3(0.0), intensity * 0.25);
+	#else
+		vec4 diffuse = vec4(1.0);
 
-#ifdef USE_DIFFUSE
-	diffuse = texture2D(diffuseMap, vUv);
-#ifndef TRANSPARENT
-	diffuse.a = 1.0;
-#endif
-#endif
+		#ifdef USE_DIFFUSE_MAP
+			diffuse = texture2D(diffuseMap, vUv);
+			#ifndef TRANSPARENT
+				diffuse.a = 1.0;
+			#endif
+		#endif
 
-#ifdef USE_NOISE_MAP
-	vec2 noiseIndex;
-	vec4 noiseColor[4];
-	vec2 halfPixel = vec2(1.0 / 64.0, 1.0 / 64.0);
+		#ifdef USE_NOISE_MAP
+			vec2 noiseIndex;
+			vec4 noiseColor[4];
+			vec2 halfPixel = vec2(1.0 / 64.0, 1.0 / 64.0);
 
-	noiseIndex.x = floor(vUv.x - halfPixel.x) / 63.0 + 0.5/64.0;
-	noiseIndex.y = floor(vUv.y - halfPixel.y) / 63.0 + 0.5/64.0;
-	noiseColor[0] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
+			noiseIndex.x = floor(vUv.x - halfPixel.x) / 63.0 + 0.5/64.0;
+			noiseIndex.y = floor(vUv.y - halfPixel.y) / 63.0 + 0.5/64.0;
+			noiseColor[0] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
 
-	noiseIndex.x = floor(vUv.x - halfPixel.x) / 63.0 + 0.5/64.0;
-	noiseIndex.y = floor(vUv.y + halfPixel.y) / 63.0 + 0.5/64.0;
-	noiseColor[1] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
+			noiseIndex.x = floor(vUv.x - halfPixel.x) / 63.0 + 0.5/64.0;
+			noiseIndex.y = floor(vUv.y + halfPixel.y) / 63.0 + 0.5/64.0;
+			noiseColor[1] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
 
-	noiseIndex.x = floor(vUv.x + halfPixel.x) / 63.0 + 0.5/64.0;
-	noiseIndex.y = floor(vUv.y + halfPixel.y) / 63.0 + 0.5/64.0;
-	noiseColor[2] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
+			noiseIndex.x = floor(vUv.x + halfPixel.x) / 63.0 + 0.5/64.0;
+			noiseIndex.y = floor(vUv.y + halfPixel.y) / 63.0 + 0.5/64.0;
+			noiseColor[2] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
 
-	noiseIndex.x = floor(vUv.x + halfPixel.x) / 63.0 + 0.5/64.0;
-	noiseIndex.y = floor(vUv.y - halfPixel.y) / 63.0 + 0.5/64.0;
-	noiseColor[3] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
+			noiseIndex.x = floor(vUv.x + halfPixel.x) / 63.0 + 0.5/64.0;
+			noiseIndex.y = floor(vUv.y - halfPixel.y) / 63.0 + 0.5/64.0;
+			noiseColor[3] = texture2D(noiseMap, noiseIndex) * 1.0 - 0.5;
 
-	vec4 finalNoiseCol = (noiseColor[0] + noiseColor[1] + noiseColor[2] + noiseColor[3]) / 4.0;
-	diffuse.rgb *= 1.0 + finalNoiseCol.r; // This isn't how MBU does it afaik but it looks good :o
-#endif
+			vec4 finalNoiseCol = (noiseColor[0] + noiseColor[1] + noiseColor[2] + noiseColor[3]) / 4.0;
+			diffuse.rgb *= 1.0 + finalNoiseCol.r; // This isn't how MBU does it afaik but it looks good :o
+		#endif
 
-	diffuse.a *= vOpacity;
-	vec3 incomingLight = vec3(0.0);
-	vec3 specularLight = vec3(0.0);
+		diffuse.a *= vOpacity;
+		vec3 incomingLight = vec3(0.0);
+		vec3 specularLight = vec3(0.0);
 
-#ifdef EMISSIVE
-	incomingLight = vec3(1.0);
-#else
-	incomingLight += ambientLight;
+		#ifdef EMISSIVE
+			incomingLight = vec3(1.0);
+		#else
+			incomingLight += ambientLight;
 
-	vec3 normal = vNormal;
+			vec3 normal = vNormal;
 
-#ifdef USE_NORMAL_MAP
-	vec3 map = texture2D(normalMap, secondaryMapUvFactor * vUv).xyz;
-	map = map * 255.0/127.0 - 128.0/127.0;
-	normal = vTbn * map; // Don't normalize here! Reduces aliasing effects
-#endif
+			#ifdef USE_NORMAL_MAP
+				vec3 map = texture2D(normalMap, secondaryMapUvFactor * vUv).xyz;
+				map = map * 255.0/127.0 - 128.0/127.0;
+				normal = vTbn * map; // Don't normalize here! Reduces aliasing effects
+			#endif
 
-	vec3 addedLight = directionalLightColor * lambert(normal, -directionalLightDirection);
+			vec3 addedLight = directionalLightColor * lambert(normal, -directionalLightDirection);
 
-#ifdef RECEIVE_SHADOWS
-	float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
-	addedLight *= mix(1.0, 0.5, intensity);
-#endif
+			#ifdef RECEIVE_SHADOWS
+				float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
+				addedLight *= mix(1.0, 0.5, intensity);
+			#endif
 
-	incomingLight += addedLight;
-#ifdef SATURATE_INCOMING_LIGHT
-	incomingLight = min(vec3(1.0), incomingLight);
-#endif
+			incomingLight += addedLight;
+			#ifdef SATURATE_INCOMING_LIGHT
+				incomingLight = min(vec3(1.0), incomingLight);
+			#endif
 
-#ifdef USE_SPECULAR
-	vec3 viewDir = normalize(eyePosition - vPosition.xyz);
-	vec3 halfwayDir = normalize(-directionalLightDirection + viewDir);
+			#ifdef USE_SPECULAR
+				vec3 viewDir = normalize(eyePosition - vPosition.xyz);
+				vec3 halfwayDir = normalize(-directionalLightDirection + viewDir);
 
-	float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+				float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
 
-#ifdef USE_SPECULAR_MAP
-	spec *= texture2D(specularMap, secondaryMapUvFactor * vUv).r;
-#endif
+				#ifdef USE_SPECULAR_MAP
+					spec *= texture2D(specularMap, secondaryMapUvFactor * vUv).r;
+				#endif
 
-	specularLight += vec3(specularIntensity * spec);
-#endif
-#endif
+				specularLight += vec3(specularIntensity * spec);
+			#endif
+		#endif
 
-	vec4 shaded = diffuse * vec4(incomingLight, 1.0);
-	shaded.rgb += specularLight;
+		vec4 shaded = diffuse * vec4(incomingLight, 1.0);
+		shaded.rgb += specularLight;
 
-#ifdef USE_ENV_MAP
-#ifdef USE_FRESNEL
-	vec3 viewDir = normalize(eyePosition - vPosition.xyz);
-	float fac = fresnel(viewDir, normal, true);
-#else
-	float fac = 1.0;
-#endif
+		#ifdef USE_ENV_MAP
+			#ifdef USE_FRESNEL
+				vec3 viewDir = normalize(eyePosition - vPosition.xyz);
+				float fac = fresnel(viewDir, normal, true);
+			#else
+				float fac = 1.0;
+			#endif
 
-	vec4 sampled = sampleCubeTexture(envMap, vReflect);
-	shaded = mix(shaded, sampled, fac * reflectivity);
-#endif
+			#ifdef USE_ACCURATE_REFLECTION_RAY
+				vec3 incidentRay = normalize(vPosition.xyz - eyePosition);
+				vec3 reflectionRay = reflect(incidentRay, normalize(vNormal));
+			#else
+				vec3 reflectionRay = vReflect;
+			#endif
 
-	gl_FragColor = shaded;
-#endif
+			vec4 sampled = sampleCubeTexture(envMap, reflectionRay);
+			shaded = mix(shaded, sampled, fac * reflectivity);
+		#endif
+
+		gl_FragColor = shaded;
+	#endif
 }

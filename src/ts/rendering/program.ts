@@ -101,16 +101,31 @@ export class Program {
 	bindBufferAttribute(buf: BufferAttribute) {
 		let { gl } = this.renderer;
 
-		let location = this.attributeLocations.get(buf.name);
-		if (location === undefined) {
-			location = gl.getAttribLocation(this.glProgram, buf.name);
-			if (location >= 0) this.attributeLocations.set(buf.name, location);
-		}
-		if (location === -1) return;
-
 		gl.bindBuffer(gl.ARRAY_BUFFER, buf.buffer);
-		gl.vertexAttribPointer(location, buf.itemSize, gl.FLOAT, false, 0, 0);
-		gl.enableVertexAttribArray(location);
+
+		let offset = 0;
+		for (let attribute in buf.attributes) {
+			let itemSize = buf.attributes[attribute];
+			let thisOffset = offset;
+			offset += itemSize;
+
+			let location = this.attributeLocations.get(attribute);
+			if (location === undefined) {
+				location = gl.getAttribLocation(this.glProgram, attribute);
+				if (location >= 0) this.attributeLocations.set(attribute, location);
+			}
+			if (location === -1) continue;
+
+			gl.vertexAttribPointer(
+				location,
+				itemSize,
+				gl.FLOAT,
+				false,
+				Float32Array.BYTES_PER_ELEMENT * buf.stride,
+				Float32Array.BYTES_PER_ELEMENT * thisOffset
+			);
+			gl.enableVertexAttribArray(location);
+		}
 	}
 
 	getUniformLocation(name: string) {

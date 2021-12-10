@@ -28,6 +28,7 @@ export class Material {
 	reflectivity = 0;
 	envMapZUp = true;
 	useFresnel = false;
+	useAccurateReflectionRay = false;
 	specularIntensity = 0;
 	shininess = 30;
 	saturateIncomingLight = true;
@@ -74,7 +75,7 @@ export class Material {
 
 		let defines: string[] = [];
 
-		if (this.diffuseMap) defines.push('USE_DIFFUSE');
+		if (this.diffuseMap) defines.push('USE_DIFFUSE_MAP');
 		if (this.envMap) defines.push('USE_ENV_MAP');
 		if (this.normalMap) defines.push('USE_NORMAL_MAP');
 		if (this.specularMap) defines.push('USE_SPECULAR_MAP');
@@ -88,6 +89,7 @@ export class Material {
 		if (this.receiveShadows) defines.push('RECEIVE_SHADOWS');
 		if (this.envMapZUp) defines.push('ENV_MAP_Z_UP');
 		if (this.useFresnel) defines.push('USE_FRESNEL');
+		if (this.useAccurateReflectionRay) defines.push('USE_ACCURATE_REFLECTION_RAY');
 		if (this.specularIntensity) defines.push('USE_SPECULAR');
 		if (this.saturateIncomingLight) defines.push('SATURATE_INCOMING_LIGHT');
 

@@ -3,6 +3,10 @@ import { Program } from './program';
 import THREE from 'three';
 import shadowMapVert from './shaders/shadow_map_vert.glsl';
 import shadowMapFrag from './shaders/shadow_map_frag.glsl';
+import particleVert from './shaders/particle_vert.glsl';
+import particleFrag from './shaders/particle_frag.glsl';
+import { ParticleManager } from "../particles";
+import { ResourceManager } from "../resources";
 
 interface FramebufferInfo {
 	framebuffer: WebGLFramebuffer;
@@ -18,6 +22,7 @@ export class Renderer {
 	currentProgram: Program = null;
 	materialShaders = new Map<string, Program>();
 	shadowMapProgram: Program;
+	particleProgram: Program;
 	width: number;
 	height: number;
 	currentFramebuffer: FramebufferInfo = null;
@@ -27,7 +32,8 @@ export class Renderer {
 		EXT_frag_depth: null as EXT_frag_depth,
 		OES_element_index_uint: null as OES_element_index_uint,
 		WEBGL_depth_texture: null as WEBGL_depth_texture,
-		OES_standard_derivatives: null as OES_standard_derivatives
+		OES_standard_derivatives: null as OES_standard_derivatives,
+		KHR_parallel_shader_compile: null as KHR_parallel_shader_compile
 	};
 
 	constructor(options: { canvas: HTMLCanvasElement }) {
@@ -53,8 +59,10 @@ export class Renderer {
 		this.extensions.OES_element_index_uint = gl.getExtension('OES_element_index_uint');
 		this.extensions.WEBGL_depth_texture = gl.getExtension('WEBGL_depth_texture');
 		this.extensions.OES_standard_derivatives = gl.getExtension('OES_standard_derivatives');
+		this.extensions.KHR_parallel_shader_compile = gl.getExtension('KHR_parallel_shader_compile');
 		
 		this.shadowMapProgram = new Program(this, shadowMapVert, shadowMapFrag);
+		this.particleProgram = new Program(this, particleVert, particleFrag);
 
 		gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		gl.clearDepth(1.0);
@@ -161,6 +169,8 @@ export class Renderer {
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.transparentIndexBuffer);
 		gl.enable(gl.BLEND);
 		this.renderMaterialGroups(scene, scene.transparentMaterialGroups, false);
+
+		if (scene.particleManager) this.renderParticles(scene.particleManager, camera);
 	}
 
 	renderMaterialGroups(scene: Scene, groups: MaterialGroup[], skipTransparent: boolean) {
@@ -205,6 +215,62 @@ export class Renderer {
 
 				gl.drawElements(gl.TRIANGLES, drawCall.count, gl.UNSIGNED_INT, (group.offset + drawCall.start) * Uint32Array.BYTES_PER_ELEMENT);
 			}
+		}
+	}
+
+	renderParticles(particleManager: ParticleManager, camera: THREE.PerspectiveCamera) {
+		let { gl } = this;
+
+		let program = this.particleProgram;
+		program.use();
+
+		let uViewMatrix = new Float32Array(camera.matrixWorldInverse.elements);
+		let uProjectionMatrix = new Float32Array(camera.projectionMatrix.elements);
+		let uLogDepthBufFC = 2.0 / (Math.log(camera.far + 1.0) / Math.LN2);
+		
+		gl.uniformMatrix4fv(
+			program.getUniformLocation('viewMatrix'),
+			false,
+			uViewMatrix
+		);
+		gl.uniformMatrix4fv(
+			program.getUniformLocation('projectionMatrix'),
+			false,
+			uProjectionMatrix
+		);
+		gl.uniform1f(
+			program.getUniformLocation('logDepthBufFC'),
+			uLogDepthBufFC
+		);
+		gl.uniform1i(program.getUniformLocation('diffuseMap'), 0);
+		gl.uniform1f(program.getUniformLocation('time'), particleManager.getTime());
+
+		program.bindBufferAttribute(particleManager.positionBuffer);
+		program.bindBufferAttribute(particleManager.uvBuffer);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, particleManager.indexBuffer);
+
+		gl.depthMask(false);
+		gl.enable(gl.BLEND);
+
+		for (let [options, group] of particleManager.particleGroups) {
+			if (group.particles.length === 0) continue;
+
+			let diffuseMap = ResourceManager.getTextureFromCache(options.texture);
+			this.bindTexture(diffuseMap.glTexture, 0, gl.TEXTURE_2D);
+
+			if (options.blending === THREE.NormalBlending) gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+			else if (options.blending === THREE.AdditiveBlending) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+			else if (options.blending === THREE.SubtractiveBlending) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+			gl.uniform1f(program.getUniformLocation('acceleration'), group.uniforms.acceleration);
+			gl.uniform1f(program.getUniformLocation('spinSpeed'), group.uniforms.spinSpeed);
+			gl.uniform1f(program.getUniformLocation('dragCoefficient'), group.uniforms.dragCoefficient);
+			gl.uniform4fv(program.getUniformLocation('times'), group.uniforms.times);
+			gl.uniform4fv(program.getUniformLocation('sizes'), group.uniforms.sizes);
+			gl.uniformMatrix4fv(program.getUniformLocation('colors'), false, group.uniforms.colors);
+
+			program.bindBufferAttribute(group.bufferAttribute);
+			gl.drawElements(gl.TRIANGLES, 6 * group.particles.length, gl.UNSIGNED_INT, 0);
 		}
 	}
 

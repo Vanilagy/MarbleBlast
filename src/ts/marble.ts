@@ -181,6 +181,7 @@ export class Marble {
 					m.envMapZUp = false;
 					m.reflectivity = 0.7;
 					m.useFresnel = true;
+					m.useAccurateReflectionRay = true;
 				}
 			};
 
@@ -201,6 +202,7 @@ export class Marble {
 			sphereMaterial.envMapZUp = false;
 			sphereMaterial.reflectivity = 0.7;
 			sphereMaterial.useFresnel = true;
+			sphereMaterial.useAccurateReflectionRay = true;
 		}
 
 		let sphere = new Mesh(geometry, [sphereMaterial]);
@@ -603,7 +605,8 @@ export class Marble {
 	}
 
 	showBounceParticles() {
-		this.level.particles.createEmitter(bounceParticleOptions, Util.vecOimoToThree(this.body.getPosition()));
+		this.level.particles.createEmitter(bounceParticleOptions, Util.vecOimoToThree(this.body.getPosition()), null,
+			new THREE.Vector3(1, 1, 1).addScaledVector(Util.absVector(Util.vecOimoToThree(this.level.currentUp)), -0.8));
 	}
 
 	/** Sets linear velocity in a specific direction, but capped. Used for things like jumping and bumpers. */
