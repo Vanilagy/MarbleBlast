@@ -1,5 +1,4 @@
 precision mediump float;
-precision highp int;
 
 #define SHADOW_RADIUS 2
 #include <definitions>
@@ -12,6 +11,7 @@ varying vec4 vShadowPosition;
 varying vec3 vReflect;
 varying mat3 vTbn;
 varying float vFragDepth;
+varying float vIsPerspective;
 varying vec3 eyeDirection;
 
 uniform sampler2D diffuseMap;
@@ -20,9 +20,6 @@ uniform sampler2D normalMap;
 uniform sampler2D specularMap;
 uniform sampler2D noiseMap;
 
-uniform sampler2D cursed;
-uniform highp mat4 viewMatrix;
-uniform highp mat4 inverseProjectionMatrix;
 uniform float reflectivity;
 uniform highp vec3 eyePosition;
 uniform float specularIntensity;
@@ -34,7 +31,6 @@ uniform vec3 ambientLight;
 uniform vec3 directionalLightColor;
 uniform vec3 directionalLightDirection;
 uniform mediump sampler2D directionalLightShadowMap;
-uniform mat4 directionalLightTransform;
 
 float lambert(vec3 normal, vec3 lightPosition) {
 	float result = dot(normal, lightPosition);
@@ -91,21 +87,23 @@ float getShadowIntensity(sampler2D map, vec4 shadowPosition, int mapSize) {
 
 // Fresnel-Schlick approximation
 float fresnel(vec3 direction, vec3 normal, bool invert) {
-	vec3 nDirection = normalize( direction );
-	vec3 nNormal = normalize( normal );
-	vec3 halfDirection = normalize( nNormal + nDirection );
+	vec3 nDirection = normalize(direction);
+	vec3 nNormal = normalize(normal);
+	vec3 halfDirection = normalize(nNormal + nDirection);
 
 	float expo = 5.0;
-	float cosine = dot( halfDirection, nDirection );
-	float product = max( cosine, 0.0 );
-	float factor = invert ? 1.0 - pow( product, expo ) : pow( product, expo );
+	float cosine = dot(halfDirection, nDirection);
+	float product = max(cosine, 0.0);
+	float factor = invert ? 1.0 - pow(product, expo) : pow(product, expo);
 	
 	return factor;
 }
 
 void main() {
 	#if defined(LOG_DEPTH_BUF) && !defined(IS_SKY)
-		gl_FragDepthEXT = log2(vFragDepth) * logDepthBufFC * 0.5;
+		// We always need to set gl_FragDepthEXT when it's present in the file, otherwise it gets real weird
+		// Also: Doing a strict comparison with == 1.0 can cause noise artifacts
+		gl_FragDepthEXT = (vIsPerspective != 0.0)? log2(vFragDepth) * logDepthBufFC * 0.5 : gl_FragCoord.z;
 	#endif
 
 	#ifdef IS_SKY

@@ -23,7 +23,12 @@ uniform mat4 colors;
 
 varying vec2 vUv;
 varying float vFragDepth;
+varying float vIsPerspective;
 varying vec4 color;
+
+bool isPerspectiveMatrix(mat4 m) {
+	return m[2][3] == -1.0;
+}
 
 void main() {
 	float elapsed = time - particleSpawnTime;
@@ -78,5 +83,6 @@ void main() {
 
 	#ifdef LOG_DEPTH_BUF
 		vFragDepth = 1.0 + gl_Position.w;
+		vIsPerspective = float(isPerspectiveMatrix(projectionMatrix));
 	#endif
 }

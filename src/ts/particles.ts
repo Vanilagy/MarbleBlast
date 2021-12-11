@@ -134,7 +134,7 @@ export class ParticleManager {
 			'particleVelocity': 3,
 			'particleInitialSpin': 1
 		};
-		const floatsPerParticle = Object.values(attributes).reduce((a, b) => a + b);
+		const floatsPerParticle = Object.values(attributes).reduce((a, b) => a + b, 0);
 		const vertsPerParticle = 4;
 		let buffer = new Float32Array(floatsPerParticle * vertsPerParticle * MAX_PARTICLES_PER_GROUP);
 		let bufferAttribute = new BufferAttribute(this.renderer, buffer, attributes);

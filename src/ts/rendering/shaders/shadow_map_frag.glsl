@@ -1,5 +1,4 @@
 precision mediump float;
-precision highp int;
 
 #include <definitions>
 

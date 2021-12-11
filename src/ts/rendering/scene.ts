@@ -67,7 +67,7 @@ export class Scene extends Group {
 		this.directionalLights.push(light);
 	}
 
-	async compile() {
+	compile() {
 		let { gl } = this.renderer;
 		let materialMap = new Map<string, MaterialGroup>();
 
@@ -157,7 +157,7 @@ export class Scene extends Group {
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.shadowCasterIndexBuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(shadowCasterIndices), gl.STATIC_DRAW);
 
-		let totalIndexCount = allMeshes.map(x => x.geometry.indices.length).reduce((a, b) => a + b);
+		let totalIndexCount = allMeshes.map(x => x.geometry.indices.length).reduce((a, b) => a + b, 0);
 		let transparentIndexBuffer = gl.createBuffer();
 		let transparentIndexBufferData = new Uint32Array(totalIndexCount);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, transparentIndexBuffer);
@@ -266,7 +266,7 @@ export class Scene extends Group {
 		}
 	}
 
-	prepareForRender(camera: THREE.PerspectiveCamera) {
+	prepareForRender(camera: THREE.PerspectiveCamera | THREE.OrthographicCamera) {
 		let { gl } = this.renderer;
 
 		this.update();

@@ -14,7 +14,6 @@ uniform int meshInfoTextureHeight;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 uniform mat4 inverseProjectionMatrix;
-uniform float logDepthBufFC; // Some coefficient
 uniform bool skipTransparent;
 uniform mat4 directionalLightTransform;
 uniform vec3 eyePosition;
@@ -28,6 +27,7 @@ varying vec3 vReflect;
 varying mat3 vTbn;
 varying vec4 vTangent;
 varying float vFragDepth;
+varying float vIsPerspective;
 varying vec3 eyeDirection;
 
 #ifdef IS_WEBGL1
@@ -77,12 +77,16 @@ mat4 getMeshInfo(int index) {
 	#endif
 }
 
+bool isPerspectiveMatrix(mat4 m) {
+	return m[2][3] == -1.0;
+}
+
 void main() {
 	#ifdef IS_SKY
 		mat4 inverseProjection = inverseProjectionMatrix;
-		mat3 inverseModelview = transpose(mat3(viewMatrix));
+		mat3 inverseModelView = transpose(mat3(viewMatrix));
 		vec3 unprojected = (inverseProjection * vec4(position, 1.0)).xyz;
-		eyeDirection = inverseModelview * unprojected;
+		eyeDirection = inverseModelView * unprojected;
 		
 		gl_Position = vec4(position, 1.0);
 	#else
@@ -119,7 +123,7 @@ void main() {
 		#endif
 		vNormal = transformedNormal;
 
-		vTangent = tangent;
+		vTangent = tangent; // Needed so that it doesn't get optimized out (fucks with vertex attributes somehow)
 		#ifdef USE_NORMAL_MAP
 			vec3 N = transformedNormal;
 			vec3 T = normalize((transform * vec4(tangent.xyz, 0.0)).xyz);
@@ -145,6 +149,7 @@ void main() {
 
 		#ifdef LOG_DEPTH_BUF
 			vFragDepth = 1.0 + gl_Position.w;
+			vIsPerspective = float(isPerspectiveMatrix(projectionMatrix));
 		#endif
 	#endif
 }

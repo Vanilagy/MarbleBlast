@@ -50,7 +50,7 @@ export const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window
 camera.up.set(0, 0, 1);
 
 /** Used for rendering the HUD overlay. */
-export const orthographicCamera = new THREE.OrthographicCamera(-window.innerWidth/2, window.innerWidth/2, -window.innerHeight/2, window.innerHeight/2, 0.1, 100000);
+export const orthographicCamera = new THREE.OrthographicCamera(-window.innerWidth/2, window.innerWidth/2, -window.innerHeight/2, window.innerHeight/2, 1, 1000);
 orthographicCamera.up.set(0, 0, -1);
 orthographicCamera.lookAt(new THREE.Vector3(1, 0, 0));
 

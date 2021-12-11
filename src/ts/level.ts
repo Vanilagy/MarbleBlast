@@ -156,7 +156,7 @@ export class Level extends Scheduler {
 	sharedShapeData = new Map<string, Promise<SharedShapeData>>();
 	/** The shapes used for drawing HUD overlay (powerups in the corner) */
 	overlayShapes: Shape[] = [];
-	overlayScene: THREE.Scene;
+	overlayScene: Scene;
 	/** The last end pad element in the mission file. */
 	endPadElement: MissionElementStaticShape;
 
@@ -270,7 +270,7 @@ export class Level extends Scheduler {
 		await this.addSimGroup(this.mission.root);
 		await this.initUi(); this.loadingState.loaded += 3;
 		await soundPromise; this.loadingState.loaded += 6;
-		await this.ownScene.compile(); this.loadingState.loaded += 1;
+		this.ownScene.compile(); this.loadingState.loaded += 1;
 
 		this.replay = new Replay(this);
 	}
@@ -476,9 +476,9 @@ export class Level extends Scheduler {
 			}
 		}
 
-		this.overlayScene = new THREE.Scene();
-		let overlayLight = new THREE.AmbientLight(0xffffff);
-		this.overlayScene.add(overlayLight);
+		this.overlayScene = new Scene(ownRenderer);
+		let overlayLight = new AmbientLight(new THREE.Color(0xffffff));
+		this.overlayScene.addAmbientLight(overlayLight);
 
 		for (let path of hudOverlayShapePaths) {
 			let shape = new Shape();
@@ -491,9 +491,14 @@ export class Level extends Scheduler {
 			await shape.init();
 
 			this.overlayShapes.push(shape);
-			this.overlayScene.add(shape.group); // Add the shape temporarily (permanently if gem) for a GPU update
-			if (path.includes("gem")) shape.ambientSpinFactor /= -2; // Gems spin the other way apparently
-			else shape.ambientSpinFactor /= 2;
+			this.overlayScene.add(shape.group);
+
+			if (path.includes("gem")) {
+				shape.ambientSpinFactor /= -2; // Gems spin the other way apparently
+			} else {
+				shape.ambientSpinFactor /= 2;
+				shape.setOpacity(0);
+			}
 		}
 
 		if (this.totalGems > 0) {
@@ -504,16 +509,10 @@ export class Level extends Scheduler {
 			state.menu.hud.setGemVisibility(false);
 		}
 
-		// Render everything once to force a GPU upload
-		//renderer.render(this.overlayScene, orthographicCamera);
+		this.overlayScene.compile();
 
-		// Remove everything but gems again
-		for (let shape of this.overlayShapes) {
-			if (shape.dtsPath.includes('gem')) continue;
-			this.overlayScene.remove(shape.group);
-		}
-
-		if (state.menu.pauseScreen instanceof MbpPauseScreen) state.menu.pauseScreen.jukebox.reset();
+		if (state.menu.pauseScreen instanceof MbpPauseScreen)
+			state.menu.pauseScreen.jukebox.reset();
 	}
 
 	async initSounds() {
@@ -889,7 +888,7 @@ export class Level extends Scheduler {
 		ownCamera.position.copy(camera.position);
 
 		// Update the shadow camera
-		for (let light of this.ownScene.directionalLights) light.updateCamera(this.marble.group.position.clone(), -1);
+		this.ownScene.directionalLights[0]?.updateCamera(this.marble.group.position.clone(), -1);
 		/*
 		let shadowCameraPosition = this.marble.group.position.clone();
 		shadowCameraPosition.sub(this.sunDirection.clone().multiplyScalar(5));
@@ -906,8 +905,8 @@ export class Level extends Scheduler {
 		ownRenderer.render(this.ownScene, ownCamera);
 
 		// Update the overlay
-		if (false) for (let overlayShape of this.overlayShapes) {
-			overlayShape.group.position.x = 500;
+		for (let overlayShape of this.overlayShapes) {
+			overlayShape.group.position.x = 500; // Make sure the shape is between the near and far planes of the camera
 			overlayShape.render(this.timeState);
 
 			if (overlayShape.dtsPath.includes("gem")) {
@@ -919,7 +918,13 @@ export class Level extends Scheduler {
 				overlayShape.group.position.y = window.innerWidth - 55 / SCALING_RATIO;
 				overlayShape.group.position.z = SHAPE_OVERLAY_OFFSETS[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_OFFSETS] / SCALING_RATIO;
 			}
+
+			overlayShape.group.recomputeTransform();
 		}
+
+		orthographicCamera.updateMatrixWorld();
+		this.overlayScene.prepareForRender(orthographicCamera);
+		ownRenderer.render(this.overlayScene, orthographicCamera, null, false);
 
 		renderer.autoClear = false; // Make sure not to clear the previous canvas
 		//renderer.render(this.overlayScene, orthographicCamera);
@@ -1374,8 +1379,7 @@ export class Level extends Scheduler {
 			if (overlayShape.dtsPath.includes("gem")) continue;
 
 			// Show the corresponding icon in the HUD
-			if (overlayShape.dtsPath === powerUp.dtsPath) this.overlayScene.add(overlayShape.group);
-			else this.overlayScene.remove(overlayShape.group);
+			overlayShape.setOpacity(Number(overlayShape.dtsPath === powerUp.dtsPath));
 		}
 
 		if (playPickUpSound) AudioManager.play(powerUp.sounds[0]);
@@ -1393,7 +1397,7 @@ export class Level extends Scheduler {
 
 		for (let overlayShape of this.overlayShapes) {
 			if (overlayShape.dtsPath.includes("gem")) continue;
-			this.overlayScene.remove(overlayShape.group);
+			overlayShape.setOpacity(0);
 		}
 	}
 

@@ -901,8 +901,8 @@ export class Shape {
 			let orientation = this.worldOrientation.clone();
 			spinAnimation.multiplyQuaternions(orientation, spinAnimation);
 
-			this.group.transform.compose(this.worldPosition, spinAnimation, this.worldScale);
-			this.group.changedTransform();
+			this.group.orientation.copy(spinAnimation);
+			this.group.recomputeTransform();
 		}
 	}
 
@@ -915,7 +915,10 @@ export class Shape {
 		this.worldScale = scale;
 		this.worldMatrix.compose(position, orientation, scale);
 
-		this.group.transform.compose(position, orientation, scale);
+		this.group.position.copy(position);
+		this.group.orientation.copy(orientation);
+		this.group.scale.copy(scale);
+		this.group.recomputeTransform();
 
 		let colliderMatrix = new THREE.Matrix4();
 		colliderMatrix.compose(this.worldPosition, this.worldOrientation, new THREE.Vector3(1, 1, 1));

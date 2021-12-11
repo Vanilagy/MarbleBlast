@@ -84,7 +84,7 @@ export class Renderer {
 		this.options.canvas.setAttribute('height', height.toString());
 	}
 
-	render(scene: Scene, camera: THREE.PerspectiveCamera, framebuffer: FramebufferInfo = null) {
+	render(scene: Scene, camera: THREE.PerspectiveCamera | THREE.OrthographicCamera, framebuffer: FramebufferInfo = null, clearColorBuffer = true) {
 		let { gl } = this;		
 
 		if (framebuffer) {
@@ -97,7 +97,8 @@ export class Renderer {
 		this.currentFramebuffer = framebuffer;
 
 		gl.depthMask(true);
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		gl.clear(gl.DEPTH_BUFFER_BIT);
+		if (clearColorBuffer) gl.clear(gl.COLOR_BUFFER_BIT);
 
 		// Precompute some uniform values
 		let uViewMatrix = new Float32Array(camera.matrixWorldInverse.elements);
@@ -208,7 +209,7 @@ export class Renderer {
 		}
 	}
 
-	renderParticles(particleManager: ParticleManager, camera: THREE.PerspectiveCamera) {
+	renderParticles(particleManager: ParticleManager, camera: THREE.PerspectiveCamera | THREE.OrthographicCamera) {
 		let { gl } = this;
 
 		let program = this.particleProgram;

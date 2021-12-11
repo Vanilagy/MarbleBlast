@@ -13,7 +13,7 @@ export class BufferAttribute {
 		this.buffer = renderer.gl.createBuffer();
 		this.data = data;
 		this.attributes = attributes;
-		this.stride = Object.values(attributes).reduce((a, b) => a + b);
+		this.stride = Object.values(attributes).reduce((a, b) => a + b, 0);
 		if (Object.keys(attributes).length === 0) this.stride = 0; // Indicates a tightly-packed vertex attribute
 		
 		let { gl } = renderer;
