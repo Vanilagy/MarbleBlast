@@ -442,7 +442,7 @@ export class Shape {
 				let textures = await Promise.all(promises);
 
 				material.diffuseMap = textures[0]; // So that we compile the material in the right type of shader
-				material.differentiator = ResourceManager.mainDataPath + this.directoryPath + '/' + fullName;
+				material.differentiator = this.isTSStatic + ResourceManager.mainDataPath + this.directoryPath + '/' + fullName;
 			} else {
 				let texture = await ResourceManager.getTexture(this.directoryPath + '/' + fullName, (flags & MaterialFlags.Translucent) === 0); // Make sure to remove the alpha of the texture if it's not flagged as translucent
 				material.diffuseMap = texture;

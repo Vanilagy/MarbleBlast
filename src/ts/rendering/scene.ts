@@ -3,13 +3,11 @@ import materialFrag from './shaders/material_frag.glsl';
 import THREE from "three";
 import { AmbientLight } from "./ambient_light";
 import { BufferAttribute } from "./buffer_attribute";
-import { CubeTexture } from "./cube_texture";
 import { DirectionalLight } from "./directional_light";
 import { Group } from "./group";
 import { Material } from "./material";
 import { MaterialIndexData, Mesh } from "./mesh";
 import { Renderer } from "./renderer";
-import { Texture } from "./texture";
 import { Program } from './program';
 import { Util } from '../util';
 import { ParticleManager } from '../particles';
@@ -18,20 +16,9 @@ export interface MaterialGroup {
 	material: Material,
 	indexGroups: MaterialIndexData[],
 	defineChunk: string,
-	drawCalls: DrawCall[],
 	offset: number,
-	minDistance?: number
-}
-
-export interface MeshInfoGroup {
-	meshes: Mesh[],
-	buffer: Float32Array
-}
-
-interface DrawCall {
-	start: number,
 	count: number,
-	meshInfoGroup: MeshInfoGroup
+	minDistance?: number
 }
 
 export class Scene extends Group {
@@ -42,14 +29,18 @@ export class Scene extends Group {
 	uvBuffer: BufferAttribute;
 	meshInfoIndexBuffer: BufferAttribute;
 
+	meshInfoBuffer: Float32Array;
+	meshInfoTexture: WebGLTexture;
+	meshInfoTextureWidth: number;
+	meshInfoTextureHeight: number;
+
 	allMeshes: Mesh[];
 	opaqueMaterialGroups: MaterialGroup[];
 	transparentMaterialGroups: MaterialGroup[];
-	meshInfoGroups: MeshInfoGroup[];
 	opaqueIndexBuffer: WebGLBuffer;
 	transparentIndexBuffer: WebGLBuffer;
 	transparentIndexBufferData: Uint32Array;
-	shadowCasterDrawCalls: DrawCall[];
+	shadowCasterIndices: number[];
 	shadowCasterIndexBuffer: WebGLBuffer;
 
 	ambientLights: AmbientLight[] = [];
@@ -79,45 +70,28 @@ export class Scene extends Group {
 	async compile() {
 		let { gl } = this.renderer;
 		let materialMap = new Map<string, MaterialGroup>();
-		let uniformCounts = this.renderer.getUniformsCounts();
 
 		let allMeshes: Mesh[] = [];
 		this.traverse(obj => obj instanceof Mesh && allMeshes.push(obj));
 		this.allMeshes = allMeshes;
-
-		const meshesPerMeshInfoGroup = Math.floor(uniformCounts.meshInfoVectors / 4);
 
 		let positions: number[] = [];
 		let normals: number[] = [];
 		let tangents: number[] = [];
 		let uvs: number[] = [];
 		let meshInfoIndices: number[] = [];
-		let meshInfoGroups: MeshInfoGroup[] = [];
 		let shadowCasterIndices: number[] = [];
-
-		for (let i = 0; i < allMeshes.length; i += meshesPerMeshInfoGroup) {
-			let meshes = allMeshes.slice(i, i + meshesPerMeshInfoGroup);
-			let buffer = new Float32Array(16 * meshes.length);
-
-			meshInfoGroups.push({ meshes, buffer });
-		}
-
-		this.meshInfoGroups = meshInfoGroups;
-		this.shadowCasterDrawCalls = [{ meshInfoGroup: meshInfoGroups[0], start: 0, count: 0 }];
 
 		for (let [index, mesh] of allMeshes.entries()) {
 			mesh.vboOffset = meshInfoIndices.length;
 			mesh.compileMaterialIndices();
 
 			let verts = mesh.geometry.positions.length / 3;
-			let meshInfoGroup = meshInfoGroups[Math.floor(index / meshesPerMeshInfoGroup)];
-			let indexInMeshInfoGroup = index % meshesPerMeshInfoGroup;
-			mesh.meshInfoGroup = meshInfoGroup;
 
 			Util.pushArray(positions, mesh.geometry.positions);
 			Util.pushArray(normals, mesh.geometry.normals);
 			Util.pushArray(uvs, mesh.geometry.uvs);
-			Util.pushArray(meshInfoIndices, Array(verts).fill(indexInMeshInfoGroup));
+			Util.pushArray(meshInfoIndices, Array(verts).fill(index));
 
 			let hasNormalMap = mesh.materials.some(x => x.normalMap);
 			if (hasNormalMap) {
@@ -135,14 +109,14 @@ export class Scene extends Group {
 					this.renderer.materialShaders.set(defineChunk, program);
 				}
 
-				if (mesh.castShadows) {
-					Util.pushArray(shadowCasterIndices, data.indices);
-					this.extendDrawCall(this.shadowCasterDrawCalls, data.indices.length, meshInfoGroup);
+				if (mesh.castShadows) Util.pushArray(shadowCasterIndices, data.indices);
+
+				if (material.transparent) {
+					mesh.hasTransparentMaterials = true;
+					continue; // We do only opaque stuff
 				}
 
-				if (material.transparent) continue; // We do only opaque stuff
-
-				this.updateMaterialGroup(materialMap, data, meshInfoGroup);
+				this.updateMaterialGroup(materialMap, data);
 			}
 		}
 
@@ -162,11 +136,26 @@ export class Scene extends Group {
 		this.tangentBuffer = new BufferAttribute(this.renderer, new Float32Array(tangents), { 'tangent': 4 } );
 		this.uvBuffer = new BufferAttribute(this.renderer, new Float32Array(uvs), { 'uv': 2 });
 		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, new Float32Array(meshInfoIndices), { 'meshInfoIndex': 1 });
+
+		let maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+		let textureWidth = this.meshInfoTextureWidth = Math.min(4 * allMeshes.length, maxTextureSize);
+		let textureHeight = this.meshInfoTextureHeight = Math.ceil(4 * allMeshes.length / maxTextureSize);
+		this.meshInfoBuffer = new Float32Array(4 * textureWidth * textureHeight); // One mat4 per mesh
+		this.meshInfoTexture = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, this.meshInfoTexture);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, null);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 		
 		let opaqueIndexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, opaqueIndexBuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
 		this.opaqueIndexBuffer = opaqueIndexBuffer;
+
+		this.shadowCasterIndices = shadowCasterIndices;
+		this.shadowCasterIndexBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.shadowCasterIndexBuffer);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(shadowCasterIndices), gl.STATIC_DRAW);
 
 		let totalIndexCount = allMeshes.map(x => x.geometry.indices.length).reduce((a, b) => a + b);
 		let transparentIndexBuffer = gl.createBuffer();
@@ -190,13 +179,9 @@ export class Scene extends Group {
 		this.directionalLightColorBuffer = new Float32Array(totalDirectionalLight.toArray());
 		this.directionalLightDirectionBuffer = new Float32Array(directionalLightDirection.toArray());
 		this.directionalLightTransformBuffer = new Float32Array(16);
-
-		this.shadowCasterIndexBuffer = gl.createBuffer();
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.shadowCasterIndexBuffer);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(shadowCasterIndices), gl.STATIC_DRAW);
 	}
 
-	updateMaterialGroup(materialMap: Map<string, MaterialGroup>, data: MaterialIndexData, meshInfoGroup: MeshInfoGroup) {
+	updateMaterialGroup(materialMap: Map<string, MaterialGroup>, data: MaterialIndexData) {
 		let material = data.material;
 		let materialHash = material.getHash();
 		let materialGroup = materialMap.get(materialHash);
@@ -206,30 +191,20 @@ export class Scene extends Group {
 				material,
 				indexGroups: [],
 				defineChunk: material.getDefineChunk(),
-				drawCalls: [{ meshInfoGroup, start: 0, count: 0 }],
 				offset: 0,
+				count: 0,
 				minDistance: Infinity
 			};
 			materialMap.set(materialHash, materialGroup);
 		}
 
-		this.extendDrawCall(materialGroup.drawCalls, data.indices.length, meshInfoGroup);
 		materialGroup.indexGroups.push(data);
+		materialGroup.count += data.indices.length;
 		
 		return materialGroup;
 	}
 
-	extendDrawCall(drawCalls: DrawCall[], count: number, meshInfoGroup: MeshInfoGroup) {
-		let lastDrawCall = Util.last(drawCalls);
-		if (lastDrawCall.meshInfoGroup !== meshInfoGroup) {
-			lastDrawCall = { meshInfoGroup, start: lastDrawCall.start + lastDrawCall.count, count: 0 };
-			drawCalls.push(lastDrawCall);
-		}
-
-		lastDrawCall.count += count;
-	}
-
-	// https://www.cs.upc.edu/~virtual/G/1.%20Teoria/06.%20Textures/Tangent%20Space%20Calculation.pdf
+	// Lengyel, Eric. “Computing Tangent Space Basis Vectors for an Arbitrary Mesh”. Terathon Software 3D Graphics Library, 2001. http://www.terathon.com/code/tangent.html
 	computeTangents(positions: number[], normals: number[], uvs: number[], tangents: number[]) {
 		let verts = positions.length / 3;
 		let tris = verts / 3;
@@ -299,23 +274,23 @@ export class Scene extends Group {
 
 		let temp = new THREE.Vector3();
 		let cameraPosition = camera.position;
-		let sortedMeshes = this.allMeshes.slice().sort((a, b) => {
-			let distA = temp.setFromMatrixPosition(a.worldTransform).distanceToSquared(cameraPosition);
-			let distB = temp.setFromMatrixPosition(b.worldTransform).distanceToSquared(cameraPosition)
-			return distB - distA;
-		});
+		let transparentMeshes = this.allMeshes.filter(x => x.hasTransparentMaterials || (x.opacity < 1 && x.opacity > 0));
+
+		// Precompute all distances
+		for (let mesh of transparentMeshes) {
+			mesh.distanceToCamera = temp.setFromMatrixPosition(mesh.worldTransform).distanceToSquared(cameraPosition);
+		}
+
+		let sortedMeshes = transparentMeshes.sort((a, b) => b.distanceToCamera - a.distanceToCamera);
 		let materialMap = new Map<string, MaterialGroup>();
 
 		for (let mesh of sortedMeshes) {
-			let meshInfoGroup = mesh.meshInfoGroup;
-			let distance = temp.setFromMatrixPosition(mesh.worldTransform).distanceToSquared(cameraPosition);
-
 			for (let data of mesh.materialIndices) {
 				let material = data.material;
 				if (!material.transparent && (mesh.opacity === 1 || mesh.opacity === 0)) continue;
 
-				let group = this.updateMaterialGroup(materialMap, data, meshInfoGroup);
-				group.minDistance = Math.min(group.minDistance, distance);
+				let group = this.updateMaterialGroup(materialMap, data);
+				group.minDistance = Math.min(group.minDistance, mesh.distanceToCamera);
 			}
 		}
 
@@ -336,25 +311,28 @@ export class Scene extends Group {
 	}
 
 	update() {
+		let { gl } = this.renderer;
+
 		this.updateWorldTransform();
 
-		for (let group of this.meshInfoGroups) {
-			for (let i = 0; i < group.meshes.length; i++) {
-				let mesh = group.meshes[i];
+		for (let i = 0; i < this.allMeshes.length; i++) {
+			let mesh = this.allMeshes[i];
 
-				if (mesh.needsVertexBufferUpdate) {
-					let offset = mesh.vboOffset;
-					this.positionBuffer.set(mesh.geometry.positions, offset * 3);
-					this.normalBuffer.set(mesh.geometry.normals, offset * 3);
-					this.uvBuffer.set(mesh.geometry.uvs, offset * 2);
-					mesh.needsVertexBufferUpdate = false;
-				}
+			if (mesh.needsVertexBufferUpdate) {
+				let offset = mesh.vboOffset;
+				this.positionBuffer.set(mesh.geometry.positions, offset * 3);
+				this.normalBuffer.set(mesh.geometry.normals, offset * 3);
+				this.uvBuffer.set(mesh.geometry.uvs, offset * 2);
+				mesh.needsVertexBufferUpdate = false;
+			}
 
-				if (this.firstUpdate || mesh.needsMeshInfoBufferUpdate) {
-					mesh.updateMeshInfoBuffer(group.buffer, 16 * i);
-				}
+			if (this.firstUpdate || mesh.needsMeshInfoBufferUpdate) {
+				mesh.updateMeshInfoBuffer(this.meshInfoBuffer, 16 * i);
 			}
 		}
+
+		gl.bindTexture(gl.TEXTURE_2D, this.meshInfoTexture);
+		gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.meshInfoTextureWidth, this.meshInfoTextureHeight, gl.RGBA, gl.FLOAT, this.meshInfoBuffer);
 		
 		this.positionBuffer.update();
 		this.normalBuffer.update();

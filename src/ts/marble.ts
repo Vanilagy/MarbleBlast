@@ -30,7 +30,7 @@ export const bounceParticleOptions: ParticleEmitterOptions = {
 	ambientVelocity: new THREE.Vector3(0, 0, 0),
 	ejectionVelocity: 2.6,
 	velocityVariance: 0.25 * 0.5,
-	emitterLifetime: 4,
+	emitterLifetime: 3, // Spawn 4 particles
 	inheritedVelFactor: 0,
 	particleOptions: {
 		texture: 'particles/star.png',

@@ -8,7 +8,9 @@ attribute vec4 tangent;
 attribute vec2 uv;
 attribute float meshInfoIndex;
 
-uniform mat4 meshInfos[MESH_COUNT];
+uniform sampler2D meshInfos;
+uniform int meshInfoTextureWidth;
+uniform int meshInfoTextureHeight;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 uniform mat4 inverseProjectionMatrix;
@@ -52,6 +54,29 @@ varying vec3 eyeDirection;
 	}
 #endif
 
+mat4 getMeshInfo(int index) {
+	ivec2 coords = ivec2(
+		(4 * index) % meshInfoTextureWidth,
+		(4 * index) / meshInfoTextureWidth
+	);
+
+	#ifdef IS_WEBGL1
+		return mat4(
+			texture2D(meshInfos, vec2(coords + ivec2(0, 0)) / vec2(meshInfoTextureWidth, meshInfoTextureHeight)),
+			texture2D(meshInfos, vec2(coords + ivec2(1, 0)) / vec2(meshInfoTextureWidth, meshInfoTextureHeight)),
+			texture2D(meshInfos, vec2(coords + ivec2(2, 0)) / vec2(meshInfoTextureWidth, meshInfoTextureHeight)),
+			texture2D(meshInfos, vec2(coords + ivec2(3, 0)) / vec2(meshInfoTextureWidth, meshInfoTextureHeight))
+		);
+	#else
+		return mat4(
+			texelFetch(meshInfos, coords + ivec2(0, 0), 0),
+			texelFetch(meshInfos, coords + ivec2(1, 0), 0),
+			texelFetch(meshInfos, coords + ivec2(2, 0), 0),
+			texelFetch(meshInfos, coords + ivec2(3, 0), 0)
+		);
+	#endif
+}
+
 void main() {
 	#ifdef IS_SKY
 		mat4 inverseProjection = inverseProjectionMatrix;
@@ -61,7 +86,7 @@ void main() {
 		
 		gl_Position = vec4(position, 1.0);
 	#else
-		mat4 meshInfo = meshInfos[int(meshInfoIndex)];
+		mat4 meshInfo = getMeshInfo(int(meshInfoIndex)); // + 0.1 to make sure it casts correctly, lol
 		mat4 transform = meshInfo;
 		transform[0][3] = 0.0;
 		transform[1][3] = 0.0;
@@ -101,7 +126,7 @@ void main() {
 			// re-orthogonalize T with respect to N
 			T = normalize(T - dot(T, N) * N);
 			// then retrieve perpendicular vector B with the cross product of T and N
-			vec3 B = cross(N, T);
+			vec3 B = cross(N, T) * tangent.w;
 			mat3 tbn = mat3(T, B, N);
 			vTbn = tbn;
 		#endif

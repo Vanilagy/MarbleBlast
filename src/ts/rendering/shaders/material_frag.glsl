@@ -4,12 +4,6 @@ precision highp int;
 #define SHADOW_RADIUS 2
 #include <definitions>
 
-uniform sampler2D diffuseMap;
-uniform samplerCube envMap;
-uniform sampler2D normalMap;
-uniform sampler2D specularMap;
-uniform sampler2D noiseMap;
-
 varying vec4 vPosition;
 varying vec2 vUv;
 varying vec3 vNormal;
@@ -20,6 +14,13 @@ varying mat3 vTbn;
 varying float vFragDepth;
 varying vec3 eyeDirection;
 
+uniform sampler2D diffuseMap;
+uniform samplerCube envMap;
+uniform sampler2D normalMap;
+uniform sampler2D specularMap;
+uniform sampler2D noiseMap;
+
+uniform sampler2D cursed;
 uniform highp mat4 viewMatrix;
 uniform highp mat4 inverseProjectionMatrix;
 uniform float reflectivity;

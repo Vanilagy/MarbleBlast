@@ -83,14 +83,20 @@ export class DirectionalLight {
 			false,
 			new Float32Array(this.camera.projectionMatrix.elements)
 		);
+		gl.uniform1i(
+			shadowMapProgram.getUniformLocation('meshInfoTextureWidth'),
+			scene.meshInfoTextureWidth
+		);
+		gl.uniform1i(
+			shadowMapProgram.getUniformLocation('meshInfoTextureHeight'),
+			scene.meshInfoTextureHeight
+		);
 
-		let meshInfoLoc = shadowMapProgram.getUniformLocation('meshInfos');
+		gl.uniform1i(shadowMapProgram.getUniformLocation('meshInfos'), 7);
+		this.renderer.bindTexture(scene.meshInfoTexture, 7, gl.TEXTURE_2D);
+
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.shadowCasterIndexBuffer);
-
-		for (let drawCall of scene.shadowCasterDrawCalls) {
-			gl.uniformMatrix4fv(meshInfoLoc, false, drawCall.meshInfoGroup.buffer);
-			gl.drawElements(gl.TRIANGLES, drawCall.count, gl.UNSIGNED_INT, drawCall.start * Uint32Array.BYTES_PER_ELEMENT);
-		}
+		gl.drawElements(gl.TRIANGLES, scene.shadowCasterIndices.length, gl.UNSIGNED_INT, 0);
 	}
 
 	bindShadowMap() {

@@ -1,9 +1,6 @@
-import THREE from "three";
-import { BufferAttribute } from "./buffer_attribute";
 import { Geometry } from "./geometry";
 import { Material } from "./material";
 import { Object3D } from "./object_3d";
-import { MeshInfoGroup } from "./scene";
 
 export interface MaterialIndexData {
 	material: Material,
@@ -21,7 +18,8 @@ export class Mesh extends Object3D {
 
 	materialIndices: MaterialIndexData[] = [];
 	vboOffset: number;
-	meshInfoGroup: MeshInfoGroup;
+	distanceToCamera: number;
+	hasTransparentMaterials = false;
 
 	constructor(geometry: Geometry, materials: Material[]) {
 		super();

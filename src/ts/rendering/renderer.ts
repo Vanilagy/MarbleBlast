@@ -1,4 +1,4 @@
-import { MaterialGroup, MeshInfoGroup, Scene } from "./scene";
+import { MaterialGroup, Scene } from "./scene";
 import { Program } from './program';
 import THREE from 'three';
 import shadowMapVert from './shaders/shadow_map_vert.glsl';
@@ -33,7 +33,8 @@ export class Renderer {
 		OES_element_index_uint: null as OES_element_index_uint,
 		WEBGL_depth_texture: null as WEBGL_depth_texture,
 		OES_standard_derivatives: null as OES_standard_derivatives,
-		KHR_parallel_shader_compile: null as KHR_parallel_shader_compile
+		KHR_parallel_shader_compile: null as KHR_parallel_shader_compile,
+		OES_texture_float: null as OES_texture_float
 	};
 
 	constructor(options: { canvas: HTMLCanvasElement }) {
@@ -60,6 +61,7 @@ export class Renderer {
 		this.extensions.WEBGL_depth_texture = gl.getExtension('WEBGL_depth_texture');
 		this.extensions.OES_standard_derivatives = gl.getExtension('OES_standard_derivatives');
 		this.extensions.KHR_parallel_shader_compile = gl.getExtension('KHR_parallel_shader_compile');
+		this.extensions.OES_texture_float = gl.getExtension('OES_texture_float');
 		
 		this.shadowMapProgram = new Program(this, shadowMapVert, shadowMapFrag);
 		this.particleProgram = new Program(this, particleVert, particleFrag);
@@ -73,20 +75,7 @@ export class Renderer {
 		gl.cullFace(gl.BACK);
 		gl.frontFace(gl.CCW);
 	}
-
-	getUniformsCounts() {
-		let { gl } = this;
-		let maxVertexUniformVectors = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS) as number;
-		maxVertexUniformVectors -= 14; // Taken up by other uniforms
-		maxVertexUniformVectors -= 4; // Lights
-
-		let quarter = Math.floor(maxVertexUniformVectors / 4);
-
-		return {
-			meshInfoVectors: 4 * quarter
-		};
-	}
-
+	
 	setSize(width: number, height: number) {
 		this.width = width;
 		this.height = height;
@@ -148,11 +137,22 @@ export class Renderer {
 				program.getUniformLocation('eyePosition'),
 				uEyePosition
 			);
+			gl.uniform1i(
+				program.getUniformLocation('meshInfoTextureWidth'),
+				scene.meshInfoTextureWidth
+			);
+			gl.uniform1i(
+				program.getUniformLocation('meshInfoTextureHeight'),
+				scene.meshInfoTextureHeight
+			);
 
 			gl.uniform3fv(program.getUniformLocation('ambientLight'), scene.ambientLightBuffer);
 			gl.uniform3fv(program.getUniformLocation('directionalLightColor'), scene.directionalLightColorBuffer);
 			gl.uniform3fv(program.getUniformLocation('directionalLightDirection'), scene.directionalLightDirectionBuffer);
 			gl.uniformMatrix4fv(program.getUniformLocation('directionalLightTransform'), false, scene.directionalLightTransformBuffer);
+
+			gl.uniform1i(program.getUniformLocation('meshInfos'), 7);
+			this.bindTexture(scene.meshInfoTexture, 7, gl.TEXTURE_2D);
 
 			gl.uniform1i(program.getUniformLocation('diffuseMap'), 0);
 			gl.uniform1i(program.getUniformLocation('envMap'), 1);
@@ -175,8 +175,6 @@ export class Renderer {
 
 	renderMaterialGroups(scene: Scene, groups: MaterialGroup[], skipTransparent: boolean) {
 		let { gl } = this;
-
-		let boundMeshInfoGroup = new WeakMap<Program, MeshInfoGroup>();
 
 		for (let group of groups) {
 			if (group.indexGroups.length === 0 || group.indexGroups[0].indices.length === 0) continue;
@@ -206,15 +204,7 @@ export class Renderer {
 			this.bindTexture(material.specularMap?.glTexture, 4, gl.TEXTURE_2D);
 			this.bindTexture(material.noiseMap?.glTexture, 5, gl.TEXTURE_2D);
 
-			let meshInfoLoc = program.getUniformLocation('meshInfos');
-			for (let drawCall of group.drawCalls) {
-				if (boundMeshInfoGroup.get(program) !== drawCall.meshInfoGroup) {
-					gl.uniformMatrix4fv(meshInfoLoc, false, drawCall.meshInfoGroup.buffer);
-					boundMeshInfoGroup.set(program, drawCall.meshInfoGroup);
-				}
-
-				gl.drawElements(gl.TRIANGLES, drawCall.count, gl.UNSIGNED_INT, (group.offset + drawCall.start) * Uint32Array.BYTES_PER_ELEMENT);
-			}
+			gl.drawElements(gl.TRIANGLES, group.count, gl.UNSIGNED_INT, group.offset * Uint32Array.BYTES_PER_ELEMENT);
 		}
 	}
 

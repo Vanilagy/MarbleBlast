@@ -3,9 +3,12 @@ import { Renderer } from "./renderer";
 
 export class Program {
 	renderer: Renderer;
+	vertexShader: WebGLShader;
+	fragmentShader: WebGLShader;
 	glProgram: WebGLProgram;
 	uniformLocations = new Map<string, WebGLUniformLocation>();
 	attributeLocations = new Map<string, number>();
+	compileStatusChecked = false;
 
 	constructor(renderer: Renderer, vertexSource: string, fragmentSource: string, defineChunk = "") {
 		this.renderer = renderer;
@@ -16,10 +19,8 @@ export class Program {
 			[vertexSource, fragmentSource] = this.convertFromGLSL100ToGLSL300(vertexSource, fragmentSource);
 		}
 
-		let uniformCounts = renderer.getUniformsCounts();
 		let useLogDepthBuf = renderer.isWebGL2 || !!renderer.extensions.EXT_frag_depth;
 		let definitions = `
-			#define MESH_COUNT ${uniformCounts.meshInfoVectors / 4}
 			${useLogDepthBuf? '#define LOG_DEPTH_BUF' : ''}
 			${!renderer.isWebGL2? '#define IS_WEBGL1' : ''}
 			${defineChunk}
@@ -27,33 +28,18 @@ export class Program {
 		vertexSource = vertexSource.replace('#include <definitions>', definitions);
 		fragmentSource = fragmentSource.replace('#include <definitions>', definitions);
 
-		let vertexShader = gl.createShader(gl.VERTEX_SHADER);
-		let fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+		this.vertexShader = gl.createShader(gl.VERTEX_SHADER);
+		this.fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
 
-		gl.shaderSource(vertexShader, vertexSource);
-		gl.compileShader(vertexShader);
-		gl.shaderSource(fragmentShader, fragmentSource);
-		gl.compileShader(fragmentShader);
-
-		if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-			alert('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(vertexShader));
-			return null;
-		}
-
-		if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-			alert('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(fragmentShader));
-			return null;
-		}
+		gl.shaderSource(this.vertexShader, vertexSource);
+		gl.shaderSource(this.fragmentShader, fragmentSource);
+		gl.compileShader(this.vertexShader);
+		gl.compileShader(this.fragmentShader);
 
 		let program = gl.createProgram();
-		gl.attachShader(program, vertexShader);
-		gl.attachShader(program, fragmentShader);
+		gl.attachShader(program, this.vertexShader);
+		gl.attachShader(program, this.fragmentShader);
 		gl.linkProgram(program);
-
-		if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-			alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(program));
-			return null;
-		}
 
 		this.glProgram = program;
 	}
@@ -81,8 +67,30 @@ export class Program {
 		return [ vertSrc, fragSrc ];
 	}
 
+	checkCompileStatus() {
+		let { gl } = this.renderer;
+
+		this.compileStatusChecked = true;
+
+		if (!gl.getShaderParameter(this.vertexShader, gl.COMPILE_STATUS)) {
+			console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(this.vertexShader));
+			return;
+		}
+
+		if (!gl.getShaderParameter(this.fragmentShader, gl.COMPILE_STATUS)) {
+			console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(this.fragmentShader));
+			return;
+		}
+
+		if (!gl.getProgramParameter(this.glProgram, gl.LINK_STATUS)) {
+			console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(this.glProgram));
+			return;
+		}
+	}
+
 	use() {
 		if (this.renderer.currentProgram === this) return;
+		if  (!this.compileStatusChecked) this.checkCompileStatus();
 
 		this.renderer.currentProgram?.unuse();
 		
