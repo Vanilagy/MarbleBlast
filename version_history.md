@@ -1,5 +1,17 @@
 # Version History
 
+## 2.2.8
+- Fixed missing controller binding
+
+## 2.2.7
+- Added proper controller support for MBP (thanks, Whirligig!)
+
+## 2.2.6
+- Fixed some MBP custom quasi-duplicates
+
+## 2.2.5
+- Fixed music bug in MBG causing levels to crash
+
 ## 2.2.4
 - Added MBG Xbox bonus levels to MBG customs (Black Diamond, Cube Root, Divergence, Endurance, Mountaintop Retreat, Skate to the Top, The Road Less Traveled, Timely Ascent, Urban Jungle)
 

@@ -1,7 +1,7 @@
 {
 	"name": "Marble Blast Web",
 	"short_name": "Marble Blast",
-	"description": "A web port of Marble Blast Gold and Marble Blast Platinum: In this 3D platformer classic, race your marble to the finish as fast as possible in more than 4200 diverse levels taken from Marble Blast Gold, Platinum and Ultra. Play Marble Blast online right in your browser or on your mobile device.",
+	"description": "A web port of Marble Blast Gold and Marble Blast Platinum: In this 3D platformer classic, race your marble to the finish as fast as possible in more than 4100 diverse levels taken from Marble Blast Gold, Platinum and Ultra. Play Marble Blast online right in your browser or on your mobile device.",
 	"dir": "ltr",
 	"start_url": "/index.html?app=true",
 	"scope": "/",
