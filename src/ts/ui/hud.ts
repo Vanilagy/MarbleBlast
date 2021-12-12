@@ -1,11 +1,11 @@
 import { AudioManager } from "../audio";
 import { actionButtonContainer, blastButton, blastEnabled, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, jumpButton, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setBlastEnabled, setUseEnabled, useButton } from "../input";
-import { FRAME_RATE_OPTIONS } from "../rendering";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
+import { FRAME_RATE_OPTIONS } from "./options_mbp";
 
 const numberSources = {
 	"0": "0.png",

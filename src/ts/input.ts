@@ -1,6 +1,6 @@
-import { SCALING_RATIO } from "./rendering";
 import { state } from "./state";
 import { StorageManager } from "./storage";
+import { SCALING_RATIO } from "./ui/misc";
 import { Util } from "./util";
 
 export const currentMousePosition = {

@@ -9,7 +9,6 @@ import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
 import { MisParser, MissionElementType } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
-import { ownCamera, ownRenderer } from "./rendering";
 import { state } from "./state";
 import { Group } from "./rendering/group";
 import { Geometry } from "./rendering/geometry";
@@ -18,6 +17,7 @@ import { Texture } from "./rendering/texture";
 import { Mesh } from "./rendering/mesh";
 import { CubeTexture } from "./rendering/cube_texture";
 import { CubeCamera } from "./rendering/cube_camera";
+import { mainRenderer } from "./ui/misc";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -151,7 +151,7 @@ export class Marble {
 		if (customTextureBlob) {
 			try {
 				let url = ResourceManager.getUrlToBlob(customTextureBlob);
-				marbleTexture = await ResourceManager.getTexture(url, false, '');
+				marbleTexture = await ResourceManager.getTexture(url, '');
 			} catch (e) {
 				console.error("Failed to load custom marble texture:", e);
 			}
@@ -162,8 +162,8 @@ export class Marble {
 		let has2To1Texture = marbleTexture.image.width === marbleTexture.image.height * 2;
 
 		if (this.isReflective()) {
-			this.cubeMap = new CubeTexture(ownRenderer, 128);
-			this.cubeCamera = new CubeCamera(0.025, ownCamera.far);
+			this.cubeMap = new CubeTexture(mainRenderer, 128);
+			this.cubeCamera = new CubeCamera(0.025, this.level.camera.far);
 		}
 
 		// Create the 3D object
@@ -698,7 +698,7 @@ export class Marble {
 		if (!this.isReflective()) return;
 
 		this.cubeCamera.position.copy(this.group.position);
-		this.cubeMap.render(this.level.ownScene, this.cubeCamera, 4);
+		this.cubeMap.render(this.level.scene, this.cubeCamera, 4);
 	}
 
 	enableSuperBounce(time: TimeState) {
@@ -758,7 +758,8 @@ export class Marble {
 		geom._gjkMargin = radius;
 		this.body.addShape(null); // I hacked OIMO a bit, this will trigger a recompute of the mass and stuff
 
-		//this.forcefield.group.scale.setScalar(this.radius / DEFAULT_RADIUS);
+		this.forcefield.group.scale.setScalar(this.radius / DEFAULT_RADIUS);
+		this.forcefield.group.recomputeTransform();
 	}
 
 	reset() {
@@ -777,5 +778,9 @@ export class Marble {
 		this.predictedPosition = this.body.getPosition();
 		this.predictedOrientation = this.body.getOrientation();
 		this.setRadius(this.level.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
+	}
+
+	dispose() {
+		this.cubeMap?.dispose();
 	}
 }

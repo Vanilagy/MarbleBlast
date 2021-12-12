@@ -16,7 +16,7 @@ uniform float logDepthBufFC;
 
 void main() {
 	gl_FragColor = color * texture2D(diffuseMap, vUv);
-
+	
 	#ifdef LOG_DEPTH_BUF
 		// We always need to set gl_FragDepthEXT when it's present in the file, otherwise it gets real weird
 		// Also: Doing a strict comparison with == 1.0 can cause noise artifacts

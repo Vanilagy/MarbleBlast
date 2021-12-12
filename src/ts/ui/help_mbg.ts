@@ -1,4 +1,7 @@
 import THREE from "three";
+import { AmbientLight } from "../rendering/ambient_light";
+import { Renderer } from "../rendering/renderer";
+import { Scene } from "../rendering/scene";
 import { Shape } from "../shape";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
@@ -105,10 +108,11 @@ export class MbgHelpScreen extends HelpScreen {
 	pages = [...document.querySelectorAll('.help-page')] as HTMLDivElement[];
 	currentPage: HTMLDivElement;
 
+	helpCanvas = document.createElement('canvas');
 	/** A renderer used to render small icons of shapes in the help screen. */
-	helpRenderer = new THREE.WebGLRenderer({ alpha: true });
+	helpRenderer = new Renderer({ canvas: this.helpCanvas, alpha: true, desynchronized: false });
 	helpCamera = new THREE.PerspectiveCamera(40, 1);
-	scenes = new Map<string, THREE.Scene>();
+	scenes = new Map<string, Scene>();
 	shapes = new Map<string, Shape[]>();
 
 	initProperties() {
@@ -182,7 +186,7 @@ export class MbgHelpScreen extends HelpScreen {
 		}
 	}
 
-	update() {
+	async update() {
 		requestAnimationFrame(() => this.update());
 		if (this.div.classList.contains('hidden')) return;
 		
@@ -199,16 +203,20 @@ export class MbgHelpScreen extends HelpScreen {
 			// Select the correct scene
 			let shapeArr = this.shapes.get(sceneName);
 			for (let shape of shapeArr) {
-				shape.group.rotation.z = now / 3000 * Math.PI;
+				let euler = new THREE.Euler(0, 0, now / 3000 * Math.PI);
+				shape.group.orientation.setFromEuler(euler);
+				shape.group.recomputeTransform();
 			}
 	
 			// Render the scene
+			this.helpCamera.updateMatrixWorld();
+			scene.prepareForRender(this.helpCamera);
 			this.helpRenderer.render(scene, this.helpCamera);
 	
 			// Copy it to the other canvas
 			let ctx = canvas.getContext('2d');
 			ctx.clearRect(0, 0, 80, 80);
-			ctx.drawImage(this.helpRenderer.domElement, 0, 0);
+			ctx.drawImage(this.helpCanvas, 0, 0);
 		}
 	}
 
@@ -219,7 +227,7 @@ export class MbgHelpScreen extends HelpScreen {
 	
 		// Create all scenes and shapes
 		for (let key in sceneDescriptions) {
-			let scene = new THREE.Scene();
+			let scene = new Scene(this.helpRenderer);
 			let description = sceneDescriptions[key as keyof typeof sceneDescriptions];
 			let arr: Shape[] = [];
 	
@@ -259,9 +267,11 @@ export class MbgHelpScreen extends HelpScreen {
 				scene.add(shape.group);
 			}
 	
-			// A simple ambient light will do
-			let light = new THREE.AmbientLight(0xffffff, 1);
-			scene.add(light);
+			// A simple ambient light will do	
+			let light = new AmbientLight(new THREE.Color(0xffffff));
+			scene.addAmbientLight(light);
+
+			scene.compile();
 		}
 	}
 }

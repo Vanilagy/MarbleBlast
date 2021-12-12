@@ -9,6 +9,7 @@ export class DirectionalLight {
 	direction: THREE.Vector3;
 	camera: THREE.OrthographicCamera = null;
 	depthTexture: WebGLTexture;
+	colorTexture: WebGLTexture;
 	depthFramebuffer: WebGLFramebuffer;
 	textureResolution: number;
 
@@ -49,6 +50,7 @@ export class DirectionalLight {
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+		this.colorTexture = unusedTexture;
 
 		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, unusedTexture, 0);
 
@@ -107,5 +109,16 @@ export class DirectionalLight {
 	bindShadowMap() {
 		let { gl } = this.renderer;
 		this.renderer.bindTexture(this.depthTexture, 2, gl.TEXTURE_2D);
+	}
+
+	dispose() {
+		if (!this.camera) return;
+
+		let { gl } = this.renderer;
+
+		gl.deleteTexture(this.depthTexture);
+		gl.deleteTexture(this.colorTexture);
+
+		gl.deleteFramebuffer(this.depthFramebuffer);
 	}
 }

@@ -1,6 +1,5 @@
 import { Interior } from "./interior";
 import * as THREE from "three";
-import { renderer, camera, orthographicCamera, mainCanvas, marbleReflectionCamera, resize, SCALING_RATIO, FRAME_RATE_OPTIONS, ownRenderer, ownCamera } from "./rendering";
 import OIMO from "./declarations/oimo";
 import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
@@ -61,11 +60,13 @@ import { Blast } from "./shapes/blast";
 import { MegaMarble } from "./shapes/mega_marble";
 import { Scene } from "./rendering/scene";
 import { CubeTexture } from "./rendering/cube_texture";
-import { Material, MaterialType } from "./rendering/material";
+import { Material } from "./rendering/material";
 import { Mesh } from "./rendering/mesh";
 import { Geometry } from "./rendering/geometry";
 import { AmbientLight } from "./rendering/ambient_light";
 import { DirectionalLight } from "./rendering/directional_light";
+import { mainCanvas, mainRenderer, resize, SCALING_RATIO } from "./ui/misc";
+import { FRAME_RATE_OPTIONS } from "./ui/options_mbp";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -139,10 +140,8 @@ export class Level extends Scheduler {
 	/** Whether or not this level has the classic additional features of MBU levels, such as a larger marble and the blast functionality. */
 	loadingState: LoadingState;
 
-	scene: THREE.Scene;
-	ownScene = new Scene(ownRenderer);
-	sunlight: THREE.DirectionalLight;
-	sunDirection: THREE.Vector3;
+	scene: Scene;
+	camera: THREE.PerspectiveCamera;
 	envMap: CubeTexture;
 	physics: PhysicsHelper;
 	particles: ParticleManager;
@@ -157,6 +156,7 @@ export class Level extends Scheduler {
 	/** The shapes used for drawing HUD overlay (powerups in the corner) */
 	overlayShapes: Shape[] = [];
 	overlayScene: Scene;
+	overlayCamera: THREE.OrthographicCamera;
 	/** The last end pad element in the mission file. */
 	endPadElement: MissionElementStaticShape;
 
@@ -264,13 +264,13 @@ export class Level extends Scheduler {
 		await this.initScene();
 		await this.initMarble(); this.loadingState.loaded += 1;
 		this.particles = new ParticleManager(this);
-		await this.particles.init(ownRenderer);
-		this.ownScene.particleManager = this.particles;
+		await this.particles.init(mainRenderer);
+		this.scene.particleManager = this.particles;
 		let soundPromise = this.initSounds();
 		await this.addSimGroup(this.mission.root);
 		await this.initUi(); this.loadingState.loaded += 3;
 		await soundPromise; this.loadingState.loaded += 6;
-		this.ownScene.compile(); this.loadingState.loaded += 1;
+		this.scene.compile(); this.loadingState.loaded += 1;
 
 		this.replay = new Replay(this);
 	}
@@ -297,7 +297,7 @@ export class Level extends Scheduler {
 	}
 
 	async initScene() {
-		this.scene = new THREE.Scene();
+		this.scene = new Scene(mainRenderer);
 
 		let addedShadow = false;
 		// There could be multiple suns, so do it for all of them
@@ -309,48 +309,21 @@ export class Level extends Scheduler {
 			let sunDirection = MisParser.parseVector3(element.direction);
 
 			// Create the ambient light
-			let ambientLight = new THREE.AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z), 1);
-			ambientLight.position.z = 0;
-			ambientLight.position.y = 5;
-			this.scene.add(ambientLight);
-			this.ownScene.addAmbientLight(new AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z)));
+			this.scene.addAmbientLight(new AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z)));
 
-			// Create the sunlight and set up the shadow camera
-			let sunlight = new THREE.DirectionalLight(new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z), 1);
-			this.scene.add(sunlight);
+			// Create the sunlight
 			let directionalLight = new DirectionalLight(
-				ownRenderer,
+				mainRenderer,
 				new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z),
 				sunDirection.clone()
 			);
-			this.ownScene.addDirectionalLight(directionalLight);
+			this.scene.addDirectionalLight(directionalLight);
 
 			if (!addedShadow) {
 				addedShadow = true;
 
 				let shadowCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
 				directionalLight.enableShadowCasting(256, shadowCamera);
-			}
-
-			// The first sun will be the "shadow sun"
-			if (!addedShadow) {
-				addedShadow = true;
-
-				sunlight.castShadow = true;
-				sunlight.shadow.camera.far = 10000;
-				sunlight.shadow.camera.left = -0.8; // The shadow area itself is very small 'cause it only needs to cover the marble and the gyrocopter
-				sunlight.shadow.camera.right = 0.8;
-				sunlight.shadow.camera.bottom = -0.8;
-				sunlight.shadow.camera.top = 0.8;
-				sunlight.shadow.mapSize.width = 200;
-				sunlight.shadow.mapSize.height = 200;
-				sunlight.shadow.radius = 2;
-				this.scene.add(sunlight.target); // Necessary for it to update
-
-				this.sunlight = sunlight;
-				this.sunDirection = sunDirection;
-			} else {
-				sunlight.position.copy(sunDirection.multiplyScalar(-1));
 			}
 		}
 
@@ -366,19 +339,18 @@ export class Level extends Scheduler {
 		// This is kind of a weird situation here. It seems as if when the skysolidcolor isn't the default value, it's used as the skycolor; otherwise, fog color is used. Strange.
 		if (skySolidColor.x !== 0.6 || skySolidColor.y !== 0.6 || skySolidColor.z !== 0.6) fogColor = skySolidColor;
 		
-		renderer.setClearColor(new THREE.Color(fogColor.x, fogColor.y, fogColor.z), 1);
+		mainRenderer.setClearColor(fogColor.x, fogColor.y, fogColor.z, 1);
 
-		camera.far = MisParser.parseNumber(skyElement.visibledistance);
-		camera.fov = StorageManager.data.settings.fov;
-		marbleReflectionCamera.far = camera.far;
-		camera.updateProjectionMatrix();
-		marbleReflectionCamera.updateProjectionMatrix();
-		ownCamera.far = camera.far;
+		this.camera = new THREE.PerspectiveCamera(
+			StorageManager.data.settings.fov,
+			window.innerWidth / window.innerHeight,
+			0.01,
+			MisParser.parseNumber(skyElement.visibledistance)
+		);
 
 		if (skyElement.useskytextures === "1") {
 			// Create the skybox
 			let skyboxCubeTexture = await this.createSkyboxCubeTexture(skyElement.materiallist.slice(skyElement.materiallist.indexOf('data/') + 'data/'.length), true);
-			//if (skyboxCubeTexture) this.scene.background = skyboxCubeTexture;
 			if (skyboxCubeTexture) {
 				let material = new Material();
 				material.isSky = true;
@@ -390,20 +362,12 @@ export class Level extends Scheduler {
 				geometry.positions.push(-1, -1, 0);
 				geometry.positions.push(3, -1, 0);
 				geometry.positions.push(-1, 3, 0);
-
-				/*
-				geometry.positions.length = 0;
-				geometry.positions.push(1, -1, 1);
-				
-				geometry.positions.push(-1, 1, 1);
-				geometry.positions.push(-1, -1, 1);
-				*/
 				geometry.materials.push(0, 0, 0);
 				geometry.indices.push(0, 1, 2);
 				geometry.fillRest();
 
 				let mesh = new Mesh(geometry, [material]);
-				this.ownScene.add(mesh);
+				this.scene.add(mesh);
 			}
 		}
 
@@ -438,7 +402,7 @@ export class Level extends Scheduler {
 			skyboxImages = Util.remapIndices(skyboxImages, [1, 3, 4, 5, 0, 2]);
 			if (downsampleTo) skyboxImages = await Promise.all(skyboxImages.map(x => Util.downsampleImage(x, downsampleTo, downsampleTo)));
 
-			let skyboxTexture = new CubeTexture(ownRenderer, skyboxImages);
+			let skyboxTexture = new CubeTexture(mainRenderer, skyboxImages);
 			return skyboxTexture;
 		} else {
 			if (increaseLoading) this.loadingState.loaded += 6;
@@ -451,7 +415,7 @@ export class Level extends Scheduler {
 		await this.marble.init();
 
 		//this.scene.add(this.marble.group);
-		this.ownScene.add(this.marble.group);
+		this.scene.add(this.marble.group);
 		this.physics.initMarble();
 	}
 
@@ -475,9 +439,20 @@ export class Level extends Scheduler {
 			}
 		}
 
-		this.overlayScene = new Scene(ownRenderer);
+		this.overlayScene = new Scene(mainRenderer);
 		let overlayLight = new AmbientLight(new THREE.Color(0xffffff));
 		this.overlayScene.addAmbientLight(overlayLight);
+
+		this.overlayCamera = new THREE.OrthographicCamera(
+			-window.innerWidth/2,
+			window.innerWidth/2,
+			-window.innerHeight/2,
+			window.innerHeight/2,
+			1,
+			1000
+		);
+		this.overlayCamera.up.set(0, 0, -1);
+		this.overlayCamera.lookAt(new THREE.Vector3(1, 0, 0));
 
 		for (let path of hudOverlayShapePaths) {
 			let shape = new Shape();
@@ -682,7 +657,7 @@ export class Level extends Scheduler {
 
 		shape.setTransform(shapePosition, shapeRotation, shapeScale);
 
-		this.ownScene.add(shape.group);
+		this.scene.add(shape.group);
 		this.physics.addShape(shape);
 	}
 
@@ -737,7 +712,7 @@ export class Level extends Scheduler {
 
 		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
 
-		this.ownScene.add(shape.group);
+		this.scene.add(shape.group);
 		if (shape.worldScale.x !== 0 && shape.worldScale.y !== 0 && shape.worldScale.z !== 0) this.physics.addShape(shape); // Only add the shape if it actually has any volume
 	}
 
@@ -881,27 +856,15 @@ export class Level extends Scheduler {
 		this.particles.render(tempTimeState.timeSinceLoad);
 
 		this.updateCamera(tempTimeState);
-		camera.updateMatrixWorld();
-		ownCamera.projectionMatrix.copy(camera.projectionMatrix);
-		ownCamera.matrixWorldInverse.copy(camera.matrixWorldInverse);
-		ownCamera.position.copy(camera.position);
+		this.camera.updateMatrixWorld();
 
 		// Update the shadow camera
-		this.ownScene.directionalLights[0]?.updateCamera(this.marble.group.position.clone(), -1);
-		/*
-		let shadowCameraPosition = this.marble.group.position.clone();
-		shadowCameraPosition.sub(this.sunDirection.clone().multiplyScalar(5));
-		this.sunlight.shadow.camera.position.copy(shadowCameraPosition);
-		this.sunlight.position.copy(shadowCameraPosition);
-		this.sunlight.target.position.copy(this.marble.group.position);
-		*/
+		this.scene.directionalLights[0]?.updateCamera(this.marble.group.position.clone(), -1);
 
-		//this.marble.renderReflection();
-		//renderer.render(this.scene, camera);
-
-		this.ownScene.prepareForRender(ownCamera);
+		// Render the scene
+		this.scene.prepareForRender(this.camera);
 		this.marble.renderReflection();
-		ownRenderer.render(this.ownScene, ownCamera);
+		mainRenderer.render(this.scene, this.camera);
 
 		// Update the overlay
 		for (let overlayShape of this.overlayShapes) {
@@ -921,13 +884,10 @@ export class Level extends Scheduler {
 			overlayShape.group.recomputeTransform();
 		}
 
-		orthographicCamera.updateMatrixWorld();
-		this.overlayScene.prepareForRender(orthographicCamera);
-		ownRenderer.render(this.overlayScene, orthographicCamera, null, false);
-
-		renderer.autoClear = false; // Make sure not to clear the previous canvas
-		//renderer.render(this.overlayScene, orthographicCamera);
-		renderer.autoClear = true;
+		// Render the overlay
+		this.overlayCamera.updateMatrixWorld();
+		this.overlayScene.prepareForRender(this.overlayCamera);
+		mainRenderer.render(this.overlayScene, this.overlayCamera, null, false);
 
 		// This might seem a bit strange, but the time we display is actually a few milliseconds in the PAST (unless the user is currently in TT or has finished), for the reason that time was able to go backwards upon finishing or collecting TTs due to CCD time correction. That felt wrong, so we accept this inaccuracy in displaying time for now.
 		let timeToDisplay = tempTimeState.gameplayClock;
@@ -1007,11 +967,10 @@ export class Level extends Scheduler {
 			cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
 			cameraVerticalTranslation.applyQuaternion(orientationQuat);
 
-			camera.up = up;
-			camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z).sub(directionVector.clone().multiplyScalar(2.5));
-			camera.lookAt(Util.vecOimoToThree(marblePosition));
-			camera.position.add(cameraVerticalTranslation);
-			marbleReflectionCamera.up = up;
+			this.camera.up = up;
+			this.camera.position.set(marblePosition.x, marblePosition.y, marblePosition.z).sub(directionVector.clone().multiplyScalar(2.5));
+			this.camera.lookAt(Util.vecOimoToThree(marblePosition));
+			this.camera.position.add(cameraVerticalTranslation);
 
 			// Handle wall intersections:
 
@@ -1021,7 +980,7 @@ export class Level extends Scheduler {
 			let processedShapes = new Set<OIMO.Shape>();
 			for (let i = 0; i < 3; i++) {
 				// Shoot rays from the marble to the postiion of the camera
-				let rayCastDirection = Util.vecThreeToOimo(camera.position).subEq(rayCastOrigin);
+				let rayCastDirection = Util.vecThreeToOimo(this.camera.position).subEq(rayCastOrigin);
 				rayCastDirection.addEq(rayCastDirection.clone().normalize().scale(2));
 
 				let firstHit: OIMO.RayCastHit = null;
@@ -1047,23 +1006,23 @@ export class Level extends Scheduler {
 
 					// Project the camera position onto the plane
 					let target = new THREE.Vector3();
-					let projected = plane.projectPoint(camera.position, target);
+					let projected = plane.projectPoint(this.camera.position, target);
 
 					// If the camera is too far from the plane anyway, break
-					let dist = plane.distanceToPoint(camera.position);
+					let dist = plane.distanceToPoint(this.camera.position);
 					if (dist >= closeness) break;
 
 					// Go the projected point and look at the marble
-					camera.position.copy(projected.add(normal.multiplyScalar(closeness)));
-					Util.cameraLookAtDirect(camera, Util.vecOimoToThree(marblePosition));
+					this.camera.position.copy(projected.add(normal.multiplyScalar(closeness)));
+					Util.cameraLookAtDirect(this.camera, Util.vecOimoToThree(marblePosition));
 
 					let rotationAxis = new THREE.Vector3(1, 0, 0);
-					rotationAxis.applyQuaternion(camera.quaternion);
+					rotationAxis.applyQuaternion(this.camera.quaternion);
 
 					let theta = Math.atan(0.3 / 2.5); // 0.3 is the vertical translation, 2.5 the distance away from the marble.
 
 					// Rotate the camera back upwards such that the marble is in the same visual location on screen as before
-					camera.rotateOnWorldAxis(rotationAxis, theta);
+					this.camera.rotateOnWorldAxis(rotationAxis, theta);
 					continue;
 				}
 				
@@ -1073,10 +1032,10 @@ export class Level extends Scheduler {
 			this.lastVerticalTranslation = cameraVerticalTranslation;
 		} else {
 			// Simply look at the marble
-			camera.position.copy(this.oobCameraPosition);
-			camera.position.sub(this.lastVerticalTranslation)
-			camera.lookAt(Util.vecOimoToThree(marblePosition));
-			camera.position.add(this.lastVerticalTranslation);
+			this.camera.position.copy(this.oobCameraPosition);
+			this.camera.position.sub(this.lastVerticalTranslation)
+			this.camera.lookAt(Util.vecOimoToThree(marblePosition));
+			this.camera.position.add(this.lastVerticalTranslation);
 		}
 	}
 
@@ -1261,7 +1220,7 @@ export class Level extends Scheduler {
 			}
 		}
 
-		AudioManager.updatePositionalAudio(this.timeState, camera.position, this.yaw);
+		AudioManager.updatePositionalAudio(this.timeState, this.camera.position, this.yaw);
 		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
 		if (tickDone) this.marble.calculatePredictiveTransforms();
 
@@ -1300,7 +1259,7 @@ export class Level extends Scheduler {
 		let quatChange = new THREE.Quaternion();
 		let dot = Util.vecOimoToThree(newUp).dot(oldUp);
 		if (dot <= -(1 - 1e-15) && !(this.replay.version < 3)) { // If the old and new up are exact opposites, there are infinitely many possible rotations we could do. So choose the one that maintains the current look vector the best. Replay check so we don't break old stuff.
-			let lookVector = new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
+			let lookVector = new THREE.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion);
 			let intermediateVector = oldUp.clone().cross(lookVector).normalize();
 
 			// First rotation to the intermediate vector, then rotate from there to the new up
@@ -1345,6 +1304,19 @@ export class Level extends Scheduler {
 	setGravityIntensity(intensity: number) {
 		let gravityVector = this.currentUp.scale(-1 * intensity);
 		this.physics.world.setGravity(gravityVector);
+	}
+
+	onResize() {
+		if (!this.camera || !this.overlayCamera) return;
+
+		this.camera.aspect = window.innerWidth / window.innerHeight;
+		this.camera.updateProjectionMatrix();
+
+		this.overlayCamera.left = 0;
+		this.overlayCamera.right = window.innerWidth;
+		this.overlayCamera.top = 0;
+		this.overlayCamera.bottom = window.innerHeight;
+		this.overlayCamera.updateProjectionMatrix();
 	}
 
 	onMouseMove(e: MouseEvent) {
@@ -1450,7 +1422,7 @@ export class Level extends Scheduler {
 		this.updateCamera(this.timeState); // Update the camera at the point of OOB-ing
 		this.outOfBounds = true;
 		this.outOfBoundsTime = Util.jsonClone(this.timeState);
-		this.oobCameraPosition = camera.position.clone();
+		this.oobCameraPosition = this.camera.position.clone();
 		state.menu.hud.setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
 
@@ -1680,8 +1652,7 @@ export class Level extends Scheduler {
 
 	/** Disposes the GPU assets used by the level. */
 	dispose() {
-		for (let interior of this.interiors) interior.dispose();
-		for (let shape of this.shapes) shape.dispose();
-		for (let overlayShape of this.overlayShapes) overlayShape.dispose();
+		this.scene.dispose();
+		this.marble.dispose();
 	}
 }

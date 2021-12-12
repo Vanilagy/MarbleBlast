@@ -320,7 +320,7 @@ export class Mission {
 	}
 
 	/** Gets a texture from the mission resources. */
-	async getTexture(path: string, removeAlpha?: boolean) {
+	async getTexture(path: string) {
 		path = path.toLowerCase();
 
 		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
@@ -328,9 +328,9 @@ export class Mission {
 		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
 			let blob = await this.getBlobForFile(base + path);
 			let url = ResourceManager.getUrlToBlob(blob);
-			return await ResourceManager.getTexture(url, removeAlpha, '');
+			return await ResourceManager.getTexture(url, '');
 		} else {
-			return await ResourceManager.getTexture(path, removeAlpha, 'assets/' + base);
+			return await ResourceManager.getTexture(path, 'assets/' + base);
 		}
 	}
 

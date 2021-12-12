@@ -2,12 +2,6 @@ import THREE from "three";
 import { CubeTexture } from "./cube_texture";
 import { Texture } from "./texture";
 
-export enum MaterialType {
-	Regular = 0,
-	Sky = 1,
-	Shadow = 2
-}
-
 export class Material {
 	differentiator = '';
 	diffuseMap: Texture = null;
@@ -92,6 +86,7 @@ export class Material {
 		if (this.useAccurateReflectionRay) defines.push('USE_ACCURATE_REFLECTION_RAY');
 		if (this.specularIntensity) defines.push('USE_SPECULAR');
 		if (this.saturateIncomingLight) defines.push('SATURATE_INCOMING_LIGHT');
+		if (this.blending === THREE.NormalBlending) defines.push('USE_PREMULTIPLIED_ALPHA');
 
 		return this.defineChunkCache = defines.map(x => `#define ${x}\n`).join('');
 	}

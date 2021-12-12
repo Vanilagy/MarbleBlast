@@ -213,9 +213,14 @@ void main() {
 			#endif
 
 			vec4 sampled = sampleCubeTexture(envMap, reflectionRay);
+			sampled.a *= vOpacity;
+			
 			shaded = mix(shaded, sampled, fac * reflectivity);
 		#endif
 
 		gl_FragColor = shaded;
+		#ifdef USE_PREMULTIPLIED_ALPHA
+			gl_FragColor.rgb *= gl_FragColor.a;
+		#endif
 	#endif
 }

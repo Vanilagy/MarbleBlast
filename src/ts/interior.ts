@@ -2,15 +2,13 @@ import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
 import * as THREE from "three";
 import OIMO from "./declarations/oimo";
 import { TimeState, Level, PHYSICS_TICK_RATE } from "./level";
-import { Util, MaterialGeometry } from "./util";
+import { Util } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
 import { Octree, OctreeObject } from "./octree";
-import { ownRenderer, renderer } from "./rendering";
 import { StorageManager } from "./storage";
 import { Geometry } from "./rendering/geometry";
 import { Mesh } from "./rendering/mesh";
 import { Material } from "./rendering/material";
-import { Texture } from "./rendering/texture";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -311,7 +309,7 @@ export class Interior {
 
 		let mesh = new Mesh(cached.geometry, cached.materials);
 		this.mesh = mesh;
-		this.level.ownScene.add(mesh);
+		this.level.scene.add(mesh);
 
 		this.level.loadingState.loaded++;
 	}
@@ -519,12 +517,6 @@ export class Interior {
 			this.addConvexHull(intersect.hullIndex, this.scale);
 			this.addedHulls.add(intersect.hullIndex);
 		}
-	}
-
-	dispose() {
-		return;
-		if (this.materials) for (let material of this.materials) material.dispose();
-		if (this.mesh?.geometry) this.mesh.geometry.dispose();
 	}
 
 	onMarbleContact(time: TimeState, contact?: OIMO.Contact): boolean {

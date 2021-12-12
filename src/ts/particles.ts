@@ -218,6 +218,12 @@ export class ParticleManager {
 			group.bufferAttribute.update();
 		}
 	}
+
+	dispose() {
+		for (let [, group] of this.particleGroups) {
+			group.bufferAttribute.dispose();
+		}
+	}
 }
 
 export class ParticleEmitter {

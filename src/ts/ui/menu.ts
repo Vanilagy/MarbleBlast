@@ -1,6 +1,5 @@
 import { AudioManager, AudioSource } from "../audio";
 import { currentMousePosition } from "../input";
-import { SCALING_RATIO } from "../rendering";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
 import { Util } from "../util";
@@ -10,7 +9,7 @@ import { HomeScreen } from "./home";
 import { Hud } from "./hud";
 import { LevelSelect } from "./level_select";
 import { LoadingScreen } from "./loading";
-import { setEnterFullscreenButtonVisibility } from "./misc";
+import { SCALING_RATIO, setEnterFullscreenButtonVisibility } from "./misc";
 import { OptionsScreen } from "./options";
 import { PauseScreen } from "./pause_screen";
 

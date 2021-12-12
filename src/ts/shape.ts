@@ -3,64 +3,19 @@ import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
-import { Util, MaterialGeometry } from "./util";
+import { Util } from "./util";
 import { TimeState, Level } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 import { AudioManager } from "./audio";
 import { MissionElement } from "./parsing/mis_parser";
-import { renderer } from "./rendering";
 import { Group } from "./rendering/group";
-import { Material, MaterialType } from "./rendering/material";
+import { Material } from "./rendering/material";
 import { Geometry } from "./rendering/geometry";
 import { Mesh } from "./rendering/mesh";
 import { Texture } from "./rendering/texture";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
-
-// The following two shaders have been modified to support logarithmic depth buffers:
-const SHADOW_MATERIAL_VERTEX = `
-	#include <common>
-	#include <fog_pars_vertex>
-	#include <morphtarget_pars_vertex>
-	#include <skinning_pars_vertex>
-	#include <shadowmap_pars_vertex>
-	#include <logdepthbuf_pars_vertex> // Added here
-	void main() {
-		#include <beginnormal_vertex>
-		#include <morphnormal_vertex>
-		#include <skinbase_vertex>
-		#include <skinnormal_vertex>
-		#include <defaultnormal_vertex>
-		#include <begin_vertex>
-		#include <morphtarget_vertex>
-		#include <skinning_vertex>
-		#include <project_vertex>
-		#include <logdepthbuf_vertex> // Added here
-		#include <worldpos_vertex>
-		#include <shadowmap_vertex>
-		#include <fog_vertex>
-	}
-`;
-const SHADOW_MATERIAL_FRAGMENT = `
-	uniform vec3 color;
-	uniform float opacity;
-	#include <common>
-	#include <packing>
-	#include <fog_pars_fragment>
-	#include <bsdfs>
-	#include <lights_pars_begin>
-	#include <shadowmap_pars_fragment>
-	#include <shadowmask_pars_fragment>
-	#include <logdepthbuf_pars_fragment> // Added here
-	void main() {
-		#include <logdepthbuf_fragment> // Added here
-		gl_FragColor = vec4( color, opacity * ( 1.0 - getShadowMask() ) );
-		#include <tonemapping_fragment>
-		#include <encodings_fragment>
-		#include <fog_fragment>
-	}
-`;
 
 interface MaterialInfo {
 	keyframes: string[]
@@ -444,7 +399,7 @@ export class Shape {
 				material.diffuseMap = textures[0]; // So that we compile the material in the right type of shader
 				material.differentiator = this.isTSStatic + ResourceManager.mainDataPath + this.directoryPath + '/' + fullName;
 			} else {
-				let texture = await ResourceManager.getTexture(this.directoryPath + '/' + fullName, (flags & MaterialFlags.Translucent) === 0); // Make sure to remove the alpha of the texture if it's not flagged as translucent
+				let texture = await ResourceManager.getTexture(this.directoryPath + '/' + fullName);
 				material.diffuseMap = texture;
 			}
 
@@ -989,12 +944,6 @@ export class Shape {
 				shape = shape.getNext();
 			}
 		}
-	}
-
-	dispose() {
-		return;
-		for (let material of this.materials) material.dispose();
-		for (let geometry of this.geometries) geometry.dispose();
 	}
 
 	onMarbleContact(time: TimeState, contact?: OIMO.Contact): (boolean | void) {}

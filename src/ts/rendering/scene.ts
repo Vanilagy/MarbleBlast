@@ -50,9 +50,12 @@ export class Scene extends Group {
 	directionalLightColorBuffer: Float32Array;
 	directionalLightDirectionBuffer: Float32Array;
 	directionalLightTransformBuffer: Float32Array;
-	firstUpdate = true;
 
 	particleManager: ParticleManager = null;
+
+	firstUpdate = true;
+	compiled = false;
+	preparedForRender = false;
 
 	constructor(renderer: Renderer) {
 		super();
@@ -180,6 +183,8 @@ export class Scene extends Group {
 		this.directionalLightColorBuffer = new Float32Array(totalDirectionalLight.toArray());
 		this.directionalLightDirectionBuffer = new Float32Array(directionalLightDirection.toArray());
 		this.directionalLightTransformBuffer = new Float32Array(16);
+
+		this.compiled = true;
 	}
 
 	updateMaterialGroup(materialMap: Map<string, MaterialGroup>, data: MaterialIndexData) {
@@ -309,6 +314,8 @@ export class Scene extends Group {
 		}
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.transparentIndexBuffer);
 		gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, this.transparentIndexBufferData, 0, offset);
+
+		this.preparedForRender = true;
 	}
 
 	update() {
@@ -353,5 +360,25 @@ export class Scene extends Group {
 			mat4.multiplyMatrices(firstLight.camera.projectionMatrix, firstLight.camera.matrixWorldInverse);
 			this.directionalLightTransformBuffer.set(mat4.elements, 0);
 		}
+	}
+
+	dispose() {
+		let { gl } = this.renderer;
+
+		this.positionBuffer.dispose();
+		this.normalBuffer.dispose();
+		this.tangentBuffer.dispose();
+		this.uvBuffer.dispose();
+		this.meshInfoIndexBuffer.dispose();
+
+		gl.deleteTexture(this.meshInfoTexture);
+
+		gl.deleteBuffer(this.opaqueIndexBuffer);
+		gl.deleteBuffer(this.transparentIndexBuffer);
+		gl.deleteBuffer(this.shadowCasterIndexBuffer);
+
+		this.particleManager.dispose();
+
+		for (let light of this.directionalLights) light.dispose();
 	}
 }

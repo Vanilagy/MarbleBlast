@@ -1,4 +1,36 @@
+import { Renderer } from "../rendering/renderer";
+import { state } from "../state";
+import { StorageManager } from "../storage";
 import { Util } from "../util";
+
+export const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasElement;
+export const mainRenderer = new Renderer({ canvas: mainCanvas });
+
+const MIN_WIDTH = 640;
+const MIN_HEIGHT = 600;
+
+/** Ratio by which the entire body gets scaled by, while still fitting into the screen. */
+export let SCALING_RATIO = 1;
+
+export const resize = async (wait = true) => {
+	if (wait) await Util.wait(100); // Sometimes you gotta give browser UI elements a little time to update
+
+	let ratio = Math.max(1, MIN_WIDTH / window.innerWidth, MIN_HEIGHT / window.innerHeight);
+	document.body.style.width = Math.ceil(window.innerWidth * ratio) + 'px';
+	document.body.style.height = Math.ceil(window.innerHeight * ratio) + 'px';
+	document.body.style.transform = `scale(${1 / ratio})`;
+	SCALING_RATIO = ratio;
+	
+	mainCanvas.style.width = '100%';
+	mainCanvas.style.height = '100%';
+	mainRenderer.setSize(window.innerWidth, window.innerHeight);
+	mainRenderer.setPixelRatio(Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]));
+
+	state.level?.onResize();
+};
+window.addEventListener('resize', resize as any);
+
+resize();
 
 /** Becomes true when the user has closed the fullscreen enforcer. */
 let dislikesFullscreen = false;

@@ -9,6 +9,7 @@ export class CubeTexture {
 	glTexture: WebGLTexture;
 	size: number;
 	framebuffer?: WebGLFramebuffer;
+	depthBuffer?: WebGLRenderbuffer;
 	nextFaceToRender = 0;
 
 	constructor(renderer: Renderer, images: HTMLImageElement[]);
@@ -70,6 +71,7 @@ export class CubeTexture {
 		gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuffer);
 
 		this.framebuffer = framebuffer;
+		this.depthBuffer = depthBuffer;
 	}
 
 	render(scene: Scene, cubeCamera: CubeCamera, budget = Infinity) {
@@ -108,5 +110,13 @@ export class CubeTexture {
 
 		this.nextFaceToRender += renderedFaces;
 		this.nextFaceToRender %= 6;
+	}
+
+	dispose() {
+		let { gl } = this.renderer;
+
+		gl.deleteTexture(this.glTexture);
+		gl.deleteFramebuffer(this.framebuffer);
+		gl.deleteRenderbuffer(this.depthBuffer);
 	}
 }

@@ -46,4 +46,10 @@ export class BufferAttribute {
 		this.updateRange.start = Infinity;
 		this.updateRange.end = 0;
 	}
+
+	dispose() {
+		let { gl } = this.renderer;
+
+		gl.deleteBuffer(this.buffer);
+	}
 }

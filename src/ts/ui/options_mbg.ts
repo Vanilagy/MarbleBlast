@@ -1,10 +1,10 @@
 import { AudioManager, AudioSource } from "../audio";
 import { currentMousePosition } from "../input";
-import { SCALING_RATIO } from "../rendering";
 import { ResourceManager } from "../resources";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
+import { SCALING_RATIO } from "./misc";
 import { OptionsScreen } from "./options";
 
 export class MbgOptionsScreen extends OptionsScreen {
