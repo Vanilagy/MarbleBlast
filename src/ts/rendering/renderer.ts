@@ -17,8 +17,7 @@ interface FramebufferInfo {
 
 export class Renderer {
 	options: { canvas: HTMLCanvasElement };
-	gl: WebGL2RenderingContext;
-	isWebGL2: boolean;
+	gl: WebGLRenderingContext | WebGL2RenderingContext;
 	currentProgram: Program = null;
 	materialShaders = new Map<string, Program>();
 	shadowMapProgram: Program;
@@ -47,8 +46,7 @@ export class Renderer {
 			powerPreference: 'high-performance'
 		};
 		this.gl = options.canvas.getContext('webgl2', ctxOptions) as WebGL2RenderingContext;
-		if (!this.gl) this.gl = options.canvas.getContext('webgl', ctxOptions) as any;
-		this.isWebGL2 = this.gl instanceof WebGL2RenderingContext;
+		if (!this.gl) this.gl = options.canvas.getContext('webgl', ctxOptions) as WebGLRenderingContext;
 
 		let { gl } = this;
 

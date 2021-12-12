@@ -15,14 +15,14 @@ export class Program {
 
 		let { gl } = renderer;
 
-		if (renderer.isWebGL2) {
+		if (gl instanceof WebGL2RenderingContext) {
 			[vertexSource, fragmentSource] = this.convertFromGLSL100ToGLSL300(vertexSource, fragmentSource);
 		}
 
-		let useLogDepthBuf = renderer.isWebGL2 || !!renderer.extensions.EXT_frag_depth;
+		let useLogDepthBuf = gl instanceof WebGL2RenderingContext || !!renderer.extensions.EXT_frag_depth;
 		let definitions = `
 			${useLogDepthBuf? '#define LOG_DEPTH_BUF' : ''}
-			${!renderer.isWebGL2? '#define IS_WEBGL1' : ''}
+			${!(gl instanceof WebGL2RenderingContext)? '#define IS_WEBGL1' : ''}
 			${defineChunk}
 		`;
 		vertexSource = vertexSource.replace('#include <definitions>', definitions);

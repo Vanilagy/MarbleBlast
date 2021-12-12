@@ -138,12 +138,13 @@ export class Scene extends Group {
 		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, new Float32Array(meshInfoIndices), { 'meshInfoIndex': 1 });
 
 		let maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-		let textureWidth = this.meshInfoTextureWidth = Math.min(4 * allMeshes.length, maxTextureSize);
-		let textureHeight = this.meshInfoTextureHeight = Math.ceil(4 * allMeshes.length / maxTextureSize);
+		let textureWidth = this.meshInfoTextureWidth = Util.ceilPowerOf2(Math.min(4 * allMeshes.length, maxTextureSize));
+		let textureHeight = this.meshInfoTextureHeight = Util.ceilPowerOf2(Math.ceil(4 * allMeshes.length / Math.max(maxTextureSize, textureWidth)));
+		let internalFormat = (gl instanceof WebGL2RenderingContext)? gl.RGBA32F : gl.RGBA;
 		this.meshInfoBuffer = new Float32Array(4 * textureWidth * textureHeight); // One mat4 per mesh
 		this.meshInfoTexture = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, this.meshInfoTexture);
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, null);
+		gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, null);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 		

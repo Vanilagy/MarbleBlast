@@ -1,4 +1,5 @@
 precision highp float;
+precision highp int;
 
 #include <definitions>
 
@@ -11,9 +12,17 @@ uniform int meshInfoTextureHeight;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 
+int mod(int a, int n) {
+	#ifdef IS_WEBGL1
+		return a - n * (a / n);
+	#else
+		return a % n;
+	#endif
+}
+
 mat4 getMeshInfo(int index) {
 	ivec2 coords = ivec2(
-		(4 * index) % meshInfoTextureWidth,
+		mod(4 * index, meshInfoTextureWidth),
 		(4 * index) / meshInfoTextureWidth
 	);
 

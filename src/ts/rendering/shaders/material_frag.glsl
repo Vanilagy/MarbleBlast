@@ -32,6 +32,10 @@ uniform vec3 directionalLightColor;
 uniform vec3 directionalLightDirection;
 uniform mediump sampler2D directionalLightShadowMap;
 
+#if defined(LOG_DEPTH_BUF) && defined(IS_WEBGL1)
+	#extension GL_EXT_frag_depth : enable
+#endif
+
 float lambert(vec3 normal, vec3 lightPosition) {
 	float result = dot(normal, lightPosition);
 	return max(result, 0.0);

@@ -14,7 +14,7 @@ export class BufferAttribute {
 		this.data = data;
 		this.attributes = attributes;
 		this.stride = Object.values(attributes).reduce((a, b) => a + b, 0);
-		if (Object.keys(attributes).length === 0) this.stride = 0; // Indicates a tightly-packed vertex attribute
+		if (Object.keys(attributes).length === 1) this.stride = 0; // Indicates a tightly-packed vertex attribute
 		
 		let { gl } = renderer;
 
@@ -35,7 +35,13 @@ export class BufferAttribute {
 		let { gl } = this.renderer;
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-		gl.bufferSubData(gl.ARRAY_BUFFER, this.updateRange.start * Float32Array.BYTES_PER_ELEMENT, this.data, this.updateRange.start, this.updateRange.end - this.updateRange.start);
+
+		if (gl instanceof WebGL2RenderingContext) {
+			gl.bufferSubData(gl.ARRAY_BUFFER, this.updateRange.start * Float32Array.BYTES_PER_ELEMENT, this.data, this.updateRange.start, this.updateRange.end - this.updateRange.start);
+		} else {
+			let slice = this.data.subarray(this.updateRange.start, this.updateRange.end);
+			gl.bufferSubData(gl.ARRAY_BUFFER, this.updateRange.start * Float32Array.BYTES_PER_ELEMENT, slice);
+		}
 
 		this.updateRange.start = Infinity;
 		this.updateRange.end = 0;

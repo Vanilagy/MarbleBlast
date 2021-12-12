@@ -1,4 +1,5 @@
 import THREE from "three";
+import { Util } from "../util";
 import { Renderer } from "./renderer";
 import { Scene } from "./scene";
 
@@ -18,13 +19,17 @@ export class DirectionalLight {
 	}
 
 	enableShadowCasting(textureResolution: number, camera: THREE.OrthographicCamera) {
+		Util.assert(Util.isPowerOf2(textureResolution));
+
 		let { gl } = this.renderer;
 
 		this.camera = camera;
 
 		let depthTexture = gl.createTexture();
+		let depthComponent = (gl instanceof WebGL2RenderingContext)? gl.DEPTH_COMPONENT32F : gl.DEPTH_COMPONENT;
+		let type = (gl instanceof WebGL2RenderingContext)? gl.FLOAT : gl.UNSIGNED_INT;
 		gl.bindTexture(gl.TEXTURE_2D, depthTexture);
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32F ?? gl.DEPTH_COMPONENT, textureResolution, textureResolution, 0, gl.DEPTH_COMPONENT, gl.FLOAT, null);
+		gl.texImage2D(gl.TEXTURE_2D, 0, depthComponent, textureResolution, textureResolution, 0, gl.DEPTH_COMPONENT, type, null);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

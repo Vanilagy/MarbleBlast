@@ -30,6 +30,28 @@ bool isPerspectiveMatrix(mat4 m) {
 	return m[2][3] == -1.0;
 }
 
+float accessDynamically(vec4 data, int idx) {
+	#ifdef IS_WEBGL1
+		if (idx == 0) return data[0];
+		if (idx == 1) return data[1];
+		if (idx == 2) return data[2];
+		return data[3];
+	#else
+		return data[idx];
+	#endif
+}
+
+vec4 accessDynamically(mat4 data, int idx) {
+	#ifdef IS_WEBGL1
+		if (idx == 0) return data[0];
+		if (idx == 1) return data[1];
+		if (idx == 2) return data[2];
+		return data[3];
+	#else
+		return data[idx];
+	#endif
+}
+
 void main() {
 	float elapsed = time - particleSpawnTime;
 	float completion = clamp(elapsed / particleLifetime, 0.0, 1.0);
@@ -56,17 +78,19 @@ void main() {
 		indexLow = indexHigh;
 		indexHigh = i;
 	}
-	if (times[1] > 1.0) indexHigh = indexLow;
-	float t = (completion - times[indexLow]) / (times[indexHigh] - times[indexLow]);
+	if (times[1] > 1.0) indexHigh = indexLow; // Basically checking if (this.o.times.length === 1)
+	float timeLow = accessDynamically(times, indexLow);
+	float timeHigh = accessDynamically(times, indexHigh);
+	float t = (completion - timeLow) / (timeHigh - timeLow);
 
 	// Compute the color to send to the fragment shader
-	color = mix(colors[indexLow], colors[indexHigh], t);
+	color = mix(accessDynamically(colors, indexLow), accessDynamically(colors, indexHigh), t);
 	color.a = pow(color.a, 1.5); // Adjusted because additive mixing can be kind of extreme
 
 	vec4 mvPosition = viewMatrix * vec4(computedPosition, 1.0);
 
 	vec2 scale = vec2(1.0);
-	scale *= mix(sizes[indexLow], sizes[indexHigh], t); // Adjust sizing
+	scale *= mix(accessDynamically(sizes, indexLow), accessDynamically(sizes, indexHigh), t); // Adjust sizing
 
 	// Enable the following code if you don't want to attenuate the size with growing distance:
 	// scale *= -mvPosition.z;

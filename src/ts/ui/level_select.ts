@@ -31,6 +31,7 @@ export abstract class LevelSelect {
 
 	setImagesTimeout: number = null;
 	clearImageTimeout: number = null;
+	currentQuery = '';
 	/** The current words in the search query. Used for matching. */
 	currentQueryWords: string[] = [];
 	lastDisplayBestTimesId: string; // Used to prevent some async issues
@@ -199,7 +200,8 @@ export abstract class LevelSelect {
 		if (direction === 0) return this.currentMissionIndex;
 
 		for (let i = this.currentMissionIndex + Math.sign(direction); i >= 0 && i < this.currentMissionArray.length; i += Math.sign(direction)) {
-			if (this.currentMissionArray[i].matchesSearch(this.currentQueryWords)) direction = Math.sign(direction) * (Math.abs(direction) - 1);
+			if (this.currentMissionArray[i].matchesSearch(this.currentQueryWords, this.currentQuery))
+				direction = Math.sign(direction) * (Math.abs(direction) - 1);
 			if (direction === 0) return i;
 		}
 
@@ -210,7 +212,7 @@ export abstract class LevelSelect {
 	canGoNext() {
 		let canGoNext = false;
 		for (let i = this.currentMissionIndex + 1; i < this.currentMissionArray.length; i++) {
-			if (this.currentMissionArray[i].matchesSearch(this.currentQueryWords)) {
+			if (this.currentMissionArray[i].matchesSearch(this.currentQueryWords, this.currentQuery)) {
 				canGoNext = true;
 				break;
 			}
@@ -223,7 +225,7 @@ export abstract class LevelSelect {
 	canGoPrev() {
 		let canGoPrev = false;
 		for (let i = this.currentMissionIndex - 1; i >= 0; i--) {
-			if (this.currentMissionArray[i].matchesSearch(this.currentQueryWords)) {
+			if (this.currentMissionArray[i].matchesSearch(this.currentQueryWords, this.currentQuery)) {
 				canGoPrev = true;
 				break;
 			}
@@ -478,7 +480,8 @@ export abstract class LevelSelect {
 
 	onSearchInputChange() {
 		// Normalize the search string and split it into words
-		let str = Util.removeSpecialCharacters(Util.normalizeString(this.searchInput.value)).toLowerCase();
+		let str = Util.removeSpecialCharacters(Util.normalizeString(this.searchInput.value.trim())).toLowerCase();
+		this.currentQuery = str;
 		this.currentQueryWords = str.split(' ');
 		if (!str) this.currentQueryWords.length = 0;
 	
@@ -489,12 +492,12 @@ export abstract class LevelSelect {
 	/** Selects a valid mission based on the current search query. */
 	selectBasedOnSearchQuery(display = true) {
 		// Check if the current mission already matches the search. In that case, don't do anything.
-		if (this.currentMission?.matchesSearch(this.currentQueryWords)) return;
+		if (this.currentMission?.matchesSearch(this.currentQueryWords, this.currentQuery)) return;
 	
 		// Find the first matching mission
 		for (let i = 0; i < this.currentMissionArray.length; i++) {
 			let mis = this.currentMissionArray[i];
-			if (mis.matchesSearch(this.currentQueryWords)) {
+			if (mis.matchesSearch(this.currentQueryWords, this.currentQuery)) {
 				this.currentMissionIndex = i;
 				if (display) this.displayMission();
 				break;

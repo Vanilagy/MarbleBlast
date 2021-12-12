@@ -1,4 +1,5 @@
 precision highp float;
+precision highp int;
 
 #include <definitions>
 
@@ -54,9 +55,17 @@ varying vec3 eyeDirection;
 	}
 #endif
 
+int mod(int a, int n) {
+	#ifdef IS_WEBGL1
+		return a - n * (a / n);
+	#else
+		return a % n;
+	#endif
+}
+
 mat4 getMeshInfo(int index) {
 	ivec2 coords = ivec2(
-		(4 * index) % meshInfoTextureWidth,
+		mod(4 * index, meshInfoTextureWidth),
 		(4 * index) / meshInfoTextureWidth
 	);
 
@@ -90,7 +99,7 @@ void main() {
 		
 		gl_Position = vec4(position, 1.0);
 	#else
-		mat4 meshInfo = getMeshInfo(int(meshInfoIndex)); // + 0.1 to make sure it casts correctly, lol
+		mat4 meshInfo = getMeshInfo(int(meshInfoIndex + 0.1)); // + 0.1 to make sure it casts correctly, lol
 		mat4 transform = meshInfo;
 		transform[0][3] = 0.0;
 		transform[1][3] = 0.0;

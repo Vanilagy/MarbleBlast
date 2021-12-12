@@ -329,8 +329,7 @@ export class Level extends Scheduler {
 				addedShadow = true;
 
 				let shadowCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
-				//let shadowCamera = new THREE.PerspectiveCamera(100, 1, 0.1, 1000);
-				directionalLight.enableShadowCasting(250, shadowCamera);
+				directionalLight.enableShadowCasting(256, shadowCamera);
 			}
 
 			// The first sun will be the "shadow sun"

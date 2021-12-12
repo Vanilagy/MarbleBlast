@@ -772,6 +772,35 @@ export abstract class Util {
 		let ret = document.documentElement.requestPointerLock?.() as any as Promise<void>;
 		if (ret && ret instanceof Promise) ret.catch(() => {});
 	}
+
+	/** Returns true iff `b` is a subsequence of `a`. */
+	static isSubsequenceOf(b: string, a: string) {
+		if (b.length > a.length) return false; // Early out
+
+		let j = 0;
+
+		for (let i = 0; i < b.length; i++) {
+			while (a[j] !== b[i] && j < a.length) j++;
+			if (j === a.length) return false;
+			j++;
+		}
+
+		return true;
+	}
+
+	static isPowerOf2(x: number) {
+		return !(x & (x - 1));
+	}
+
+	static ceilPowerOf2(x: number) {
+		let power = 1;
+		while (power < x) power *= 2;
+		return power;
+	}
+
+	static assert(bool: boolean) {
+		if (!bool) throw new Error("Assertion failed: " + bool);
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 

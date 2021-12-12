@@ -10,6 +10,10 @@ varying vec4 color;
 uniform sampler2D diffuseMap;
 uniform float logDepthBufFC;
 
+#if defined(LOG_DEPTH_BUF) && defined(IS_WEBGL1)
+	#extension GL_EXT_frag_depth : enable
+#endif
+
 void main() {
 	gl_FragColor = color * texture2D(diffuseMap, vUv);
 
