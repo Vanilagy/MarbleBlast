@@ -500,7 +500,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		}
 	}
 
-	refreshKeybindings = () => {
+	refreshKeybindings() {
 		this.buttonMarbleLeftContent.textContent = this.formatKeybinding('left');
 		this.buttonMarbleRightContent.textContent = this.formatKeybinding('right');
 		this.buttonMarbleUpContent.textContent = this.formatKeybinding('up');

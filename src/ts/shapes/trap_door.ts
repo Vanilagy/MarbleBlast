@@ -16,7 +16,7 @@ export class TrapDoor extends Shape {
 	/** The time it takes from the moment of touching the trapdoor to it opening. */
 	timeout = 0;
 	lastDirection: number;
-	lastCompletion: number = 0;
+	lastCompletion = 0;
 	sounds = ['trapdooropen.wav'];
 
 	constructor(element: MissionElementStaticShape) {

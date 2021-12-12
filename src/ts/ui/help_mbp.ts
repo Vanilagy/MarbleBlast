@@ -97,7 +97,7 @@ export class MbpHelpScreen extends HelpScreen {
 				// Add a font family change to the style
 				let font = nextCommand[0].slice(6, nextCommand[0].lastIndexOf(':'));
 				let size = nextCommand[0].slice(nextCommand[0].lastIndexOf(':') + 1, -1);
-				currentStyle += `font-family: ${font};font-size: ${size}px;`
+				currentStyle += `font-family: ${font};font-size: ${size}px;`;
 			} else if (nextCommand[0] === '<spush>') {
 				// Push the current style to the stack
 				styleStack.push(currentStyle);

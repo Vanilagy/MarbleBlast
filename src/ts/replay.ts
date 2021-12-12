@@ -16,7 +16,7 @@ import { Nuke } from "./shapes/nuke";
 export class Replay {
 	level: Level;
 	missionPath: string;
-	version: number = 4;
+	version = 4;
 	mode: 'record' | 'playback' = 'record';
 	/** If writing to the replay is still permitted. */
 	canStore = true;

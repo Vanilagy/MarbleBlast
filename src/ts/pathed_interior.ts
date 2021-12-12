@@ -29,11 +29,11 @@ export class PathedInterior extends Interior {
 	/** The total duration of the path. */
 	duration: number;
 	/** The source time */
-	currentTime: number = 0;
+	currentTime = 0;
 	/** The destination time */
-	targetTime: number = 0;
+	targetTime = 0;
 	/** The start reference point in time of interior interpolation */
-	changeTime: number = 0;
+	changeTime = 0;
 
 	basePosition: THREE.Vector3;
 	baseOrientation: THREE.Quaternion;

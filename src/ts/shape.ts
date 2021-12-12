@@ -146,7 +146,7 @@ export class Shape {
 	materialPostprocessor: (mat: Material) => void = null;
 
 	/** Same shapes with a different shareId cannot share data. */
-	shareId: number = 0;
+	shareId = 0;
 	/** Whether or not to share the same node transforms with other shapes of the same type. */
 	shareNodeTransforms = true;
 	/** Whether or not to share the same materials with other shapes of the same type. */
@@ -271,7 +271,7 @@ export class Shape {
 				geometryMatrixIndices,
 				collisionGeometries,
 				skinnedMeshIndex
-			}
+			};
 			this.isMaster = true;
 
 			resolveFunc?.(sharedData);
@@ -386,7 +386,7 @@ export class Shape {
 					fullNameCache.set(x, fullName);
 
 					return fullName;
-				})
+				});
 				this.materialInfo.set(material, { keyframes });
 
 				// Preload all frames of the material animation
@@ -521,7 +521,7 @@ export class Shape {
 
 					for (let primitive of mesh.primitives) {
 						// Create the geometry but with all zero vectors for now
-						let geometry = new OIMO.ConvexHullGeometry(Array(primitive.numElements).fill(null).map(x => new OIMO.Vec3()));
+						let geometry = new OIMO.ConvexHullGeometry(Array(primitive.numElements).fill(null).map(_ => new OIMO.Vec3()));
 
 						let shapeConfig = new OIMO.ShapeConfig();
 						shapeConfig.geometry = geometry;
@@ -564,7 +564,7 @@ export class Shape {
 			].map(x => Util.vecOimoToThree(x));
 
 			// Create an empty geometry for now
-			let geometry = new OIMO.ConvexHullGeometry(Array(8).fill(null).map(x => new OIMO.Vec3()));
+			let geometry = new OIMO.ConvexHullGeometry(Array(8).fill(null).map(_ => new OIMO.Vec3()));
 			let shapeConfig = new OIMO.ShapeConfig();
 			shapeConfig.geometry = geometry;
 			shapeConfig.restitution = this.restitution;
@@ -946,6 +946,7 @@ export class Shape {
 		}
 	}
 
+	/* eslint-disable  @typescript-eslint/no-unused-vars */
 	onMarbleContact(time: TimeState, contact?: OIMO.Contact): (boolean | void) {}
 	onMarbleInside(time: TimeState) {}
 	onMarbleEnter(time: TimeState) {}

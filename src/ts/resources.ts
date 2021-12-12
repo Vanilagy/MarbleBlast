@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { Renderer } from "./rendering/renderer";
 import { Texture } from "./rendering/texture";
 import { state } from "./state";
 

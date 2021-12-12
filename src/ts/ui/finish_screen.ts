@@ -1,5 +1,5 @@
 import { AudioManager } from "../audio";
-import { isPressedByGamepad, getPressedFlag, resetPressedFlag, touchInputContainer } from "../input";
+import { isPressedByGamepad, getPressedFlag, resetPressedFlag } from "../input";
 import { Leaderboard } from "../leaderboard";
 import { GO_TIME } from "../level";
 import { Replay } from "../replay";
@@ -46,7 +46,7 @@ export abstract class FinishScreen {
 			let trimmed = this.nameEntryInput.value.trim().slice(0, 16);
 		
 			if (trimmed.length < 2) {
-				state.menu.showAlertPopup('Warning', "Please enter a proper name for usage in the online leaderboard.")
+				state.menu.showAlertPopup('Warning', "Please enter a proper name for usage in the online leaderboard.");
 				return;
 			}
 		

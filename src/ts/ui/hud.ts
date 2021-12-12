@@ -170,7 +170,7 @@ export abstract class Hud {
 	}
 
 	/** Makes the powerup button visible/invisible depending on state and forceUpdate, see code. */
-	setPowerupButtonState(enabled: boolean, forceUpdate: boolean = false) {
+	setPowerupButtonState(enabled: boolean, forceUpdate = false) {
 		if (Util.isTouchDevice) {
 			setUseEnabled(enabled);
 			if (enabled || forceUpdate) 

@@ -43,7 +43,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 	async init() {
 		this.menu.setupButton(this.applyButton, 'options/apply', () => {}, undefined, undefined, false); // no-op
 		this.menu.setupButton(this.generalButton, 'options/general', () => {
-			this.generalContainer.classList.remove('hidden')
+			this.generalContainer.classList.remove('hidden');
 			this.hotkeysContainer.classList.add('hidden');
 
 			// Lock the one button in place
@@ -53,7 +53,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 			this.hotkeysButton.removeAttribute('data-locked');
 		}, undefined, undefined, false);
 		this.menu.setupButton(this.hotkeysButton, 'options/hotkeys', () => {
-			this.generalContainer.classList.add('hidden')
+			this.generalContainer.classList.add('hidden');
 			this.hotkeysContainer.classList.remove('hidden');
 
 			// Lock the one button in place

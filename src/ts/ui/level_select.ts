@@ -369,7 +369,7 @@ export abstract class LevelSelect {
 			for (let element of this.leaderboardScores.children) (element as HTMLDivElement).style.display = 'none';
 		} else {
 			this.leaderboardLoading.style.display = Leaderboard.isLoading(this.currentMission.path)? 'block' : 'none';
-			this.updateOnlineLeaderboard()
+			this.updateOnlineLeaderboard();
 			setTimeout(() => this.updateOnlineLeaderboard()); // Sometimes, scrollTop isn't set properly, so do it again after a very short time
 		}
 	}

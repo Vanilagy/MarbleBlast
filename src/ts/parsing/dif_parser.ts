@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { BinaryFileParser, Box3F, SphereF, Point3F, PlaneF } from "./binary_file_parser";
 import { ResourceManager } from "../resources";
 
@@ -301,17 +302,18 @@ export class DifParser extends BinaryFileParser {
 		}
 
 		let edges: unknown[] = [];
-		if (false) { // This interior version skips edges anyway, so no need to run this code.
-			let numEdges = this.readU32();
-			for (let i = 0; i < numEdges; i++) {
-				let pointIndex0 = this.readS32(), // Only GOD knows why these are signed. THESE DOCS >.<
-					pointIndex1 = this.readS32(),
-					surfaceIndex0 = this.readS32(),
-					surfaceIndex1 = this.readS32();
-	
-				edges.push({ pointIndex0, pointIndex1, surfaceIndex0, surfaceIndex1 });
-			}
+		// This interior version skips edges anyway, so no need to run this code.
+		/*
+		let numEdges = this.readU32();
+		for (let i = 0; i < numEdges; i++) {
+			let pointIndex0 = this.readS32(), // Only GOD knows why these are signed. THESE DOCS >.<
+				pointIndex1 = this.readS32(),
+				surfaceIndex0 = this.readS32(),
+				surfaceIndex1 = this.readS32();
+
+			edges.push({ pointIndex0, pointIndex1, surfaceIndex0, surfaceIndex1 });
 		}
+		*/
 
 		let numZones = this.readU32();
 		let zones = [];
@@ -334,9 +336,7 @@ export class DifParser extends BinaryFileParser {
 			zoneSurfaces.push(this.readU16());
 		}
 
-		if (false) {
-			// Parse zone static meshes, skipped in this version
-		}
+		// Parse zone static meshes, skipped in this version
 
 		let numZonePortalList = this.readU32();
 		let zonePortalList = [];

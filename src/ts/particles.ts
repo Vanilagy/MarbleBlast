@@ -211,7 +211,7 @@ export class ParticleManager {
 					}
 
 					group.particles.length--;
-					i--
+					i--;
 				}
 			}
 

@@ -76,13 +76,13 @@ export abstract class ForceShape extends Shape {
 		let marble = this.level.marble;
 		let pos = marble.body.getPosition();
 
-		var strength = 0.0;
-		var dot = 0.0;
-		var posVec = new OIMO.Vec3();
-		var retForce = new OIMO.Vec3();
+		let strength = 0.0;
+		let dot = 0.0;
+		let posVec = new OIMO.Vec3();
+		let retForce = new OIMO.Vec3();
 
-		var node = this.worldMatrix.clone(); // In the general case, this is a mount node, but we're only using this method for magnets so far and those don't have that, so use the magnet's transform instead
-		var nodeVec = new OIMO.Vec3(node.elements[4], node.elements[5], node.elements[6]); // Gets the second column, so basically the transformed y axis
+		let node = this.worldMatrix.clone(); // In the general case, this is a mount node, but we're only using this method for magnets so far and those don't have that, so use the magnet's transform instead
+		let nodeVec = new OIMO.Vec3(node.elements[4], node.elements[5], node.elements[6]); // Gets the second column, so basically the transformed y axis
 		nodeVec.normalize();
 
 		posVec = pos.subEq(Util.vecThreeToOimo(new THREE.Vector3().setFromMatrixPosition(node)));
@@ -96,8 +96,8 @@ export abstract class ForceShape extends Shape {
 		strength = (1 - dot / forceRadius) * forceStrength;
 
 		posVec.scaleEq(1 / dot);
-		var newDot = nodeVec.dot(posVec);
-		var arc = forceArc;
+		let newDot = nodeVec.dot(posVec);
+		let arc = forceArc;
 		if (arc < newDot) {
 			retForce.addEq(posVec.scaleEq(strength).scaleEq(newDot - arc).scaleEq(1 / (1 - arc)));
 		}
