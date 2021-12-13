@@ -63,8 +63,6 @@ export class Renderer {
 		this.gl = options.canvas.getContext('webgl2', ctxOptions) as WebGL2RenderingContext;
 		if (!this.gl) this.gl = options.canvas.getContext('webgl', ctxOptions) as WebGLRenderingContext;
 
-		console.log(this.gl instanceof WebGLRenderingContext);
-
 		let { gl } = this;
 
 		// Many of these are enabled in WebGL2 by default:

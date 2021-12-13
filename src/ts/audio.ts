@@ -77,11 +77,16 @@ export abstract class AudioManager {
 				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 				let audioBuffer: AudioBuffer;
 
-				if (path.endsWith('.ogg') && (Util.isSafari() || Util.isFirefox())) {
+				if (path.endsWith('.ogg') && Util.isSafari()) {
 					// Safari can't deal with .ogg. Apparently Firefox can't deal with some of them either??
 					audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
 				} else if (window.AudioContext) {
-					audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+					try {
+						audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+					} catch (e) {
+						// Firefox should hit this case sometimes
+						audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
+					}
 				} else {
 					audioBuffer = await new Promise((res, rej) => {
 						this.context.decodeAudioData(

@@ -1202,7 +1202,7 @@ export class Level extends Scheduler {
 			if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum' && !this.finishTime) {
 				let alarmStart = this.mission.computeAlarmStartTime();
 
-				if (prevGameplayClock <= alarmStart && this.timeState.gameplayClock >= alarmStart) {
+				if (prevGameplayClock <= alarmStart && this.timeState.gameplayClock >= alarmStart && !this.alarmSound) {
 					// Start the alarm
 					this.alarmSound = AudioManager.createAudioSource('alarm.wav');
 					this.alarmSound.setLoop(true);
@@ -1431,6 +1431,7 @@ export class Level extends Scheduler {
 	/** Sets a new active checkpoint. */
 	saveCheckpointState(shape: Shape, trigger?: CheckpointTrigger) {
 		if (this.currentCheckpoint === shape) return;
+		if (this.currentCheckpoint?.worldPosition.equals(shape.worldPosition)) return; // Some levels have identical overlapping checkpoints, which can cause an infinite checkpointing loop.
 
 		let disableOob = (shape.srcElement as any)?.disableOob || trigger?.element.disableOob;
 		if (MisParser.parseBoolean(disableOob) && this.outOfBounds) return; // The checkpoint is configured to not work when the player is already OOB
