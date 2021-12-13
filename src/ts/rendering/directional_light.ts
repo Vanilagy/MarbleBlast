@@ -27,8 +27,8 @@ export class DirectionalLight {
 		this.camera = camera;
 
 		let depthTexture = gl.createTexture();
-		let depthComponent = (gl instanceof WebGL2RenderingContext)? gl.DEPTH_COMPONENT32F : gl.DEPTH_COMPONENT;
-		let type = (gl instanceof WebGL2RenderingContext)? gl.FLOAT : gl.UNSIGNED_INT;
+		let depthComponent = (gl instanceof WebGLRenderingContext)? gl.DEPTH_COMPONENT : gl.DEPTH_COMPONENT32F;
+		let type = (gl instanceof WebGLRenderingContext)? gl.UNSIGNED_INT : gl.FLOAT;
 		gl.bindTexture(gl.TEXTURE_2D, depthTexture);
 		gl.texImage2D(gl.TEXTURE_2D, 0, depthComponent, textureResolution, textureResolution, 0, gl.DEPTH_COMPONENT, type, null);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);

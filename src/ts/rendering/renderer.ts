@@ -232,6 +232,12 @@ export class Renderer {
 			this.bindTexture(material.specularMap?.getGLTexture(this), 4, gl.TEXTURE_2D);
 			this.bindTexture(material.noiseMap?.getGLTexture(this), 5, gl.TEXTURE_2D);
 
+			/*
+			if (material.isSky) {
+				gl.uniform1i(program.getUniformLocation('envMap'), 0);
+				//this.bindTexture(material.envMap?.glTexture, 0, gl.TEXTURE_CUBE_MAP);
+			}*/
+
 			gl.drawElements(gl.TRIANGLES, group.count, gl.UNSIGNED_INT, group.offset * Uint32Array.BYTES_PER_ELEMENT);
 		}
 	}

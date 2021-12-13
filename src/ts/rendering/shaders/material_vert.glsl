@@ -55,7 +55,7 @@ varying vec3 eyeDirection;
 	}
 #endif
 
-int mod(int a, int n) {
+int _mod(int a, int n) {
 	#ifdef IS_WEBGL1
 		return a - n * (a / n);
 	#else
@@ -65,7 +65,7 @@ int mod(int a, int n) {
 
 mat4 getMeshInfo(int index) {
 	ivec2 coords = ivec2(
-		mod(4 * index, meshInfoTextureWidth),
+		_mod(4 * index, meshInfoTextureWidth),
 		(4 * index) / meshInfoTextureWidth
 	);
 

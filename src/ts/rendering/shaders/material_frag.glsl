@@ -113,6 +113,7 @@ void main() {
 	#ifdef IS_SKY
 		vec4 sampled = sampleCubeTexture(envMap, eyeDirection);
 		gl_FragColor = sampled;
+		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 	#elif defined(IS_SHADOW)
 		float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
 		gl_FragColor = vec4(vec3(0.0), intensity * 0.25);

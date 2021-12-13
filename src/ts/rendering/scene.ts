@@ -143,7 +143,7 @@ export class Scene extends Group {
 		let maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
 		let textureWidth = this.meshInfoTextureWidth = Util.ceilPowerOf2(Math.min(4 * allMeshes.length, maxTextureSize));
 		let textureHeight = this.meshInfoTextureHeight = Util.ceilPowerOf2(Math.ceil(4 * allMeshes.length / Math.max(maxTextureSize, textureWidth)));
-		let internalFormat = (gl instanceof WebGL2RenderingContext)? gl.RGBA32F : gl.RGBA;
+		let internalFormat = (gl instanceof WebGLRenderingContext)? gl.RGBA : gl.RGBA32F;
 		this.meshInfoBuffer = new Float32Array(4 * textureWidth * textureHeight); // One mat4 per mesh
 		this.meshInfoTexture = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, this.meshInfoTexture);
@@ -339,7 +339,14 @@ export class Scene extends Group {
 			}
 		}
 
+		//gl.deleteTexture(this.meshInfoTexture);
+		//this.meshInfoTexture = gl.createTexture();
+
 		gl.bindTexture(gl.TEXTURE_2D, this.meshInfoTexture);
+		//gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.meshInfoTextureWidth, this.meshInfoTextureHeight, gl.RGBA, gl.FLOAT, this.meshInfoBuffer);
+		//let internalFormat = (gl instanceof WebGLRenderingContext)? gl.RGBA : gl.RGBA32F;
+		//gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, this.meshInfoTextureWidth, this.meshInfoTextureHeight, 0, gl.RGBA, gl.FLOAT, this.meshInfoBuffer);
+
 		gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.meshInfoTextureWidth, this.meshInfoTextureHeight, gl.RGBA, gl.FLOAT, this.meshInfoBuffer);
 		
 		this.positionBuffer.update();

@@ -36,7 +36,7 @@ export class BufferAttribute {
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
 
-		if (gl instanceof WebGL2RenderingContext) {
+		if (!(gl instanceof WebGLRenderingContext)) {
 			gl.bufferSubData(gl.ARRAY_BUFFER, this.updateRange.start * Float32Array.BYTES_PER_ELEMENT, this.data, this.updateRange.start, this.updateRange.end - this.updateRange.start);
 		} else {
 			let slice = this.data.subarray(this.updateRange.start, this.updateRange.end);

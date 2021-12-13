@@ -362,9 +362,16 @@ export class Level extends Scheduler {
 				geometry.positions.push(-1, -1, 0);
 				geometry.positions.push(3, -1, 0);
 				geometry.positions.push(-1, 3, 0);
+
+				geometry.positions.length = 0;
+				geometry.positions.push(-0.5, -0.5, 0);
+				geometry.positions.push(0.5, -0.5, 0);
+				geometry.positions.push(-0.5, 0.5, 0);
 				geometry.materials.push(0, 0, 0);
 				geometry.indices.push(0, 1, 2);
 				geometry.fillRest();
+
+				alert("dick5")
 
 				let mesh = new Mesh(geometry, [material]);
 				this.scene.add(mesh);
