@@ -2,7 +2,7 @@ import { RGBAColor, Util } from "./util";
 import { Level } from "./level";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
-import { BufferAttribute } from "./rendering/buffer_attribute";
+import { VertexBuffer, VertexBufferGroup } from "./rendering/vertex_buffer";
 import { Renderer } from "./rendering/renderer";
 
 const PATHS = ['particles/bubble.png', 'particles/saturn.png', 'particles/smoke.png', 'particles/spark.png', 'particles/star.png', 'particles/twirl.png'];
@@ -47,7 +47,7 @@ export interface ParticleEmitterOptions {
 
 interface ParticleGroup {
 	particles: Particle[],
-	bufferAttribute: BufferAttribute,
+	vertexBuffer: VertexBuffer,
 	uniforms: {
 		acceleration: number,
 		spinSpeed: number,
@@ -86,8 +86,9 @@ export class ParticleManager {
 	/** For non-instanced, legacy particles. */
 	particles: Particle[] = [];
 	
-	positionBuffer: BufferAttribute;
-	uvBuffer: BufferAttribute;
+	positionBuffer: VertexBuffer;
+	uvBuffer: VertexBuffer;
+	bufferGroup: VertexBufferGroup;
 	indexBuffer: WebGLBuffer;
 
 	constructor(level: Level) {
@@ -98,8 +99,9 @@ export class ParticleManager {
 		this.renderer = renderer;
 		let { gl } = renderer;
 
-		this.positionBuffer = new BufferAttribute(renderer, positions, { 'position': 2 });
-		this.uvBuffer = new BufferAttribute(renderer, uvs, { 'uv': 2 });
+		this.positionBuffer = new VertexBuffer(renderer, positions, { 'position': 2 });
+		this.uvBuffer = new VertexBuffer(renderer, uvs, { 'uv': 2 });
+		this.bufferGroup = new VertexBufferGroup([this.positionBuffer, this.uvBuffer]);
 		
 		this.indexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
@@ -137,7 +139,7 @@ export class ParticleManager {
 		const floatsPerParticle = Object.values(attributes).reduce((a, b) => a + b, 0);
 		const vertsPerParticle = 4;
 		let buffer = new Float32Array(floatsPerParticle * vertsPerParticle * MAX_PARTICLES_PER_GROUP);
-		let bufferAttribute = new BufferAttribute(this.renderer, buffer, attributes);
+		let vertexBuffer = new VertexBuffer(this.renderer, buffer, attributes);
 
 		let colorsMatrix = new THREE.Matrix4();
 		colorsMatrix.set(
@@ -159,7 +161,7 @@ export class ParticleManager {
 		};
 
 		let group: ParticleGroup = {
-			bufferAttribute,
+			vertexBuffer: vertexBuffer,
 			uniforms,
 			particles: []
 		};
@@ -215,13 +217,13 @@ export class ParticleManager {
 				}
 			}
 
-			group.bufferAttribute.update();
+			group.vertexBuffer.update();
 		}
 	}
 
 	dispose() {
 		for (let [, group] of this.particleGroups) {
-			group.bufferAttribute.dispose();
+			group.vertexBuffer.dispose();
 		}
 	}
 }
@@ -347,7 +349,7 @@ class Particle {
 			Util.degToRad(this.initialSpin)
 		];
 
-		let buf = group.bufferAttribute;
+		let buf = group.vertexBuffer;
 		buf.set(data, 4 * index * buf.stride + 0 * buf.stride);
 		buf.set(data, 4 * index * buf.stride + 1 * buf.stride);
 		buf.set(data, 4 * index * buf.stride + 2 * buf.stride);

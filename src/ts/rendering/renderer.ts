@@ -39,7 +39,8 @@ export class Renderer {
 		WEBGL_depth_texture: null as WEBGL_depth_texture,
 		OES_standard_derivatives: null as OES_standard_derivatives,
 		KHR_parallel_shader_compile: null as KHR_parallel_shader_compile,
-		OES_texture_float: null as OES_texture_float
+		OES_texture_float: null as OES_texture_float,
+		OES_vertex_array_object: null as OES_vertex_array_object
 	};
 
 	constructor(options: {
@@ -62,18 +63,22 @@ export class Renderer {
 		this.gl = options.canvas.getContext('webgl2', ctxOptions) as WebGL2RenderingContext;
 		if (!this.gl) this.gl = options.canvas.getContext('webgl', ctxOptions) as WebGLRenderingContext;
 
+		console.log(this.gl instanceof WebGLRenderingContext);
+
 		let { gl } = this;
 
+		// Many of these are enabled in WebGL2 by default:
 		this.extensions.EXT_texture_filter_anisotropic =
 			gl.getExtension('EXT_texture_filter_anisotropic') ||
 			gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
 			gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
-		this.extensions.EXT_frag_depth = gl.getExtension('EXT_frag_depth'); // Enabled in WebGL2 by default
+		this.extensions.EXT_frag_depth = gl.getExtension('EXT_frag_depth');
 		this.extensions.OES_element_index_uint = gl.getExtension('OES_element_index_uint');
 		this.extensions.WEBGL_depth_texture = gl.getExtension('WEBGL_depth_texture');
 		this.extensions.OES_standard_derivatives = gl.getExtension('OES_standard_derivatives');
 		this.extensions.KHR_parallel_shader_compile = gl.getExtension('KHR_parallel_shader_compile');
 		this.extensions.OES_texture_float = gl.getExtension('OES_texture_float');
+		this.extensions.OES_vertex_array_object = gl.getExtension('OES_vertex_array_object');
 		
 		this.shadowMapProgram = new Program(this, shadowMapVert, shadowMapFrag);
 		this.particleProgram = new Program(this, particleVert, particleFrag);
@@ -136,11 +141,6 @@ export class Renderer {
 
 		for (let [, program] of this.materialShaders) {
 			program.use();
-			program.bindBufferAttribute(scene.positionBuffer);
-			program.bindBufferAttribute(scene.normalBuffer);
-			program.bindBufferAttribute(scene.tangentBuffer);
-			program.bindBufferAttribute(scene.uvBuffer);
-			program.bindBufferAttribute(scene.meshInfoIndexBuffer);
 
 			gl.uniformMatrix4fv(
 				program.getUniformLocation('viewMatrix'),
@@ -192,16 +192,16 @@ export class Renderer {
 
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.opaqueIndexBuffer);
 		gl.disable(gl.BLEND);
-		this.renderMaterialGroups(scene, scene.opaqueMaterialGroups, true);
+		this.renderMaterialGroups(scene, scene.opaqueMaterialGroups, scene.opaqueIndexBuffer, true);
 
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.transparentIndexBuffer);
 		gl.enable(gl.BLEND);
-		this.renderMaterialGroups(scene, scene.transparentMaterialGroups, false);
+		this.renderMaterialGroups(scene, scene.transparentMaterialGroups, scene.transparentIndexBuffer, false);
 
 		if (scene.particleManager) this.renderParticles(scene.particleManager, camera);
 	}
 
-	renderMaterialGroups(scene: Scene, groups: MaterialGroup[], skipTransparent: boolean) {
+	renderMaterialGroups(scene: Scene, groups: MaterialGroup[], indexBuffer: WebGLBuffer, skipTransparent: boolean) {
 		let { gl } = this;
 
 		for (let group of groups) {
@@ -212,6 +212,7 @@ export class Renderer {
 
 			let program = this.materialShaders.get(group.defineChunk);
 			program.use();
+			program.bindVertexBufferGroup(scene.bufferGroup);
 
 			gl.uniform1i(program.getUniformLocation('skipTransparent'), Number(skipTransparent));
 			gl.uniform1f(program.getUniformLocation('specularIntensity'), material.specularIntensity);
@@ -232,12 +233,7 @@ export class Renderer {
 			this.bindTexture(material.specularMap?.getGLTexture(this), 4, gl.TEXTURE_2D);
 			this.bindTexture(material.noiseMap?.getGLTexture(this), 5, gl.TEXTURE_2D);
 
-			/*
-			if (material.isSky) {
-				gl.uniform1i(program.getUniformLocation('envMap'), 0);
-				//this.bindTexture(material.envMap?.glTexture, 0, gl.TEXTURE_CUBE_MAP);
-			}*/
-
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 			gl.drawElements(gl.TRIANGLES, group.count, gl.UNSIGNED_INT, group.offset * Uint32Array.BYTES_PER_ELEMENT);
 		}
 	}
@@ -247,6 +243,7 @@ export class Renderer {
 
 		let program = this.particleProgram;
 		program.use();
+		program.bindVertexBufferGroup(particleManager.bufferGroup);
 
 		let uViewMatrix = new Float32Array(camera.matrixWorldInverse.elements);
 		let uProjectionMatrix = new Float32Array(camera.projectionMatrix.elements);
@@ -269,8 +266,6 @@ export class Renderer {
 		gl.uniform1i(program.getUniformLocation('diffuseMap'), 0);
 		gl.uniform1f(program.getUniformLocation('time'), particleManager.getTime());
 
-		program.bindBufferAttribute(particleManager.positionBuffer);
-		program.bindBufferAttribute(particleManager.uvBuffer);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, particleManager.indexBuffer);
 
 		gl.depthMask(false);
@@ -293,7 +288,7 @@ export class Renderer {
 			gl.uniform4fv(program.getUniformLocation('sizes'), group.uniforms.sizes);
 			gl.uniformMatrix4fv(program.getUniformLocation('colors'), false, group.uniforms.colors);
 
-			program.bindBufferAttribute(group.bufferAttribute);
+			program.bindVertexBuffer(group.vertexBuffer);
 			gl.drawElements(gl.TRIANGLES, 6 * group.particles.length, gl.UNSIGNED_INT, 0);
 		}
 	}
@@ -304,5 +299,30 @@ export class Renderer {
 		gl.activeTexture(gl.TEXTURE0 + unit);
 		if (this.currentFramebuffer?.colorTexture === texture || !texture) gl.bindTexture(target, null);
 		else gl.bindTexture(target, texture);
+	}
+
+	createVertexArray(): WebGLVertexArrayObject {
+		let { gl } = this;
+		let ext = this.extensions.OES_vertex_array_object;
+
+		return (gl instanceof WebGLRenderingContext)? ext.createVertexArrayOES() : gl.createVertexArray();
+	}
+
+	bindVertexArray(vao: WebGLVertexArrayObject) {
+		let { gl } = this;
+		let ext = this.extensions.OES_vertex_array_object;
+
+		if (gl instanceof WebGLRenderingContext) ext.bindVertexArrayOES(vao); else gl.bindVertexArray(vao);
+	}
+
+	deleteVertexArray(vao: WebGLVertexArrayObject) {
+		let { gl } = this;
+		let ext = this.extensions.OES_vertex_array_object;
+
+		if (gl instanceof WebGLRenderingContext) ext.deleteVertexArrayOES(vao); else gl.deleteVertexArray(vao);
+	}
+
+	cleanUp() {
+		for (let [, program] of this.materialShaders) program.dispose();
 	}
 }

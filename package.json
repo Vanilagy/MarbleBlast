@@ -10,7 +10,7 @@
 		"bundle": "node create_bundle.js",
 		"build": "npm run lint && npm run compile && npm run bundle",
 		"start": "node server/bundle.js",
-		"lint": "npx eslint src/ts/**.ts server/ts/**.ts"
+		"lint": "npx eslint src/ts/**/*.ts server/ts/**/*.ts"
 	},
 	"author": "Vanilagy",
 	"license": "ISC",

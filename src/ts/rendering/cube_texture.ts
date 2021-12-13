@@ -48,7 +48,7 @@ export class CubeTexture {
 			gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 			
 			gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  			gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		}
 
 		gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -105,7 +105,7 @@ export class CubeTexture {
 			if (elapsedPerFace * (renderedFaces + 1) >= budget) break;
 		}
 
-		gl.bindTexture(gl.TEXTURE_CUBE_MAP, this.glTexture);;
+		gl.bindTexture(gl.TEXTURE_CUBE_MAP, this.glTexture);
 		gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
 
 		this.nextFaceToRender += renderedFaces;

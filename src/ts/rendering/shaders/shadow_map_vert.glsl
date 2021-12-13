@@ -6,7 +6,7 @@ precision highp int;
 attribute vec3 position;
 attribute float meshInfoIndex;
 
-uniform sampler2D meshInfos;
+uniform highp sampler2D meshInfos;
 uniform int meshInfoTextureWidth;
 uniform int meshInfoTextureHeight;
 uniform mat4 viewMatrix;

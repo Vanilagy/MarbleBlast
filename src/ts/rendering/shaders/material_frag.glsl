@@ -3,6 +3,10 @@ precision mediump float;
 #define SHADOW_RADIUS 2
 #include <definitions>
 
+// This condition here is necessary to save on varying vectors; some mobile devices (*cough* iPhones *cough*) only support 8 varying vec4s, and this separation here makes sure we stay just under that. If, in the future, more varyings will be necessary, this condition can always be refined more.
+#ifdef IS_SKY
+varying vec3 eyeDirection;
+#else
 varying vec4 vPosition;
 varying vec2 vUv;
 varying vec3 vNormal;
@@ -12,7 +16,7 @@ varying vec3 vReflect;
 varying mat3 vTbn;
 varying float vFragDepth;
 varying float vIsPerspective;
-varying vec3 eyeDirection;
+#endif
 
 uniform sampler2D diffuseMap;
 uniform samplerCube envMap;
@@ -113,7 +117,6 @@ void main() {
 	#ifdef IS_SKY
 		vec4 sampled = sampleCubeTexture(envMap, eyeDirection);
 		gl_FragColor = sampled;
-		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 	#elif defined(IS_SHADOW)
 		float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
 		gl_FragColor = vec4(vec3(0.0), intensity * 0.25);

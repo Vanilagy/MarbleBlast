@@ -9,14 +9,6 @@ export interface RGBAColor {
 	a: number
 }
 
-/** An array of objects, one object per material. Each object stores vertex, normal, uv and index data that will be put into a WebGL buffer. */
-export type MaterialGeometry = {
-	vertices: number[],
-	normals: number[],
-	uvs: number[],
-	indices: number[]
-}[];
-
 export abstract class Util {
 	static keyboardMap: Map<string, string>;
 
@@ -260,48 +252,6 @@ export abstract class Util {
 	static concatArrays<T>(arrays: T[][]) {
 		if (arrays.length === 0) return [];
 		return arrays[0].concat(...arrays.slice(1));
-	}
-
-	/** Creates a BufferGeometry from a MaterialGeometry by setting all the buffer attributes and group accordingly. */
-	static createGeometryFromMaterialGeometry(materialGeometry: MaterialGeometry) {
-		let geometry = new THREE.BufferGeometry();
-
-		geometry.setAttribute('position', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.vertices)), 3));
-		geometry.setAttribute('normal', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.normals)), 3));
-		geometry.setAttribute('uv', new THREE.Float32BufferAttribute(Util.concatArrays(materialGeometry.map((x) => x.uvs)), 2));
-
-		let current = 0;
-		for (let i = 0; i < materialGeometry.length; i++) {
-			if (materialGeometry[i].vertices.length === 0) continue;
-
-			geometry.addGroup(current, materialGeometry[i].vertices.length / 3, i);
-			current += materialGeometry[i].vertices.length / 3;
-		}
-
-		return geometry;
-	}
-
-	/** Merges multiple materialGeometries of the same material count into one. */
-	static mergeMaterialGeometries(materialGeometries: MaterialGeometry[]) {
-		let merged = materialGeometries[0].map(() => {
-			return {
-				vertices: [] as number[],
-				normals: [] as number[],
-				uvs: [] as number[],
-				indices: [] as number[]
-			};
-		});
-
-		for (let matGeom of materialGeometries) {
-			for (let i = 0; i < matGeom.length; i++) {
-				merged[i].vertices.push(...matGeom[i].vertices);
-				merged[i].normals.push(...matGeom[i].normals);
-				merged[i].uvs.push(...matGeom[i].uvs);
-				merged[i].indices.push(...matGeom[i].indices);
-			}
-		}
-
-		return merged;
 	}
 
 	static isInFullscreen() {

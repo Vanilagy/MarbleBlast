@@ -9,7 +9,7 @@ attribute vec4 tangent;
 attribute vec2 uv;
 attribute float meshInfoIndex;
 
-uniform sampler2D meshInfos;
+uniform highp sampler2D meshInfos;
 uniform int meshInfoTextureWidth;
 uniform int meshInfoTextureHeight;
 uniform mat4 viewMatrix;

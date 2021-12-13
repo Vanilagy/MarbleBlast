@@ -1,6 +1,6 @@
 import { Renderer } from "./renderer";
 
-export class BufferAttribute {
+export class VertexBuffer {
 	renderer: Renderer;
 	buffer: WebGLBuffer;
 	data: Float32Array;
@@ -8,7 +8,7 @@ export class BufferAttribute {
 	stride: number;
 	updateRange = { start: Infinity, end: 0 };
 
-	constructor(renderer: Renderer, data: Float32Array, attributes: BufferAttribute['attributes']) {
+	constructor(renderer: Renderer, data: Float32Array, attributes: VertexBuffer['attributes']) {
 		this.renderer = renderer;
 		this.buffer = renderer.gl.createBuffer();
 		this.data = data;
@@ -51,5 +51,14 @@ export class BufferAttribute {
 		let { gl } = this.renderer;
 
 		gl.deleteBuffer(this.buffer);
+	}
+}
+
+// Most primitive thing ever
+export class VertexBufferGroup {
+	buffers: VertexBuffer[];
+
+	constructor(buffers: VertexBuffer[]) {
+		this.buffers = buffers;
 	}
 }

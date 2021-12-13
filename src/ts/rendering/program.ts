@@ -1,4 +1,4 @@
-import { BufferAttribute } from "./buffer_attribute";
+import { VertexBuffer, VertexBufferGroup } from "./vertex_buffer";
 import { Renderer } from "./renderer";
 
 export class Program {
@@ -6,6 +6,7 @@ export class Program {
 	vertexShader: WebGLShader;
 	fragmentShader: WebGLShader;
 	glProgram: WebGLProgram;
+	vertexArrayObjects = new Map<VertexBufferGroup, WebGLVertexArrayObject>();
 	uniformLocations = new Map<string, WebGLUniformLocation>();
 	attributeLocations = new Map<string, number>();
 	compileStatusChecked = false;
@@ -103,10 +104,29 @@ export class Program {
 
 	unuse() {
 		let { gl } = this.renderer;
+
+		this.renderer.bindVertexArray(null);
 		for (let [, loc] of this.attributeLocations) gl.disableVertexAttribArray(loc);
 	}
 
-	bindBufferAttribute(buf: BufferAttribute) {
+	bindVertexBufferGroup(group: VertexBufferGroup) {
+		if (this.vertexArrayObjects.has(group)) {
+			this.renderer.bindVertexArray(this.vertexArrayObjects.get(group));
+			return;
+		}
+
+		let { gl } = this.renderer;
+
+		let vao = this.renderer.createVertexArray();
+		this.renderer.bindVertexArray(vao);
+
+		for (let buffer of group.buffers) this.bindVertexBuffer(buffer);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+		this.vertexArrayObjects.set(group, vao);
+	}
+
+	bindVertexBuffer(buf: VertexBuffer) {
 		let { gl } = this.renderer;
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, buf.buffer);
@@ -124,6 +144,7 @@ export class Program {
 			}
 			if (location === -1) continue;
 
+			gl.enableVertexAttribArray(location);
 			gl.vertexAttribPointer(
 				location,
 				itemSize,
@@ -132,7 +153,6 @@ export class Program {
 				Float32Array.BYTES_PER_ELEMENT * buf.stride,
 				Float32Array.BYTES_PER_ELEMENT * thisOffset
 			);
-			gl.enableVertexAttribArray(location);
 		}
 	}
 
@@ -145,5 +165,11 @@ export class Program {
 		this.uniformLocations.set(name, location);
 
 		return location;
+	}
+
+	dispose() {
+		this.renderer.bindVertexArray(null);
+		for (let [, vao] of this.vertexArrayObjects) this.renderer.deleteVertexArray(vao);
+		this.vertexArrayObjects.clear();
 	}
 }

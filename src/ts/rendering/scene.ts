@@ -2,7 +2,7 @@ import materialVert from './shaders/material_vert.glsl';
 import materialFrag from './shaders/material_frag.glsl';
 import THREE from "three";
 import { AmbientLight } from "./ambient_light";
-import { BufferAttribute } from "./buffer_attribute";
+import { VertexBuffer, VertexBufferGroup } from "./vertex_buffer";
 import { DirectionalLight } from "./directional_light";
 import { Group } from "./group";
 import { Material } from "./material";
@@ -23,11 +23,12 @@ export interface MaterialGroup {
 
 export class Scene extends Group {
 	renderer: Renderer;
-	positionBuffer: BufferAttribute;
-	normalBuffer: BufferAttribute;
-	tangentBuffer: BufferAttribute;
-	uvBuffer: BufferAttribute;
-	meshInfoIndexBuffer: BufferAttribute;
+	positionBuffer: VertexBuffer;
+	normalBuffer: VertexBuffer;
+	tangentBuffer: VertexBuffer;
+	uvBuffer: VertexBuffer;
+	meshInfoIndexBuffer: VertexBuffer;
+	bufferGroup: VertexBufferGroup;
 
 	meshInfoBuffer: Float32Array;
 	meshInfoTexture: WebGLTexture;
@@ -134,11 +135,13 @@ export class Scene extends Group {
 			for (let data of group.indexGroups) Util.pushArray(indices, data.indices);
 		}
 
-		this.positionBuffer = new BufferAttribute(this.renderer, new Float32Array(positions), { 'position': 3 });
-		this.normalBuffer = new BufferAttribute(this.renderer, new Float32Array(normals), { 'normal': 3 });
-		this.tangentBuffer = new BufferAttribute(this.renderer, new Float32Array(tangents), { 'tangent': 4 } );
-		this.uvBuffer = new BufferAttribute(this.renderer, new Float32Array(uvs), { 'uv': 2 });
-		this.meshInfoIndexBuffer = new BufferAttribute(this.renderer, new Float32Array(meshInfoIndices), { 'meshInfoIndex': 1 });
+		this.positionBuffer = new VertexBuffer(this.renderer, new Float32Array(positions), { 'position': 3 });
+		this.normalBuffer = new VertexBuffer(this.renderer, new Float32Array(normals), { 'normal': 3 });
+		this.tangentBuffer = new VertexBuffer(this.renderer, new Float32Array(tangents), { 'tangent': 4 } );
+		this.uvBuffer = new VertexBuffer(this.renderer, new Float32Array(uvs), { 'uv': 2 });
+		this.meshInfoIndexBuffer = new VertexBuffer(this.renderer, new Float32Array(meshInfoIndices), { 'meshInfoIndex': 1 });
+
+		this.bufferGroup = new VertexBufferGroup([this.positionBuffer, this.normalBuffer, this.tangentBuffer, this.uvBuffer, this.meshInfoIndexBuffer]);
 
 		let maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
 		let textureWidth = this.meshInfoTextureWidth = Util.ceilPowerOf2(Math.min(4 * allMeshes.length, maxTextureSize));

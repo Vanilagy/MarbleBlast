@@ -77,8 +77,7 @@ export class DirectionalLight {
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 		shadowMapProgram.use();
-		shadowMapProgram.bindBufferAttribute(scene.positionBuffer);
-		shadowMapProgram.bindBufferAttribute(scene.meshInfoIndexBuffer);
+		shadowMapProgram.bindVertexBufferGroup(scene.bufferGroup);
 
 		gl.uniformMatrix4fv(
 			shadowMapProgram.getUniformLocation('viewMatrix'),
