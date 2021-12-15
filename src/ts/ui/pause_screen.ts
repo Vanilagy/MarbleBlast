@@ -2,6 +2,7 @@ import { AudioManager } from "../audio";
 import { previousButtonState, resetPressedFlag } from "../input";
 import { Replay } from "../replay";
 import { state } from "../state";
+import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
 import { setEnterFullscreenButtonVisibility } from "./misc";
@@ -43,6 +44,10 @@ export abstract class PauseScreen {
 				} else {
 					state.level.pause();
 				}
+			} else if (e.code === StorageManager.data.settings.gameButtonMapping.restart && state.level.paused) {
+				// Restart the level if we press the restart button
+				this.restartButton.click();
+				state.level.pressingRestart = true; // Prevents the level from restarting again immediately (kinda hacky 😅)
 			}
 		});
 		

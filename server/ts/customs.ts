@@ -70,10 +70,15 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 				delete zip.files[entry.name];
 
 				if (!entry.name.includes('data/')) entry.name = 'data/' + entry.name; // Ensure they got data/ in 'em
+				if (modification === 'gold') entry.name = entry.name.replace("interiors_mbg/", "interiors/"); // Clean up interior paths
 				zip.files[entry.name] = entry;
 			
 				// Check if the asset is already part of the standard assets. If yes, remove it from the archive.
-				let filePath = path.join(shared.directoryPath, 'assets', (modification === 'gold')? entry.name : entry.name.replace('data/', 'data_mbp/')).toLowerCase(); // Case-insensitive paths
+				let filePath = path.join(
+					shared.directoryPath,
+					'assets',
+					(modification === 'gold')? entry.name : entry.name.replace('data/', 'data_mbp/')
+				).toLowerCase(); // Case-insensitive paths
 				let exists = await fs.pathExists(filePath);
 				if (exists) zip.remove(entry.name);
 

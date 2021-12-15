@@ -289,7 +289,7 @@ export class Level extends Scheduler {
 		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick for correct positional audio playback
 		this.render(); // This will also do a tick
 		this.lastPhysicsTick = performance.now(); // First render usually takes quite long (shader compile etc), so reset the last physics tick back to now
-		this.tickInterval = setInterval(() => this.tick());
+		this.tickInterval = setInterval(this.tick.bind(this));
 		this.music.play();
 
 		// Render them once
@@ -824,7 +824,7 @@ export class Level extends Scheduler {
 
 	render() {
 		if (this.stopped) return;
-		requestAnimationFrame(() => this.render());
+		requestAnimationFrame(this.render.bind(this));
 
 		let time = performance.now();
 		if (this.lastFrameTime === null) {
@@ -1043,20 +1043,7 @@ export class Level extends Scheduler {
 
 	tick(time?: number) {
 		if (this.stopped) return;
-
-		if (this.paused) {
-			// Meh, I don't like this. It works for now, but it's super WET and seems brittle.
-			// If any of this gets more complex in the future, please refactor this. PLEASE 😫
-			if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
-				// Unpause and restart the level
-				this.unpause();
-				this.restart(false);
-				if (this.currentCheckpoint) this.restartPressTime = performance.now();
-				this.pressingRestart = true;
-			}
-
-			return;
-		}
+		if (this.paused) return;
 		
 		if (time === undefined) time = performance.now();
 		let playReplay = this.replay.mode === 'playback';

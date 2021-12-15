@@ -24,14 +24,14 @@ const init = async () => {
 	await ResourceManager.init();
 
 	loadingDetail.textContent = 'Loading levels...';
-	MissionLibrary.init();
+	await MissionLibrary.init();
 	AudioManager.init();
 
 	loadingDetail.textContent = 'Loading UI...';
-	setMenu(StorageManager.data.modification);
+	await setMenu(StorageManager.data.modification);
 
 	loadingDetail.textContent = 'Loading leaderboard...';
-	Leaderboard.init();
+	await Leaderboard.init();
 	if (Util.isWeeb) document.title = 'Marble Blast Weeb'; // <- humor
 
 	// If we're on a touch device, remind the user that the site can be installed as a PWA

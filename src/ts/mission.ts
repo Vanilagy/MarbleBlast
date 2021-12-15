@@ -148,9 +148,9 @@ export class Mission {
 			let val = zip.files[filename];
 			delete zip.files[filename];
 			zip.files[filename.toLowerCase()] = val;
-			zip.files[filename.toLowerCase().replace('data/', 'data_mbp/')] = val;
+			zip.files[filename.toLowerCase().replace('data/', 'data_mbp/')] = val; // Alias every data/ with a data_mbp/ entry
 
-			if (state.modification === 'gold' && filename.includes('interiors_mbg/')) {
+			if (this.modification === 'gold' && filename.includes('interiors_mbg/')) {
 				// Create an alias in interiors
 				zip.files[filename.replace('interiors_mbg/', 'interiors/')] = val;
 			}
@@ -236,8 +236,8 @@ export class Mission {
 	async getDif(rawElementPath: string) {
 		rawElementPath = rawElementPath.toLowerCase();
 		let path = rawElementPath.slice(rawElementPath.indexOf('data/'));
-		if (state.modification === 'gold' && path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
 
+		if (this.modification === 'gold' && path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
 		if (this.modification !== 'gold') path = path.replace('data/', 'data_mbp/');
 
 		let dif: DifFile = null;
