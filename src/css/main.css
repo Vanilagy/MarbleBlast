@@ -241,22 +241,3 @@ body {
 	border-radius: 5px;
 	margin-top: 3px;
 }
-
-.mobile-support-reminder {
-	position: absolute;
-	bottom: 8px;
-	left: 0;
-	right: 0;
-	width: 514px;
-	pointer-events: none;
-	white-space: nowrap;
-	display: inline-block;
-	text-align: center;
-	font-family: 'MarkerFelt';
-	background: #f9885da8;
-	margin: auto;
-	padding: 3px;
-	border-radius: 100px;
-	color: white;
-	text-shadow: 1px 1px black;
-}

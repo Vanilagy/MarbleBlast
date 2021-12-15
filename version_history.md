@@ -1,5 +1,17 @@
 # Version History
 
+## 2.3.0
+- Completely rewrote the rendering pipeline
+- Improved rendering performance across the board, especially for mobile devices
+- Implement proper cubemap marble reflections
+- Improved the look of MBU interiors
+- Decreased visual latency in Chromium-based browsers
+- Added the ability to use the respawn key in the pause screen
+- Fixed buggy path resolution leading to missing interiors in some custom levels
+- Fixed alarm sound audio bugs
+- Fixed checkpoint audio bugs
+- Fixed gamepad-related errors
+
 ## 2.2.9
 - Fixed same Gravity Modifiers apply repeatedly
 - Fixed some .mis files not parsing correctly

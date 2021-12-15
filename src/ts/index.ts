@@ -55,10 +55,6 @@ const init = async () => {
 		});
 	}
 
-	if (Util.isTouchDevice) {
-		document.querySelectorAll('.mobile-support-reminder').forEach(x => (x as HTMLElement).style.display = 'none');
-	}
-
 	let started = false;
 	const start = async () => {
 		started = true;
