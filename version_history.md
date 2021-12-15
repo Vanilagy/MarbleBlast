@@ -2,6 +2,7 @@
 
 ## 2.3.1
 - Fixed incorrectly-cast shadows
+- Fixed frame rate limiter
 
 ## 2.3.0
 - Completely rewrote the rendering pipeline

@@ -91,6 +91,10 @@ const BLAST_CHARGE_TIME = 25000;
 const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should be large enough
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
+// Used for frame rate limiting working correctly
+const decoyCanvas = document.querySelector('#decoy-canvas') as HTMLCanvasElement;
+const decoyCtx = decoyCanvas.getContext('2d');
+
 /** The map used to get particle emitter options for a ParticleEmitterNode. */
 const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
 	MarbleBounceEmitter: bounceParticleOptions,
@@ -830,12 +834,18 @@ export class Level extends Scheduler {
 		if (this.lastFrameTime === null) {
 			this.lastFrameTime = time;
 		} else {
+			let cap = FRAME_RATE_OPTIONS[StorageManager.data.settings.frameRateCap];
+
+			// When FPS is unlocked in the browser but limited in-game, for some browser frames, the game won't draw anything. This makes the browser think it's okay to slow down the rate of requestAnimationFrame, which is not desirable in this case. Therefore we trick the browser into thinking the GPU is doing something by continuously clearing a 1x1 canvas each frame.
+			if (isFinite(cap)) decoyCtx.clearRect(0, 0, 1, 1);
+
 			// Take care of frame rate limiting:
 			let elapsed = time - this.lastFrameTime;
-			let required = 1000 / FRAME_RATE_OPTIONS[StorageManager.data.settings.frameRateCap];
+			let required = 1000 / cap;
 			if (elapsed < required) return;
 
-			this.lastFrameTime += required * Math.floor(elapsed / required);
+			this.lastFrameTime += required;
+			this.lastFrameTime = Math.max(this.lastFrameTime, time - 2 * required); // To avoid the last frame time from lagging behind
 		}
 
 		this.tick(time);

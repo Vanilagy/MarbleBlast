@@ -73,6 +73,19 @@ body {
 	transform-origin: 0 0;
 }
 
+#main-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+#decoy-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: -1;
+}
+
 #game-ui {
 	position: absolute;
 	top: 0;
