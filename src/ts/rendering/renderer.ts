@@ -34,6 +34,8 @@ export class Renderer {
 	height: number;
 	pixelRatio = 1;
 	currentFramebuffer: FramebufferInfo = null;
+	/** Stores the amount of draw calls in the current render. */
+	drawCalls: number;
 
 	extensions = {
 		EXT_texture_filter_anisotropic: null as EXT_texture_filter_anisotropic,
@@ -119,7 +121,8 @@ export class Renderer {
 		if (!scene.compiled) throw new Error("Scene not compiled! Can't render it.");
 		if (!scene.preparedForRender) throw new Error("Scene not prepared for render! Can't render it.");
 
-		let { gl } = this;		
+		let { gl } = this;
+		this.drawCalls = 0;
 
 		if (framebuffer) {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer.framebuffer);
@@ -245,6 +248,7 @@ export class Renderer {
 			// And now, draw all objects with this material in a single draw call :)
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 			gl.drawElements(gl.TRIANGLES, group.count, gl.UNSIGNED_INT, group.offset * Uint32Array.BYTES_PER_ELEMENT);
+			this.drawCalls++;
 		}
 	}
 
@@ -303,6 +307,7 @@ export class Renderer {
 
 			program.bindVertexBuffer(group.vertexBuffer);
 			gl.drawElements(gl.TRIANGLES, 6 * group.particles.length, gl.UNSIGNED_INT, 0);
+			this.drawCalls++;
 		}
 	}
 
