@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { VertexBuffer, VertexBufferGroup } from "./rendering/vertex_buffer";
 import { Renderer } from "./rendering/renderer";
+import { Texture } from "./rendering/texture";
 
 const PATHS = ['particles/bubble.png', 'particles/saturn.png', 'particles/smoke.png', 'particles/spark.png', 'particles/star.png', 'particles/twirl.png'];
 const MAX_PARTICLES_PER_GROUP = 2**14;
@@ -111,14 +112,15 @@ export class ParticleManager {
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
 
-		let promises: Promise<any>[] = [];
+		let promises: Promise<Texture>[] = [];
 
 		// Preload all textures so we can load them instantly from cache later
 		for (let path of PATHS) {
 			promises.push(ResourceManager.getTexture(path));
 		}
 
-		await Promise.all(promises);
+		let textures = await Promise.all(promises);
+		for (let texture of textures) texture.getGLTexture(renderer); // Also preload the GL texture
 	}
 
 	/** Gets or creates a particle group for the given options. */

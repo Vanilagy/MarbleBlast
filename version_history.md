@@ -1,5 +1,8 @@
 # Version History
 
+## 2.3.1
+- Fixed incorrectly-cast shadows
+
 ## 2.3.0
 - Completely rewrote the rendering pipeline
 - Improved rendering performance across the board, especially for mobile devices

@@ -123,7 +123,10 @@ void main() {
 		vec4 sampled = sampleCubeTexture(envMap, eyeDirection);
 		gl_FragColor = sampled;
 	#elif defined(IS_SHADOW)
+		bool hasDirectionalLight = dot(directionalLightDirection, directionalLightDirection) > 0.0;
 		float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
+		if (!hasDirectionalLight) intensity = 0.0;
+		
 		gl_FragColor = vec4(vec3(0.0), intensity * 0.25); // Note that this intensity differs from the one used in the normal shader path. That's because with a separate shadow material, it's actually difficult to figure out how dark the shadow should be - so whatever value we picked here just looked the least odd.
 	#else
 		vec4 diffuse = vec4(1.0);
@@ -184,7 +187,11 @@ void main() {
 			vec3 addedLight = directionalLightColor * lambert(normal, -directionalLightDirection);
 
 			#ifdef RECEIVE_SHADOWS
+				// When the direction has zero length, we make the assumption that there is no directional light in the scene.
+				bool hasDirectionalLight = dot(directionalLightDirection, directionalLightDirection) > 0.0;
 				float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
+				if (!hasDirectionalLight) intensity = 0.0;
+
 				addedLight *= mix(1.0, 0.5, intensity);
 			#endif
 
