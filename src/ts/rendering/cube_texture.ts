@@ -3,6 +3,7 @@ import { CubeCamera } from "./cube_camera";
 import { Renderer } from "./renderer";
 import { Scene } from "./scene";
 
+/** Stores a cube texture. */
 export class CubeTexture {
 	id = Util.getRandomId();
 	renderer: Renderer;
@@ -10,9 +11,12 @@ export class CubeTexture {
 	size: number;
 	framebuffer?: WebGLFramebuffer;
 	depthBuffer?: WebGLRenderbuffer;
+	/** For efficiency purposes, not all faces of the texture are rendered to in one step. Therefore, we need to keep track of where we left off. */
 	nextFaceToRender = 0;
 
+	/** Creates a cube texture from 6 images. */
 	constructor(renderer: Renderer, images: HTMLImageElement[]);
+	/** Creates an empty sqauare cube texture with a specified dimension. */
 	constructor(renderer: Renderer, dimension: number);
 	constructor(renderer: Renderer, arg2: HTMLImageElement[] | number) {
 		this.renderer = renderer;
@@ -52,12 +56,14 @@ export class CubeTexture {
 			gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		}
 
+		// Make sure to set min/mag filters, otherwise nothing will render
 		gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
 
 		this.glTexture = texture;
 	}
 
+	/** Creates a framebuffer that will be used to render a scene to this cube texture. */
 	createFramebuffer() {
 		let { gl } = this.renderer;
 
@@ -67,7 +73,7 @@ export class CubeTexture {
 		let depthBuffer = gl.createRenderbuffer();
 		gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
 
-		// Make a depth buffer and the same size as the targetTexture
+		// Make a depth buffer and the same size as the target texture
 		gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.size, this.size);
 		gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuffer);
 
@@ -75,10 +81,14 @@ export class CubeTexture {
 		this.depthBuffer = depthBuffer;
 	}
 
+	/** 
+	 * Renders a given scene to the cube texture. Depending on the budget, this might not render to all six faces.
+	 * @param budget Defines the maximum amount of time in milliseconds this method should run. Can be used to set an upper bound on render time, since rendering a scene six times _can_ get expensive.
+	 */
 	render(scene: Scene, cubeCamera: CubeCamera, budget = Infinity) {
 		let { gl } = this.renderer;
 
-		if (!this.framebuffer) this.createFramebuffer();
+		if (!this.framebuffer) this.createFramebuffer(); // We're here for the first time, so go and create a framebuffer first
 
 		let start = performance.now();
 		let renderedFaces = 0;
@@ -86,16 +96,20 @@ export class CubeTexture {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
 
 		for (let i = 0; i < 6; i++) {
+			// Figure out what face we need to render next based on where we left off
 			let index = (this.nextFaceToRender + i) % 6;
 
+			// Update the camera's position
 			let camera = cubeCamera.cameras[index];
 			camera.position.copy(cubeCamera.position);
 			camera.updateMatrixWorld();
 
+			// Bind the correct side of the cube texture to the framebuffer as a texture target
 			let target = gl.TEXTURE_CUBE_MAP_POSITIVE_X + index;
 			gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
 			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, target, this.glTexture, 0);
 
+			// Render the scene
 			this.renderer.render(scene, camera, { framebuffer: this.framebuffer, width: this.size, height: this.size, colorTexture: this.glTexture });
 			renderedFaces++;
 
@@ -103,11 +117,11 @@ export class CubeTexture {
 			let elapsed = time - start;
 			let elapsedPerFace = elapsed / renderedFaces;
 
-			if (elapsedPerFace * (renderedFaces + 1) >= budget) break;
+			if (elapsedPerFace * (renderedFaces + 1) >= budget) break; // We predict that the next loop iteration would exceed the budget, so break
 		}
 
 		gl.bindTexture(gl.TEXTURE_CUBE_MAP, this.glTexture);
-		gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+		gl.generateMipmap(gl.TEXTURE_CUBE_MAP); // Make sure to generate mips
 
 		this.nextFaceToRender += renderedFaces;
 		this.nextFaceToRender %= 6;

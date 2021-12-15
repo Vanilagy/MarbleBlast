@@ -538,6 +538,7 @@ export class Level extends Scheduler {
 			let pathedInterior = await PathedInterior.createFromSimGroup(simGroup, this);
 			if (!pathedInterior) return;
 
+			this.scene.add(pathedInterior.mesh);
 			if (pathedInterior.hasCollision) this.physics.addInterior(pathedInterior);
 			for (let trigger of pathedInterior.triggers) this.triggers.push(trigger);
 
@@ -581,6 +582,8 @@ export class Level extends Scheduler {
 
 		await Util.wait(10); // See shapes for the meaning of this hack
 		await interior.init(element._id);
+
+		this.scene.add(interior.mesh);
 
 		let interiorPosition = MisParser.parseVector3(element.position);
 		let interiorRotation = MisParser.parseRotation(element.rotation);
@@ -1039,8 +1042,22 @@ export class Level extends Scheduler {
 	}
 
 	tick(time?: number) {
-		if (this.paused) return;
 		if (this.stopped) return;
+
+		if (this.paused) {
+			// Meh, I don't like this. It works for now, but it's super WET and seems brittle.
+			// If any of this gets more complex in the future, please refactor this. PLEASE 😫
+			if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
+				// Unpause and restart the level
+				this.unpause();
+				this.restart(false);
+				if (this.currentCheckpoint) this.restartPressTime = performance.now();
+				this.pressingRestart = true;
+			}
+
+			return;
+		}
+		
 		if (time === undefined) time = performance.now();
 		let playReplay = this.replay.mode === 'playback';
 

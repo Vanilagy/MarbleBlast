@@ -30,8 +30,10 @@ bool isPerspectiveMatrix(mat4 m) {
 	return m[2][3] == -1.0;
 }
 
+// Dynamic access of vecs and mats doesn't work properly in WebGL, so wrap the functionality in a function that does it the ugly way.
 float accessDynamically(vec4 data, int idx) {
 	#ifdef IS_WEBGL1
+		// Since all these indices are known at compile-time, this works just fine
 		if (idx == 0) return data[0];
 		if (idx == 1) return data[1];
 		if (idx == 2) return data[2];
@@ -72,7 +74,7 @@ void main() {
 	// Check where we are in the times array
 	int indexLow = 0;
 	int indexHigh = 1;
-	for (int i = 2; i < 4; ++i) {
+	for (int i = 2; i < 4; i++) {
 		if (times[indexHigh] >= completion) break;
 
 		indexLow = indexHigh;
@@ -87,21 +89,23 @@ void main() {
 	color = mix(accessDynamically(colors, indexLow), accessDynamically(colors, indexHigh), t);
 	color.a = pow(color.a, 1.5); // Adjusted because additive mixing can be kind of extreme
 
-	vec4 mvPosition = viewMatrix * vec4(computedPosition, 1.0);
+	vec4 viewPosition = viewMatrix * vec4(computedPosition, 1.0);
 
 	vec2 scale = vec2(1.0);
 	scale *= mix(accessDynamically(sizes, indexLow), accessDynamically(sizes, indexHigh), t); // Adjust sizing
 
 	// Enable the following code if you don't want to attenuate the size with growing distance:
-	// scale *= -mvPosition.z;
+	// scale *= -viewPosition.z;
 
 	vec2 center = vec2(0.5, 0.5); // Fixed, for now
 	vec2 alignedPosition = (position - (center - vec2(0.5))) * scale;
 	vec2 rotatedPosition;
+
 	rotatedPosition.x = cos(rotation) * alignedPosition.x - sin(rotation) * alignedPosition.y;
 	rotatedPosition.y = sin(rotation) * alignedPosition.x + cos(rotation) * alignedPosition.y;
-	mvPosition.xy += rotatedPosition;
-	gl_Position = projectionMatrix * mvPosition;
+	viewPosition.xy += rotatedPosition;
+
+	gl_Position = projectionMatrix * viewPosition;
 
 	vUv = uv;
 

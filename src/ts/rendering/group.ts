@@ -2,11 +2,12 @@ import { Util } from "../util";
 import { Mesh } from "./mesh";
 import { Object3D } from "./object_3d";
 
+/** A group represents a collection of 3D objects. */
 export class Group extends Object3D {
 	children: Object3D[] = [];
 
 	add(child: Object3D) {
-		if (child.parent) child.parent.remove(child);
+		if (child.parent) child.parent.remove(child); // No weird double parent action
 		this.children.push(child);
 		child.parent = this;
 	}
@@ -20,6 +21,7 @@ export class Group extends Object3D {
 		if (!this.needsWorldTransformUpdate) return;
 		super.updateWorldTransform();
 
+		// Update the world transforms of all descendants
 		for (let child of this.children) {
 			if (child.needsWorldTransformUpdate)
 				child.updateWorldTransform();
@@ -31,6 +33,7 @@ export class Group extends Object3D {
 		for (let child of this.children) child.changedTransform();
 	}
 
+	/** Traverses this group and all its descendants and calls the callback on each non-group. */
 	traverse(fn: (obj: Object3D) => any) {
 		fn(this);
 
@@ -40,6 +43,7 @@ export class Group extends Object3D {
 		}
 	}
 
+	/** Recursively sets the opacity of all objects in this group's subtree. */
 	setOpacity(value: number) {
 		for (let child of this.children) {
 			if (child instanceof Group) child.setOpacity(value);

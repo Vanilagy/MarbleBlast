@@ -7,6 +7,9 @@ import { string } from 'rollup-plugin-string';
 export default (typescript) => [{
 	input: './src/ts/index.ts',
 	plugins: [
+		string({
+			include: "**/*.glsl"
+		}),
 		resolve({
 			browser: true
 		}),
@@ -16,9 +19,6 @@ export default (typescript) => [{
 			'three': 'THREE',
 			'./declarations/oimo': 'OIMO',
 			'../declarations/oimo': 'OIMO'
-		}),
-		string({
-			include: "**/*.glsl"
 		})
 	],
 	output: {

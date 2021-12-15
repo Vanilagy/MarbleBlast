@@ -25,11 +25,11 @@ export class RandomPowerUp extends PowerUp {
 	pickUp() {
 		// Loop until a power-up is found that can be picked up
 		while (true) {
-			let random: Type<PowerUp>;
-			if (this.level.replay.mode === 'record') random = POSSIBLE_POWERUPS[Math.floor(Math.random() * 6)]; // Choose a random power-up
-			else random = POSSIBLE_POWERUPS[this.level.replay.randomPowerUpChoices.get(this.id)[this.pickedUpCount]]; // Select the one stored in the replay
+			let Random: Type<PowerUp>;
+			if (this.level.replay.mode === 'record') Random = POSSIBLE_POWERUPS[Math.floor(Math.random() * 6)]; // Choose a random power-up
+			else Random = POSSIBLE_POWERUPS[this.level.replay.randomPowerUpChoices.get(this.id)[this.pickedUpCount]]; // Select the one stored in the replay
 
-			let instance = new random(this.element);
+			let instance = new Random(this.element);
 			instance.level = this.level; // Prevent having to init()
 			instance.id = this.id;
 
@@ -47,7 +47,7 @@ export class RandomPowerUp extends PowerUp {
 					// Save the random choice to the replay
 					let arr = this.level.replay.randomPowerUpChoices.get(this.id);
 					if (!arr) arr = [], this.level.replay.randomPowerUpChoices.set(this.id, arr);
-					arr.push(POSSIBLE_POWERUPS.indexOf(random));
+					arr.push(POSSIBLE_POWERUPS.indexOf(Random));
 				}
 
 				return true;

@@ -192,6 +192,7 @@ export class Interior {
 	canMove = false;
 	specialMaterials: Set<string>;
 
+	/** Avoids recomputation of the same interior. */
 	static initCache = new WeakMap<InteriorDetailLevel, Promise<InitCacheType>>();
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
@@ -214,6 +215,8 @@ export class Interior {
 
 		let cached = await Interior.initCache.get(this.detailLevel);
 		if (!cached) {
+			// There is no cached init data for this detail level yet, so go and create it, girl
+
 			let resolveFunc: (data: InitCacheType) => any;
 			let promise = new Promise<InitCacheType>(resolve => resolveFunc = resolve);
 			Interior.initCache.set(this.detailLevel, promise);
@@ -307,9 +310,9 @@ export class Interior {
 			resolveFunc(cached);
 		}
 
+		// Create the mesh, add it to the scene, and done
 		let mesh = new Mesh(cached.geometry, cached.materials);
 		this.mesh = mesh;
-		this.level.scene.add(mesh);
 
 		this.level.loadingState.loaded++;
 	}

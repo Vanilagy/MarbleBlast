@@ -130,6 +130,11 @@ const VERSION_UPGRADE_PROCEDURES: Record<string, () => Promise<any>> = {
 		// Got more performant now, so encourage people to have this on :)
 		StorageManager.data.settings.marbleReflectivity = 0;
 		await StorageManager.store();
+	},
+	'2.3.0': async () => {
+		// Got super pretty now, so encourage people to have this on :)
+		StorageManager.data.settings.marbleReflectivity = 0;
+		await StorageManager.store();
 	}
 };
 

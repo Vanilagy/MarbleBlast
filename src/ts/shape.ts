@@ -156,6 +156,7 @@ export class Shape {
 
 	sounds: string[] = [];
 
+	/** Shapes with identical share hash can share data. */
 	getShareHash() {
 		return this.dtsPath + ' ' + this.constructor.name + ' ' + this.shareId;
 	}
@@ -178,6 +179,7 @@ export class Shape {
 		let sharedData: SharedShapeData;
 
 		if (sharedDataPromise) {
+			// If so, (maybe) wait for that data to complete initiation (might already be done)
 			sharedData = await sharedDataPromise;
 		} else {
 			// If we're here, we're the first shape of this type, so let's prepare the shared data
@@ -214,7 +216,7 @@ export class Shape {
 			this.updateNodeTransforms();
 
 			let geometries: Geometry[] = [];
-			let geometryMatrixIndices: number[] = [];
+			let geometryMatrixIndices: number[] = []; // The index into nodeTransforms
 			let collisionGeometries = new Set<Geometry>();
 			
 			// Go through all nodes and objects and create the geometry
@@ -232,6 +234,7 @@ export class Shape {
 							if (mesh.parentMesh >= 0) continue; // If the node has a parent, skip it. Why? Don't know. Made teleport pad look correct.
 							if (mesh.verts.length === 0) continue; // No need
 		
+							// The reason we precompute position/normal here is because skinned meshes need vector instances they can modify each frame.
 							let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
 							let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
 
@@ -278,6 +281,7 @@ export class Shape {
 		}
 
 		if (!this.isMaster) {
+			// Copy some data from the shared data
 			this.nodeTransforms = sharedData.nodeTransforms;
 			if (!this.shareNodeTransforms) this.nodeTransforms = this.nodeTransforms.map(x => x.clone());
 			if (this.shareMaterials) this.materials = sharedData.materials;
@@ -285,13 +289,16 @@ export class Shape {
 			this.rootGraphNodes = sharedData.rootGraphNodes; // The node graph is necessarily identical
 		}
 
+		// Create the meshes for all geometries
 		for (let [i, geometry] of sharedData.geometries.entries()) {
 			let materials = this.materials;
 			if (sharedData.collisionGeometries.has(geometry)) {
+				// Create a special material that just receives shadows
 				let shadowMaterial = new Material();
 				shadowMaterial.isShadow = true;
 				shadowMaterial.transparent = true;
 				shadowMaterial.depthWrite = false;
+				
 				materials = [shadowMaterial];
 				geometry.materials.fill(0);
 			}

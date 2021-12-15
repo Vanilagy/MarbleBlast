@@ -8,6 +8,7 @@ import particleFrag from './shaders/particle_frag.glsl';
 import { ParticleManager } from "../particles";
 import { ResourceManager } from "../resources";
 
+/** Wrapper around a framebuffer to bundle extra metadata with it. */
 interface FramebufferInfo {
 	framebuffer: WebGLFramebuffer;
 	width: number;
@@ -15,15 +16,17 @@ interface FramebufferInfo {
 	colorTexture: WebGLTexture;
 }
 
-const DEFAULT_OPTIONS = {
+const DEFAULT_CONTEXT_OPTIONS = {
 	alpha: false,
 	desynchronized: true
 };
 
+/** The renderer is the central keeper of the WebGL rendering context and performs the actual rendering of a scene. */
 export class Renderer {
 	options: { canvas: HTMLCanvasElement };
 	gl: WebGLRenderingContext | WebGL2RenderingContext;
 	currentProgram: Program = null;
+	/** Maps #define chunks, which uniquely identify a shader, to the program containing that shader. */
 	materialShaders = new Map<string, Program>();
 	shadowMapProgram: Program;
 	particleProgram: Program;
@@ -48,11 +51,11 @@ export class Renderer {
 		alpha?: boolean,
 		desynchronized?: boolean
 	}) {
-		options = { ...DEFAULT_OPTIONS, ...options };
+		options = { ...DEFAULT_CONTEXT_OPTIONS, ...options };
 
 		this.options = options;
 		let ctxOptions = {
-			desynchronized: options.desynchronized,
+			desynchronized: options.desynchronized, // This option can drastically reduce visual latency
 			depth: true,
 			stencil: true, // Maybe this will get us a 24-bit depth buffer
 			antialias: false,
@@ -65,7 +68,7 @@ export class Renderer {
 
 		let { gl } = this;
 
-		// Many of these are enabled in WebGL2 by default:
+		// Get all the extensions we need; many of these are enabled in WebGL2 by default:
 		this.extensions.EXT_texture_filter_anisotropic =
 			gl.getExtension('EXT_texture_filter_anisotropic') ||
 			gl.getExtension('MOZ_EXT_texture_filter_anisotropic') ||
@@ -111,6 +114,7 @@ export class Renderer {
 		this.gl.clearColor(r, g, b, a);
 	}
 
+	/** Renders a scene to a framebuffer (or the canvas) from the perspective of a camera. */
 	render(scene: Scene, camera: THREE.PerspectiveCamera | THREE.OrthographicCamera, framebuffer: FramebufferInfo = null, clearColorBuffer = true) {
 		if (!scene.compiled) throw new Error("Scene not compiled! Can't render it.");
 		if (!scene.preparedForRender) throw new Error("Scene not prepared for render! Can't render it.");
@@ -134,10 +138,12 @@ export class Renderer {
 		let uViewMatrix = new Float32Array(camera.matrixWorldInverse.elements);
 		let uProjectionMatrix = new Float32Array(camera.projectionMatrix.elements);
 		let uInverseProjectionMatrix = new Float32Array(new THREE.Matrix4().getInverse(camera.projectionMatrix).elements);
-		let uLogDepthBufFC = 2.0 / (Math.log(camera.far + 1.0) / Math.LN2);
+		let uLogDepthBufFC = 2.0 / (Math.log(camera.far + 1.0) / Math.LN2); // Used for logarithmic depth buffer
 		let uEyePosition = new Float32Array(camera.position.toArray());
 
-		for (let [, program] of this.materialShaders) {
+		// Init the uniforms needed by all programs
+		for (let defineChunk of scene.allDefineChunks) {
+			let program = this.materialShaders.get(defineChunk);
 			program.use();
 
 			gl.uniformMatrix4fv(
@@ -188,14 +194,17 @@ export class Renderer {
 			gl.uniform1i(program.getUniformLocation('noiseMap'), 5);
 		}
 
+		// First, we draw all opaque objects
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.opaqueIndexBuffer);
 		gl.disable(gl.BLEND);
 		this.renderMaterialGroups(scene, scene.opaqueMaterialGroups, scene.opaqueIndexBuffer, true);
 
+		// Then, we draw all transparent objects
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.transparentIndexBuffer);
 		gl.enable(gl.BLEND);
 		this.renderMaterialGroups(scene, scene.transparentMaterialGroups, scene.transparentIndexBuffer, false);
 
+		// Lastly, we render particles
 		if (scene.particleManager) this.renderParticles(scene.particleManager, camera);
 	}
 
@@ -203,15 +212,16 @@ export class Renderer {
 		let { gl } = this;
 
 		for (let group of groups) {
-			if (group.indexGroups.length === 0 || group.indexGroups[0].indices.length === 0) continue;
+			if (group.indexGroups.length === 0 || group.indexGroups[0].indices.length === 0) continue; // No need to waste gl calls on an empty material group
 
 			let material = group.material;
 			if (!material.visible) continue;
 
 			let program = this.materialShaders.get(group.defineChunk);
 			program.use();
-			program.bindVertexBufferGroup(scene.bufferGroup);
+			program.bindVertexBufferGroup(scene.bufferGroup); // Bind the VAO, this will automatically set up all vertex attribute pointers
 
+			// Set uniforms related to the material
 			gl.uniform1i(program.getUniformLocation('skipTransparent'), Number(skipTransparent));
 			gl.uniform1f(program.getUniformLocation('specularIntensity'), material.specularIntensity);
 			gl.uniform1f(program.getUniformLocation('shininess'), material.shininess);
@@ -224,13 +234,15 @@ export class Renderer {
 
 			gl.depthMask(material.depthWrite);
 
-			if (material.receiveShadows || material.isShadow) scene.directionalLights[0]?.bindShadowMap();
+			// Bind all textures
+			if (material.receiveShadows || material.isShadow) scene.directionalLights[0]?.bindShadowMap(); // Will bind to texture unit 2
 			this.bindTexture(material.diffuseMap?.getGLTexture(this), 0, gl.TEXTURE_2D);
 			this.bindTexture(material.envMap?.glTexture, 1, gl.TEXTURE_CUBE_MAP);
 			this.bindTexture(material.normalMap?.getGLTexture(this), 3, gl.TEXTURE_2D);
 			this.bindTexture(material.specularMap?.getGLTexture(this), 4, gl.TEXTURE_2D);
 			this.bindTexture(material.noiseMap?.getGLTexture(this), 5, gl.TEXTURE_2D);
 
+			// And now, draw all objects with this material in a single draw call :)
 			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 			gl.drawElements(gl.TRIANGLES, group.count, gl.UNSIGNED_INT, group.offset * Uint32Array.BYTES_PER_ELEMENT);
 		}
@@ -243,6 +255,7 @@ export class Renderer {
 		program.use();
 		program.bindVertexBufferGroup(particleManager.bufferGroup);
 
+		// Set up the uniforms we need
 		let uViewMatrix = new Float32Array(camera.matrixWorldInverse.elements);
 		let uProjectionMatrix = new Float32Array(camera.projectionMatrix.elements);
 		let uLogDepthBufFC = 2.0 / (Math.log(camera.far + 1.0) / Math.LN2);
@@ -262,13 +275,14 @@ export class Renderer {
 			uLogDepthBufFC
 		);
 		gl.uniform1i(program.getUniformLocation('diffuseMap'), 0);
-		gl.uniform1f(program.getUniformLocation('time'), particleManager.getTime());
+		gl.uniform1f(program.getUniformLocation('time'), particleManager.getTime()); // Since the particle is simulated in-shader, the shader needs to know the current simulation time
 
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, particleManager.indexBuffer);
 
 		gl.depthMask(false);
 		gl.enable(gl.BLEND);
 
+		// Now draw all particle groups
 		for (let [options, group] of particleManager.particleGroups) {
 			if (group.particles.length === 0) continue;
 
@@ -279,6 +293,7 @@ export class Renderer {
 			else if (options.blending === THREE.AdditiveBlending) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 			else if (options.blending === THREE.SubtractiveBlending) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
+			// Bind uniforms describing the particle simulation
 			gl.uniform1f(program.getUniformLocation('acceleration'), group.uniforms.acceleration);
 			gl.uniform1f(program.getUniformLocation('spinSpeed'), group.uniforms.spinSpeed);
 			gl.uniform1f(program.getUniformLocation('dragCoefficient'), group.uniforms.dragCoefficient);
@@ -291,6 +306,7 @@ export class Renderer {
 		}
 	}
 
+	/** Binds a texture to a specific texture unit and texture target. If the texture doesn't exist, it unbinds the texture from the unit. */
 	bindTexture(texture: WebGLTexture, unit: number, target: number) {
 		let { gl } = this;
 
@@ -299,6 +315,7 @@ export class Renderer {
 		else gl.bindTexture(target, texture);
 	}
 
+	/** Wrapper around createVertexArray[OES]. */
 	createVertexArray(): WebGLVertexArrayObject {
 		let { gl } = this;
 		let ext = this.extensions.OES_vertex_array_object;
@@ -306,6 +323,7 @@ export class Renderer {
 		return (gl instanceof WebGLRenderingContext)? ext.createVertexArrayOES() : gl.createVertexArray();
 	}
 
+	/** Wrapper around bindVertexArray[OES]. */
 	bindVertexArray(vao: WebGLVertexArrayObject) {
 		let { gl } = this;
 		let ext = this.extensions.OES_vertex_array_object;
@@ -313,6 +331,7 @@ export class Renderer {
 		if (gl instanceof WebGLRenderingContext) ext.bindVertexArrayOES(vao); else gl.bindVertexArray(vao);
 	}
 
+	/** Wrapper around deleteVertexArray[OES]. */
 	deleteVertexArray(vao: WebGLVertexArrayObject) {
 		let { gl } = this;
 		let ext = this.extensions.OES_vertex_array_object;
@@ -321,6 +340,6 @@ export class Renderer {
 	}
 
 	cleanUp() {
-		for (let [, program] of this.materialShaders) program.dispose();
+		for (let [, program] of this.materialShaders) program.cleanUp();
 	}
 }

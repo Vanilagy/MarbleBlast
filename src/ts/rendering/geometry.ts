@@ -1,31 +1,39 @@
 import THREE from "three";
 import { Util } from "../util";
 
+/** Defines the geometry for a 3D mesh. */
 export class Geometry {
+	/** A list of numbers describing the 3D coordinates of the vertices. */
 	readonly positions: number[] = [];
+	/** A list of numbers describing the normals of the vertices. */
 	readonly normals: number[] = [];
+	/** A list of numbers describing the UV texture coordinates of the vertices. */
 	readonly uvs: number[] = [];
-	readonly materials: number[] = [];
+	/** The list of vertex indices that should be drawn. */
 	readonly indices: number[] = [];
+	/** For each vertex index, this array defines the material that vertex uses. Only really makes sense if all vertices that make up a triangle have the same material. */
+	readonly materials: number[] = [];
 
+	/** Fills the normal and uv arrays so their lengths match with the vertex positions. */
 	fillRest() {
 		while (this.normals.length/3 < this.positions.length/3) this.normals.push(0, 0, 0);
 		while (this.uvs.length/2 < this.positions.length/3) this.uvs.push(0, 0);
 	}
 
+	/** Makes sure the geometry isn't ill-defined. */
 	validate() {
-		let verts = this.indices.length/3;
-
-		if (new Set([this.positions.length/3, this.normals.length/3, this.uvs.length/2, this.materials.length/1]).size !== 1) {
+		// Check if all arrays actually describe the same amount of vertices
+		if (new Set([this.positions.length/3, this.normals.length/3, this.uvs.length/2]).size !== 1) {
 			console.error(this);
 			throw new Error(`Geometry is invalid (vertex counts don't match):
-Positions: ${verts}
+Positions: ${this.positions.length/3}
 Normals: ${this.normals.length/3}
 Uvs: ${this.uvs.length/2},
 Material Indices: ${this.materials.length/1}
 			`);
 		}
 
+		// Check that all indices are in bounds
 		for (let i = 0; i < this.indices.length; i++) {
 			let index = this.indices[i];
 			if (index >= this.positions.length/3) {
@@ -34,11 +42,12 @@ Material Indices: ${this.materials.length/1}
 			}
 		}
 
-		if (verts % 3)
-			throw new Error("Geometry is invalid (triangle count isn't a whole number): " + verts/3);
+		let tris = this.indices.length;
+		if (tris % 3)
+			throw new Error("Geometry is invalid (triangle count isn't a whole number): " + tris/3);
 	}
 
-	// Largely taken from three.js source
+	/** Creates a UV sphere geometry. Largely taken from three.js source. */
 	static createSphereGeometry(radius = 1, widthSegments = 32, heightSegments = 16, phiStart = 0, phiLength = Math.PI * 2, thetaStart = 0, thetaLength = Math.PI) {
 		let geometry = new Geometry();
 

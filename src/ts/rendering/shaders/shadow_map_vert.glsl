@@ -20,6 +20,7 @@ int _mod(int a, int n) {
 	#endif
 }
 
+// Refer to material_vert.glsl for an explanation of what this does
 mat4 getMeshInfo(int index) {
 	ivec2 coords = ivec2(
 		_mod(4 * index, meshInfoTextureWidth),
@@ -53,10 +54,12 @@ void main() {
 	float opacity = meshInfo[0][3];
 
 	if (opacity < 1.0) {
+		// Non-opaque objects don't cast shadows in our perfect world
 		gl_Position = vec4(0.0);
 		return;
 	}
 
+	// Simply transform the vertex and we're done
 	vec4 transformed = transform * vec4(position, 1.0);
 	transformed = viewMatrix * transformed;
 	transformed = projectionMatrix * transformed;

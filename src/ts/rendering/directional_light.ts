@@ -3,6 +3,7 @@ import { Util } from "../util";
 import { Renderer } from "./renderer";
 import { Scene } from "./scene";
 
+/** Represents a light source that casts light globally in a specific direction. Can cast shadows. */
 export class DirectionalLight {
 	renderer: Renderer;
 	color: THREE.Color;
@@ -19,13 +20,15 @@ export class DirectionalLight {
 		this.direction = direction;
 	}
 
+	/** Turns on shadow casting for this light and sets up the necessary textures and buffers. */
 	enableShadowCasting(textureResolution: number, camera: THREE.OrthographicCamera) {
-		Util.assert(Util.isPowerOf2(textureResolution));
+		Util.assert(Util.isPowerOf2(textureResolution)); // We never know 😓
 
 		let { gl } = this.renderer;
 
 		this.camera = camera;
 
+		// Create the texture that will store the depth information
 		let depthTexture = gl.createTexture();
 		let depthComponent = (gl instanceof WebGLRenderingContext)? gl.DEPTH_COMPONENT : gl.DEPTH_COMPONENT32F;
 		let type = (gl instanceof WebGLRenderingContext)? gl.UNSIGNED_INT : gl.FLOAT;
@@ -37,6 +40,7 @@ export class DirectionalLight {
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		this.depthTexture = depthTexture;
 
+		// Create the framebuffer
 		let depthFramebuffer = gl.createFramebuffer();
 		gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer);
 		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0);
@@ -58,6 +62,10 @@ export class DirectionalLight {
 		this.textureResolution = textureResolution;
 	}
 
+	/** 
+	 * Updates the position of the shadow camera.
+	 * @param offset Specifies the offset in the direction of the light from `position`.
+	 */
 	updateCamera(position: THREE.Vector3, offset: number) {
 		if (!this.camera) return;
 
@@ -66,6 +74,7 @@ export class DirectionalLight {
 		this.camera.updateMatrixWorld();
 	}
 
+	/** Renders to the shadow map with all shadow casters from the given scene. */
 	renderShadowMap(scene: Scene) {
 		if (!this.camera) return;
 
@@ -102,9 +111,10 @@ export class DirectionalLight {
 		this.renderer.bindTexture(scene.meshInfoTexture, 7, gl.TEXTURE_2D);
 
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.shadowCasterIndexBuffer);
-		gl.drawElements(gl.TRIANGLES, scene.shadowCasterIndices.length, gl.UNSIGNED_INT, 0);
+		gl.drawElements(gl.TRIANGLES, scene.shadowCasterIndices.length, gl.UNSIGNED_INT, 0); // A single draw call is enough
 	}
 
+	/** Binds the shadow map to texture unit 2. */
 	bindShadowMap() {
 		let { gl } = this.renderer;
 		this.renderer.bindTexture(this.depthTexture, 2, gl.TEXTURE_2D);

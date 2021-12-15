@@ -45,6 +45,7 @@ export interface ParticleEmitterOptions {
 	particleOptions: ParticleOptions
 }
 
+/** Particles with identical options are collected into a single group to be rendered together. */
 interface ParticleGroup {
 	particles: Particle[],
 	vertexBuffer: VertexBuffer,
@@ -58,7 +59,9 @@ interface ParticleGroup {
 	}
 }
 
-const positions = new Float32Array(Array(MAX_PARTICLES_PER_GROUP).fill([
+// These two buffers define the geometry of the billboard:
+
+const positions = new Float32Array(Array(MAX_PARTICLES_PER_GROUP).fill([ // Note we only have 2 values per vertex here, since a billboard is a 2D thing (z always 0)
 	-0.5, -0.5,
 	0.5, -0.5,
 	0.5, 0.5,
@@ -99,6 +102,7 @@ export class ParticleManager {
 		this.renderer = renderer;
 		let { gl } = renderer;
 
+		// Setup the vertex buffers that will be used to draw all particles
 		this.positionBuffer = new VertexBuffer(renderer, positions, { 'position': 2 });
 		this.uvBuffer = new VertexBuffer(renderer, uvs, { 'uv': 2 });
 		this.bufferGroup = new VertexBufferGroup([this.positionBuffer, this.uvBuffer]);
@@ -138,7 +142,7 @@ export class ParticleManager {
 		};
 		const floatsPerParticle = Object.values(attributes).reduce((a, b) => a + b, 0);
 		const vertsPerParticle = 4;
-		let buffer = new Float32Array(floatsPerParticle * vertsPerParticle * MAX_PARTICLES_PER_GROUP);
+		let buffer = new Float32Array(floatsPerParticle * vertsPerParticle * MAX_PARTICLES_PER_GROUP); // Make the buffer large enough so that we won't ever have to worry about not being able to fit enough particles in
 		let vertexBuffer = new VertexBuffer(this.renderer, buffer, attributes);
 
 		let colorsMatrix = new THREE.Matrix4();
@@ -349,6 +353,7 @@ class Particle {
 			Util.degToRad(this.initialSpin)
 		];
 
+		// Update the data about the particle for each of the vertices. Yeah, it's a bit redundant, but name a better way. Data texture, you say? 😂
 		let buf = group.vertexBuffer;
 		buf.set(data, 4 * index * buf.stride + 0 * buf.stride);
 		buf.set(data, 4 * index * buf.stride + 1 * buf.stride);

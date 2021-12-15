@@ -3,7 +3,7 @@ precision mediump float;
 #define SHADOW_RADIUS 2
 #include <definitions>
 
-// This condition here is necessary to save on varying vectors; some mobile devices (*cough* iPhones *cough*) only support 8 varying vec4s, and this separation here makes sure we stay just under that. If, in the future, more varyings will be necessary, this condition can always be refined more.
+// This condition here is necessary to save on varying vectors; some mobile devices (*cough* iPhones *cough*) only support 8 varying vec4s, and this separation here makes sure we stay just under that. If, in the future, more varyings will be necessary, this condition can always be refined more. Also, apparently I'm not allowed to indent 'varying'.
 #ifdef IS_SKY
 varying vec3 eyeDirection;
 #else
@@ -13,7 +13,7 @@ varying vec3 vNormal;
 varying float vOpacity;
 varying vec4 vShadowPosition;
 varying vec3 vReflect;
-varying mat3 vTbn;
+varying mat3 vTbn; // Matrix used to transform the normal map vectors
 varying float vFragDepth;
 varying float vIsPerspective;
 #endif
@@ -37,9 +37,10 @@ uniform vec3 directionalLightDirection;
 uniform mediump sampler2D directionalLightShadowMap;
 
 #if defined(LOG_DEPTH_BUF) && defined(IS_WEBGL1)
-	#extension GL_EXT_frag_depth : enable
+	#extension GL_EXT_frag_depth : enable // For some reason, the extension needs to be enabled in-shader
 #endif
 
+// Computes standard Lambertian reflectance
 float lambert(vec3 normal, vec3 lightPosition) {
 	float result = dot(normal, lightPosition);
 	return max(result, 0.0);
@@ -69,19 +70,22 @@ vec4 sampleCubeTexture(samplerCube tex, vec3 uvw) {
 	return textureCube(tex, uvw);
 }
 
+// Gets the intensity of a shadow given a point in shadow camera view space
 float getShadowIntensity(sampler2D map, vec4 shadowPosition, int mapSize) {
 	vec3 projectedTexcoord = shadowPosition.xyz / shadowPosition.w;
 	projectedTexcoord = (projectedTexcoord + vec3(1.0)) / 2.0; // From [-1, 1] to [0, 1]
 
+	// Check if we're even within the bounds of the shadow texture
 	bool inBounds =
 		min(projectedTexcoord.x, min(projectedTexcoord.y, projectedTexcoord.z)) > 0.0 &&
 		max(projectedTexcoord.x, max(projectedTexcoord.y, projectedTexcoord.z)) < 1.0;
 	
-	if (!inBounds) return 0.0;
+	if (!inBounds) return 0.0; // If not, say there's no shadow
 
 	float mapSizeF = float(mapSize);
 	float total = 0.0;
 
+	// Sample the texture in an area to soften it a bit
 	for (int x = -SHADOW_RADIUS; x <= SHADOW_RADIUS; x++) {
 		for (int y = -SHADOW_RADIUS; y <= SHADOW_RADIUS; y++) {
 			vec2 uv = projectedTexcoord.xy + vec2(float(x) / mapSizeF, float(y) / mapSizeF);
@@ -99,10 +103,10 @@ float fresnel(vec3 direction, vec3 normal, bool invert) {
 	vec3 nNormal = normalize(normal);
 	vec3 halfDirection = normalize(nNormal + nDirection);
 
-	float expo = 5.0;
+	float exponent = 5.0;
 	float cosine = dot(halfDirection, nDirection);
 	float product = max(cosine, 0.0);
-	float factor = invert ? 1.0 - pow(product, expo) : pow(product, expo);
+	float factor = invert ? 1.0 - pow(product, exponent) : pow(product, exponent);
 	
 	return factor;
 }
@@ -115,11 +119,12 @@ void main() {
 	#endif
 
 	#ifdef IS_SKY
+		// We simply sample the skybox cube texture and we're done.
 		vec4 sampled = sampleCubeTexture(envMap, eyeDirection);
 		gl_FragColor = sampled;
 	#elif defined(IS_SHADOW)
 		float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
-		gl_FragColor = vec4(vec3(0.0), intensity * 0.25);
+		gl_FragColor = vec4(vec3(0.0), intensity * 0.25); // Note that this intensity differs from the one used in the normal shader path. That's because with a separate shadow material, it's actually difficult to figure out how dark the shadow should be - so whatever value we picked here just looked the least odd.
 	#else
 		vec4 diffuse = vec4(1.0);
 
@@ -131,6 +136,8 @@ void main() {
 		#endif
 
 		#ifdef USE_NOISE_MAP
+			// Sample the noise texture multiple times to create the tiling effect found in MBU textures. Code is taken from MBU shaders!
+
 			vec2 noiseIndex;
 			vec4 noiseColor[4];
 			vec2 halfPixel = vec2(1.0 / 64.0, 1.0 / 64.0);
@@ -155,7 +162,8 @@ void main() {
 			diffuse.rgb *= 1.0 + finalNoiseCol.r; // This isn't how MBU does it afaik but it looks good :o
 		#endif
 
-		diffuse.a *= vOpacity;
+		diffuse.a *= vOpacity; // Multiply the diffuse by the whole mesh's opacity
+
 		vec3 incomingLight = vec3(0.0);
 		vec3 specularLight = vec3(0.0);
 
@@ -167,6 +175,7 @@ void main() {
 			vec3 normal = vNormal;
 
 			#ifdef USE_NORMAL_MAP
+				// Overwrite the normal with the sampled one
 				vec3 map = texture2D(normalMap, secondaryMapUvFactor * vUv).xyz;
 				map = map * 255.0/127.0 - 128.0/127.0;
 				normal = vTbn * map; // Don't normalize here! Reduces aliasing effects
@@ -181,12 +190,13 @@ void main() {
 
 			incomingLight += addedLight;
 			#ifdef SATURATE_INCOMING_LIGHT
+				// MBG saturates the incoming light to be at most 1.0
 				incomingLight = min(vec3(1.0), incomingLight);
 			#endif
 
 			#ifdef USE_SPECULAR
 				vec3 viewDir = normalize(eyePosition - vPosition.xyz);
-				vec3 halfwayDir = normalize(-directionalLightDirection + viewDir);
+				vec3 halfwayDir = normalize(-directionalLightDirection + viewDir); // Blinn-Phong
 
 				float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
 
@@ -203,6 +213,7 @@ void main() {
 
 		#ifdef USE_ENV_MAP
 			#ifdef USE_FRESNEL
+				// Fresnel causes the reflectivity to increase with incresing angle of incidence
 				vec3 viewDir = normalize(eyePosition - vPosition.xyz);
 				float fac = fresnel(viewDir, normal, true);
 			#else
@@ -210,6 +221,7 @@ void main() {
 			#endif
 
 			#ifdef USE_ACCURATE_REFLECTION_RAY
+				// The reflection ray tends to be much more accurate when computed using the interpolated normal rather than interpolating the reflection ray itself; but it's more expensive and sometimes looks too boring
 				vec3 incidentRay = normalize(vPosition.xyz - eyePosition);
 				vec3 reflectionRay = reflect(incidentRay, normalize(vNormal));
 			#else

@@ -9,7 +9,7 @@ attribute vec4 tangent;
 attribute vec2 uv;
 attribute float meshInfoIndex;
 
-uniform highp sampler2D meshInfos;
+uniform highp sampler2D meshInfos; // This is where mesh transformation and other things about the mesh are stored in
 uniform int meshInfoTextureWidth;
 uniform int meshInfoTextureHeight;
 uniform mat4 viewMatrix;
@@ -55,6 +55,7 @@ varying vec3 eyeDirection;
 	}
 #endif
 
+// _ here because on some systems, "mod" is already defined?
 int _mod(int a, int n) {
 	#ifdef IS_WEBGL1
 		return a - n * (a / n);
@@ -63,13 +64,16 @@ int _mod(int a, int n) {
 	#endif
 }
 
+// Gets the mesh info for the mesh at a specific index. The mesh info contains its transformation and other things.
 mat4 getMeshInfo(int index) {
+	// Figure out where we need to sample the texture
 	ivec2 coords = ivec2(
 		_mod(4 * index, meshInfoTextureWidth),
 		(4 * index) / meshInfoTextureWidth
 	);
 
 	#ifdef IS_WEBGL1
+		// Primitive way, sample with texture coordinates
 		return mat4(
 			texture2D(meshInfos, vec2(coords + ivec2(0, 0)) / vec2(meshInfoTextureWidth, meshInfoTextureHeight)),
 			texture2D(meshInfos, vec2(coords + ivec2(1, 0)) / vec2(meshInfoTextureWidth, meshInfoTextureHeight)),
@@ -77,6 +81,7 @@ mat4 getMeshInfo(int index) {
 			texture2D(meshInfos, vec2(coords + ivec2(3, 0)) / vec2(meshInfoTextureWidth, meshInfoTextureHeight))
 		);
 	#else
+		// Better way, sample with pixel coordinates
 		return mat4(
 			texelFetch(meshInfos, coords + ivec2(0, 0), 0),
 			texelFetch(meshInfos, coords + ivec2(1, 0), 0),
@@ -87,11 +92,12 @@ mat4 getMeshInfo(int index) {
 }
 
 bool isPerspectiveMatrix(mat4 m) {
-	return m[2][3] == -1.0;
+	return m[2][3] == -1.0; // Taken from three.js, no clue how this works
 }
 
 void main() {
 	#ifdef IS_SKY
+		// https://gamedev.stackexchange.com/a/60377
 		mat4 inverseProjection = inverseProjectionMatrix;
 		mat3 inverseModelView = transpose(mat3(viewMatrix));
 		vec3 unprojected = (inverseProjection * vec4(position, 1.0)).xyz;
@@ -101,7 +107,7 @@ void main() {
 	#else
 		mat4 meshInfo = getMeshInfo(int(meshInfoIndex + 0.1)); // + 0.1 to make sure it casts correctly, lol
 		mat4 transform = meshInfo;
-		transform[0][3] = 0.0;
+		transform[0][3] = 0.0; // The last row of a transformation matrix is always the same, so set it to what it should be
 		transform[1][3] = 0.0;
 		transform[2][3] = 0.0;
 		transform[3][3] = 1.0;
@@ -110,6 +116,7 @@ void main() {
 		int meshFlags = int(meshInfo[1][3]);
 
 		if (skipTransparent && opacity < 1.0) {
+			// The object isn't fully opaque, so skip it
 			gl_Position = vec4(0.0);
 			return;
 		}
@@ -124,10 +131,13 @@ void main() {
 			vUv.y = 1.0 - vUv.y;
 		#endif
 
+		// Compute the transformation matrix for normals (not tangents, tho!)
+		// Note that when the transformation doesn't involve any scaling, the upper mat3 part is orthonormal meaning its inverse is equal to its transpose. In this case, normalTransform == mat3(transform).
 		mat3 normalTransform = transpose(inverse(mat3(transform)));
 
 		vec3 transformedNormal = normalTransform * normal;
 		#ifdef NORMALIZE_NORMALS
+			// Many normals, like those used in the tornado, are actually not normalized
 			transformedNormal = normalize(transformedNormal);
 		#endif
 		vNormal = transformedNormal;
@@ -145,10 +155,12 @@ void main() {
 		#endif
 
 		#if defined(RECEIVE_SHADOWS) || defined(IS_SHADOW)
+			// Compute where we are within shadow camera view space
 			vShadowPosition = directionalLightTransform * worldPosition;
 		#endif
 
 		#if defined(USE_ENV_MAP) && !defined(USE_ACCURATE_REFLECTION_RAY)
+			// Compute the reflection ray
 			vec3 incidentRay = normalize(worldPosition.xyz - eyePosition);
 			vec3 reflected = reflect(incidentRay, normalize(transformedNormal));
 			vReflect = reflected;
@@ -157,6 +169,7 @@ void main() {
 		gl_Position = transformed;
 
 		#ifdef LOG_DEPTH_BUF
+			// Some values we need to pass along for logarithmic depth buffer stuffs
 			vFragDepth = 1.0 + gl_Position.w;
 			vIsPerspective = float(isPerspectiveMatrix(projectionMatrix));
 		#endif

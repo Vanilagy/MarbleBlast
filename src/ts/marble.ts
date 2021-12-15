@@ -166,6 +166,14 @@ export class Marble {
 			this.cubeCamera = new CubeCamera(0.025, this.level.camera.far);
 		}
 
+		const addMarbleReflectivity = (m: Material) => {
+			m.envMap = this.cubeMap;
+			m.envMapZUp = false;
+			m.reflectivity = 0.7;
+			m.useFresnel = true;
+			m.useAccurateReflectionRay = true;
+		};
+
 		// Create the 3D object
 		if (has2To1Texture || (this.level.mission.modification === 'ultra' && !customTextureBlob)) {
 			let ballShape = new Shape();
@@ -176,13 +184,7 @@ export class Marble {
 				m.normalizeNormals = true; // We do this so that the marble doesn't get darker the larger it gets
 				m.flipY = true;
 
-				if (this.isReflective()) {
-					m.envMap = this.cubeMap;
-					m.envMapZUp = false;
-					m.reflectivity = 0.7;
-					m.useFresnel = true;
-					m.useAccurateReflectionRay = true;
-				}
+				if (this.isReflective()) addMarbleReflectivity(m);
 			};
 
 			if (customTextureBlob) ballShape.matNamesOverride['base.marble'] = marbleTexture;
@@ -197,14 +199,9 @@ export class Marble {
 		sphereMaterial.normalizeNormals = true;
 		sphereMaterial.flipY = true;
 
-		if (this.isReflective()) {
-			sphereMaterial.envMap = this.cubeMap;
-			sphereMaterial.envMapZUp = false;
-			sphereMaterial.reflectivity = 0.7;
-			sphereMaterial.useFresnel = true;
-			sphereMaterial.useAccurateReflectionRay = true;
-		}
+		if (this.isReflective()) addMarbleReflectivity(sphereMaterial);
 
+		// Create the sphere's mesh
 		let sphere = new Mesh(geometry, [sphereMaterial]);
 		sphere.castShadows = true;
 		this.sphere = sphere;
