@@ -82,6 +82,9 @@ export class Renderer {
 		this.extensions.KHR_parallel_shader_compile = gl.getExtension('KHR_parallel_shader_compile');
 		this.extensions.OES_texture_float = gl.getExtension('OES_texture_float');
 		this.extensions.OES_vertex_array_object = gl.getExtension('OES_vertex_array_object');
+
+		console.log(this.gl instanceof WebGLRenderingContext);
+		console.log(this.extensions);
 		
 		this.shadowMapProgram = new Program(this, shadowMapVert, shadowMapFrag);
 		this.particleProgram = new Program(this, particleVert, particleFrag);
