@@ -1,5 +1,8 @@
 # Version History
 
+## 2.3.3
+- Fixed "Fancy shader" option not taking effect until restart
+
 ## 2.3.2
 - Due to visual flickering on some devices, low-latency mode has been turned off by default and can now be enabled manually in the MBP options. It is still recommended that all Chromium users enable this setting - as long as it doesn't cause any visible glitches.
 

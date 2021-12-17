@@ -161,7 +161,8 @@ interface ConvexHullOctreeObject extends OctreeObject {
 
 interface InitCacheType {
 	geometry: Geometry,
-	materials: Material[]
+	materials: Material[],
+	fancyShaders: boolean
 }
 
 /** Represents a Torque 3D Interior, used for the main surfaces and geometry of levels. */
@@ -214,6 +215,12 @@ export class Interior {
 		this.id = id;
 
 		let cached = await Interior.initCache.get(this.detailLevel);
+		if (cached && cached.fancyShaders !== StorageManager.data.settings.fancyShaders) {
+			// The cached interior was created with a different shader setting, so assume it's invalid
+			Interior.initCache.delete(this.detailLevel);
+			cached = null;
+		}
+
 		if (!cached) {
 			// There is no cached init data for this detail level yet, so go and create it, girl
 
@@ -306,7 +313,11 @@ export class Interior {
 				}
 			}
 
-			cached = { geometry, materials };
+			cached = {
+				geometry,
+				materials,
+				fancyShaders: StorageManager.data.settings.fancyShaders
+			};
 			resolveFunc(cached);
 		}
 
