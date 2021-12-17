@@ -1,4 +1,4 @@
 declare module '*.glsl' {
 	var _: string;
-	export default  _;
+	export default _;
 }

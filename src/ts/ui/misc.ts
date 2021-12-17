@@ -4,7 +4,15 @@ import { StorageManager } from "../storage";
 import { Util } from "../util";
 
 export const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasElement;
-export const mainRenderer = new Renderer({ canvas: mainCanvas });
+export let mainRenderer: Renderer;
+
+export const initMainRenderer = () => {
+	mainRenderer = new Renderer({
+		canvas: mainCanvas,
+		desynchronized: StorageManager.data.settings.canvasDesynchronized
+	});
+	resize(false);
+};
 
 const MIN_WIDTH = 640;
 const MIN_HEIGHT = 600;
@@ -23,8 +31,8 @@ export const resize = async (wait = true) => {
 	
 	mainCanvas.style.width = '100%';
 	mainCanvas.style.height = '100%';
-	mainRenderer.setSize(window.innerWidth, window.innerHeight);
-	mainRenderer.setPixelRatio(Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]));
+	mainRenderer?.setSize(window.innerWidth, window.innerHeight);
+	mainRenderer?.setPixelRatio(Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]));
 
 	state.level?.onResize();
 };

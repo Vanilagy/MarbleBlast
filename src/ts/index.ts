@@ -9,6 +9,7 @@ import { Leaderboard } from './leaderboard';
 import { MissionLibrary } from './mission_library';
 import { state } from './state';
 import { setMenu } from './ui/menu_setter';
+import { initMainRenderer } from './ui/misc';
 
 OIMO.Setting.defaultGJKMargin = 0.005; // Without this, the marble is very visibly floating above stuff.
 OIMO.Setting.defaultContactPositionCorrectionAlgorithm = OIMO.PositionCorrectionAlgorithm.NGS; // Slower, but there's really only one collision object anyway so
@@ -22,6 +23,7 @@ const init = async () => {
 	await Util.init();
 	await StorageManager.init();
 	await ResourceManager.init();
+	initMainRenderer();
 
 	loadingDetail.textContent = 'Loading levels...';
 	await MissionLibrary.init();

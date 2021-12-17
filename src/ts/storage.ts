@@ -43,6 +43,7 @@ export interface StorageData {
 		pixelRatio: number,
 		inputType: number,
 		frameRateCap: number,
+		canvasDesynchronized: boolean,
 
 		joystickPosition: number,
 		joystickSize: number,
@@ -105,6 +106,7 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		pixelRatio: 2,
 		inputType: 0,
 		frameRateCap: 7,
+		canvasDesynchronized: false,
 
 		joystickPosition: 0,
 		joystickSize: 250,
