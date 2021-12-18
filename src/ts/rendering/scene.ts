@@ -147,7 +147,7 @@ export class Scene extends Group {
 
 				if (mesh.castShadows) Util.pushArray(shadowCasterIndices, data.indices);
 
-				if (material.transparent) {
+				if (material.transparent || material.opacity < 1) {
 					mesh.hasTransparentMaterials = true;
 					continue; // We do only opaque stuff here
 				}
@@ -347,7 +347,9 @@ export class Scene extends Group {
 		for (let mesh of sortedMeshes) {
 			for (let data of mesh.materialIndices) {
 				let material = data.material;
-				if (!material.transparent && (mesh.opacity === 1 || mesh.opacity === 0)) continue;
+				let effectiveOpacity = mesh.opacity * material.opacity;
+
+				if ((!material.transparent && effectiveOpacity === 1) || effectiveOpacity === 0) continue;
 
 				let group = this.updateMaterialGroup(materialMap, data);
 				group.minDistance = Math.min(group.minDistance, mesh.distanceToCamera);

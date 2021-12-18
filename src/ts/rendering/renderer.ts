@@ -226,6 +226,7 @@ export class Renderer {
 
 			// Set uniforms related to the material
 			gl.uniform1i(program.getUniformLocation('skipTransparent'), Number(skipTransparent));
+			gl.uniform1f(program.getUniformLocation('materialOpacity'), material.opacity);
 			gl.uniform1f(program.getUniformLocation('specularIntensity'), material.specularIntensity);
 			gl.uniform1f(program.getUniformLocation('shininess'), material.shininess);
 			gl.uniform1f(program.getUniformLocation('reflectivity'), material.reflectivity);

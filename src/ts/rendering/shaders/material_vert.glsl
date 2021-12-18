@@ -18,6 +18,7 @@ uniform mat4 inverseProjectionMatrix;
 uniform bool skipTransparent;
 uniform mat4 directionalLightTransform;
 uniform vec3 eyePosition;
+uniform float materialOpacity;
 
 varying vec4 vPosition;
 varying vec3 vNormal;
@@ -112,8 +113,10 @@ void main() {
 		transform[2][3] = 0.0;
 		transform[3][3] = 1.0;
 		float opacity = meshInfo[0][3];
-		vOpacity = opacity;
 		int meshFlags = int(meshInfo[1][3]);
+
+		opacity *= materialOpacity;
+		vOpacity = opacity;
 
 		if (skipTransparent && opacity < 1.0) {
 			// The object isn't fully opaque, so skip it

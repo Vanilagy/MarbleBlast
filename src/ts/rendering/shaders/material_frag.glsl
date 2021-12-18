@@ -165,7 +165,7 @@ void main() {
 			diffuse.rgb *= 1.0 + finalNoiseCol.r; // This isn't how MBU does it afaik but it looks good :o
 		#endif
 
-		diffuse.a *= vOpacity; // Multiply the diffuse by the whole mesh's opacity
+		diffuse.a *= vOpacity; // Multiply the diffuse by the whole mesh's opacity (and the material's opacity)
 
 		vec3 incomingLight = vec3(0.0);
 		vec3 specularLight = vec3(0.0);
