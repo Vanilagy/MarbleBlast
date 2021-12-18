@@ -10,6 +10,7 @@ new SimGroup(MissionGroup) {
          level = "22";
          startHelpText = "Find buttons to lower and raise the platforms!";
          goldTime = 25000;
+         AlarmStartTime = "25";
    };
    new MissionArea(MissionArea) {
       area = "-360 -648 720 1296";

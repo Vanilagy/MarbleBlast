@@ -10,6 +10,7 @@ new SimGroup(MissionGroup) {
          startHelpText = "Grab the Time Travel Bonus on your way to the finish to qualify!";
          desc = "Get to the end of the mission within 5 seconds.  You\'ll have to get the Time Travel Bonus in order to qualify!";
          artist = "Alex Swanson";
+         AlarmStartTime = "2";
    };
    new MissionArea(MissionArea) {
       area = "-360 -648 720 1296";

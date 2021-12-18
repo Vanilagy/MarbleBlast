@@ -11,6 +11,7 @@ new SimGroup(MissionGroup) {
          startHelpText = "Get the best time by staying on-track!";
          artist = "Kevin Ryan";
          goldTime = "18000";
+         AlarmStartTime = "12";
    };
    new MissionArea(MissionArea) {
       area = "-360 -648 720 1296";

@@ -9,6 +9,7 @@ new SimGroup(MissionGroup) {
          type = "Advanced";
          artist = "Kevin Ryan";
          goldTime = 8000;
+         AlarmStartTime = "20";
    };
    new MissionArea(MissionArea) {
       area = "-360 -648 720 1296";

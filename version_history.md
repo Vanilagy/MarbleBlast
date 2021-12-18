@@ -1,6 +1,6 @@
 # Version History
 
-## 3.3.4
+## 2.3.4
 - Fixed certain invisible materials not being invisible
 
 ## 2.3.3

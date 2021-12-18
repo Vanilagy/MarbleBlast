@@ -10,6 +10,7 @@ new SimGroup(MissionGroup) {
          artist = "Kevin Ryan";
          startHelpText = "Go for the top hole!";
          goldTime = "10000";
+         AlarmStartTime = "12";
    };
    new MissionArea(MissionArea) {
       area = "-360 -648 720 1296";

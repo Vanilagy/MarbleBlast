@@ -96,8 +96,9 @@ export abstract class HomeScreen {
 
 		// Decide if we should show the changelog on startup
 		if (StorageManager.data.lastSeenVersion) {
-			let bigger = Util.compareVersions(latestVersion, StorageManager.data.lastSeenVersion) > 0;
-			if (bigger) {
+			//let bigger = Util.compareVersions(latestVersion, StorageManager.data.lastSeenVersion) > 0;
+			let different = latestVersion !== StorageManager.data.lastSeenVersion;
+			if (different) {
 				// There's a newer version, go show the changes!
 				this.changelogContainer.classList.remove('hidden');
 				await StorageManager.onVersionUpgrade(StorageManager.data.lastSeenVersion);
