@@ -187,18 +187,18 @@ export class MbgHelpScreen extends HelpScreen {
 	}
 
 	async update() {
-		requestAnimationFrame(() => this.update());
+		requestAnimationFrame(this.update.bind(this));
 		if (this.div.classList.contains('hidden')) return;
 		
 		let now = performance.now();
 		let canvasRows = this.currentPage.querySelectorAll('.help-canvas-row');
 	
-		// Update all shapes in the currently page
+		// Update all shapes in the current page
 		for (let row of canvasRows) {
 			let canvas = row.children[0] as HTMLCanvasElement;
 			let sceneName = canvas.getAttribute('data-scene'); // The name of the scene to show is stored in this attribute
 			let scene = this.scenes.get(sceneName);
-			if (!scene) continue;
+			if (!scene?.compiled) continue;
 	
 			// Select the correct scene
 			let shapeArr = this.shapes.get(sceneName);
