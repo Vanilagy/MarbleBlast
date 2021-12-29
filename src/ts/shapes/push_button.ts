@@ -28,7 +28,9 @@ export class PushButton extends Shape {
 		return completion;
 	}
 
-	onMarbleContact(time: TimeState) {
+	onMarbleContact() {
+		let time = this.level.timeState;
+
 		let currentCompletion = this.getCurrentCompletion(time);
 		// Only trigger the button if it's completely retracted
 		if (currentCompletion === 0) this.lastContactTime = time.timeSinceLoad;

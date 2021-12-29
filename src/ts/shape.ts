@@ -13,6 +13,9 @@ import { Material } from "./rendering/material";
 import { Geometry } from "./rendering/geometry";
 import { Mesh } from "./rendering/mesh";
 import { Texture } from "./rendering/texture";
+import { RigidBody, RigidBodyType } from "./physics/rigid_body";
+import { CollisionShape, ConvexPolyhedronCollisionShape } from "./physics/collision_shape";
+import { Collision } from "./physics/collision";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
@@ -100,12 +103,14 @@ export class Shape {
 	group: Group;
 	meshes: Mesh[] = [];
 	bodies: OIMO.RigidBody[];
+	ownBodies: RigidBody[];
 	/** Whether the marble can physically collide with this shape. */
 	collideable = true;
 	/** Not physical colliders, but a list bodies that overlap is checked with. This is used for things like force fields. */
 	colliders: ColliderInfo[] = [];
 	/** For each shape, the untransformed vertices of their convex hull geometry. */
 	shapeVertices = new Map<OIMO.Shape, THREE.Vector3[]>();
+	isCurrentlyColliding = false;
 
 	worldPosition = new THREE.Vector3();
 	worldOrientation = new THREE.Quaternion();
@@ -171,6 +176,7 @@ export class Shape {
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
 		this.group = new Group();
 		this.bodies = [];
+		this.ownBodies = [];
 		this.materials = [];
 		this.materialInfo = new WeakMap();
 
@@ -334,6 +340,11 @@ export class Shape {
 					body.userData = { nodeIndex: i, objectIndex: this.colliderDts.objects.indexOf(object) };
 
 					this.bodies.push(body);
+
+					let ownBody = new RigidBody();
+					ownBody.type = RigidBodyType.Static;
+
+					this.ownBodies.push(ownBody);
 				}
 			}
 		}
@@ -344,6 +355,32 @@ export class Shape {
 			config.type = OIMO.RigidBodyType.STATIC;
 			let body = new OIMO.RigidBody(config);
 			this.bodies.push(body);
+
+			let ownBody = new RigidBody();
+			ownBody.type = RigidBodyType.Static;
+			this.ownBodies.push(ownBody);
+		}
+
+		// Init collision handlers
+		for (let body of this.ownBodies) {
+			body.onBeforeIntegrate = () => {
+				if (this.isCurrentlyColliding && body.collisions.length === 0) {
+					this.isCurrentlyColliding = false;
+					this.onMarbleLeave();
+				}
+			};
+
+			body.onBeforeCollisionResponse = () => {
+				if (!this.isCurrentlyColliding) this.onMarbleEnter();
+				this.onMarbleInside();
+
+				this.isCurrentlyColliding = true;
+			};
+
+			body.onAfterCollisionResponse = () => {
+				let chosenCollision = body.collisions[0]; // Just pick the first one, for now. There's not really a better way of choosing which one to pick, right?
+				this.onMarbleContact(chosenCollision);
+			};
 		}
 
 		// Preload all sounds
@@ -521,7 +558,10 @@ export class Shape {
 			for (let object of objects) {
 				if (!dts.names[object.nameIndex].toLowerCase().startsWith("col")) continue;
 
-				let body = this.bodies[bodyIndex++];
+				let ownBody = this.ownBodies[bodyIndex];
+				let body = this.bodies[bodyIndex];
+				bodyIndex++;
+
 				for (let j = object.startMeshIndex; j < object.startMeshIndex + object.numMeshes; j++) {
 					let mesh = dts.meshes[j];
 					if (!mesh) continue;
@@ -544,6 +584,14 @@ export class Shape {
 							.map((index) => mesh.verts[index])
 							.map((vert) => new THREE.Vector3(vert.x, vert.y, vert.z));
 						this.shapeVertices.set(shape, vertices);
+
+						// Create the geometry but with all zero vectors for now
+						let ownShape = new ConvexPolyhedronCollisionShape(Array(primitive.numElements).fill(null).map(_ => new THREE.Vector3()));
+						ownShape.restitution = this.restitution;
+						ownShape.friction = this.friction;
+						if (!this.collideable) ownShape.collisionDetectionMask = 0b10;
+						
+						ownBody.addCollisionShape(ownShape);
 					}
 				}
 			}
@@ -552,6 +600,7 @@ export class Shape {
 		if (bodyIndex === 0 && !this.isTSStatic) {
 			// Create collision geometry based on the bounding box
 			let body = this.bodies[0];
+			let ownBody = this.ownBodies[0];
 
 			let o = new OIMO.Vec3(dts.bounds.min.x, dts.bounds.min.y, dts.bounds.min.z);
 			let dx = (dts.bounds.max.x - dts.bounds.min.x);
@@ -581,6 +630,14 @@ export class Shape {
 			body.addShape(shape);
 
 			this.shapeVertices.set(shape, vertices);
+
+			// Create an empty geometry for now
+			let ownShape = new ConvexPolyhedronCollisionShape(Array(8).fill(null).map(_ => new THREE.Vector3()));
+			ownShape.restitution = this.restitution;
+			ownShape.friction = this.friction;
+			if (!this.collideable) ownShape.collisionDetectionMask = 0b10;
+
+			ownBody.addCollisionShape(ownShape);
 		}
 	}
 
@@ -644,6 +701,7 @@ export class Shape {
 	updateCollisionGeometry(bitfield: number) {
 		for (let i = 0; i < this.bodies.length; i++) {
 			let body = this.bodies[i];
+			let ownBody = this.ownBodies[i];
 			let mat: THREE.Matrix4;
 			
 			if (body.userData?.nodeIndex !== undefined) {
@@ -656,23 +714,32 @@ export class Shape {
 
 			// For all shapes...
 			let currentShape = body.getShapeList();
+			let j = 0;
 			while (currentShape) {
 				// Recompute all vertices by piping them through the matrix.
 				let vertices = this.shapeVertices.get(currentShape)
 					.map((vec) => vec.clone().applyMatrix4(mat))
 					.map((vec) => Util.vecThreeToOimo(vec));
 
+				let ownShape = ownBody.shapes[j] as ConvexPolyhedronCollisionShape;
+
 				// Then, assign the value to the vertices of the geometry
 				let geometry = currentShape._geom as OIMO.ConvexHullGeometry;
 				for (let i = 0; i < vertices.length; i++) {
 					geometry._vertices[i].copyFrom(vertices[i]);
+					ownShape.points[i].copy(Util.vecOimoToThree(vertices[i]));
 				}
 
 				currentShape = currentShape.getNext();
+				j++;
+
+				ownShape.computeLocalBoundingBox();
 			}
 
-			// We need to call this for OIMO to update (sync) the shape
+			// We need to call this for OIMO to update (sync) the shapes
 			body.setPosition(new OIMO.Vec3());
+
+			ownBody.syncShapes();
 		}
 	}
 
@@ -942,22 +1009,19 @@ export class Shape {
 
 	/** Enable or disable collision. */
 	setCollisionEnabled(enabled: boolean) {
-		let collisionMask = enabled? 1 : 0;
-
-		for (let body of this.bodies) {
-			let shape = body.getShapeList();
-			while (shape) {
-				shape.setCollisionMask(collisionMask);
-				shape = shape.getNext();
-			}
+		for (let body of this.ownBodies) {
+			body.enabled = enabled;
 		}
 	}
 
+	reset() {
+		this.isCurrentlyColliding = false;
+	}
+
 	/* eslint-disable  @typescript-eslint/no-unused-vars */
-	onMarbleContact(time: TimeState, contact?: OIMO.Contact): (boolean | void) {}
-	onMarbleInside(time: TimeState) {}
-	onMarbleEnter(time: TimeState) {}
-	onMarbleLeave(time: TimeState) {}
-	reset() {}
+	onMarbleContact(collision: Collision): (boolean | void) {}
+	onMarbleInside() {}
+	onMarbleEnter() {}
+	onMarbleLeave() {}
 	async onLevelStart() {}
 }

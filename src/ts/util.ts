@@ -104,16 +104,16 @@ export abstract class Util {
 	}
 
 	/** Add a vector to another vector while making sure not to exceed a certain magnitude. */
-	static addToVectorCapped(target: OIMO.Vec3, add: OIMO.Vec3, magnitudeCap: number) {
+	static addToVectorCapped(target: THREE.Vector3, add: THREE.Vector3, magnitudeCap: number) {
 		let direction = add.clone().normalize();
 		let dot = Math.max(0, target.dot(direction));
 
 		if (dot + add.length() > magnitudeCap) {
 			let newLength = Math.max(0, magnitudeCap - dot);
-			add = add.normalize().scale(newLength);
+			add.normalize().multiplyScalar(newLength);
 		}
 
-		return target.add(add);
+		target.add(add);
 	}
 
 	static leftPadZeroes(str: string, amount: number) {
@@ -300,19 +300,6 @@ export abstract class Util {
 
 	static stringIsOnlyWhitespace(str: string) {
 		return str.trim().length === 0;
-	}
-
-	/** Creates an axis-aligned bounding box around a point cloud. */
-	static createAabbFromVectors(vecs: THREE.Vector3[]) {
-		let min = new THREE.Vector3(Infinity, Infinity, Infinity);
-		let max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
-
-		for (let vec of vecs) {
-			min.set(Math.min(min.x, vec.x), Math.min(min.y, vec.y), Math.min(min.z, vec.z));
-			max.set(Math.max(max.x, vec.x), Math.max(max.y, vec.y), Math.max(max.z, vec.z));
-		}
-
-		return { min, max };
 	}
 
 	/** Unescapes escaped (\) characters. */
@@ -750,6 +737,23 @@ export abstract class Util {
 
 	static assert(bool: boolean) {
 		if (!bool) throw new Error("Assertion failed: " + bool);
+	}
+
+	static getBoxVertices(box: THREE.Box3) {
+		let dx = new THREE.Vector3(box.max.x - box.min.x, 0, 0);
+		let dy = new THREE.Vector3(0, box.max.y - box.min.y, 0);
+		let dz = new THREE.Vector3(0, 0, box.max.z - box.min.z);
+
+		return [
+			box.min.clone(),
+			box.min.clone().add(dx),
+			box.min.clone().add(dy),
+			box.min.clone().add(dz),
+			box.min.clone().add(dx).add(dy),
+			box.min.clone().add(dx).add(dz),
+			box.min.clone().add(dy).add(dz),
+			box.max.clone()
+		];
 	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing

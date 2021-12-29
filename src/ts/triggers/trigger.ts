@@ -4,15 +4,19 @@ import { TimeState, Level } from "../level";
 import { Util } from "../util";
 import * as THREE from "three";
 import { AudioManager } from "../audio";
+import { ConvexPolyhedronCollisionShape } from "../physics/collision_shape";
+import { RigidBody, RigidBodyType } from "../physics/rigid_body";
 
 /** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
 export class Trigger {
 	id: number;
 	vertices: THREE.Vector3[];
 	body: OIMO.RigidBody;
+	ownBody: RigidBody;
 	level: Level;
 	element: MissionElementTrigger;
 	sounds: string[] = [];
+	isCurrentlyColliding = false;
 
 	constructor(element: MissionElementTrigger, level: Level) {
 		this.id = element._id;
@@ -45,7 +49,9 @@ export class Trigger {
 		this.vertices = vertices;
 
 		// Triggers ignore the actual shape of the polyhedron and simply use its AABB.
-		let aabb = Util.createAabbFromVectors(vertices);
+		let aabb = new THREE.Box3().setFromPoints(vertices);
+
+		let aabbVertices = Util.getBoxVertices(aabb);
 
 		// Create the collision geometry
 		let geometry = new OIMO.BoxGeometry(new OIMO.Vec3((aabb.max.x - aabb.min.x) / 2, (aabb.max.y - aabb.min.y) / 2, (aabb.max.z - aabb.min.z) / 2));
@@ -60,6 +66,33 @@ export class Trigger {
 		body.setPosition(new OIMO.Vec3(Util.avg(aabb.max.x, aabb.min.x), Util.avg(aabb.max.y, aabb.min.y), Util.avg(aabb.max.z, aabb.min.z)));
 
 		this.body = body;
+
+		let ownShape = new ConvexPolyhedronCollisionShape(aabbVertices);
+		ownShape.collisionDetectionMask = 0b100;
+
+		let ownBody = new RigidBody();
+		ownBody.type = RigidBodyType.Static;
+		ownBody.addCollisionShape(ownShape);
+
+		this.ownBody = ownBody;
+
+		// Init collision handlers
+
+		ownBody.onBeforeIntegrate = () => {
+			if (this.isCurrentlyColliding && ownBody.collisions.length === 0) {
+				this.isCurrentlyColliding = false;
+				this.onMarbleLeave();
+			}
+		};
+
+		ownBody.onBeforeCollisionResponse = () => {
+			if (!this.isCurrentlyColliding) this.onMarbleEnter();
+			this.onMarbleInside();
+
+			this.isCurrentlyColliding = true;
+		};
+
+		this.reset();
 	}
 
 	async init() {
@@ -69,10 +102,13 @@ export class Trigger {
 		}
 	}
 
+	reset() {
+		this.isCurrentlyColliding = false;
+	}
+
 	/* eslint-disable  @typescript-eslint/no-unused-vars */
-	onMarbleInside(time: TimeState) {}
-	onMarbleEnter(time: TimeState) {}
-	onMarbleLeave(time: TimeState) {}
+	onMarbleInside() {}
+	onMarbleEnter() {}
+	onMarbleLeave() {}
 	tick(time: TimeState) {}
-	reset() {}
 }

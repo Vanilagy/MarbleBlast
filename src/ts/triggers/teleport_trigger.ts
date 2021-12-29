@@ -22,7 +22,9 @@ export class TeleportTrigger extends Trigger {
 		if (element.delay) this.delay = MisParser.parseNumber(element.delay);
 	}
 
-	onMarbleEnter(time: TimeState) {
+	onMarbleEnter() {
+		let time = this.level.timeState;
+
 		this.exitTime = null;
 		this.level.marble.enableTeleportingLook(time);
 		this.level.replay.recordMarbleEnter(this);
@@ -34,7 +36,9 @@ export class TeleportTrigger extends Trigger {
 		this.teleportingSound.play();
 	}
 
-	onMarbleLeave(time: TimeState) {
+	onMarbleLeave() {
+		let time = this.level.timeState;
+
 		this.exitTime = time.currentAttemptTime;
 		this.level.marble.disableTeleportingLook(time);
 		this.level.replay.recordMarbleLeave(this);
@@ -95,6 +99,8 @@ export class TeleportTrigger extends Trigger {
 	}
 
 	reset() {
+		super.reset();
+
 		this.entryTime = null;
 		this.exitTime = null;
 	}

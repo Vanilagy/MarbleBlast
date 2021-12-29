@@ -126,8 +126,9 @@ void main() {
 
 		vec4 worldPosition = transform * vec4(position, 1.0);
 		vPosition = worldPosition;
-		vec4 transformed = viewMatrix * worldPosition;
-		transformed = projectionMatrix * transformed;
+
+		mat4 mvp = projectionMatrix * viewMatrix * transform; // Combine them into a single matrix to reduce possible precision errors
+		gl_Position = mvp * vec4(position, 1.0);
 
 		vUv = uv;
 		#ifdef FLIP_Y
@@ -168,8 +169,6 @@ void main() {
 			vec3 reflected = reflect(incidentRay, normalize(transformedNormal));
 			vReflect = reflected;
 		#endif
-
-		gl_Position = transformed;
 
 		#ifdef LOG_DEPTH_BUF
 			// Some values we need to pass along for logarithmic depth buffer stuffs

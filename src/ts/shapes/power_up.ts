@@ -29,7 +29,9 @@ export abstract class PowerUp extends Shape {
 		this.element = element;
 	}
 
-	onMarbleInside(time: TimeState) {
+	onMarbleInside() {
+		let time = this.level.timeState;
+
 		let pickupable = this.lastPickUpTime === null || (time.currentAttemptTime - this.lastPickUpTime) >= this.cooldownDuration;
 		if (!pickupable) return;
 		
@@ -41,7 +43,18 @@ export abstract class PowerUp extends Shape {
 
 			state.menu.hud.displayAlert(this.customPickUpAlert ?? `You picked up ${this.an? 'an' : 'a'} ${this.pickUpName}!`);
 			if (this.element.showhelponpickup === "1" && !this.autoUse) state.menu.hud.displayHelp(`Press <func:bind mousefire> to use the ${this.pickUpName}!`);
+
+			let body = this.ownBodies[0];
+			body.enabled = false;
 		}
+	}
+
+	tick(time: TimeState, onlyVisual: boolean) {
+		if (onlyVisual) return;
+		
+		// Enable or disable the collision based on the last pick-up time time
+		let pickupable = this.lastPickUpTime === null || (time.currentAttemptTime - this.lastPickUpTime) >= this.cooldownDuration;
+		this.setCollisionEnabled(pickupable);
 	}
 
 	render(time: TimeState) {
@@ -57,6 +70,10 @@ export abstract class PowerUp extends Shape {
 	}
 
 	reset() {
+		super.reset();
+
+		let body = this.ownBodies[0];
+		body.enabled = true;
 		this.lastPickUpTime = null;
 	}
 

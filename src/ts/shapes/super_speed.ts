@@ -21,16 +21,18 @@ export class SuperSpeed extends PowerUp {
 		let movementVector = new THREE.Vector3(1, 0, 0);
 		movementVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), level.yaw);
 
-		// Okay, so super speed directionality is a bit strange. In general, the direction is based on the normal vector of the last surface you had contact with.
+		// Okay, so Super Speed directionality is a bit strange. In general, the direction is based on the normal vector of the last surface you had contact with.
 
 		let quat = level.newOrientationQuat;
 		movementVector.applyQuaternion(quat);
 
-		let quat2 = new OIMO.Quat();
-		quat2.setArc(this.level.currentUp, marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
-		movementVector.applyQuaternion(new THREE.Quaternion(quat2.x, quat2.y, quat2.z, quat2.w)); // ...then rotate the movement bonus vector by that amount.
+		let quat2 = new THREE.Quaternion();
+		quat2.setFromUnitVectors(Util.vecOimoToThree(this.level.currentUp), marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
+		movementVector.applyQuaternion(quat2); // ...then rotate the movement bonus vector by that amount.
 		
 		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)
+
+		marble.ownBody.linearVelocity.addScaledVector(movementVector, 24.7); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)
 
 		AudioManager.play(this.sounds[1]);
 		this.level.particles.createEmitter(superSpeedParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));

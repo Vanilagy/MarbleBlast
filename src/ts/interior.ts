@@ -9,6 +9,8 @@ import { StorageManager } from "./storage";
 import { Geometry } from "./rendering/geometry";
 import { Mesh } from "./rendering/mesh";
 import { Material } from "./rendering/material";
+import { RigidBody, RigidBodyType } from "./physics/rigid_body";
+import { ConvexPolyhedronCollisionShape } from "./physics/collision_shape";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -175,6 +177,7 @@ export class Interior {
 	mesh: Mesh;
 	/** The collision body of the interior. */
 	body: OIMO.RigidBody;
+	ownBody: RigidBody;
 	/** The relevant detail level to read from (non-default for pathed interiors) */
 	detailLevel: DifFile["detailLevels"][number];
 	worldMatrix = new THREE.Matrix4();
@@ -206,6 +209,8 @@ export class Interior {
 		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
 		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
 		this.body = new OIMO.RigidBody(rigidBodyConfig);
+		this.ownBody = new RigidBody();
+		this.ownBody.type = RigidBodyType.Static;
 
 		// Combine the default special materials with the special ones specified in the .mis file
 		this.specialMaterials = new Set([...specialMaterials, ...Object.keys(this.level.mission.misFile.materialMappings)]);
@@ -404,7 +409,8 @@ export class Interior {
 	}
 
 	/** Adds a convex hull collision shape. */
-	addShape(vertices: OIMO.Vec3[], material: string) {
+	addShape(vertices: THREE.Vector3[], material: string) {
+		/*
 		let geometry = new OIMO.ConvexHullGeometry(vertices);
 		let shapeConfig = new OIMO.ShapeConfig();
 		shapeConfig.geometry = geometry;
@@ -425,6 +431,7 @@ export class Interior {
 			shapeConfig.restitution *= restitution;
 			shapeConfig.friction *= friction;
 		}
+		
 
 		let shape = new OIMO.Shape(shapeConfig);
 		shape.userData = this.id;
@@ -432,6 +439,28 @@ export class Interior {
 		if (force !== undefined) this.forceShapes.set(shape, force);
 
 		this.body.addShape(shape);
+		*/
+
+		let shape = new ConvexPolyhedronCollisionShape(vertices);
+		shape.restitution = INTERIOR_DEFAULT_RESTITUTION;
+		shape.friction = INTERIOR_DEFAULT_FRICTION;
+		let force: number;
+
+		if (this.allowSpecialMaterials) {
+			// Check for a custom material property override in the mission file
+			let specialMatProperties = this.level.mission.misFile.materialProperties[this.level.mission.misFile.materialMappings[material]];
+			
+			let restitution = specialMatProperties?.['restitution'] ?? specialResistutionFactor[material] ?? 1;
+			let friction = specialMatProperties?.['friction'] ?? specialFrictionFactor[material] ?? 1;
+			force = specialMatProperties?.['force'] ?? specialForces[material];
+
+			if (force !== undefined) restitution = 1; // Because we don't want anything to act weird
+
+			shape.restitution *= restitution;
+			shape.friction *= friction;
+		}
+
+		this.ownBody.addCollisionShape(shape);
 	}
 
 	addConvexHull(hullIndex: number, scale: THREE.Vector3) {
@@ -459,23 +488,23 @@ export class Interior {
 
 				let material = this.materialNames[surface.textureIndex];
 				if (!material) continue;
-				let vertices: OIMO.Vec3[] = [];
+				let vertices: THREE.Vector3[] = [];
 
 				for (let k = surface.windingStart; k < surface.windingStart + surface.windingCount; k++) {
 					let point = this.detailLevel.points[this.detailLevel.windings[k]];
-					vertices.push(new OIMO.Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
+					vertices.push(new THREE.Vector3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
 				}
 
 				this.addShape(vertices, material);
 			}
 		} else {
 			// Otherwise, just add one shape for the entire convex hull.
-			let vertices: OIMO.Vec3[] = [];
+			let vertices: THREE.Vector3[] = [];
 
 			// Get the vertices
 			for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
 				let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
-				vertices.push(new OIMO.Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
+				vertices.push(new THREE.Vector3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
 			}
 
 			if (firstMaterial) this.addShape(vertices, firstMaterial);
@@ -486,11 +515,15 @@ export class Interior {
 		this.worldMatrix.compose(position, orientation, scale);
 		this.scale = scale;
 		this.mesh.transform.copy(this.worldMatrix);
-		
-		this.initConvexHullOctree();
 
 		this.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
 		this.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
+
+		this.ownBody.position.copy(position);
+		this.ownBody.orientation.copy(orientation);
+
+		for (let i = 0; i < this.detailLevel.convexHulls.length; i++)
+			this.addConvexHull(i, this.scale);
 	}
 
 	/** Initiates the octree with all convex hull collision geometries for fast querying later. */
@@ -515,6 +548,7 @@ export class Interior {
 
 	/** Adds collision geometry for nearby convex hulls. */
 	buildCollisionGeometry() {
+		return;
 		if (this.canMove) return; // We already added everything
 
 		let marble = this.level.marble;
@@ -523,6 +557,8 @@ export class Interior {
 		let sphere = new THREE.Sphere();
 		sphere.center.copy(Util.vecOimoToThree(marble.body.getPosition()));
 		sphere.radius = 5 + marble.body.getLinearVelocity().length() / PHYSICS_TICK_RATE * 2; // Should be plenty (constant summand because of camera)
+
+		sphere.radius = Infinity; // Add all the things TEMP
 
 		let intersects = this.convexHullOctree.intersectSphere(sphere) as ConvexHullOctreeObject[];
 		for (let intersect of intersects) {

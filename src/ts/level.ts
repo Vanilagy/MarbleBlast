@@ -768,6 +768,8 @@ export class Level extends Scheduler {
 
 		// Place the marble a bit above the start pad position
 		this.marble.body.setPosition(new OIMO.Vec3(startPosition.x, startPosition.y, startPosition.z + 3));
+		this.marble.ownBody.position.set(startPosition.x, startPosition.y, startPosition.z + 3);
+		this.marble.ownBody.syncShapes();
 		this.marble.group.position.copy(Util.vecOimoToThree(this.marble.body.getPosition()));
 		this.marble.group.recomputeTransform();
 		this.marble.reset();
@@ -1111,6 +1113,16 @@ export class Level extends Scheduler {
 
 			if (this.mission.hasBlast && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
 
+			for (let interior of this.interiors) interior.buildCollisionGeometry();
+
+			for (let interior of this.interiors) interior.tick(this.timeState);
+			for (let trigger of this.triggers) trigger.tick(this.timeState);
+			for (let shape of this.shapes) if (!shape.isTSStatic) shape.tick(this.timeState);
+			this.marble.updatePowerUpStates(this.timeState);
+
+			this.physics.step();
+
+			/*
 			// Update pathed interior velocities before running the simulation step
 			// Note: We do this even in replay playback mode, because pathed interior body position is relevant for the camera code.
 			for (let interior of this.interiors) interior.tick(this.timeState);
@@ -1130,6 +1142,7 @@ export class Level extends Scheduler {
 
 			if (!playReplay) this.marble.tick(this.timeState);
 			this.marble.updatePowerUpStates(this.timeState);
+			*/
 
 			this.jumpQueued = false;
 
@@ -1264,6 +1277,8 @@ export class Level extends Scheduler {
 		newUp.normalize(); // We never know 👀
 		this.currentUp = newUp;
 		this.physics.world.setGravity(newUp.scale(-1 * this.physics.world.getGravity().length()));
+		let gravityStrength = this.physics.ownWorld.gravity.length();
+		this.physics.ownWorld.gravity.copy(Util.vecOimoToThree(newUp)).multiplyScalar(-1 * gravityStrength);
 
 		let currentQuat = this.getOrientationQuat(time);
 		let oldUp = new THREE.Vector3(0, 0, 1);
@@ -1317,6 +1332,7 @@ export class Level extends Scheduler {
 	setGravityIntensity(intensity: number) {
 		let gravityVector = this.currentUp.scale(-1 * intensity);
 		this.physics.world.setGravity(gravityVector);
+		this.physics.ownWorld.gravity.copy(Util.vecOimoToThree(gravityVector));
 	}
 
 	onResize() {

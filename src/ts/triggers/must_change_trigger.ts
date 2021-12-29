@@ -12,7 +12,9 @@ export class MustChangeTrigger extends Trigger {
 		this.interior = interior;
 	}
 
-	onMarbleEnter(time: TimeState) {
+	onMarbleEnter() {
+		let time = this.level.timeState;
+
 		this.interior.setTargetTime(time, MisParser.parseNumber(this.element.targettime));
 
 		if (this.element.instant === "1") {

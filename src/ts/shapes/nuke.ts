@@ -12,13 +12,15 @@ export class Nuke extends Shape {
 	sounds = ['nukeexplode.wav'];
 	shareMaterials = false;
 
-	onMarbleContact(time: TimeState) {
+	onMarbleContact() {
+		let time = this.level.timeState;
+
 		let marble = this.level.marble;
-		let minePos = Util.vecThreeToOimo(this.worldPosition);
+		let nukePos = this.worldPosition;
 
 		// Add velocity to the marble
-		let explosionForce = this.computeExplosionForce(marble.lastPos.sub(minePos));
-		marble.body.addLinearVelocity(explosionForce);
+		let explosionForce = this.computeExplosionForce(marble.ownBody.position.clone().sub(nukePos));
+		marble.ownBody.linearVelocity.add(explosionForce);
 		marble.slidingTimeout = 2;
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
@@ -33,14 +35,14 @@ export class Nuke extends Shape {
 	}
 
 	/** Computes the force of the explosion based on the vector to the nuke. Ported from decompiled MBG. */
-	computeExplosionForce(distVec: OIMO.Vec3) {
+	computeExplosionForce(distVec: THREE.Vector3) {
 		const range = 10;
 		const power = 100;
 
 		let dist = distVec.length();
 		if (dist < range) {
 			let scalar = (1 - dist/range) * power;
-			distVec.scaleEq(scalar);
+			distVec.multiplyScalar(scalar);
 		}
 
 		return distVec;

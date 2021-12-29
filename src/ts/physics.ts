@@ -5,6 +5,7 @@ import { Util } from "./util";
 import { Interior } from "./interior";
 import { Shape } from "./shape";
 import { Trigger } from "./triggers/trigger";
+import { World } from "./physics/world";
 
 interface CollisionCorrectionEvent {
 	fraction: number,
@@ -17,6 +18,7 @@ interface CollisionCorrectionEvent {
 export class PhysicsHelper {
 	level: Level;
 	world: OIMO.World;
+	ownWorld: World;
 
 	/** A separate world used to compute collision with pathed interiors. */
 	pathedInteriorCollisionWorld: OIMO.World;
@@ -47,6 +49,9 @@ export class PhysicsHelper {
 
 		this.pathedInteriorCollisionWorld = new OIMO.World(OIMO.BroadPhaseType.BVH, new OIMO.Vec3());
 		this.pathedInteriorBodies = new Map();
+
+		this.ownWorld = new World();
+		this.ownWorld.gravity.set(0, 0, -20);
 	}
 
 	initMarble() {
@@ -59,17 +64,23 @@ export class PhysicsHelper {
 		this.auxMarbleBody = new OIMO.RigidBody(new OIMO.RigidBodyConfig());
 		this.auxMarbleBody.addShape(this.auxMarbleShape);
 		this.auxWorld.addRigidBody(this.auxMarbleBody);
+
+		this.ownWorld.add(this.level.marble.ownBody);
 	}
 
 	addInterior(interior: Interior) {
 		this.world.addRigidBody(interior.body);
 		this.interiorLookup.set(interior.id, interior);
 
+		this.ownWorld.add(interior.ownBody);
+
 		if (interior instanceof PathedInterior) {
 			for (let trigger of interior.triggers) {
 				// Add the trigger to the aux world
 				this.auxWorld.addRigidBody(trigger.body);
 				this.triggerLookup.set(trigger.id, trigger);
+
+				this.ownWorld.add(trigger.ownBody);
 			}
 
 			// Set up the body for the pathed interior collision detection algorithm.
@@ -97,6 +108,10 @@ export class PhysicsHelper {
 			else this.auxWorld.addRigidBody(body);
 		}
 
+		for (let body of shape.ownBodies) {
+			this.ownWorld.add(body);
+		}
+
 		for (let collider of shape.colliders) {
 			this.auxWorld.addRigidBody(collider.body);
 			this.shapeColliderLookup.set(collider.id, shape);
@@ -108,9 +123,15 @@ export class PhysicsHelper {
 	addTrigger(trigger: Trigger) {
 		this.auxWorld.addRigidBody(trigger.body);
 		this.triggerLookup.set(trigger.id, trigger);
+
+		this.ownWorld.add(trigger.ownBody);
 	}
 
 	step() {
+		this.ownWorld.step(1 / PHYSICS_TICK_RATE);
+
+		return;
+
 		let marble = this.level.marble;
 
 		let gravityBefore = this.world.getGravity().clone();

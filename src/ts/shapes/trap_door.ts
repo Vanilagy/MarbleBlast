@@ -51,7 +51,9 @@ export class TrapDoor extends Shape {
 		return completion;
 	}
 
-	onMarbleContact(time: TimeState) {
+	onMarbleContact() {
+		let time = this.level.timeState;
+
 		if (time.timeSinceLoad - this.lastContactTime <= 0) return; // The trapdoor is queued to open, so don't do anything.
 		let currentCompletion = this.getCurrentCompletion(time);
 

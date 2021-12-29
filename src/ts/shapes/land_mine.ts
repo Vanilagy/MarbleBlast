@@ -11,14 +11,16 @@ export class LandMine extends Shape {
 	sounds = ['explode1.wav'];
 	shareMaterials = false;
 
-	onMarbleContact(time: TimeState) {
+	onMarbleContact() {
+		let time = this.level.timeState;
+
 		let marble = this.level.marble;
-		let minePos = Util.vecThreeToOimo(this.worldPosition);
-		let vec = marble.lastPos.sub(minePos).normalize(); // Use the last pos so that it's a little less RNG
+		let minePos = this.worldPosition;
+		let vec = marble.ownBody.position.clone().sub(minePos);
 
 		// Add velocity to the marble
-		let explosionStrength = this.computeExplosionStrength(this.level.marble.body.getPosition().subEq(minePos).length());
-		marble.body.addLinearVelocity(vec.scale(explosionStrength));
+		let explosionStrength = this.computeExplosionStrength(vec.length());
+		marble.ownBody.linearVelocity.addScaledVector(vec.normalize(), explosionStrength);
 		marble.slidingTimeout = 2;
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
@@ -27,7 +29,7 @@ export class LandMine extends Shape {
 		this.level.particles.createEmitter(landMineParticle, this.worldPosition);
 		this.level.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
 		this.level.particles.createEmitter(landMineSparksParticle, this.worldPosition);
-		// Normally, we would add a light here, but that's too expensive for THREE, apparently.
+		// Normally, we would add a light here, but eh.
 
 		this.level.replay.recordMarbleContact(this);
 	}
