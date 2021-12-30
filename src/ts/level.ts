@@ -1113,8 +1113,6 @@ export class Level extends Scheduler {
 
 			if (this.mission.hasBlast && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
 
-			for (let interior of this.interiors) interior.buildCollisionGeometry();
-
 			for (let interior of this.interiors) interior.tick(this.timeState);
 			for (let trigger of this.triggers) trigger.tick(this.timeState);
 			for (let shape of this.shapes) if (!shape.isTSStatic) shape.tick(this.timeState);

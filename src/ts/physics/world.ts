@@ -8,6 +8,7 @@ import { RigidBody, RigidBodyType } from "./rigid_body";
 const MAX_SUBSTEPS = 10;
 
 let v1 = new THREE.Vector3();
+let v2 = new THREE.Vector3();
 
 export class World {
 	bodies: RigidBody[] = [];
@@ -83,14 +84,16 @@ export class World {
 		}
 
 		let collisions = this.computeCollisions(dynamicShapes, false);
-		let collidingBodies = new Set<RigidBody>();
+		let collidingBodies: RigidBody[] = [];
 
 		for (let i = 0; i < collisions.length; i++) {
 			let collision = collisions[i];
-			
-			collidingBodies.add(collision.s1.body);
-			collidingBodies.add(collision.s2.body);
+
+			if (!collidingBodies.includes(collision.s1.body)) collidingBodies.push(collision.s1.body);
+			if (!collidingBodies.includes(collision.s2.body)) collidingBodies.push(collision.s2.body);
 		}
+
+		collidingBodies.sort((a, b) => a.evaluationOrder - b.evaluationOrder);
 
 		for (let body of collidingBodies) body.onBeforeCollisionResponse(cumT, dt * t);
 
@@ -132,10 +135,10 @@ export class World {
 				let transVec: THREE.Vector3 = null;
 
 				if (isCcdPass) {
-					transVec = shape.body.getRelativeMotionVector(new THREE.Vector3(), candidate.body);
+					transVec = shape.body.getRelativeMotionVector(v1, candidate.body);
 					transVec.negate(); // Translate backwards from where we came from, doesn't matter since we just care about the boolean result
 				} else {
-					minimumSeparatingVector = new THREE.Vector3();
+					minimumSeparatingVector = v2.set(0, 0, 0);
 				}
 
 				let collides = GjkEpa.gjk(shape, candidate, null, minimumSeparatingVector, transVec);

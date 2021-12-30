@@ -32,6 +32,7 @@ export class RigidBody {
 
 	shapes: CollisionShape[] = [];
 	collisions: Collision[] = [];
+	evaluationOrder = 0;
 
 	transformPoint(p: THREE.Vector3) {
 		return p.applyQuaternion(this.orientation).add(this.position);

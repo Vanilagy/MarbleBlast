@@ -1,6 +1,9 @@
 import THREE from "three";
 import { CollisionShape } from "./collision_shape";
 
+let v1 = new THREE.Vector3();
+let q1 = new THREE.Quaternion();
+
 export class Collision {
 	s1: CollisionShape;
 	s2: CollisionShape;
@@ -14,18 +17,77 @@ export class Collision {
 	friction: number;
 	restitution: number;
 
+	s1Friction: number;
+	s1Restitution: number;
+	s2Friction: number;
+	s2Restitution: number;
+	s1MaterialOverride: THREE.Vector3 = null;
+	s2MaterialOverride: THREE.Vector3 = null;
+
 	constructor(s1: CollisionShape, s2: CollisionShape) {
 		this.s1 = s1;
 		this.s2 = s2;
 
 		this.friction = s1.friction * s2.friction;
 		this.restitution = s1.restitution * s2.restitution;
+
+		this.s1Friction = s1.friction;
+		this.s1Restitution = s1.restitution;
+		this.s2Friction = s2.friction;
+		this.s2Restitution = s2.restitution;
 	}
 
 	supplyMinimumSeparatingVector(minimumSeparatingVector: THREE.Vector3) {
 		this.normal = minimumSeparatingVector.clone().normalize();
 		this.depth = minimumSeparatingVector.length();
 		this.point = this.s1.getCenter(new THREE.Vector3()).addScaledVector(this.normal, -0.2).addScaledVector(minimumSeparatingVector, 0.5); // temp!
+
+		if (this.s1.materialOverrides.size > 0 || this.s2.materialOverrides.size > 0) {
+			let s1Friction = this.s1.friction;
+			let s2Friction = this.s2.friction;
+			let s1Restitution = this.s1.restitution;
+			let s2Restitution = this.s2.restitution;
+
+			let max = -Infinity;
+			let min = Infinity;
+			let transformedNormal = v1;
+
+			q1.copy(this.s1.body.orientation).conjugate();
+			transformedNormal.copy(this.normal).applyQuaternion(q1);
+
+			for (let [vec, material] of this.s1.materialOverrides) {
+				let dot = vec.dot(transformedNormal);
+				if (dot < min) {
+					min = dot;
+
+					s1Friction = material.friction;
+					s1Restitution = material.restitution;
+					this.s1MaterialOverride = vec;
+				}
+			}
+
+			q1.copy(this.s2.body.orientation).conjugate();
+			transformedNormal.copy(this.normal).applyQuaternion(q1);
+
+			for (let [vec, material] of this.s2.materialOverrides) {
+				let dot = vec.dot(transformedNormal);
+				if (dot > max) {
+					max = dot;
+
+					s2Friction = material.friction;
+					s2Restitution = material.restitution;
+					this.s2MaterialOverride = vec;
+				}
+			}
+
+			this.friction = s1Friction * s2Friction;
+			this.restitution = s1Restitution * s2Restitution;
+			
+			this.s1Friction = s1Friction;
+			this.s1Restitution = s1Restitution;
+			this.s2Friction = s2Friction;
+			this.s2Restitution = s2Restitution;
+		}
 	}
 
 	solvePosition() {

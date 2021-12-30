@@ -21,6 +21,10 @@ export abstract class CollisionShape implements OctreeObject {
 	inertia = new THREE.Matrix3().identity();
 	invInertia = new THREE.Matrix3().identity();
 
+	materialOverrides = new Map<THREE.Vector3, { friction: number, restitution: number }>();
+
+	userData: any;
+
 	abstract updateInertiaTensor(): void;
 	abstract support(dst: THREE.Vector3, direction: THREE.Vector3, translation?: THREE.Vector3): THREE.Vector3;
 	abstract getCenter(dst: THREE.Vector3): THREE.Vector3;

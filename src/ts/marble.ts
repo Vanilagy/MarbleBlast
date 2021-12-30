@@ -129,8 +129,6 @@ export class Marble {
 	lastAngVel = new THREE.Vector3();
 	/** Necessary for super speed. */
 	lastContactNormal = new THREE.Vector3();
-	/** Keep track of when the last collision happened to avoid handling collision with the same object twice in a row. */
-	collisionTimeout = 0;
 	slidingTimeout = 0;
 	
 	rollingSound: AudioSource;
@@ -231,8 +229,7 @@ export class Marble {
 		this.body = body;
 
 		this.ownBody = new RigidBody();
-		//this.ownBody.linearVelocity.set(0, 1,0);
-		//this.ownBody.angularVelocity.set(-5, 0, 0);
+		this.ownBody.evaluationOrder = 1000; // Make sure this body's handlers are called after all the other ones (interiors, shapes, etc)
 		let colShape = new BallCollisionShape(0);
 		colShape.restitution = this.bounceRestitution;
 		this.ownShape = colShape;
@@ -379,7 +376,7 @@ export class Marble {
 		let bestCollision = this.findBestCollision();
 
 		if (bestCollision) {
-			let { collision, contactNormal, contactShape, contactNormalUpDot } = bestCollision;
+			let { collision, contactNormal, contactNormalUpDot } = bestCollision;
 
 			// The rotation necessary to get from the up vector to the contact normal.
 			let contactNormalRotation = new THREE.Quaternion().setFromUnitVectors(Util.vecOimoToThree(this.level.currentUp), contactNormal);
@@ -387,7 +384,7 @@ export class Marble {
 
 			// Weaken the marble's angular power based on the friction and steepness of the surface
 			let dot = -movementVec.clone().normalize().dot(contactNormal);
-			let penalty = Math.max(0, dot - Math.max(0, (contactShape.friction - 1.0)));
+			let penalty = Math.max(0, dot - Math.max(0, (collision.s2Friction - 1.0)));
 			movementRotationAxis.multiplyScalar(1 - penalty);
 
 			// Apply angular velocity changes
@@ -409,7 +406,7 @@ export class Marble {
 			angVel.addScaledVector(surfaceRotationAxis, dot3);
 			angVel.addScaledVector(direction, dot2);
 
-			if (angVel.length() > 285 * this.speedFac) angVel.multiplyScalar(285 * this.speedFac / angVel.length()); // Absolute max angular speed
+			if (angVel.length() > 300 * this.speedFac) angVel.multiplyScalar(300 * this.speedFac / angVel.length()); // Absolute max angular speed
 
 			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot * this.speedFac) {
 				// Cap the rolling velocity
@@ -441,6 +438,8 @@ export class Marble {
 
 		this.lastVel.copy(this.ownBody.linearVelocity);
 		this.lastAngVel.copy(this.ownBody.angularVelocity);
+
+		this.slidingTimeout--;
 	}
 
 	onBeforeCollisionResponse() {
@@ -483,11 +482,8 @@ export class Marble {
 		}
 
 		// Create a certain velocity boost on collisions with walls based on angular velocity. This assists in making wall-hits feel more natural.
-		outer:
-		if (this.collisionTimeout <= 0) {
-			let angularBoost = this.ownBody.angularVelocity.clone().cross(contactNormal).multiplyScalar((1 - Math.abs(contactNormalUpDot)) * contactNormal.dot(this.ownBody.linearVelocity) / (Math.PI * 2) / 15);
-			if (angularBoost.length() < 0.01) break outer;
-
+		let angularBoost = this.ownBody.angularVelocity.clone().cross(contactNormal).multiplyScalar((1 - Math.abs(contactNormalUpDot)) * contactNormal.dot(this.ownBody.linearVelocity) / (Math.PI * 2) / 15);
+		if (angularBoost.length() >= 0.01) {
 			// Remove a bit of the current velocity so that the response isn't too extreme
 			let currentVelocity = this.ownBody.linearVelocity;
 			let ratio = angularBoost.length() / currentVelocity.length();
@@ -502,18 +498,16 @@ export class Marble {
 			});
 		}
 
+		// Create bounce particles
 		let impactVelocity = -contactNormal.dot(this.lastVel.clone().sub(contactShape.body.linearVelocity));
-		if (this.collisionTimeout <= 0) {
-			// Create bounce particles
-			if (impactVelocity > 6) this.showBounceParticles();
+		if (impactVelocity > 6) this.showBounceParticles();
 
-			let volume = Util.clamp((impactVelocity / 12)**1.5, 0, 1);
-
-			if (impactVelocity > 1) {
-				// Play a collision impact sound
-				this.playBounceSound(volume);
-				if (this.level.replay.canStore) this.level.replay.bounceTimes.push({ tickIndex: this.level.replay.currentTickIndex, volume: volume, showParticles: impactVelocity > 6 });
-			}
+		// Handle bounce sound
+		let volume = Util.clamp((impactVelocity / 12)**1.5, 0, 1);
+		if (impactVelocity > 1) {
+			// Play a collision impact sound
+			this.playBounceSound(volume);
+			if (this.level.replay.canStore) this.level.replay.bounceTimes.push({ tickIndex: this.level.replay.currentTickIndex, volume: volume, showParticles: impactVelocity > 6 });
 		}
 
 		// Handle rolling and sliding sounds
@@ -641,7 +635,6 @@ export class Marble {
 			velocity.addScaledVector(direction, -directionalSpeed);
 			velocity.addScaledVector(direction, magnitude);
 
-			//this.body.setLinearVelocity(velocity);
 			if (directionalSpeed < magnitude) onIncrease();
 		}
 	}
@@ -814,7 +807,6 @@ export class Marble {
 		this.lastContactNormal.set(0, 0, 0);
 		this.lastVel.set(0, 0, 0);
 		this.lastAngVel.set(0, 0, 0);
-		this.collisionTimeout = 0;
 		this.slidingTimeout = 0;
 		this.predictedPosition = this.body.getPosition();
 		this.predictedOrientation = this.body.getOrientation();

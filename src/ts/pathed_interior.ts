@@ -45,7 +45,6 @@ export class PathedInterior extends Interior {
 	currentPosition = new THREE.Vector3();
 
 	allowSpecialMaterials = false; // Frictions don't work on pathed interiors
-	canMove = true;
 
 	/** Creates a PathedInterior from a sim group containing it and its path (and possible triggers). */
 	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {

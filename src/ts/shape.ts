@@ -600,23 +600,13 @@ export class Shape {
 			let body = this.bodies[0];
 			let ownBody = this.ownBodies[0];
 
-			let o = new OIMO.Vec3(dts.bounds.min.x, dts.bounds.min.y, dts.bounds.min.z);
-			let dx = (dts.bounds.max.x - dts.bounds.min.x);
-			let dy = (dts.bounds.max.y - dts.bounds.min.y);
-			let dz = (dts.bounds.max.z - dts.bounds.min.z);
+			let bounds = new THREE.Box3();
+			bounds.min.set(dts.bounds.min.x, dts.bounds.min.y, dts.bounds.min.z);
+			bounds.max.set(dts.bounds.max.x, dts.bounds.max.y, dts.bounds.max.z);
 
 			// All 8 vertices of the bounding cuboid
-			let vertices = [
-				o,
-				o.add(new OIMO.Vec3(dx, 0, 0)),
-				o.add(new OIMO.Vec3(0, dy, 0)),
-				o.add(new OIMO.Vec3(0, 0, dz)),
-				o.add(new OIMO.Vec3(dx, dy, 0)),
-				o.add(new OIMO.Vec3(dx, 0, dz)),
-				o.add(new OIMO.Vec3(0, dy, dz)),
-				o.add(new OIMO.Vec3(dx, dy, dz))
-			].map(x => Util.vecOimoToThree(x));
-
+			let vertices = Util.getBoxVertices(bounds);
+			
 			// Create an empty geometry for now
 			let geometry = new OIMO.ConvexHullGeometry(Array(8).fill(null).map(_ => new OIMO.Vec3()));
 			let shapeConfig = new OIMO.ShapeConfig();
@@ -1008,7 +998,7 @@ export class Shape {
 	}
 
 	/* eslint-disable  @typescript-eslint/no-unused-vars */
-	onMarbleContact(collision: Collision): (boolean | void) {}
+	onMarbleContact(collision: Collision) {}
 	onMarbleInside() {}
 	onMarbleEnter() {}
 	onMarbleLeave() {}
