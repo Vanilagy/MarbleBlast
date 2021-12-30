@@ -26,10 +26,10 @@ export class World {
 	}
 
 	step(dt: number) {
-		this.substep(dt, 0);
+		this.substep(dt, 0, 0);
 	}
 
-	substep(dt: number, depth: number) {
+	substep(dt: number, startT: number, depth: number) {
 		if (dt < 0.00001 || depth >= MAX_SUBSTEPS) return;
 
 		let dynamicBodies: RigidBody[] = [];
@@ -64,6 +64,7 @@ export class World {
 			}
 		}
 
+		let cumT = startT + t * (1 - startT); // coom
 		this.inContact = inContact;
 
 		for (let i = 0; i < this.bodies.length; i++) {
@@ -91,7 +92,7 @@ export class World {
 			collidingBodies.add(collision.s2.body);
 		}
 
-		for (let body of collidingBodies) body.onBeforeCollisionResponse();
+		for (let body of collidingBodies) body.onBeforeCollisionResponse(cumT, dt * t);
 
 		for (let i = 0; i < collisions.length; i++) {
 			let collision = collisions[i];
@@ -101,9 +102,9 @@ export class World {
 			collision.solveVelocity();
 		}
 
-		for (let body of collidingBodies) body.onAfterCollisionResponse();
+		for (let body of collidingBodies) body.onAfterCollisionResponse(cumT, dt * t);
 
-		this.substep(dt * (1 - t), depth + 1);
+		this.substep(dt * (1 - t), cumT, depth + 1);
 	}
 
 	computeCollisions(dynamicShapes: CollisionShape[], isCcdPass: boolean) {

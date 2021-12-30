@@ -1,6 +1,7 @@
 import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
+import { ConvexHullCollisionShape } from "./physics/collision_shape";
 
 export interface RGBAColor {
 	r: number,
@@ -211,7 +212,7 @@ export abstract class Util {
 
 	/** Creates a cylinder-shaped convex hull geometry, aligned with the y-axis. */
 	static createCylinderConvexHull(radius: number, halfHeight: number, radialSegments = 32, scale = new OIMO.Vec3(1, 1, 1)) {
-		let vertices: OIMO.Vec3[] = [];
+		let vertices: THREE.Vector3[] = [];
 
 		for (let i = 0; i < 2; i++) {
 			for (let j = 0; j < radialSegments; j++) {
@@ -219,11 +220,11 @@ export abstract class Util {
 				let x = Math.cos(angle);
 				let z = Math.sin(angle);
 
-				vertices.push(new OIMO.Vec3(x * radius * scale.x, (i? halfHeight : -halfHeight) * scale.y, z * radius * scale.z));
+				vertices.push(new THREE.Vector3(x * radius * scale.x, (i? halfHeight : -halfHeight) * scale.y, z * radius * scale.z));
 			}
 		}
 
-		return new OIMO.ConvexHullGeometry(vertices);
+		return new ConvexHullCollisionShape(vertices);
 	}
 
 	static lerpOimoVectors(v1: OIMO.Vec3, v2: OIMO.Vec3, t: number) {

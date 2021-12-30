@@ -113,8 +113,7 @@ export class PhysicsHelper {
 		}
 
 		for (let collider of shape.colliders) {
-			this.auxWorld.addRigidBody(collider.body);
-			this.shapeColliderLookup.set(collider.id, shape);
+			this.ownWorld.add(collider.body);
 		}
 
 		this.shapeLookup.set(shape.id, shape);

@@ -10,7 +10,7 @@ import { Geometry } from "./rendering/geometry";
 import { Mesh } from "./rendering/mesh";
 import { Material } from "./rendering/material";
 import { RigidBody, RigidBodyType } from "./physics/rigid_body";
-import { ConvexPolyhedronCollisionShape } from "./physics/collision_shape";
+import { ConvexHullCollisionShape } from "./physics/collision_shape";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -441,7 +441,7 @@ export class Interior {
 		this.body.addShape(shape);
 		*/
 
-		let shape = new ConvexPolyhedronCollisionShape(vertices);
+		let shape = new ConvexHullCollisionShape(vertices);
 		shape.restitution = INTERIOR_DEFAULT_RESTITUTION;
 		shape.friction = INTERIOR_DEFAULT_FRICTION;
 		let force: number;

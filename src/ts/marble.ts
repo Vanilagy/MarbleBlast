@@ -234,7 +234,7 @@ export class Marble {
 		//this.ownBody.linearVelocity.set(0, 1,0);
 		//this.ownBody.angularVelocity.set(-5, 0, 0);
 		let colShape = new BallCollisionShape(0);
-		colShape.restitution = 0.5;
+		colShape.restitution = this.bounceRestitution;
 		this.ownShape = colShape;
 		this.ownBody.addCollisionShape(colShape);
 

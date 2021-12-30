@@ -14,7 +14,7 @@ import { Geometry } from "./rendering/geometry";
 import { Mesh } from "./rendering/mesh";
 import { Texture } from "./rendering/texture";
 import { RigidBody, RigidBodyType } from "./physics/rigid_body";
-import { CollisionShape, ConvexPolyhedronCollisionShape } from "./physics/collision_shape";
+import { CollisionShape, ConvexHullCollisionShape } from "./physics/collision_shape";
 import { Collision } from "./physics/collision";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
@@ -33,10 +33,8 @@ interface SkinMeshData {
 }
 
 interface ColliderInfo {
-	generateGeometry: (scale: THREE.Vector3) => OIMO.Geometry,
-	body: OIMO.RigidBody,
-	id: number,
-	onInside: () => void,
+	generateShape: (scale: THREE.Vector3) => CollisionShape,
+	body: RigidBody,
 	transform: THREE.Matrix4
 }
 
@@ -586,10 +584,10 @@ export class Shape {
 						this.shapeVertices.set(shape, vertices);
 
 						// Create the geometry but with all zero vectors for now
-						let ownShape = new ConvexPolyhedronCollisionShape(Array(primitive.numElements).fill(null).map(_ => new THREE.Vector3()));
+						let ownShape = new ConvexHullCollisionShape(Array(primitive.numElements).fill(null).map(_ => new THREE.Vector3()));
 						ownShape.restitution = this.restitution;
 						ownShape.friction = this.friction;
-						if (!this.collideable) ownShape.collisionDetectionMask = 0b10;
+						if (!this.collideable) ownShape.collisionDetectionMask = 0b10; // Collide with the big aux marble
 						
 						ownBody.addCollisionShape(ownShape);
 					}
@@ -632,10 +630,10 @@ export class Shape {
 			this.shapeVertices.set(shape, vertices);
 
 			// Create an empty geometry for now
-			let ownShape = new ConvexPolyhedronCollisionShape(Array(8).fill(null).map(_ => new THREE.Vector3()));
+			let ownShape = new ConvexHullCollisionShape(Array(8).fill(null).map(_ => new THREE.Vector3()));
 			ownShape.restitution = this.restitution;
 			ownShape.friction = this.friction;
-			if (!this.collideable) ownShape.collisionDetectionMask = 0b10;
+			if (!this.collideable) ownShape.collisionDetectionMask = 0b10; // Collide with the big aux marble
 
 			ownBody.addCollisionShape(ownShape);
 		}
@@ -721,7 +719,7 @@ export class Shape {
 					.map((vec) => vec.clone().applyMatrix4(mat))
 					.map((vec) => Util.vecThreeToOimo(vec));
 
-				let ownShape = ownBody.shapes[j] as ConvexPolyhedronCollisionShape;
+				let ownShape = ownBody.shapes[j] as ConvexHullCollisionShape;
 
 				// Then, assign the value to the vertices of the geometry
 				let geometry = currentShape._geom as OIMO.ConvexHullGeometry;
@@ -961,18 +959,15 @@ export class Shape {
 			let orientation = new THREE.Quaternion();
 			mat.decompose(position, orientation, new THREE.Vector3());
 
-			while (collider.body.getShapeList()) collider.body.removeShape(collider.body.getShapeList()); // Remove all shapes
+			collider.body.position.copy(position);
+			collider.body.orientation.copy(orientation);
+
+			while (collider.body.shapes.length) collider.body.removeCollisionShape(collider.body.shapes[0]); // Remove all shapes
 
 			// Create the new shape
-			let shapeConfig = new OIMO.ShapeConfig();
-			shapeConfig.geometry = collider.generateGeometry(this.worldScale);
-			let shape = new OIMO.Shape(shapeConfig);
-			shape.userData = Util.getRandomId();
-			collider.body.addShape(shape);
-			collider.id = shape.userData;
-
-			collider.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
-			collider.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
+			let shape = collider.generateShape(this.worldScale);
+			shape.collisionDetectionMask = 0b100; // Collide with the small aux marble
+			collider.body.addCollisionShape(shape);
 		}
 
 		if (scaleUpdated) this.generateCollisionObjects(); // We need to recompute the geometry if the scale changed; this will always be called at least once in the first call
@@ -987,24 +982,18 @@ export class Shape {
 		this.group.setOpacity(opacity);
 	}
 
-	/** Adds a collider geometry. Whenever the marble overlaps with the geometry, a callback is fired. */
-	addCollider(generateGeometry: (scale: THREE.Vector3) => OIMO.Geometry, onInside: () => void, localTransform: THREE.Matrix4) {
-		let config = new OIMO.RigidBodyConfig();
-		config.type = OIMO.RigidBodyType.STATIC;
-		let body = new OIMO.RigidBody(config);
+	/** Adds a collider shape. Whenever the marble overlaps with the shape, a callback is fired. */
+	addCollider(generateShape: (scale: THREE.Vector3) => CollisionShape, onInside: (t: number, dt: number) => void, localTransform: THREE.Matrix4) {
+		let body = new RigidBody();
+		body.type = RigidBodyType.Static;
 
 		this.colliders.push({
-			generateGeometry: generateGeometry,
+			generateShape: generateShape,
 			body: body,
-			id: null,
-			onInside: onInside,
 			transform: localTransform
 		});
-	}
 
-	onColliderInside(id: number) {
-		let collider = this.colliders.find((collider) => collider.id === id);
-		collider.onInside();
+		body.onAfterCollisionResponse = onInside;
 	}
 
 	/** Enable or disable collision. */

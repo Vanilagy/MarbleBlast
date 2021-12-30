@@ -1,4 +1,5 @@
 import THREE from "three";
+import { Util } from "../util";
 import { Collision } from "./collision";
 import { CollisionShape } from "./collision_shape";
 import { World } from "./world";
@@ -105,6 +106,13 @@ export class RigidBody {
 			shape.invInertia.multiplyScalar(0);
 		}
 	}
+
+	removeCollisionShape(shape: CollisionShape) {
+		if (!this.shapes.includes(shape)) return;
+
+		Util.removeFromArray(this.shapes, shape);
+		shape.body = null;
+	}
 	
 	syncShapes() {
 		for (let i = 0; i < this.shapes.length; i++) {
@@ -119,6 +127,6 @@ export class RigidBody {
 
 	/* eslint-disable  @typescript-eslint/no-unused-vars */
 	onBeforeIntegrate(dt: number) {}
-	onBeforeCollisionResponse() {}
-	onAfterCollisionResponse() {}
+	onBeforeCollisionResponse(t: number, dt: number) {}
+	onAfterCollisionResponse(t: number, dt: number) {}
 }

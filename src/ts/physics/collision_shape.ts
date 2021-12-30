@@ -80,7 +80,7 @@ export class BallCollisionShape extends CollisionShape {
 	}
 }
 
-export class ConvexPolyhedronCollisionShape extends CollisionShape {
+export class ConvexHullCollisionShape extends CollisionShape {
 	points: THREE.Vector3[];
 	localCenter = new THREE.Vector3();
 	localAabb = new THREE.Box3();
@@ -107,10 +107,10 @@ export class ConvexPolyhedronCollisionShape extends CollisionShape {
 	}
 
 	support(dst: THREE.Vector3, direction: THREE.Vector3, translation?: THREE.Vector3) {
-		let maxDot = -Infinity;
-
 		q1.copy(this.body.orientation).conjugate();
 		let localDirection = t1.copy(direction).applyQuaternion(q1); // Transform it to local space
+
+		let maxDot = -Infinity;
 
 		for (let i = 0; i < this.points.length; i++) {
 			let point = this.points[i];

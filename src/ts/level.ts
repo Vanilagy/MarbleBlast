@@ -1557,23 +1557,17 @@ export class Level extends Scheduler {
 		this.replay.recordCheckpointRespawn();
 	}
 
-	touchFinish(completionOfImpactOverride?: number) {
+	touchFinish(completionOfImpact?: number) {
 		if (this.finishTime !== null) return;
 
 		this.replay.recordTouchFinish();
 
-		if (completionOfImpactOverride === undefined && this.gemCount < this.totalGems) {
+		if (completionOfImpact === undefined && this.gemCount < this.totalGems) {
 			AudioManager.play('missinggems.wav');
 			state.menu.hud.displayAlert((state.modification === 'gold')? "You can't finish without all the gems!!" : "You may not finish without all the diamonds!");
 		} else {
-			let completionOfImpact: number;
-			if (completionOfImpactOverride === undefined) {
-				// Compute the time of finishing. Like with start pads, use the last end pad.
-				let finishAreaShape = Util.findLast(this.shapes, (shape) => shape instanceof EndPad).colliders[0].body.getShapeList();
-				completionOfImpact = this.physics.computeCompletionOfImpactWithShapes(new Set([finishAreaShape]), 1);
-			} else {
-				completionOfImpact = completionOfImpactOverride;
-			}
+			if (completionOfImpact === undefined) completionOfImpact = 1;
+
 			let toSubtract = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
 
 			this.finishTime = Util.jsonClone(this.timeState);

@@ -4,7 +4,7 @@ import { TimeState, Level } from "../level";
 import { Util } from "../util";
 import * as THREE from "three";
 import { AudioManager } from "../audio";
-import { ConvexPolyhedronCollisionShape } from "../physics/collision_shape";
+import { ConvexHullCollisionShape } from "../physics/collision_shape";
 import { RigidBody, RigidBodyType } from "../physics/rigid_body";
 
 /** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
@@ -67,9 +67,9 @@ export class Trigger {
 
 		this.body = body;
 
-		let ownShape = new ConvexPolyhedronCollisionShape(aabbVertices);
-		ownShape.collisionDetectionMask = 0b100;
-
+		let ownShape = new ConvexHullCollisionShape(aabbVertices);
+		ownShape.collisionDetectionMask = 0b100; // Collide with the small aux marble
+		
 		let ownBody = new RigidBody();
 		ownBody.type = RigidBodyType.Static;
 		ownBody.addCollisionShape(ownShape);
