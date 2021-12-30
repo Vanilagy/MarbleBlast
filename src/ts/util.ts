@@ -87,7 +87,7 @@ export abstract class Util {
 	static lerp(a: number, b: number, t: number) {
 		return (1 - t) * a + t * b;
 	}
-	
+
 	static avg(a: number, b: number) {
 		return (a + b) / 2;
 	}
@@ -95,7 +95,7 @@ export abstract class Util {
 	static vecOimoToThree(oimoVec: OIMO.Vec3) {
 		return new THREE.Vector3(oimoVec.x, oimoVec.y, oimoVec.z);
 	}
-	
+
 	static vecThreeToOimo(threeVec: THREE.Vector3) {
 		return new OIMO.Vec3(threeVec.x, threeVec.y, threeVec.z);
 	}
@@ -182,7 +182,7 @@ export abstract class Util {
 	static randomPointInUnitCircle() {
 		let r = Math.sqrt(Math.random());
 		let theta = Math.random() * Math.PI * 2;
-		
+
 		return new THREE.Vector2(r * Math.cos(theta), r * Math.sin(theta));
 	}
 
@@ -202,7 +202,7 @@ export abstract class Util {
 		let m8 = m[8], m9 = m[9], m10 = m[10];
 
 		matrix.transpose();
-		
+
 		let vresult_0 = m0*v0 + m1*v1 + m2*v2;
 		let vresult_1 = m4*v0 + m5*v1 + m6*v2;
 		let vresult_2 = m8*v0 + m9*v1 + m10*v2;
@@ -450,15 +450,15 @@ export abstract class Util {
 		let element = document.createElement('a');
 		element.setAttribute('href', url);
 		element.setAttribute('download', filename);
-		
+
 		element.style.display = 'none';
 		document.body.appendChild(element);
-		
+
 		element.click();
-		
+
 		document.body.removeChild(element);
 	}
-	
+
 	/** Removes all characters from a string that aren't letters or digits. */
 	static removeSpecialChars(str: string) {
 		let regex = /[^\w\d]/gi;
@@ -518,7 +518,7 @@ export abstract class Util {
 		let minutes = Math.floor(abs / 60);
 		let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(abs * 10**decimalDigits % 10**decimalDigits).toString(), decimalDigits);
 		if (seconds < 0) string = '-' + string;
-		
+
 		return string;
 	}
 
@@ -580,7 +580,7 @@ export abstract class Util {
 	static signedSquare(x: number) {
 		return x * Math.abs(x);
 	}
-	
+
 	static htmlEscapeElem = document.createElement('p');
 	static htmlEscape(raw: string) {
 		this.htmlEscapeElem.textContent = raw;

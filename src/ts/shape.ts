@@ -606,7 +606,7 @@ export class Shape {
 
 			// All 8 vertices of the bounding cuboid
 			let vertices = Util.getBoxVertices(bounds);
-			
+
 			// Create an empty geometry for now
 			let geometry = new OIMO.ConvexHullGeometry(Array(8).fill(null).map(_ => new OIMO.Vec3()));
 			let shapeConfig = new OIMO.ShapeConfig();
