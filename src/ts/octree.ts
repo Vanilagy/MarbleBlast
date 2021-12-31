@@ -198,7 +198,7 @@ class OctreeNode {
 	/** The total number of objects in the subtree with this node as its root. */
 	count = 0;
 	depth: number;
-	
+
 	constructor(octree: Octree, depth: number) {
 		this.octree = octree;
 		this.depth = depth;
@@ -365,7 +365,7 @@ class OctreeNode {
 				vec = new THREE.Vector3();
 			}
 		}
-		
+
 		// Recurse into the octants
 		if (this.octants) for (let i = 0; i < 8; i++) {
 			let octant = this.octants[i];
@@ -384,7 +384,7 @@ class OctreeNode {
 		if (this.objects.size > 0) for (let object of this.objects) {
 			if (aabb.intersectsBox(object.boundingBox)) intersections.push(object);
 		}
-		
+
 		// Recurse into the octants
 		if (this.octants) for (let i = 0; i < 8; i++) {
 			let octant = this.octants[i];
@@ -405,7 +405,7 @@ class OctreeNode {
 		if (this.objects.size > 0) for (let object of this.objects) {
 			if (sphere.intersectsBox(object.boundingBox)) intersections.push(object);
 		}
-		
+
 		// Recurse into the octants
 		if (this.octants) for (let i = 0; i < 8; i++) {
 			let octant = this.octants[i];

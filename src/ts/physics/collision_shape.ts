@@ -43,8 +43,8 @@ export abstract class CollisionShape implements OctreeObject {
 		this.body?.world?.octree.update(this);
 	}
 
-	isIntersectedByRay(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, intersectionPoint?: THREE.Vector3) {
-		return false; // temp
+	isIntersectedByRay() {
+		return false; // Raycasting isn't implemented in the octree but in GJK
 	}
 }
 
@@ -94,20 +94,19 @@ export class ConvexHullCollisionShape extends CollisionShape {
 
 		this.points = points;
 
-		for (let point of points) {
-			this.localCenter.addScaledVector(point, 1 / points.length);
-		}
 		this.computeLocalBoundingBox();
-
 		this.updateInertiaTensor();
 	}
 
 	computeLocalBoundingBox() {
+		this.localCenter.setScalar(0);
+		for (let point of this.points) this.localCenter.addScaledVector(point, 1 / this.points.length);
+
 		this.localAabb.setFromPoints(this.points);
 	}
 
 	updateInertiaTensor() {
-		// Do nothing for now, we likely won't need it
+		// Do nothing for now, we likely won't need it because there is no dynamic convex hull object
 	}
 
 	support(dst: THREE.Vector3, direction: THREE.Vector3, translation?: THREE.Vector3) {
@@ -125,7 +124,7 @@ export class ConvexHullCollisionShape extends CollisionShape {
 				dst.copy(point);
 			}
 		}
-		
+
 		this.body.transformPoint(dst);
 		if (translation && direction.dot(translation) > 0) dst.add(translation);
 

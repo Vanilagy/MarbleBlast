@@ -23,7 +23,7 @@ export class RigidBody {
 
 	linearVelocity = new THREE.Vector3();
 	angularVelocity = new THREE.Vector3();
-	
+
 	prevPosition = new THREE.Vector3();
 	prevOrientation = new THREE.Quaternion();
 	prevLinearVelocity = new THREE.Vector3();
@@ -33,6 +33,8 @@ export class RigidBody {
 	shapes: CollisionShape[] = [];
 	collisions: Collision[] = [];
 	evaluationOrder = 0;
+
+	userData: any;
 
 	transformPoint(p: THREE.Vector3) {
 		return p.applyQuaternion(this.orientation).add(this.position);
@@ -114,7 +116,7 @@ export class RigidBody {
 		Util.removeFromArray(this.shapes, shape);
 		shape.body = null;
 	}
-	
+
 	syncShapes() {
 		for (let i = 0; i < this.shapes.length; i++) {
 			let shape = this.shapes[i];
@@ -128,6 +130,7 @@ export class RigidBody {
 
 	/* eslint-disable  @typescript-eslint/no-unused-vars */
 	onBeforeIntegrate(dt: number) {}
+	onAfterIntegrate(dt: number) {}
 	onBeforeCollisionResponse(t: number, dt: number) {}
 	onAfterCollisionResponse(t: number, dt: number) {}
 }

@@ -197,7 +197,7 @@ void main() {
 				float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
 				if (!hasDirectionalLight) intensity = 0.0;
 
-				addedLight *= mix(1.0, 0.5, intensity);
+				addedLight *= mix(1.0, 0.666, intensity);
 			#endif
 			
 			incomingLight += addedLight;

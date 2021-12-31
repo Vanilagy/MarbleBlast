@@ -36,10 +36,8 @@ export class TimeTravel extends PowerUp {
 		return true;
 	}
 
-	use(time: TimeState, bodyOverride?: OIMO.RigidBody) {
-		// We need to find the exact point of impact to accurately know at what time the clock needs to be stopped
-		let completionOfImpact = this.level.physics.computeCompletionOfImpactWithBody(bodyOverride ?? this.bodies[0], 2);
-		let timeToRevert = (1 - completionOfImpact) * 1000 / PHYSICS_TICK_RATE;
+	use(t: number) {
+		let timeToRevert = (1 - t) * 1000 / PHYSICS_TICK_RATE;
 
 		if (this.level.replay.mode === 'playback') timeToRevert = this.level.replay.timeTravelTimeToRevert.get(this.id);
 		else this.level.replay.timeTravelTimeToRevert.set(this.id, timeToRevert);

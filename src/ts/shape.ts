@@ -1,5 +1,4 @@
 import { DtsFile, MeshType, DtsParser } from "./parsing/dts_parser";
-import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
@@ -97,17 +96,16 @@ export class Shape {
 	directoryPath: string;
 	/** Whether or not this shape is being used as a TSStatic. TSStatic are static, non-moving shapes that basically can't do anything. */
 	isTSStatic = false;
-	
+
 	group: Group;
 	meshes: Mesh[] = [];
-	bodies: OIMO.RigidBody[];
-	ownBodies: RigidBody[];
+	bodies: RigidBody[];
 	/** Whether the marble can physically collide with this shape. */
 	collideable = true;
 	/** Not physical colliders, but a list bodies that overlap is checked with. This is used for things like force fields. */
 	colliders: ColliderInfo[] = [];
 	/** For each shape, the untransformed vertices of their convex hull geometry. */
-	shapeVertices = new Map<OIMO.Shape, THREE.Vector3[]>();
+	shapeVertices = new Map<CollisionShape, THREE.Vector3[]>();
 	isCurrentlyColliding = false;
 
 	worldPosition = new THREE.Vector3();
@@ -174,7 +172,6 @@ export class Shape {
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
 		this.group = new Group();
 		this.bodies = [];
-		this.ownBodies = [];
 		this.materials = [];
 		this.materialInfo = new WeakMap();
 
@@ -196,7 +193,7 @@ export class Shape {
 			for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
 
 			await this.computeMaterials();
-		
+
 			// Build the node tree
 			let graphNodes: GraphNode[] = [];
 			for (let i = 0; i < this.dts.nodes.length; i++) {
@@ -222,7 +219,7 @@ export class Shape {
 			let geometries: Geometry[] = [];
 			let geometryMatrixIndices: number[] = []; // The index into nodeTransforms
 			let collisionGeometries = new Set<Geometry>();
-			
+
 			// Go through all nodes and objects and create the geometry
 			for (let i = 0; i < this.dts.nodes.length; i++) {
 				let objects = this.dts.objects.filter((object) => object.nodeIndex === i);
@@ -237,7 +234,7 @@ export class Shape {
 							if (!mesh) continue;
 							if (mesh.parentMesh >= 0) continue; // If the node has a parent, skip it. Why? Don't know. Made teleport pad look correct.
 							if (mesh.verts.length === 0) continue; // No need
-		
+
 							// The reason we precompute position/normal here is because skinned meshes need vector instances they can modify each frame.
 							let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
 							let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
@@ -302,7 +299,7 @@ export class Shape {
 				shadowMaterial.isShadow = true;
 				shadowMaterial.transparent = true;
 				shadowMaterial.depthWrite = false;
-				
+
 				materials = [shadowMaterial];
 				geometry.materials.fill(0);
 			}
@@ -332,35 +329,24 @@ export class Shape {
 			for (let object of objects) {
 				let isCollisionObject = this.colliderDts.names[object.nameIndex].toLowerCase().startsWith("col");
 				if (isCollisionObject) {
-					let config = new OIMO.RigidBodyConfig();
-					config.type = OIMO.RigidBodyType.STATIC;
-					let body = new OIMO.RigidBody(config);
-					body.userData = { nodeIndex: i, objectIndex: this.colliderDts.objects.indexOf(object) };
+					let body = new RigidBody();
+					body.type = RigidBodyType.Static;
+					body.userData = { nodeIndex: i };
 
 					this.bodies.push(body);
-
-					let ownBody = new RigidBody();
-					ownBody.type = RigidBodyType.Static;
-
-					this.ownBodies.push(ownBody);
 				}
 			}
 		}
 
 		// If there are no collision objects, add a single body which will later be filled with bounding box geometry.
 		if (this.bodies.length === 0 && !this.isTSStatic) {
-			let config = new OIMO.RigidBodyConfig();
-			config.type = OIMO.RigidBodyType.STATIC;
-			let body = new OIMO.RigidBody(config);
+			let body = new RigidBody();
+			body.type = RigidBodyType.Static;
 			this.bodies.push(body);
-
-			let ownBody = new RigidBody();
-			ownBody.type = RigidBodyType.Static;
-			this.ownBodies.push(ownBody);
 		}
 
 		// Init collision handlers
-		for (let body of this.ownBodies) {
+		for (let body of this.bodies) {
 			body.onBeforeIntegrate = () => {
 				if (this.isCurrentlyColliding && body.collisions.length === 0) {
 					this.isCurrentlyColliding = false;
@@ -368,9 +354,9 @@ export class Shape {
 				}
 			};
 
-			body.onBeforeCollisionResponse = () => {
-				if (!this.isCurrentlyColliding) this.onMarbleEnter();
-				this.onMarbleInside();
+			body.onBeforeCollisionResponse = (t: number) => {
+				if (!this.isCurrentlyColliding) this.onMarbleEnter(t);
+				this.onMarbleInside(t);
 
 				this.isCurrentlyColliding = true;
 			};
@@ -510,7 +496,7 @@ export class Shape {
 					let i1 = dtsMesh.indices[i];
 					let i2 = dtsMesh.indices[i+1];
 					let i3 = dtsMesh.indices[i+2];
-	
+
 					addTriangleFromIndices(i1, i2, i3, materialIndex);
 				}
 			} else if (drawType === TSDrawPrimitive.Strip) {
@@ -519,16 +505,16 @@ export class Shape {
 					let i1 = dtsMesh.indices[i];
 					let i2 = dtsMesh.indices[i+1];
 					let i3 = dtsMesh.indices[i+2];
-	
+
 					if (k % 2 === 0) {
 						// Swap the first and last index to maintain correct winding order
 						let temp = i1;
 						i1 = i3;
 						i3 = temp;
 					}
-	
+
 					addTriangleFromIndices(i1, i2, i3, materialIndex);
-	
+
 					k++;
 				}
 			} else if (drawType === TSDrawPrimitive.Fan) {
@@ -556,7 +542,6 @@ export class Shape {
 			for (let object of objects) {
 				if (!dts.names[object.nameIndex].toLowerCase().startsWith("col")) continue;
 
-				let ownBody = this.ownBodies[bodyIndex];
 				let body = this.bodies[bodyIndex];
 				bodyIndex++;
 
@@ -565,31 +550,19 @@ export class Shape {
 					if (!mesh) continue;
 
 					for (let primitive of mesh.primitives) {
-						// Create the geometry but with all zero vectors for now
-						let geometry = new OIMO.ConvexHullGeometry(Array(primitive.numElements).fill(null).map(_ => new OIMO.Vec3()));
+						// Create the collision shape but with all zero vectors for now
+						let shape = new ConvexHullCollisionShape(Array(primitive.numElements).fill(null).map(_ => new THREE.Vector3()));
+						shape.restitution = this.restitution;
+						shape.friction = this.friction;
+						if (!this.collideable) shape.collisionDetectionMask = 0b10; // Collide with the big aux marble
 
-						let shapeConfig = new OIMO.ShapeConfig();
-						shapeConfig.geometry = geometry;
-						shapeConfig.restitution = this.restitution;
-						shapeConfig.friction = this.friction;
-						let shape = new OIMO.Shape(shapeConfig);
-						shape.userData = this.id;
-
-						body.addShape(shape);
+						body.addCollisionShape(shape);
 
 						// Remember the actual untransformed vertices for this geometry
 						let vertices = mesh.indices.slice(primitive.start, primitive.start + primitive.numElements)
 							.map((index) => mesh.verts[index])
 							.map((vert) => new THREE.Vector3(vert.x, vert.y, vert.z));
 						this.shapeVertices.set(shape, vertices);
-
-						// Create the geometry but with all zero vectors for now
-						let ownShape = new ConvexHullCollisionShape(Array(primitive.numElements).fill(null).map(_ => new THREE.Vector3()));
-						ownShape.restitution = this.restitution;
-						ownShape.friction = this.friction;
-						if (!this.collideable) ownShape.collisionDetectionMask = 0b10; // Collide with the big aux marble
-						
-						ownBody.addCollisionShape(ownShape);
 					}
 				}
 			}
@@ -598,34 +571,22 @@ export class Shape {
 		if (bodyIndex === 0 && !this.isTSStatic) {
 			// Create collision geometry based on the bounding box
 			let body = this.bodies[0];
-			let ownBody = this.ownBodies[0];
 
 			let bounds = new THREE.Box3();
 			bounds.min.set(dts.bounds.min.x, dts.bounds.min.y, dts.bounds.min.z);
 			bounds.max.set(dts.bounds.max.x, dts.bounds.max.y, dts.bounds.max.z);
 
+			// Create an empty collision shape for now
+			let shape = new ConvexHullCollisionShape(Array(8).fill(null).map(_ => new THREE.Vector3()));
+			shape.restitution = this.restitution;
+			shape.friction = this.friction;
+			if (!this.collideable) shape.collisionDetectionMask = 0b10; // Collide with the big aux marble
+
+			body.addCollisionShape(shape);
+
 			// All 8 vertices of the bounding cuboid
 			let vertices = Util.getBoxVertices(bounds);
-
-			// Create an empty geometry for now
-			let geometry = new OIMO.ConvexHullGeometry(Array(8).fill(null).map(_ => new OIMO.Vec3()));
-			let shapeConfig = new OIMO.ShapeConfig();
-			shapeConfig.geometry = geometry;
-			shapeConfig.restitution = this.restitution;
-			shapeConfig.friction = this.friction;
-			let shape = new OIMO.Shape(shapeConfig);
-			shape.userData = this.id;
-			body.addShape(shape);
-
 			this.shapeVertices.set(shape, vertices);
-
-			// Create an empty geometry for now
-			let ownShape = new ConvexHullCollisionShape(Array(8).fill(null).map(_ => new THREE.Vector3()));
-			ownShape.restitution = this.restitution;
-			ownShape.friction = this.friction;
-			if (!this.collideable) ownShape.collisionDetectionMask = 0b10; // Collide with the big aux marble
-
-			ownBody.addCollisionShape(ownShape);
 		}
 	}
 
@@ -642,7 +603,7 @@ export class Shape {
 				let quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
 				quaternion.normalize();
 				quaternion.conjugate();
-	
+
 				return quaternion;
 			});
 		}
@@ -669,7 +630,7 @@ export class Shape {
 				} else {
 					mat.copy(this.nodeTransforms[node.parent.index]);
 				}
-			
+
 				utilityMatrix.compose(translations[node.index], quaternions[node.index], new THREE.Vector3(1, 1, 1));
 				mat.multiplyMatrices(mat, utilityMatrix);
 			}
@@ -689,9 +650,8 @@ export class Shape {
 	updateCollisionGeometry(bitfield: number) {
 		for (let i = 0; i < this.bodies.length; i++) {
 			let body = this.bodies[i];
-			let ownBody = this.ownBodies[i];
 			let mat: THREE.Matrix4;
-			
+
 			if (body.userData?.nodeIndex !== undefined) {
 				if (((1 << body.userData.nodeIndex) & bitfield) === 0) continue;
 				mat = this.worldMatrix.clone();
@@ -701,33 +661,21 @@ export class Shape {
 			}
 
 			// For all shapes...
-			let currentShape = body.getShapeList();
-			let j = 0;
-			while (currentShape) {
+			for (let shape of (body.shapes as ConvexHullCollisionShape[])) {
 				// Recompute all vertices by piping them through the matrix.
-				let vertices = this.shapeVertices.get(currentShape)
+				let vertices = this.shapeVertices.get(shape)
 					.map((vec) => vec.clone().applyMatrix4(mat))
 					.map((vec) => Util.vecThreeToOimo(vec));
 
-				let ownShape = ownBody.shapes[j] as ConvexHullCollisionShape;
-
 				// Then, assign the value to the vertices of the geometry
-				let geometry = currentShape._geom as OIMO.ConvexHullGeometry;
 				for (let i = 0; i < vertices.length; i++) {
-					geometry._vertices[i].copyFrom(vertices[i]);
-					ownShape.points[i].copy(Util.vecOimoToThree(vertices[i]));
+					shape.points[i].copy(Util.vecOimoToThree(vertices[i]));
 				}
 
-				currentShape = currentShape.getNext();
-				j++;
-
-				ownShape.computeLocalBoundingBox();
+				shape.computeLocalBoundingBox();
 			}
 
-			// We need to call this for OIMO to update (sync) the shapes
-			body.setPosition(new OIMO.Vec3());
-
-			ownBody.syncShapes();
+			body.syncShapes();
 		}
 	}
 
@@ -746,35 +694,35 @@ export class Shape {
 				let completion = time.timeSinceLoad / (sequence.duration * 1000);
 				let quaternions: THREE.Quaternion[];
 				let translations: THREE.Vector3[];
-	
+
 				// Possibly get the keyframe from the overrides
 				let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
 				if (this.lastSequenceKeyframes.get(sequence) === actualKeyframe) continue;
 				this.lastSequenceKeyframes.set(sequence, actualKeyframe);
-	
+
 				let keyframeLow = Math.floor(actualKeyframe);
 				let keyframeHigh = Math.ceil(actualKeyframe) % sequence.numKeyframes;
 				let t = (actualKeyframe - keyframeLow) % 1; // The completion between two keyframes
-	
+
 				// Handle rotation sequences
 				if (rot > 0) quaternions = this.dts.nodes.map((node, index) => {
 					let affected = ((1 << index) & rot) !== 0;
-	
+
 					if (affected) {
 						let rot1 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeLow];
 						let rot2 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeHigh];
-	
+
 						let quaternion1 = new THREE.Quaternion(rot1.x, rot1.y, rot1.z, rot1.w);
 						quaternion1.normalize();
 						quaternion1.conjugate();
-	
+
 						let quaternion2 = new THREE.Quaternion(rot2.x, rot2.y, rot2.z, rot2.w);
 						quaternion2.normalize();
 						quaternion2.conjugate();
-						
+
 						// Interpolate between the two quaternions
 						quaternion1.slerp(quaternion2, t);
-	
+
 						affectedCount++;
 						return quaternion1;
 					} else {
@@ -783,20 +731,20 @@ export class Shape {
 						let quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
 						quaternion.normalize();
 						quaternion.conjugate();
-	
+
 						return quaternion;
 					}
 				});
-	
+
 				// Handle translation sequences
 				affectedCount = 0;
 				if (trans > 0) translations = this.dts.nodes.map((node, index) => {
 					let affected = ((1 << index) & trans) !== 0;
-	
+
 					if (affected) {
 						let trans1 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeLow];
 						let trans2 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeHigh];
-	
+
 						// Interpolate between the two translations
 						return new THREE.Vector3(Util.lerp(trans1.x, trans2.x, t), Util.lerp(trans1.y, trans2.y, t), Util.lerp(trans1.z, trans2.z, t));
 					} else {
@@ -805,7 +753,7 @@ export class Shape {
 						return new THREE.Vector3(translation.x, translation.y, translation.z);
 					}
 				});
-	
+
 				if (rot || trans) {
 					this.updateNodeTransforms(quaternions, translations, rot | trans);
 					if (!onlyVisual) this.updateCollisionGeometry(rot | trans);
@@ -988,7 +936,7 @@ export class Shape {
 
 	/** Enable or disable collision. */
 	setCollisionEnabled(enabled: boolean) {
-		for (let body of this.ownBodies) {
+		for (let body of this.bodies) {
 			body.enabled = enabled;
 		}
 	}
@@ -999,8 +947,8 @@ export class Shape {
 
 	/* eslint-disable  @typescript-eslint/no-unused-vars */
 	onMarbleContact(collision: Collision) {}
-	onMarbleInside() {}
-	onMarbleEnter() {}
+	onMarbleInside(t: number) {}
+	onMarbleEnter(t: number) {}
 	onMarbleLeave() {}
 	async onLevelStart() {}
 }

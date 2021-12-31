@@ -9,7 +9,7 @@ import { Geometry } from "./rendering/geometry";
 import { Mesh } from "./rendering/mesh";
 import { Material } from "./rendering/material";
 import { RigidBody, RigidBodyType } from "./physics/rigid_body";
-import { CollisionShape, ConvexHullCollisionShape } from "./physics/collision_shape";
+import { ConvexHullCollisionShape } from "./physics/collision_shape";
 import { Collision } from "./physics/collision";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
@@ -179,8 +179,7 @@ export class Interior {
 	difPath: string;
 	mesh: Mesh;
 	/** The collision body of the interior. */
-	body: OIMO.RigidBody;
-	ownBody: RigidBody;
+	body: RigidBody;
 	/** The relevant detail level to read from (non-default for pathed interiors) */
 	detailLevel: DifFile["detailLevels"][number];
 	worldMatrix = new THREE.Matrix4();
@@ -203,14 +202,11 @@ export class Interior {
 		this.detailLevel = (subObjectIndex === undefined)? file.detailLevels[0] : file.subObjects[subObjectIndex];
 		this.materialNames = this.detailLevel.materialList.materials.map(x => x.split('/').pop().toLowerCase());
 
-		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
-		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
-		this.body = new OIMO.RigidBody(rigidBodyConfig);
-		this.ownBody = new RigidBody();
-		this.ownBody.type = RigidBodyType.Static;
+		this.body = new RigidBody();
+		this.body.type = RigidBodyType.Static;
 
-		this.ownBody.onAfterCollisionResponse = (t: number, dt: number) => {
-			for (let collision of this.ownBody.collisions) this.onMarbleContact(collision, dt);
+		this.body.onAfterCollisionResponse = (t: number, dt: number) => {
+			for (let collision of this.body.collisions) this.onMarbleContact(collision, dt);
 		};
 
 		// Combine the default special materials with the special ones specified in the .mis file
@@ -255,34 +251,34 @@ export class Interior {
 					mat.opacity = 0;
 					continue;
 				}
-				
+
 				let fullPath = this.difPath.includes('data/')?
 					this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length)
 					: this.difPath.slice(this.difPath.indexOf('data_mbp/') + 'data_mbp/'.length);
 
 				const lookForTexture = async () => {
 					let currentPath = fullPath;
-	
+
 					while (true) {
 						// Search for the texture file inside-out, first looking in the closest directory and then searching in parent directories until it is found.
-		
+
 						currentPath = currentPath.slice(0, Math.max(0, currentPath.lastIndexOf('/')));
 						if (!currentPath) break; // Nothing found
-		
+
 						let fullNames = this.level.mission.getFullNamesOf(currentPath + '/' + fileName);
 						if (fullNames.length > 0) {
 							let name = fullNames.find(x => !x.endsWith('.dif'));
 							if (!name) break;
-		
+
 							// We found the texture file; create the texture.
 							let texture = await this.level.mission.getTexture(currentPath + '/' + name);
 							mat.diffuseMap = texture;
-		
+
 							break;
 						}
 					}
 				};
-	
+
 				await lookForTexture(); // First look for the texture regularly
 				if (!mat.diffuseMap && fullPath.includes('interiors/')) {
 					// If we didn't find the texture, try looking for it in the MBP folder.
@@ -296,17 +292,17 @@ export class Interior {
 
 			// Add every surface
 			for (let surface of this.detailLevel.surfaces) this.addSurface(geometry, surface, vertexBuckets);
-	
+
 			// In order to achieve smooth shading, compute vertex normals by average face normals of faces with similar angles
 			for (let [, buckets] of vertexBuckets) {
 				for (let i = 0; i < buckets.length; i++) {
 					let bucket = buckets[i];
 					let avgNormal = new THREE.Vector3();
-	
+
 					// Average all vertex normals of this bucket
 					for (let j = 0; j < bucket.normals.length; j++) avgNormal.add(bucket.normals[j]);
 					avgNormal.multiplyScalar(1 / bucket.normals.length);
-	
+
 					// Write the normal vector into the buffers
 					for (let j = 0; j < bucket.normalIndices.length; j++) {
 						let arr = geometry.normals;
@@ -417,7 +413,7 @@ export class Interior {
 		for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
 			let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
 			if (!surface) continue;
-			
+
 			let material = this.materialNames[surface.textureIndex];
 			if (!material) continue;
 
@@ -448,21 +444,21 @@ export class Interior {
 			for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
 				let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
 				if (!surface) continue;
-				
+
 				let material = this.materialNames[surface.textureIndex];
 				if (!material) continue;
-	
+
 				let planeData = this.detailLevel.planes[surface.planeIndex & ~0x8000];
 				let planeNormal = this.detailLevel.normals[planeData.normalIndex];
 				let faceNormal = new THREE.Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
 				if (surface.planeIndex & 0x8000) faceNormal.multiplyScalar(-1);
-	
+
 				let properties = this.getCollisionMaterialProperties(material);
 				shape.materialOverrides.set(faceNormal, properties);
 			}
 		}
 
-		this.ownBody.addCollisionShape(shape);
+		this.body.addCollisionShape(shape);
 	}
 
 	getCollisionMaterialProperties(material: string): CollisionMaterialProperties {
@@ -474,7 +470,7 @@ export class Interior {
 		if (this.allowSpecialMaterials) {
 			// Check for a custom material property override in the mission file
 			let specialMatProperties = this.level.mission.misFile.materialProperties[this.level.mission.misFile.materialMappings[material]];
-			
+
 			let frictionFac = specialMatProperties?.['friction'] ?? specialFrictionFactor[material] ?? 1;
 			let restitutionFac = specialMatProperties?.['restitution'] ?? specialResistutionFactor[material] ?? 1;
 			force = specialMatProperties?.['force'] ?? specialForces[material];
@@ -495,11 +491,8 @@ export class Interior {
 		this.scale = scale;
 		this.mesh.transform.copy(this.worldMatrix);
 
-		this.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
-		this.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
-
-		this.ownBody.position.copy(position);
-		this.ownBody.orientation.copy(orientation);
+		this.body.position.copy(position);
+		this.body.orientation.copy(orientation);
 
 		for (let i = 0; i < this.detailLevel.convexHulls.length; i++)
 			this.addConvexHull(i, this.scale);
@@ -516,12 +509,12 @@ export class Interior {
 			marble.slidingTimeout = 2; // Make sure we don't slide on the interior after bouncing off it
 		} else if (materialProperties.isRandom) {
 			let fac = dt / (1 / PHYSICS_TICK_RATE);
-			let angVel = marble.ownBody.angularVelocity.clone();
+			let angVel = marble.body.angularVelocity.clone();
 			let movementVec = angVel.cross(collision.normal);
 
 			// Move the marble in the opposite direction
-			marble.ownBody.linearVelocity.addScaledVector(movementVec, -0.0015 * fac);
-			marble.ownBody.angularVelocity.multiplyScalar(1 + (0.07 * marble.speedFac * fac));
+			marble.body.linearVelocity.addScaledVector(movementVec, -0.0015 * fac);
+			marble.body.angularVelocity.multiplyScalar(1 + (0.07 * marble.speedFac * fac));
 		}
 	}
 

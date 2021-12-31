@@ -16,10 +16,10 @@ export class SuperJump extends PowerUp {
 
 	use() {
 		let marble = this.level.marble;
-		marble.ownBody.linearVelocity.addScaledVector(Util.vecOimoToThree(this.level.currentUp), 20); // Simply add to vertical velocity
+		marble.body.linearVelocity.addScaledVector(Util.vecOimoToThree(this.level.currentUp), 20); // Simply add to vertical velocity
 
 		AudioManager.play(this.sounds[1]);
-		this.level.particles.createEmitter(superJumpParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
+		this.level.particles.createEmitter(superJumpParticleOptions, null, () => marble.body.position.clone());
 
 		this.level.deselectPowerUp();
 	}

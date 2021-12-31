@@ -26,7 +26,7 @@ export class Object3D {
 	/** Marks the object as having received a change to its transform and needing to be updated. */
 	changedTransform() {
 		this.needsWorldTransformUpdate = true;
-		
+
 		// Also signal it to all ancestors
 		let parent = this.parent;
 		while (parent && !parent.needsWorldTransformUpdate) {

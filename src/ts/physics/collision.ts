@@ -82,7 +82,7 @@ export class Collision {
 
 			this.friction = s1Friction * s2Friction;
 			this.restitution = s1Restitution * s2Restitution;
-			
+
 			this.s1Friction = s1Friction;
 			this.s1Restitution = s1Restitution;
 			this.s2Friction = s2Friction;
@@ -148,7 +148,7 @@ export class Collision {
 		};
 
 		let K_world = add(add(M_1.clone(), R_1.clone().multiply(this.s1.invInertia).multiply(R_1).multiplyScalar(-1)), add(M_2.clone(), R_2.clone().multiply(this.s2.invInertia).multiply(R_2).multiplyScalar(-1)));
-		
+
 		let K_contact = BInv.clone().multiply(K_world).multiply(B);
 		let K_contactInv = new THREE.Matrix3().getInverse(K_contact);
 

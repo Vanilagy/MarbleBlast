@@ -1,5 +1,4 @@
 import { PowerUp } from "./power_up";
-import { TimeState } from "../level";
 import { state } from "../state";
 
 /** Temporarily reduces marble restitution. */
@@ -13,8 +12,8 @@ export class ShockAbsorber extends PowerUp {
 		return this.level.pickUpPowerUp(this);
 	}
 
-	use(time: TimeState) {
-		this.level.marble.enableShockAbsorber(time);
+	use() {
+		this.level.marble.enableShockAbsorber(this.level.timeState);
 		this.level.deselectPowerUp();
 	}
 }

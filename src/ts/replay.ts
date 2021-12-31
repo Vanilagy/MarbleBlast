@@ -1,5 +1,4 @@
 import { Level, TimeState, PHYSICS_TICK_RATE } from "./level";
-import OIMO from "./declarations/oimo";
 import { PowerUp } from "./shapes/power_up";
 import { Shape } from "./shape";
 import { Trigger } from "./triggers/trigger";
@@ -11,6 +10,7 @@ import { PushButton } from "./shapes/push_button";
 import { Mission } from "./mission";
 import { Interior } from "./interior";
 import { Nuke } from "./shapes/nuke";
+import THREE from "three";
 
 /** Stores everything necessary for a correct replay of a playthrough. Instead of relying on replaying player inputs, the replay simply stores all necessary state. */
 export class Replay {
@@ -26,13 +26,13 @@ export class Replay {
 	timestamp: number;
 
 	/** The position of the marble at each physics tick. */
-	marblePositions: OIMO.Vec3[] = [];
+	marblePositions: THREE.Vector3[] = [];
 	/** The orientation of the marble at each physics tick. */
-	marbleOrientations: OIMO.Quat[] = [];
+	marbleOrientations: THREE.Quaternion[] = [];
 	/** The linear velocity of the marble at each physics tick. */
-	marbleLinearVelocities: OIMO.Vec3[] = [];
+	marbleLinearVelocities: THREE.Vector3[] = [];
 	/** The angular velocity of the marble at each physics tick. */
-	marbleAngularVelocities: OIMO.Vec3[] = [];
+	marbleAngularVelocities: THREE.Vector3[] = [];
 	/** Stores the times the marble was inside a shape/trigger. */
 	marbleInside: {
 		tickIndex: number,
@@ -228,10 +228,10 @@ export class Replay {
 	record() {
 		if (this.mode === 'playback' || !this.canStore) return;
 
-		this.marblePositions.push(this.level.marble.body.getPosition());
-		this.marbleOrientations.push(this.level.marble.body.getOrientation());
-		this.marbleLinearVelocities.push(this.level.marble.body.getLinearVelocity());
-		this.marbleAngularVelocities.push(this.level.marble.body.getAngularVelocity());
+		this.marblePositions.push(this.level.marble.body.position.clone());
+		this.marbleOrientations.push(this.level.marble.body.orientation.clone());
+		this.marbleLinearVelocities.push(this.level.marble.body.linearVelocity.clone());
+		this.marbleAngularVelocities.push(this.level.marble.body.angularVelocity.clone());
 		this.cameraOrientations.push({ yaw: this.level.yaw, pitch: this.level.pitch });
 
 		if (this.level.finishTime && this.finishTime === null) this.finishTime = Util.jsonClone(this.level.finishTime);
@@ -356,10 +356,10 @@ export class Replay {
 		for (let tickIndex of this.touchFinishTickIndices) if (tickIndex === i) this.level.touchFinish();
 		for (let tickIndex of this.checkpointRespawns) if (tickIndex === i) this.level.loadCheckpointState();
 
-		this.level.marble.body.setPosition(this.marblePositions[i]);
-		this.level.marble.body.setOrientation(this.marbleOrientations[i]);
-		this.level.marble.body.setLinearVelocity(this.marbleLinearVelocities[i]);
-		this.level.marble.body.setAngularVelocity(this.marbleAngularVelocities[i]);
+		this.level.marble.body.position.copy(this.marblePositions[i]);
+		this.level.marble.body.orientation.copy(this.marbleOrientations[i]);
+		this.level.marble.body.linearVelocity.copy(this.marbleLinearVelocities[i]);
+		this.level.marble.body.angularVelocity.copy(this.marbleAngularVelocities[i]);
 		this.level.yaw = this.cameraOrientations[i].yaw;
 		this.level.pitch = this.cameraOrientations[i].pitch;
 
@@ -437,7 +437,7 @@ export class Replay {
 		let string = pako.inflate(new Uint8Array(buf), { to: 'string' });
 		let serialized = JSON.parse(string) as SerializedReplay;
 		let version = serialized.version ?? 0;
-		
+
 		replay.version = version;
 		replay.missionPath = (version >= 1)? serialized.missionPath : null;
 		replay.timestamp = (version >= 1)? serialized.timestamp : 0;
@@ -452,7 +452,7 @@ export class Replay {
 		replay.marbleContact = serialized.marbleContact;
 		replay.uses = serialized.uses;
 		replay.blasts = serialized.blasts ?? [];
-		
+
 		let cameraOrientations: {
 			yaw: number,
 			pitch: number
@@ -485,7 +485,7 @@ export class Replay {
 		return replay;
 	}
 
-	static vec3sToBuffer(arr: OIMO.Vec3[]) {
+	static vec3sToBuffer(arr: THREE.Vector3[]) {
 		let buffer = new Float32Array(arr.length * 3);
 		for (let i = 0; i < arr.length; i++) {
 			buffer[i * 3 + 0] = arr[i].x;
@@ -496,7 +496,7 @@ export class Replay {
 		return buffer;
 	}
 
-	static quatsToBuffer(arr: OIMO.Quat[]) {
+	static quatsToBuffer(arr: THREE.Quaternion[]) {
 		let buffer = new Float32Array(arr.length * 4);
 		for (let i = 0; i < arr.length; i++) {
 			buffer[i * 4 + 0] = arr[i].x;
@@ -509,31 +509,31 @@ export class Replay {
 	}
 
 	static bufferToVec3s(buf: Float32Array) {
-		let vecs: OIMO.Vec3[] = [];
+		let vecs: THREE.Vector3[] = [];
 
 		for (let i = 0; i < buf.length / 3; i++) {
-			let vec = new OIMO.Vec3(buf[i * 3 + 0], buf[i * 3 + 1], buf[i * 3 + 2]);
+			let vec = new THREE.Vector3(buf[i * 3 + 0], buf[i * 3 + 1], buf[i * 3 + 2]);
 			vecs.push(vec);
 		}
-		
+
 		return vecs;
 	}
 
 	static bufferToQuats(buf: Float32Array) {
-		let quats: OIMO.Quat[] = [];
+		let quats: THREE.Quaternion[] = [];
 
 		for (let i = 0; i < buf.length / 4; i++) {
-			let quat = new OIMO.Quat(buf[i * 4 + 0], buf[i * 4 + 1], buf[i * 4 + 2], buf[i * 4 + 3]);
+			let quat = new THREE.Quaternion(buf[i * 4 + 0], buf[i * 4 + 1], buf[i * 4 + 2], buf[i * 4 + 3]);
 			quats.push(quat);
 		}
-		
+
 		return quats;
 	}
 
 	/** Downloads a replay as a .wrec file. */
 	static async download(replayData: ArrayBuffer, mission: Mission, normalize = true, unfinished = false) {
 		if (normalize) replayData = await this.maybeUpdateReplay(replayData, mission.path); // Normalize the replay first
-	
+
 		// Create the blob and download it
 		let blob = new Blob([replayData], {
 			type: 'application/octet-stream'
@@ -550,7 +550,7 @@ export class Replay {
 	/** Makes sure a replay fits some requirements. */
 	static async maybeUpdateReplay(replayData: ArrayBuffer, missionPath: string) {
 		let uncompressed = pako.inflate(new Uint8Array(replayData), { to: 'string' });
-		
+
 		// This is a bit unfortunate, but we'd like to bundle the mission path with the replay, but the first replay version didn't include it. So we need to check if the replay actually includes the mission path, which we can check by checking if it includes the "version" field. We then upgrade the replay to verion 1.
 		if (!uncompressed.includes('"version"')) {
 			let json = JSON.parse(uncompressed) as SerializedReplay;
@@ -558,11 +558,11 @@ export class Replay {
 			json.missionPath = missionPath;
 			json.timestamp = 0;
 			json.version = 1;
-	
+
 			let compressed = await executeOnWorker('compress', JSON.stringify(json)) as ArrayBuffer;
 			replayData = compressed;
 		}
-	
+
 		return replayData;
 	}
 }

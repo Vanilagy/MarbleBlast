@@ -22,7 +22,7 @@ export abstract class ForceShape extends Shape {
 			perpendicular.applyQuaternion(this.worldOrientation);
 
 			let conetip = this.worldPosition.clone().sub(perpendicular.multiplyScalar(0.7)); // The tip of the cone
-			let vec = marble.ownBody.position.clone().sub(conetip); // The vector from the tip of the cone to the marble
+			let vec = marble.body.position.clone().sub(conetip); // The vector from the tip of the cone to the marble
 			if (vec.length() === 0) return;
 			if (vec.length() > actualDistance) return; // Our distance is greater than the allowed distance, so we stop right here
 
@@ -35,7 +35,7 @@ export abstract class ForceShape extends Shape {
 			// If our angle is more than the maximum angle, we stop. The division by 2 is just there cause it just works.
 			if (theta > semiverticalangle / 2) return;
 
-			// The force at an an angle is a parabolic function peaking at maxF, and its zeroes are the the positive and negative semi-vertical angles 
+			// The force at an an angle is a parabolic function peaking at maxF, and its zeroes are the the positive and negative semi-vertical angles
 			let forcemag = Math.abs(-maxF * (theta - semiverticalangle) * (theta + semiverticalangle));
 			forcemag *= Math.sign(actualStrength);
 
@@ -44,7 +44,7 @@ export abstract class ForceShape extends Shape {
 			force.normalize();
 
 			// Now we apply it
-			marble.ownBody.linearVelocity.addScaledVector(force, forcemag * dt);
+			marble.body.linearVelocity.addScaledVector(force, forcemag * dt);
 		}, new THREE.Matrix4());
 	}
 
@@ -58,13 +58,13 @@ export abstract class ForceShape extends Shape {
 			force.multiplyScalar(dt);
 
 			// Now we apply it
-			this.level.marble.ownBody.linearVelocity.add(force);
+			this.level.marble.body.linearVelocity.add(force);
 		}, new THREE.Matrix4());
 	}
 
 	computeAccurateConicForce(forceRadius: number, forceArc: number, forceStrength: number) {
 		let marble = this.level.marble;
-		let pos = marble.ownBody.position;
+		let pos = marble.body.position;
 
 		let strength = 0.0;
 		let dot = 0.0;
@@ -99,12 +99,12 @@ export abstract class ForceShape extends Shape {
 	addSphericalForce(radius: number, strength: number) {
 		this.addCollider(() => new BallCollisionShape(radius), (t: number, dt: number) => {
 			let marble = this.level.marble;
-			let vec = marble.ownBody.position.clone().sub(this.worldPosition);
+			let vec = marble.body.position.clone().sub(this.worldPosition);
 			if (vec.length() === 0) return;
 
 			let strengthFac = 1 - Util.clamp(vec.length() / radius, 0, 1)**2; // Quadratic falloff with distance
 
-			marble.ownBody.linearVelocity.addScaledVector(vec.normalize(), strength * strengthFac * dt);
+			marble.body.linearVelocity.addScaledVector(vec.normalize(), strength * strengthFac * dt);
 		}, new THREE.Matrix4());
 	}
 
@@ -112,10 +112,10 @@ export abstract class ForceShape extends Shape {
 	addFieldForce(radius: number, forceVector: THREE.Vector3) {
 		this.addCollider(() => new BallCollisionShape(radius), (t: number, dt: number) => {
 			let marble = this.level.marble;
-			if (marble.ownBody.position.distanceTo(this.worldPosition) >= radius) return;
+			if (marble.body.position.distanceTo(this.worldPosition) >= radius) return;
 
 			// Simply add the force
-			marble.ownBody.linearVelocity.addScaledVector(forceVector, dt);
+			marble.body.linearVelocity.addScaledVector(forceVector, dt);
 		}, new THREE.Matrix4());
 	}
 }

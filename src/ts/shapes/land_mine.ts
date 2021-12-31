@@ -16,11 +16,11 @@ export class LandMine extends Shape {
 
 		let marble = this.level.marble;
 		let minePos = this.worldPosition;
-		let vec = marble.ownBody.position.clone().sub(minePos);
+		let vec = marble.body.position.clone().sub(minePos);
 
 		// Add velocity to the marble
 		let explosionStrength = this.computeExplosionStrength(vec.length());
-		marble.ownBody.linearVelocity.addScaledVector(vec.normalize(), explosionStrength);
+		marble.body.linearVelocity.addScaledVector(vec.normalize(), explosionStrength);
 		marble.slidingTimeout = 2;
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
@@ -49,7 +49,7 @@ export class LandMine extends Shape {
 
 	tick(time: TimeState, onlyVisual: boolean) {
 		if (onlyVisual) return;
-		
+
 		// Enable or disable the collision based on disappear time
 		let visible = time.timeSinceLoad >= this.disappearTime + 5000;
 		this.setCollisionEnabled(visible);

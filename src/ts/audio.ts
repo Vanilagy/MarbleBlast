@@ -90,13 +90,13 @@ export abstract class AudioManager {
 				} else {
 					audioBuffer = await new Promise((res, rej) => {
 						this.context.decodeAudioData(
-							arrayBuffer, 
+							arrayBuffer,
 							buff => res(buff),
 							err => rej(err)
 						);
 					});
 				}
-	
+
 				resolve(audioBuffer);
 			} catch (e) {
 				reject(e);
@@ -175,7 +175,7 @@ export abstract class AudioManager {
 
 			let distance = source.position.distanceTo(listenerPos);
 			let panRemoval = Util.clamp(distance / 1, 0, 1); // If the listener is very close to the center, start moving the audio source to the center.
-			
+
 			source.setPannerValue(-relativePosition.y * 0.7 * panRemoval);
 			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1) * source.gainFactor;
 		}
@@ -240,10 +240,10 @@ export class AudioSource {
 				source.addEventListener('canplaythrough', () => resolve());
 			});
 		}
-		
+
 		this.destination = destination;
 		this.position = position;
-		
+
 		this.gain = AudioManager.context.createGain();
 
 		if (AudioManager.context.createStereoPanner)
@@ -252,7 +252,7 @@ export class AudioSource {
 			this.panner = AudioManager.context.createPanner();
 		this.gain.connect(this.panner);
 		this.panner.connect(this.destination);
-		
+
 		if (source instanceof Promise) {
 			this.node = AudioManager.context.createBufferSource();
 		} else {

@@ -1,7 +1,7 @@
 import THREE from "three";
 import { Octree } from "../octree";
 import { Collision } from "./collision";
-import { CollisionShape } from "./collision_shape";
+import { CollisionShape, ConvexHullCollisionShape } from "./collision_shape";
 import { GjkEpa } from "./gjk_epa";
 import { RigidBody, RigidBodyType } from "./rigid_body";
 
@@ -9,6 +9,18 @@ const MAX_SUBSTEPS = 10;
 
 let v1 = new THREE.Vector3();
 let v2 = new THREE.Vector3();
+let raycastAabb = new THREE.Box3();
+
+let singletonShape = new ConvexHullCollisionShape([new THREE.Vector3()]);
+let singletonShapeBody = new RigidBody();
+singletonShapeBody.addCollisionShape(singletonShape);
+
+export interface RayCastHit {
+	point: THREE.Vector3,
+	normal: THREE.Vector3,
+	lambda: number,
+	shape: CollisionShape
+}
 
 export class World {
 	bodies: RigidBody[] = [];
@@ -43,6 +55,7 @@ export class World {
 			body.storePrevious();
 			body.onBeforeIntegrate(dt);
 			body.integrate(dt);
+			body.onAfterIntegrate(dt);
 
 			body.collisions.length = 0;
 
@@ -161,5 +174,23 @@ export class World {
 		}
 
 		return collisions;
+	}
+
+	rayCast(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number, collisionDetectionMask = 0b1) {
+		raycastAabb.makeEmpty();
+		raycastAabb.expandByPoint(rayOrigin);
+		raycastAabb.expandByPoint(rayOrigin.clone().addScaledVector(rayDirection, maxLength));
+
+		let candidates = this.octree.intersectAabb(raycastAabb) as CollisionShape[];
+		let hits: RayCastHit[] = [];
+
+		for (let candidate of candidates) {
+			if ((candidate.collisionDetectionMask & collisionDetectionMask) === 0) continue;
+
+			let hit = GjkEpa.rayCast(candidate, singletonShape, rayOrigin, rayDirection, maxLength);
+			if (hit) hits.push({ ...hit, shape: candidate });
+		}
+
+		return hits.sort((a, b) => a.lambda - b.lambda);
 	}
 }

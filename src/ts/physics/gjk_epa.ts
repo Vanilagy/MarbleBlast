@@ -28,6 +28,8 @@ let actualPosition1 = new THREE.Vector3();
 let actualPosition2 = new THREE.Vector3();
 let scaledTranslation = new THREE.Vector3();
 let distance = new THREE.Vector3();
+let v = new THREE.Vector3();
+let w = new THREE.Vector3();
 
 // EPA state
 let faces: THREE.Vector3[][] = [];
@@ -61,7 +63,7 @@ export abstract class GjkEpa {
 
 			if (support.dot(direction) <= 0) {
 				// No collision
-				if (distance) this.computeDistance(distance);
+				if (distance) this.closestPointToOrigin(distance).negate();
 				return false;
 			}
 
@@ -176,7 +178,7 @@ export abstract class GjkEpa {
 		return true;
 	}
 
-	static computeDistance(dst: THREE.Vector3) {
+	static closestPointToOrigin(dst: THREE.Vector3) {
 		if (numPoints === 1) {
 			dst.copy(points[0]);
 		} else if (numPoints === 2) {
@@ -190,10 +192,29 @@ export abstract class GjkEpa {
 			dst.copy(a).addScaledVector(ab, t);
 		} else if (numPoints === 3) {
 			triangle.set(points[0], points[1], points[2]);
-			triangle.closestPointToPoint(t1.set(0, 0, 0), dst);
+			triangle.closestPointToPoint(t1.setScalar(0), dst);
+		} else if (numPoints === 4) {
+			let min = Infinity;
+			t1.setScalar(0);
+
+			triangle.set(points[0], points[1], points[2]);
+			triangle.closestPointToPoint(t1, t2);
+			if (t2.lengthSq() < min) dst.copy(t2), min = t2.lengthSq();
+
+			triangle.set(points[0], points[1], points[3]);
+			triangle.closestPointToPoint(t1, t2);
+			if (t2.lengthSq() < min) dst.copy(t2), min = t2.lengthSq();
+
+			triangle.set(points[0], points[2], points[3]);
+			triangle.closestPointToPoint(t1, t2);
+			if (t2.lengthSq() < min) dst.copy(t2), min = t2.lengthSq();
+
+			triangle.set(points[1], points[2], points[3]);
+			triangle.closestPointToPoint(t1, t2);
+			if (t2.lengthSq() < min) dst.copy(t2);
 		}
 
-		dst.negate();
+		return dst;
 	}
 
 	static epa(dst: THREE.Vector3, s1: CollisionShape, s2: CollisionShape, s1Translation?: THREE.Vector3) {
@@ -359,5 +380,57 @@ export abstract class GjkEpa {
 		s2.body.position.copy(actualPosition2);
 
 		return mid;
+	}
+
+	static rayCast(s1: CollisionShape, s2: CollisionShape, rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number) {
+		direction.copy(s2.body.position).sub(s1.body.position).normalize(); // Can really be anything but this is a good start
+
+		this.support(support, s1, s2, direction);
+
+		numPoints = 1;
+		points[0].copy(support);
+
+		let x = rayOrigin.clone();
+		let n = new THREE.Vector3();
+		let lambda = 0;
+		let epsSq = (1e-6)**2;
+
+		direction.copy(x).sub(support);
+
+		for (let i = 0; i < maxIterations; i++) {
+			this.support(support, s1, s2, direction);
+
+			w.copy(x).sub(support);
+
+			if (direction.dot(w) > 0) {
+				if (direction.dot(rayDirection) >= 0) return null;
+
+				let delta = direction.dot(w) / direction.dot(rayDirection);
+				lambda -= delta;
+
+				if (lambda > maxLength) return null;
+
+				x.copy(rayOrigin).addScaledVector(rayDirection, lambda);
+				n.copy(direction);
+			}
+
+			points.unshift(points.pop());
+			points[0].copy(support);
+			numPoints++;
+
+			for (let point of points) point.negate().add(x);
+
+			this.closestPointToOrigin(v);
+			this.nextSimplex();
+			direction.copy(v);
+
+			if (numPoints === 4 || v.lengthSq() < epsSq) {
+				return { point: x, lambda, normal: n.normalize() };
+			}
+
+			for (let point of points) point.sub(x).negate();
+		}
+
+		return null;
 	}
 }

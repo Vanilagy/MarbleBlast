@@ -19,8 +19,8 @@ export class Nuke extends Shape {
 		let nukePos = this.worldPosition;
 
 		// Add velocity to the marble
-		let explosionForce = this.computeExplosionForce(marble.ownBody.position.clone().sub(nukePos));
-		marble.ownBody.linearVelocity.add(explosionForce);
+		let explosionForce = this.computeExplosionForce(marble.body.position.clone().sub(nukePos));
+		marble.body.linearVelocity.add(explosionForce);
 		marble.slidingTimeout = 2;
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
@@ -50,7 +50,7 @@ export class Nuke extends Shape {
 
 	tick(time: TimeState, onlyVisual: boolean) {
 		if (onlyVisual) return;
-		
+
 		// Enable or disable the collision based on disappear time
 		let visible = time.timeSinceLoad >= this.disappearTime + 15000;
 		this.setCollisionEnabled(visible);

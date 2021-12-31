@@ -29,13 +29,11 @@ export class SuperSpeed extends PowerUp {
 		let quat2 = new THREE.Quaternion();
 		quat2.setFromUnitVectors(Util.vecOimoToThree(this.level.currentUp), marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
 		movementVector.applyQuaternion(quat2); // ...then rotate the movement bonus vector by that amount.
-		
-		marble.body.addLinearVelocity(Util.vecThreeToOimo(movementVector).scale(24.7)); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)
 
-		marble.ownBody.linearVelocity.addScaledVector(movementVector, 24.7); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)
+		marble.body.linearVelocity.addScaledVector(movementVector, 24.7); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)
 
 		AudioManager.play(this.sounds[1]);
-		this.level.particles.createEmitter(superSpeedParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
+		this.level.particles.createEmitter(superSpeedParticleOptions, null, () => marble.body.position.clone());
 
 		this.level.deselectPowerUp();
 	}

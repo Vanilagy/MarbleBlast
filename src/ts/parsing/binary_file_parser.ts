@@ -53,11 +53,11 @@ export abstract class BinaryFileParser {
 	readU32() {
 		return this.view.getUint32((this.index = this.index + 4) - 4, true);
 	}
-	
+
 	readS8() {
 		return this.view.getInt8(this.index++);
 	}
-	
+
 	readS16() {
 		return this.view.getInt16((this.index = this.index + 2) - 2, true);
 	}
