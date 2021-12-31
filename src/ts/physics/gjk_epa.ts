@@ -453,13 +453,16 @@ export abstract class GjkEpa {
 
 			for (let point of points) point.negate().add(x);
 
-			this.closestPointToOrigin(v);
+			//this.closestPointToOrigin(v);
 			this.nextSimplex();
-			direction.copy(v);
+			direction.negate();
+			//direction.copy(v);
 
-			if (numPoints === 4 || v.lengthSq() < epsSq) {
+			if (direction.lengthSq() < epsSq) {
 				return { point: x, lambda, normal: n.normalize() };
 			}
+
+			if (numPoints === 4) return null;
 
 			for (let point of points) point.sub(x).negate();
 		}

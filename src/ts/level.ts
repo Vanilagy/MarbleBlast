@@ -999,10 +999,10 @@ export class Level extends Scheduler {
 			//let hits = this.world.rayCast(marblePosition.clone().add(new THREE.Vector3(0, 0, 0.5)), new THREE.Vector3(0, 1, 0.2).normalize(), 10);
 			let hits = this.world.rayCast(this.camera.position.clone(), directionVector.clone(), 100);
 			for (let hit of hits) {
-				for (let i = 0; i < 100; i++) this.particles.createEmitter(bounceParticleOptions, hit.point, null, new THREE.Vector3(1, 1, 1));
+				for (let i = 0; i < 1; i++) this.particles.createEmitter(bounceParticleOptions, hit.point, null, new THREE.Vector3());
 				//console.log(hits[0].normal);
 			}
-			console.log(hits.length, ...hits.map(x => x.lambda));
+			console.log(hits.length, ...hits.map(x => x.lambda), ...hits.map(x => x.shape));
 
 
 			// Handle wall intersections:
