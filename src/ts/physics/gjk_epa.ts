@@ -14,12 +14,16 @@ let numPoints = 0;
 let support = new THREE.Vector3();
 let direction = new THREE.Vector3();
 let ao = new THREE.Vector3();
+let bo = new THREE.Vector3();
 let ab = new THREE.Vector3();
 let ac = new THREE.Vector3();
 let ad = new THREE.Vector3();
+let bc = new THREE.Vector3();
+let bd = new THREE.Vector3();
 let abc = new THREE.Vector3();
 let acd = new THREE.Vector3();
 let adb = new THREE.Vector3();
+let bdc = new THREE.Vector3();
 let t1 = new THREE.Vector3();
 let t2 = new THREE.Vector3();
 let triangle = new THREE.Triangle();
@@ -96,9 +100,16 @@ export abstract class GjkEpa {
 
 		ab.copy(b).sub(a);
 		ao.copy(a).negate();
+		bo.copy(b).negate();
 
 		if (ab.dot(ao) > 0) {
-			direction.copy(ab).cross(ao).cross(ab);
+			if (ab.dot(bo) > 0) {
+				a.copy(b);
+				numPoints--;
+				direction.copy(bo);
+			} else {
+				direction.copy(ab).cross(ao).cross(ab);
+			}
 		} else {
 			numPoints--;
 			direction.copy(ao);
@@ -114,7 +125,9 @@ export abstract class GjkEpa {
 
 		ab.copy(b).sub(a);
 		ac.copy(c).sub(a);
+		bc.copy(c).sub(c);
 		ao.copy(a).negate();
+		bo.copy(b).negate();
 
 		abc.copy(ab).cross(ac);
 
@@ -122,7 +135,10 @@ export abstract class GjkEpa {
 			if (ac.dot(ao) > 0) {
 				b.copy(c);
 				numPoints--;
-				direction.copy(ac).cross(ao).cross(ac);
+				return this.line();
+				// b.copy(c);
+				// numPoints--;
+				// direction.copy(ac).cross(ao).cross(ac);
 			} else {
 				numPoints--;
 				return this.line();
@@ -131,13 +147,22 @@ export abstract class GjkEpa {
 			if (t1.copy(ab).cross(abc).dot(ao) > 0) {
 				numPoints--;
 				return this.line();
-			} else if (abc.dot(ao) > 0) {
-				direction.copy(abc);
 			} else {
-				t1.copy(c);
-				c.copy(b);
-				b.copy(t1);
-				direction.copy(abc).negate();
+				if (t1.copy(bc).cross(abc).dot(bo) > 0) {
+					a.copy(b);
+					b.copy(c);
+					numPoints--;
+					return this.line();
+				} else {
+					if (abc.dot(ao) > 0) {
+						direction.copy(abc);
+					} else {
+						t1.copy(c);
+						c.copy(b);
+						b.copy(t1);
+						direction.copy(abc).negate();
+					}
+				}
 			}
 		}
 
@@ -153,11 +178,15 @@ export abstract class GjkEpa {
 		ab.copy(b).sub(a);
 		ac.copy(c).sub(a);
 		ad.copy(d).sub(a);
+		bc.copy(c).sub(b);
+		bd.copy(d).sub(b);
 		ao.copy(a).negate();
+		bo.copy(b).negate();
 
 		abc.copy(ab).cross(ac);
 		acd.copy(ac).cross(ad);
 		adb.copy(ad).cross(ab);
+		bdc.copy(bd).cross(bc);
 
 		if (abc.dot(ao) > 0) {
 			numPoints--;
@@ -168,9 +197,13 @@ export abstract class GjkEpa {
 			numPoints--;
 			return this.triangle();
 		} else if (adb.dot(ao) > 0) {
-			t1.copy(d);
-			d.copy(b);
-			b.copy(t1);
+			c.copy(b);
+			b.copy(d);
+			numPoints--;
+			return this.triangle();
+		} else if (bdc.dot(bo) > 0) {
+			a.copy(b);
+			b.copy(d);
 			numPoints--;
 			return this.triangle();
 		}
