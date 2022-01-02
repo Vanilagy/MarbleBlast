@@ -15,6 +15,7 @@ let support = new THREE.Vector3();
 let direction = new THREE.Vector3();
 let ao = new THREE.Vector3();
 let bo = new THREE.Vector3();
+let co = new THREE.Vector3();
 let ab = new THREE.Vector3();
 let ac = new THREE.Vector3();
 let ad = new THREE.Vector3();
@@ -26,14 +27,13 @@ let adb = new THREE.Vector3();
 let bdc = new THREE.Vector3();
 let t1 = new THREE.Vector3();
 let t2 = new THREE.Vector3();
-let triangle = new THREE.Triangle();
 let translation = new THREE.Vector3();
 let actualPosition1 = new THREE.Vector3();
 let actualPosition2 = new THREE.Vector3();
 let scaledTranslation = new THREE.Vector3();
 let distance = new THREE.Vector3();
-let v = new THREE.Vector3();
 let w = new THREE.Vector3();
+let requireFlip = 0;
 
 // EPA state
 let faces: THREE.Vector3[][] = [];
@@ -51,8 +51,6 @@ export abstract class GjkEpa {
 	}
 
 	static gjk(s1: CollisionShape, s2: CollisionShape, distance?: THREE.Vector3, minimumSeparatingVector?: THREE.Vector3, s1Translation?: THREE.Vector3) {
-		// Approach based on https://blog.winter.dev/2020/gjk-algorithm/
-
 		direction.copy(s2.body.position).sub(s1.body.position).normalize(); // Can really be anything but this is a good start
 
 		this.support(support, s1, s2, direction, s1Translation);
@@ -67,15 +65,15 @@ export abstract class GjkEpa {
 
 			if (support.dot(direction) <= 0) {
 				// No collision
-				if (distance) this.closestPointToOrigin(distance).negate();
+				if (distance) distance.copy(direction).negate();
 				return false;
 			}
 
-			points.unshift(points.pop());
-			points[0].copy(support);
-			numPoints++;
+			this.addPointToSimplex(support);
+			this.updateSimplexAndClosestPoint(direction);
+			direction.negate();
 
-			if (this.nextSimplex()) {
+			if (numPoints === 4) {
 				// Yes collision
 				if (minimumSeparatingVector) this.epa(minimumSeparatingVector, s1, s2, s1Translation);
 				return true;
@@ -85,96 +83,234 @@ export abstract class GjkEpa {
 		return false;
 	}
 
-	static nextSimplex() {
+	static determineTimeOfImpact(s1: CollisionShape, s2: CollisionShape, minimumSeparatingVector?: THREE.Vector3, eps = 0.01) {
+		s1.body.getRelativeMotionVector(translation, s2.body);
+
+		actualPosition1.copy(s1.body.position);
+		actualPosition2.copy(s2.body.position);
+		s1.body.position.copy(s1.body.prevPosition);
+		s2.body.position.copy(s2.body.prevPosition);
+
+		let low = 0;
+		let high = 1;
+		let mid: number;
+		let translationLength = translation.length();
+
+		let i: number;
+		for (i = 0; i < 32; i++) {
+			mid = (low + high) / 2;
+
+			scaledTranslation.copy(translation).multiplyScalar(mid);
+			let intersects = this.gjk(s1, s2, distance, null, scaledTranslation);
+
+			if (intersects) {
+				if ((high - low) * translationLength <= eps) {
+					if (i === 0) mid = high; // todo explain this lol
+					break;
+				}
+
+				high = mid;
+			} else {
+				let invMid = 1 - mid;
+				let skipAhead = Math.max(distance.dot(translation) * invMid / (invMid * translationLength)**2, 0);
+
+				skipAhead = 0;
+
+				low = mid + skipAhead * invMid;
+			}
+		}
+
+		if (minimumSeparatingVector)
+			this.gjk(s1, s2, null, minimumSeparatingVector, scaledTranslation); // Run EPA on the thing
+
+		s1.body.position.copy(actualPosition1);
+		s2.body.position.copy(actualPosition2);
+
+		return mid;
+	}
+
+	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number) {
+		direction.copy(s2.body.position).sub(s1.body.position).normalize();
+
+		this.support(support, s1, s2, direction);
+
+		numPoints = 0;
+
+		let x = rayOrigin.clone();
+		let n = new THREE.Vector3();
+		let lambda = 0;
+
+		direction.copy(x).sub(support);
+
+		for (let i = 0; i < maxIterations; i++) {
+			this.support(support, s1, s2, direction);
+
+			w.copy(x).sub(support);
+
+			if (direction.dot(w) > 0) {
+				if (direction.dot(rayDirection) >= 0) return null;
+
+				let delta = direction.dot(w) / direction.dot(rayDirection);
+				lambda -= delta;
+
+				if (lambda > maxLength) return null;
+
+				x.copy(rayOrigin).addScaledVector(rayDirection, lambda);
+				n.copy(direction);
+			}
+
+			this.addPointToSimplex(support);
+
+			for (let i = 0; i < numPoints; i++) points[i].negate().add(x);
+
+			this.updateSimplexAndClosestPoint(direction);
+
+			let maxDist2 = 0;
+			for (let i = 0; i < numPoints; i++) {
+				maxDist2 = Math.max(maxDist2, points[i].distanceToSquared(x));
+			}
+
+			if (direction.lengthSq() < 10 * Number.EPSILON * maxDist2) {
+				return { point: x, lambda, normal: n.normalize() };
+			}
+
+			for (let i = 0; i < numPoints; i++) points[i].sub(x).negate();
+		}
+
+		return null;
+	}
+
+	static addPointToSimplex(p: THREE.Vector3) {
+		for (let i = 0; i < numPoints; i++) {
+			if (p.distanceToSquared(points[i]) < 10 * Number.EPSILON) return;
+		}
+
+		for (let i = numPoints; i > 0; i--) {
+			points[i].copy(points[i-1]);
+		}
+
+		points[0].copy(p);
+		numPoints++;
+	}
+
+	static updateSimplexAndClosestPoint(dst: THREE.Vector3) {
+		let used: number;
+		requireFlip = 0;
+
 		switch (numPoints) {
-			case 2: return this.line();
-			case 3: return this.triangle();
-			case 4: return this.tetrahedron();
-			default: throw new Error("Shouldn't happen: " + numPoints);
+			case 1: used = this.closestPointPoint(dst, points[0]); break;
+			case 2: used = this.closestPointLineSegment(dst, points[0], points[1]); break;
+			case 3: used = this.closestPointTriangle(dst, points[0], points[1], points[2]); break;
+			case 4: used = this.closestPointTetrahedron(dst, points[0], points[1], points[2], points[3]); break;
+			default: throw new Error("Shouldn't get here! " + numPoints);
+		}
+
+		let i = 0;
+		for (let j = 0; j < 4; j++) {
+			if (used & (1 << j)) {
+				points[i].copy(points[j]);
+				i++;
+			}
+		}
+		numPoints = i;
+
+		if (requireFlip) {
+			t1.copy(points[1]);
+			points[1].copy(points[2]);
+			points[2].copy(t1);
 		}
 	}
 
-	static line() {
-		let a = points[0];
-		let b = points[1];
+	static closestPointPoint(dst: THREE.Vector3, a: THREE.Vector3) {
+		dst.copy(a);
 
+		return 0b0001;
+	}
+
+	static closestPointLineSegment(dst: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3) {
 		ab.copy(b).sub(a);
 		ao.copy(a).negate();
-		bo.copy(b).negate();
 
-		if (ab.dot(ao) > 0) {
-			if (ab.dot(bo) > 0) {
-				a.copy(b);
-				numPoints--;
-				direction.copy(bo);
-			} else {
-				direction.copy(ab).cross(ao).cross(ab);
-			}
+		let t =  Util.clamp(ab.dot(ao) / ab.dot(ab), 0, 1);
+
+		if (t === 0) {
+			dst.copy(a);
+			return 0b0001;
+		} else if (t === 1) {
+			dst.copy(b);
+			return 0b0010;
 		} else {
-			numPoints--;
-			direction.copy(ao);
+			dst.copy(a).addScaledVector(ab, t);
+			return 0b0011;
 		}
-
-		return false;
 	}
 
-	static triangle() {
-		let a = points[0];
-		let b = points[1];
-		let c = points[2];
-
+	static closestPointTriangle(dst: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) {
 		ab.copy(b).sub(a);
 		ac.copy(c).sub(a);
-		bc.copy(c).sub(c);
 		ao.copy(a).negate();
-		bo.copy(b).negate();
 
-		abc.copy(ab).cross(ac);
-
-		if (t1.copy(abc).cross(ac).dot(ao) > 0) {
-			if (ac.dot(ao) > 0) {
-				b.copy(c);
-				numPoints--;
-				return this.line();
-				// b.copy(c);
-				// numPoints--;
-				// direction.copy(ac).cross(ao).cross(ac);
-			} else {
-				numPoints--;
-				return this.line();
-			}
-		} else {
-			if (t1.copy(ab).cross(abc).dot(ao) > 0) {
-				numPoints--;
-				return this.line();
-			} else {
-				if (t1.copy(bc).cross(abc).dot(bo) > 0) {
-					a.copy(b);
-					b.copy(c);
-					numPoints--;
-					return this.line();
-				} else {
-					if (abc.dot(ao) > 0) {
-						direction.copy(abc);
-					} else {
-						t1.copy(c);
-						c.copy(b);
-						b.copy(t1);
-						direction.copy(abc).negate();
-					}
-				}
-			}
+		let d1 = ab.dot(ao);
+		let d2 = ac.dot(ao);
+		if (d1 <= 0 && d2 <= 0) {
+			dst.copy(a);
+			return 0b0001;
 		}
 
-		return false;
+		bo.copy(b).negate();
+		let d3 = ab.dot(bo);
+		let d4 = ac.dot(bo);
+		if (d3 >= 0 && d4 <= d3) {
+			dst.copy(b);
+			return 0b0010;
+		}
+
+		let vc = d1 * d4 - d3 * d2;
+		if (vc <= 0 && d1 >= 0 && d3 <= 0) {
+			let v = d1 / (d1 - d3);
+			dst.copy(a).addScaledVector(ab, v);
+			return 0b0011;
+		}
+
+		co.copy(c).negate();
+		let d5 = ab.dot(co);
+		let d6 = ac.dot(co);
+		if (d6 >= 0 && d5 <= d6) {
+			dst.copy(c);
+			return 0b0100;
+		}
+
+		let vb = d5 * d2 - d1 * d6;
+		if (vb <= 0 && d2 >= 0 && d6 <= 0) {
+			let w = d2 / (d2 - d6);
+			dst.copy(a).addScaledVector(ac, w);
+			return 0b0101;
+		}
+
+		let va = d3 * d6 - d5 * d4;
+		if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) {
+			bc.copy(c).sub(b);
+			let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+			dst.copy(b).addScaledVector(bc, w);
+			return 0b0110;
+		}
+
+		let denom = 1 / (va + vb + vc);
+		let v = vb * denom;
+		let w = vc * denom;
+
+		dst.copy(a).addScaledVector(ab, v).addScaledVector(ac, w);
+
+		abc.copy(ab).cross(ac);
+		if (abc.dot(dst) > 0) {
+			dst.negate();
+			requireFlip ^= 1;
+		}
+
+		return 0b0111;
 	}
 
-	static tetrahedron() {
-		let a = points[0];
-		let b = points[1];
-		let c = points[2];
-		let d = points[3];
-
+	static closestPointTetrahedron(dst: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, d: THREE.Vector3) {
 		ab.copy(b).sub(a);
 		ac.copy(c).sub(a);
 		ad.copy(d).sub(a);
@@ -188,66 +324,71 @@ export abstract class GjkEpa {
 		adb.copy(ad).cross(ab);
 		bdc.copy(bd).cross(bc);
 
+		let minDist = Infinity;
+		let used: number;
+		let flip: number;
+		let ownFlip = 0;
+
 		if (abc.dot(ao) > 0) {
-			numPoints--;
-			return this.triangle();
-		} else if (acd.dot(ao) > 0) {
-			b.copy(c);
-			c.copy(d);
-			numPoints--;
-			return this.triangle();
-		} else if (adb.dot(ao) > 0) {
-			c.copy(b);
-			b.copy(d);
-			numPoints--;
-			return this.triangle();
-		} else if (bdc.dot(bo) > 0) {
-			a.copy(b);
-			b.copy(d);
-			numPoints--;
-			return this.triangle();
+			requireFlip = 0;
+			let res = this.closestPointTriangle(t1, a, b, c);
+			let len = t1.lengthSq();
+
+			dst.copy(t1);
+			minDist = len;
+			used = res;
+			flip = requireFlip;
 		}
 
-		return true;
-	}
+		if (acd.dot(ao) > 0) {
+			requireFlip = 0;
+			let res = this.closestPointTriangle(t1, a, c, d);
+			let len = t1.lengthSq();
 
-	static closestPointToOrigin(dst: THREE.Vector3) {
-		if (numPoints === 1) {
-			dst.copy(points[0]);
-		} else if (numPoints === 2) {
-			let a = points[0];
-			let b = points[1];
-
-			ab.copy(b).sub(a);
-			ao.copy(a).negate();
-
-			let t =  Util.clamp(ab.dot(ao) / ab.dot(ab), 0, 1);
-			dst.copy(a).addScaledVector(ab, t);
-		} else if (numPoints === 3) {
-			triangle.set(points[0], points[1], points[2]);
-			triangle.closestPointToPoint(t1.setScalar(0), dst);
-		} else if (numPoints === 4) {
-			let min = Infinity;
-			t1.setScalar(0);
-
-			triangle.set(points[0], points[1], points[2]);
-			triangle.closestPointToPoint(t1, t2);
-			if (t2.lengthSq() < min) dst.copy(t2), min = t2.lengthSq();
-
-			triangle.set(points[0], points[1], points[3]);
-			triangle.closestPointToPoint(t1, t2);
-			if (t2.lengthSq() < min) dst.copy(t2), min = t2.lengthSq();
-
-			triangle.set(points[0], points[2], points[3]);
-			triangle.closestPointToPoint(t1, t2);
-			if (t2.lengthSq() < min) dst.copy(t2), min = t2.lengthSq();
-
-			triangle.set(points[1], points[2], points[3]);
-			triangle.closestPointToPoint(t1, t2);
-			if (t2.lengthSq() < min) dst.copy(t2);
+			if (len < minDist) {
+				dst.copy(t1);
+				minDist = len;
+				used = (res & 0b1) | ((res & 0b10) << 1) | ((res & 0b100) << 1);
+				flip = requireFlip;
+			}
 		}
 
-		return dst;
+		if (adb.dot(ao) > 0) {
+			requireFlip = 0;
+			let res = this.closestPointTriangle(t1, a, d, b);
+			let len = t1.lengthSq();
+
+			if (len < minDist) {
+				dst.copy(t1);
+				minDist = len;
+				used = (res & 0b1) | ((res & 0b10) << 2) | ((res & 0b100) >> 1);
+				flip = requireFlip;
+				ownFlip = 1;
+			}
+		}
+
+		if (bdc.dot(bo) > 0) {
+			requireFlip = 0;
+			let res = this.closestPointTriangle(t1, b, d, c);
+			let len = t1.lengthSq();
+
+			if (len < minDist) {
+				dst.copy(t1);
+				minDist = len;
+				used = ((res & 0b1) << 1) | ((res & 0b10) << 2) | ((res & 0b100));
+				flip = requireFlip;
+				ownFlip = 1;
+			}
+		}
+
+		requireFlip = flip ^ ownFlip;
+
+		if (minDist === Infinity) {
+			dst.setScalar(0);
+			used = 0b1111;
+		}
+
+		return used;
 	}
 
 	static epa(dst: THREE.Vector3, s1: CollisionShape, s2: CollisionShape, s1Translation?: THREE.Vector3) {
@@ -367,106 +508,5 @@ export abstract class GjkEpa {
 			}
 		}
 		dst.copy(faces[closestFace][3]).multiplyScalar(faces[closestFace][0].dot(faces[closestFace][3])).negate();
-	}
-
-	static determineTimeOfImpact(s1: CollisionShape, s2: CollisionShape, minimumSeparatingVector?: THREE.Vector3, eps = 0.01) {
-		s1.body.getRelativeMotionVector(translation, s2.body);
-
-		actualPosition1.copy(s1.body.position);
-		actualPosition2.copy(s2.body.position);
-		s1.body.position.copy(s1.body.prevPosition);
-		s2.body.position.copy(s2.body.prevPosition);
-
-		let low = 0;
-		let high = 1;
-		let mid: number;
-		let translationLength = translation.length();
-
-		let i: number;
-		for (i = 0; i < 32; i++) {
-			mid = (low + high) / 2;
-
-			scaledTranslation.copy(translation).multiplyScalar(mid);
-			let intersects = this.gjk(s1, s2, distance, null, scaledTranslation);
-
-			if (intersects) {
-				if ((high - low) * translationLength <= eps) {
-					if (i === 0) mid = high; // todo explain this lol
-					break;
-				}
-
-				high = mid;
-			} else {
-				let invMid = 1 - mid;
-				let skipAhead = Math.max(distance.dot(translation) * invMid / (invMid * translationLength)**2, 0);
-
-				skipAhead = 0;
-
-				low = mid + skipAhead * invMid;
-			}
-		}
-
-		if (minimumSeparatingVector)
-			this.gjk(s1, s2, null, minimumSeparatingVector, scaledTranslation); // Run EPA on the thing
-
-		s1.body.position.copy(actualPosition1);
-		s2.body.position.copy(actualPosition2);
-
-		return mid;
-	}
-
-	static rayCast(s1: CollisionShape, s2: CollisionShape, rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number) {
-		direction.copy(s2.body.position).sub(s1.body.position).normalize(); // Can really be anything but this is a good start
-
-		this.support(support, s1, s2, direction);
-
-		numPoints = 1;
-		points[0].copy(support);
-
-		let x = rayOrigin.clone();
-		let n = new THREE.Vector3();
-		let lambda = 0;
-		let epsSq = (1e-6)**2;
-
-		direction.copy(x).sub(support);
-
-		for (let i = 0; i < maxIterations; i++) {
-			this.support(support, s1, s2, direction);
-
-			w.copy(x).sub(support);
-
-			if (direction.dot(w) > 0) {
-				if (direction.dot(rayDirection) >= 0) return null;
-
-				let delta = direction.dot(w) / direction.dot(rayDirection);
-				lambda -= delta;
-
-				if (lambda > maxLength) return null;
-
-				x.copy(rayOrigin).addScaledVector(rayDirection, lambda);
-				n.copy(direction);
-			}
-
-			points.unshift(points.pop());
-			points[0].copy(support);
-			numPoints++;
-
-			for (let point of points) point.negate().add(x);
-
-			//this.closestPointToOrigin(v);
-			this.nextSimplex();
-			direction.negate();
-			//direction.copy(v);
-
-			if (direction.lengthSq() < epsSq) {
-				return { point: x, lambda, normal: n.normalize() };
-			}
-
-			if (numPoints === 4) return null;
-
-			for (let point of points) point.sub(x).negate();
-		}
-
-		return null;
 	}
 }

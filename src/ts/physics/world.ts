@@ -176,7 +176,7 @@ export class World {
 		return collisions;
 	}
 
-	rayCast(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number, collisionDetectionMask = 0b1) {
+	castRay(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number, collisionDetectionMask = 0b1) {
 		raycastAabb.makeEmpty();
 		raycastAabb.expandByPoint(rayOrigin);
 		raycastAabb.expandByPoint(rayOrigin.clone().addScaledVector(rayDirection, maxLength));
@@ -187,7 +187,7 @@ export class World {
 		for (let candidate of candidates) {
 			if ((candidate.collisionDetectionMask & collisionDetectionMask) === 0) continue;
 
-			let hit = GjkEpa.rayCast(candidate, singletonShape, rayOrigin, rayDirection, maxLength);
+			let hit = GjkEpa.castRay(candidate, singletonShape, rayOrigin, rayDirection, maxLength);
 			if (hit) hits.push({ ...hit, shape: candidate });
 		}
 
