@@ -1,6 +1,5 @@
 import THREE from "three";
 import { AudioManager } from "../audio";
-import OIMO from "../declarations/oimo";
 import { TimeState } from "../level";
 import { Shape } from "../shape";
 import { Util } from "../util";

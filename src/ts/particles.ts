@@ -24,7 +24,7 @@ interface ParticleOptions {
 	/** Acceleration along the velocity vector. */
 	acceleration: number,
 	colors: RGBAColor[],
-	sizes: number[],	
+	sizes: number[],
 	/** Determines at what percentage of lifetime the corresponding colors and sizes are in effect. */
 	times: number[]
 }
@@ -89,7 +89,7 @@ export class ParticleManager {
 	particleGroups = new Map<ParticleOptions, ParticleGroup>();
 	/** For non-instanced, legacy particles. */
 	particles: Particle[] = [];
-	
+
 	positionBuffer: VertexBuffer;
 	uvBuffer: VertexBuffer;
 	bufferGroup: VertexBufferGroup;
@@ -107,7 +107,7 @@ export class ParticleManager {
 		this.positionBuffer = new VertexBuffer(renderer, positions, { 'position': 2 });
 		this.uvBuffer = new VertexBuffer(renderer, uvs, { 'uv': 2 });
 		this.bufferGroup = new VertexBufferGroup([this.positionBuffer, this.uvBuffer]);
-		
+
 		this.indexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
@@ -301,9 +301,9 @@ export class ParticleEmitter {
 	/** Computes the interpolated emitter position at a point in time. */
 	getPosAtTime(time: number) {
 		if (!this.lastPos) return this.currPos;
-		
+
 		let completion = Util.clamp((time - this.lastPosTime) / (this.currPosTime - this.lastPosTime), 0, 1);
-		return Util.lerpThreeVectors(this.lastPos, this.currPos, completion);
+		return this.lastPos.clone().lerp(this.currPos, completion);
 	}
 
 	setPos(pos: THREE.Vector3, time: number) {
@@ -313,7 +313,7 @@ export class ParticleEmitter {
 		this.currPosTime = time;
 		this.vel = this.currPos.clone().sub(this.lastPos).multiplyScalar(1000 / (this.currPosTime - this.lastPosTime));
 	}
-	
+
 	static cloneOptions(options: ParticleEmitterOptions) {
 		let clone = Util.jsonClone(options);
 		clone.ambientVelocity = new THREE.Vector3(options.ambientVelocity.x, options.ambientVelocity.y, options.ambientVelocity.z);

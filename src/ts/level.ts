@@ -1,6 +1,5 @@
 import { Interior } from "./interior";
 import * as THREE from "three";
-import OIMO from "./declarations/oimo";
 import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
 import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
@@ -186,7 +185,7 @@ export class Level extends Scheduler {
 	/** Where the camera was when the marble went OOB. */
 	oobCameraPosition: THREE.Vector3;
 	lastVerticalTranslation = new THREE.Vector3();
-	currentUp = new OIMO.Vec3(0, 0, 1);
+	currentUp = new THREE.Vector3(0, 0, 1);
 	/** The last time the orientation was changed (by a gravity modifier) */
 	orientationChangeTime = -Infinity;
 	/** The old camera orientation quat */
@@ -223,7 +222,7 @@ export class Level extends Scheduler {
 	checkpointCollectedGems = new Set<Gem>();
 	checkpointHeldPowerUp: PowerUp = null;
 	/** Up vector at the point of checkpointing */
-	checkpointUp: OIMO.Vec3 = null;
+	checkpointUp: THREE.Vector3 = null;
 	checkpointBlast: number = null;
 
 	timeTravelSound: AudioSource;
@@ -547,7 +546,7 @@ export class Level extends Scheduler {
 			if (pathedInterior.hasCollision) this.world.add(pathedInterior.body);
 
 			for (let trigger of pathedInterior.triggers) {
-				this.world.add(trigger.ownBody);
+				this.world.add(trigger.body);
 				this.triggers.push(trigger);
 			}
 
@@ -696,7 +695,7 @@ export class Level extends Scheduler {
 		if (!trigger) return;
 
 		this.triggers.push(trigger);
-		this.world.add(trigger.ownBody);
+		this.world.add(trigger.body);
 
 		await trigger.init();
 	}
@@ -797,7 +796,7 @@ export class Level extends Scheduler {
 		for (let trigger of this.triggers) trigger.reset();
 
 		// Reset the physics
-		this.currentUp = new OIMO.Vec3(0, 0, 1);
+		this.currentUp.set(0, 0, 1);
 		this.orientationChangeTime = -Infinity;
 		this.oldOrientationQuat = new THREE.Quaternion();
 		this.newOrientationQuat = new THREE.Quaternion();
@@ -998,7 +997,7 @@ export class Level extends Scheduler {
 			// Handle wall intersections:
 
 			const closeness = 0.1;
-			let rayCastOrigin = marblePosition.clone().add(Util.vecOimoToThree(this.currentUp).multiplyScalar(this.marble.radius));
+			let rayCastOrigin = marblePosition.clone().addScaledVector(this.currentUp, this.marble.radius);
 
 			let processedShapes = new Set<CollisionShape>();
 			for (let i = 0; i < 3; i++) {
@@ -1250,30 +1249,30 @@ export class Level extends Scheduler {
 	}
 
 	/** Sets the current up vector and gravity with it. */
-	setUp(newUp: OIMO.Vec3, instant = false) {
+	setUp(newUp: THREE.Vector3, instant = false) {
 		let time = this.timeState;
 
 		newUp.normalize(); // We never know 👀
-		this.currentUp = newUp;
+		this.currentUp.copy(newUp);
 		let gravityStrength = this.world.gravity.length();
-		this.world.gravity.copy(Util.vecOimoToThree(newUp)).multiplyScalar(-1 * gravityStrength);
+		this.world.gravity.copy(newUp).multiplyScalar(-1 * gravityStrength);
 
 		let currentQuat = this.getOrientationQuat(time);
 		let oldUp = new THREE.Vector3(0, 0, 1);
 		oldUp.applyQuaternion(currentQuat);
 
 		let quatChange = new THREE.Quaternion();
-		let dot = Util.vecOimoToThree(newUp).dot(oldUp);
+		let dot = newUp.dot(oldUp);
 		if (dot <= -(1 - 1e-15) && !(this.replay.version < 3)) { // If the old and new up are exact opposites, there are infinitely many possible rotations we could do. So choose the one that maintains the current look vector the best. Replay check so we don't break old stuff.
 			let lookVector = new THREE.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion);
 			let intermediateVector = oldUp.clone().cross(lookVector).normalize();
 
 			// First rotation to the intermediate vector, then rotate from there to the new up
 			quatChange.setFromUnitVectors(oldUp, intermediateVector);
-			quatChange.multiplyQuaternions(new THREE.Quaternion().setFromUnitVectors(intermediateVector, Util.vecOimoToThree(newUp)), quatChange);
+			quatChange.multiplyQuaternions(new THREE.Quaternion().setFromUnitVectors(intermediateVector, newUp), quatChange);
 		} else {
 			// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
-			quatChange.setFromUnitVectors(oldUp, Util.vecOimoToThree(newUp));
+			quatChange.setFromUnitVectors(oldUp, newUp);
 		}
 
 		this.newOrientationQuat = quatChange.multiply(currentQuat);
@@ -1308,8 +1307,8 @@ export class Level extends Scheduler {
 	}
 
 	setGravityIntensity(intensity: number) {
-		let gravityVector = this.currentUp.scale(-1 * intensity);
-		this.world.gravity.copy(Util.vecOimoToThree(gravityVector));
+		let gravityVector = this.currentUp.clone().multiplyScalar(-1 * intensity);
+		this.world.gravity.copy(gravityVector);
 	}
 
 	onResize() {
@@ -1473,7 +1472,7 @@ export class Level extends Scheduler {
 			// In this case, we set the gravity to the relative "up" vector of the checkpoint shape.
 			let up = new THREE.Vector3(0, 0, 1);
 			up.applyQuaternion(this.currentCheckpoint.worldOrientation);
-			this.setUp(Util.vecThreeToOimo(up), true);
+			this.setUp(up, true);
 		} else {
 			// Otherwise, we restore gravity to what was stored.
 			this.setUp(this.checkpointUp, true);

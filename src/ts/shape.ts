@@ -662,14 +662,11 @@ export class Shape {
 
 			// For all shapes...
 			for (let shape of (body.shapes as ConvexHullCollisionShape[])) {
-				// Recompute all vertices by piping them through the matrix.
-				let vertices = this.shapeVertices.get(shape)
-					.map((vec) => vec.clone().applyMatrix4(mat))
-					.map((vec) => Util.vecThreeToOimo(vec));
+				let vertices = this.shapeVertices.get(shape);
 
-				// Then, assign the value to the vertices of the geometry
+				// Assign the transformed vectors to the vertices of the geometry
 				for (let i = 0; i < vertices.length; i++) {
-					shape.points[i].copy(Util.vecOimoToThree(vertices[i]));
+					shape.points[i].copy(vertices[i]).applyMatrix4(mat);
 				}
 
 				shape.computeLocalBoundingBox();

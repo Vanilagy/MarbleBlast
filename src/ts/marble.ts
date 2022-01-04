@@ -1,4 +1,3 @@
-import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { isPressed, gamepadAxes, normalizedJoystickHandlePosition, getPressedFlag } from "./input";
@@ -122,9 +121,8 @@ export class Marble {
 	teleportDisableTime: number;
 
 	lastMovementVec = new THREE.Vector3();
-	lastPos = new OIMO.Vec3();
-	lastVel = new THREE.Vector3();
-	lastAngVel = new THREE.Vector3();
+	beforeVel = new THREE.Vector3();
+	beforeAngVel = new THREE.Vector3();
 	/** Necessary for super speed. */
 	lastContactNormal = new THREE.Vector3();
 	slidingTimeout = 0;
@@ -314,7 +312,7 @@ export class Marble {
 		}
 
 		// How much the current surface is pointing up
-		let contactNormalUpDot = Math.abs(contactNormal.dot(Util.vecOimoToThree(this.level.currentUp)));
+		let contactNormalUpDot = Math.abs(contactNormal.dot(this.level.currentUp));
 
 		return { collision: bestCollision, contactNormal, contactShape, contactNormalUpDot };
 	}
@@ -357,15 +355,15 @@ export class Marble {
 		this.lastMovementVec.copy(movementVec);
 
 		// The axis of rotation (for angular velocity) is the cross product of the current up vector and the movement vector, since the axis of rotation is perpendicular to both.
-		let movementRotationAxis = Util.vecOimoToThree(this.level.currentUp).cross(movementVec);
+		let movementRotationAxis = this.level.currentUp.clone().cross(movementVec);
 
-		let bestCollision = this.findBestCollision(c => c.normal.dot(Util.vecOimoToThree(this.level.currentUp)));
+		let bestCollision = this.findBestCollision(c => c.normal.dot(this.level.currentUp));
 
 		if (bestCollision) {
 			let { collision, contactNormal, contactNormalUpDot } = bestCollision;
 
 			// The rotation necessary to get from the up vector to the contact normal.
-			let contactNormalRotation = new THREE.Quaternion().setFromUnitVectors(Util.vecOimoToThree(this.level.currentUp), contactNormal);
+			let contactNormalRotation = new THREE.Quaternion().setFromUnitVectors(this.level.currentUp, contactNormal);
 			movementRotationAxis.applyQuaternion(contactNormalRotation);
 
 			// Weaken the marble's angular power based on the friction and steepness of the surface
@@ -382,7 +380,7 @@ export class Marble {
 			angVel.addScaledVector(direction, -dot2);
 
 			// Subtract the "surface rotation axis", this ensures we can roll down hills quickly
-			let surfaceRotationAxis = Util.vecOimoToThree(this.level.currentUp).cross(contactNormal);
+			let surfaceRotationAxis = this.level.currentUp.clone().cross(contactNormal);
 			let dot3 = Math.max(angVel.dot(surfaceRotationAxis), 0);
 			angVel.addScaledVector(surfaceRotationAxis, -dot3);
 
@@ -434,9 +432,6 @@ export class Marble {
 			this.level.blastQueued = false;
 		}
 
-		this.lastVel.copy(this.body.linearVelocity);
-		this.lastAngVel.copy(this.body.angularVelocity);
-
 		this.slidingTimeout--;
 	}
 
@@ -466,18 +461,19 @@ export class Marble {
 	}
 
 	onBeforeCollisionResponse() {
-		// N-nothing?
+		this.beforeVel.copy(this.body.linearVelocity);
+		this.beforeAngVel.copy(this.body.angularVelocity);
 	}
 
 	onAfterCollisionResponse() {
-		let bestCollision = this.findBestCollision(c => c.normal.dot(Util.vecOimoToThree(this.level.currentUp)));
+		let bestCollision = this.findBestCollision(c => c.normal.dot(this.level.currentUp));
 		if (!bestCollision) return;
 
 		let { collision, contactNormal, contactShape, contactNormalUpDot } = bestCollision;
 
 		this.lastContactNormal.copy(contactNormal);
 
-		let lastSurfaceRelativeVelocity = this.lastVel.clone().sub(contactShape.body.linearVelocity);
+		let lastSurfaceRelativeVelocity = this.beforeVel.clone().sub(contactShape.body.linearVelocity);
 		let surfaceRelativeVelocity = this.body.linearVelocity.clone().sub(contactShape.body.linearVelocity);
 		let maxDotSlide = 0.5; // 30°
 
@@ -497,10 +493,10 @@ export class Marble {
 		// If we're using a shock absorber or we're on a low-restitution surface, give the marble a velocity boost on contact based on its angular velocity.
 		outer:
 		if (collision.restitution < 0.5) {
-			let dot = -this.lastVel.dot(contactNormal);
+			let dot = -this.beforeVel.dot(contactNormal);
 			if (dot < 0) break outer;
 
-			let boost = this.lastAngVel.clone().cross(contactNormal).multiplyScalar(2 * (0.5 - collision.restitution) * dot / 300 / 0.98); // 0.98 fac because shock absorber used to have 0 rest but now 0.01
+			let boost = this.beforeAngVel.clone().cross(contactNormal).multiplyScalar(2 * (0.5 - collision.restitution) * dot / 300 / 0.98); // 0.98 fac because shock absorber used to have 0 rest but now 0.01
 			this.body.linearVelocity.add(boost);
 		}
 
@@ -524,9 +520,9 @@ export class Marble {
 
 		// Create bounce particles
 		let mostPowerfulCollision = this.findBestCollision(c => {
-			return -c.normal.dot(this.lastVel.clone().sub(c.s2.body.linearVelocity));
+			return -c.normal.dot(this.beforeVel.clone().sub(c.s2.body.linearVelocity));
 		});
-		let impactVelocity = -mostPowerfulCollision.contactNormal.dot(this.lastVel.clone().sub(contactShape.body.linearVelocity));
+		let impactVelocity = -mostPowerfulCollision.contactNormal.dot(this.beforeVel.clone().sub(contactShape.body.linearVelocity));
 		if (impactVelocity > 6) this.showBounceParticles();
 
 		// Handle bounce sound
@@ -539,7 +535,7 @@ export class Marble {
 
 		// Handle rolling and sliding sounds
 		if (contactNormal.dot(surfaceRelativeVelocity) < 0.01) {
-			let predictedMovement = this.body.angularVelocity.clone().cross(Util.vecOimoToThree(this.level.currentUp)).multiplyScalar(1 / Math.PI / 2);
+			let predictedMovement = this.body.angularVelocity.clone().cross(this.level.currentUp).multiplyScalar(1 / Math.PI / 2);
 			// The expected movement based on the current angular velocity. If actual movement differs too much, we consider the marble to be "sliding".
 
 			if (predictedMovement.dot(surfaceRelativeVelocity) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > surfaceRelativeVelocity.length() * 1.5)) {
@@ -619,7 +615,7 @@ export class Marble {
 
 		if (this.radius !== MEGA_MARBLE_RADIUS && time.currentAttemptTime - this.megaMarbleEnableTime < 10000) {
 			this.setRadius(MEGA_MARBLE_RADIUS);
-			this.body.linearVelocity.addScaledVector(Util.vecOimoToThree(this.level.currentUp), 6); // There's a small yeet upwards
+			this.body.linearVelocity.addScaledVector(this.level.currentUp, 6); // There's a small yeet upwards
 			this.rollingSound.stop();
 			this.rollingMegaMarbleSound?.play();
 		} else if (time.currentAttemptTime - this.megaMarbleEnableTime >= 10000) {
@@ -650,7 +646,7 @@ export class Marble {
 
 	showBounceParticles() {
 		this.level.particles.createEmitter(bounceParticleOptions, this.body.position, null,
-			new THREE.Vector3(1, 1, 1).addScaledVector(Util.absVector(Util.vecOimoToThree(this.level.currentUp)), -0.8));
+			new THREE.Vector3(1, 1, 1).addScaledVector(Util.absVector(this.level.currentUp.clone()), -0.8));
 	}
 
 	/** Sets linear velocity in a specific direction, but capped. Used for things like jumping and bumpers. */
@@ -755,14 +751,14 @@ export class Marble {
 	useBlast() {
 		if (this.level.blastAmount < 0.2 || !this.level.mission.hasBlast) return;
 
-		let impulse = Util.vecOimoToThree(this.level.currentUp).multiplyScalar(Math.max(Math.sqrt(this.level.blastAmount), this.level.blastAmount) * 10);
+		let impulse = this.level.currentUp.clone().multiplyScalar(Math.max(Math.sqrt(this.level.blastAmount), this.level.blastAmount) * 10);
 		this.body.linearVelocity.add(impulse);
 		AudioManager.play('blast.wav');
 		this.level.particles.createEmitter(
 			(this.level.blastAmount > 1)? blastMaxParticleOptions : blastParticleOptions,
 			null,
-			() => this.body.position.clone().addScaledVector(Util.vecOimoToThree(this.level.currentUp), -this.radius * 0.4),
-			new THREE.Vector3(1, 1, 1).addScaledVector(Util.absVector(Util.vecOimoToThree(this.level.currentUp)), -0.8)
+			() => this.body.position.clone().addScaledVector(this.level.currentUp, -this.radius * 0.4),
+			new THREE.Vector3(1, 1, 1).addScaledVector(Util.absVector(this.level.currentUp.clone()), -0.8)
 		);
 
 		this.level.blastAmount = 0;
@@ -799,8 +795,8 @@ export class Marble {
 		this.teleportDisableTime = null;
 		this.megaMarbleEnableTime = -Infinity;
 		this.lastContactNormal.set(0, 0, 0);
-		this.lastVel.set(0, 0, 0);
-		this.lastAngVel.set(0, 0, 0);
+		this.beforeVel.set(0, 0, 0);
+		this.beforeAngVel.set(0, 0, 0);
 		this.slidingTimeout = 0;
 		this.predictedPosition.copy(this.body.position);
 		this.predictedOrientation.copy(this.body.orientation);

@@ -1,7 +1,6 @@
 import { PowerUp } from "./power_up";
 import * as THREE from "three";
 import { Util } from "../util";
-import OIMO from "../declarations/oimo";
 import { AudioManager } from "../audio";
 import { state } from "../state";
 
@@ -27,7 +26,7 @@ export class SuperSpeed extends PowerUp {
 		movementVector.applyQuaternion(quat);
 
 		let quat2 = new THREE.Quaternion();
-		quat2.setFromUnitVectors(Util.vecOimoToThree(this.level.currentUp), marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
+		quat2.setFromUnitVectors(this.level.currentUp, marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
 		movementVector.applyQuaternion(quat2); // ...then rotate the movement bonus vector by that amount.
 
 		marble.body.linearVelocity.addScaledVector(movementVector, 24.7); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)

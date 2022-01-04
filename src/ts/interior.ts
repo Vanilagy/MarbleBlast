@@ -1,6 +1,5 @@
 import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
 import * as THREE from "three";
-import OIMO from "./declarations/oimo";
 import { TimeState, Level, PHYSICS_TICK_RATE } from "./level";
 import { Util } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";

@@ -1,4 +1,3 @@
-import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { ConvexHullCollisionShape } from "./physics/collision_shape";
@@ -90,14 +89,6 @@ export abstract class Util {
 
 	static avg(a: number, b: number) {
 		return (a + b) / 2;
-	}
-
-	static vecOimoToThree(oimoVec: OIMO.Vec3) {
-		return new THREE.Vector3(oimoVec.x, oimoVec.y, oimoVec.z);
-	}
-
-	static vecThreeToOimo(threeVec: THREE.Vector3) {
-		return new OIMO.Vec3(threeVec.x, threeVec.y, threeVec.z);
 	}
 
 	static isSameVector(v1: {x: number, y: number, z: number}, v2: {x: number, y: number, z: number}) {
@@ -211,7 +202,7 @@ export abstract class Util {
 	}
 
 	/** Creates a cylinder-shaped convex hull geometry, aligned with the y-axis. */
-	static createCylinderConvexHull(radius: number, halfHeight: number, radialSegments = 32, scale = new OIMO.Vec3(1, 1, 1)) {
+	static createCylinderConvexHull(radius: number, halfHeight: number, radialSegments = 32, scale = new THREE.Vector3(1, 1, 1)) {
 		let vertices: THREE.Vector3[] = [];
 
 		for (let i = 0; i < 2; i++) {
@@ -225,14 +216,6 @@ export abstract class Util {
 		}
 
 		return new ConvexHullCollisionShape(vertices);
-	}
-
-	static lerpOimoVectors(v1: OIMO.Vec3, v2: OIMO.Vec3, t: number) {
-		return new OIMO.Vec3(Util.lerp(v1.x, v2.x, t), Util.lerp(v1.y, v2.y, t), Util.lerp(v1.z, v2.z, t));
-	}
-
-	static lerpThreeVectors(v1: THREE.Vector3, v2: THREE.Vector3, t: number) {
-		return new THREE.Vector3(Util.lerp(v1.x, v2.x, t), Util.lerp(v1.y, v2.y, t), Util.lerp(v1.z, v2.z, t));
 	}
 
 	static uppercaseFirstLetter(str: string) {

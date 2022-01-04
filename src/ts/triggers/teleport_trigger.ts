@@ -1,5 +1,5 @@
+import THREE from "three";
 import { AudioManager, AudioSource } from "../audio";
-import OIMO from "../declarations/oimo";
 import { DEFAULT_PITCH, Level, TimeState } from "../level";
 import { MisParser, MissionElementTrigger } from "../parsing/mis_parser";
 import { state } from "../state";
@@ -70,17 +70,18 @@ export class TeleportTrigger extends Trigger {
 		let body = this.level.marble.body;
 
 		// Determine where to place the marble
-		let position: OIMO.Vec3;
+		let position: THREE.Vector3;
 		if (this.element.centerdestpoint || destination.element.centerdestpoint) {
-			position = destination.body.getPosition();
+			position = destination.body.position;
 		} else {
-			position = Util.vecThreeToOimo(destination.vertices[0]).add(new OIMO.Vec3(0, 0, 3));
+			position = destination.vertices[0].clone().add(new THREE.Vector3(0, 0, 3));
 		}
-		body.setPosition(position);
+		body.position.copy(position);
+		body.prevPosition.copy(position); // Avoid funky CCD business
 
-		if (!MisParser.parseBoolean(this.element.keepvelocity || destination.element.keepvelocity)) body.setLinearVelocity(new OIMO.Vec3());
-		if (MisParser.parseBoolean(this.element.inversevelocity || destination.element.inversevelocity)) body.setLinearVelocity(body.getLinearVelocity().scaleEq(-1));
-		if (!MisParser.parseBoolean(this.element.keepangular || destination.element.keepangular)) body.setAngularVelocity(new OIMO.Vec3());
+		if (!MisParser.parseBoolean(this.element.keepvelocity || destination.element.keepvelocity)) body.linearVelocity.setScalar(0);
+		if (MisParser.parseBoolean(this.element.inversevelocity || destination.element.inversevelocity)) body.linearVelocity.negate();
+		if (!MisParser.parseBoolean(this.element.keepangular || destination.element.keepangular)) body.angularVelocity.setScalar(0);
 
 		// Determine camera orientation
 		if (!MisParser.parseBoolean(this.element.keepcamera || destination.element.keepcamera)) {
@@ -88,7 +89,7 @@ export class TeleportTrigger extends Trigger {
 			if (this.element.camerayaw) yaw = Util.degToRad(MisParser.parseNumber(this.element.camerayaw));
 			else if (destination.element.camerayaw) yaw = Util.degToRad(MisParser.parseNumber(destination.element.camerayaw));
 			else yaw = 0;
-			
+
 			this.level.yaw = yaw + Math.PI/2;
 			this.level.pitch = DEFAULT_PITCH;
 		}

@@ -1,9 +1,8 @@
 import { PowerUp } from "./power_up";
 import { MissionElementItem, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
-import { PHYSICS_TICK_RATE, TimeState } from "../level";
+import { PHYSICS_TICK_RATE } from "../level";
 import { state } from "../state";
-import OIMO from "../declarations/oimo";
 
 /** Temporarily pauses the game clock. */
 export class TimeTravel extends PowerUp {

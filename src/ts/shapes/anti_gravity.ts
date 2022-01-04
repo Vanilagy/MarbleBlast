@@ -29,7 +29,7 @@ export class AntiGravity extends PowerUp {
 		let direction = new THREE.Vector3(0, 0, -1);
 		direction.applyQuaternion(this.worldOrientation);
 
-		this.level.setUp(Util.vecThreeToOimo(direction));
+		this.level.setUp(direction);
 		AudioManager.play(this.sounds[0]);
 	}
 }

@@ -37,7 +37,7 @@ export abstract class CollisionShape implements OctreeObject {
 
 		if (this.body.prevValid) {
 			let translation = v1.copy(this.body.position).sub(this.body.prevPosition);
-			v2.copy(this.boundingBox.min).sub(translation);
+			v2.copy(this.boundingBox.min).sub(translation); // Go backwards
 			v3.copy(this.boundingBox.max).sub(translation);
 			this.boundingBox.expandByPoint(v2).expandByPoint(v3);
 		}

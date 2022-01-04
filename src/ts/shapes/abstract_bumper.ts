@@ -1,5 +1,4 @@
 import { Shape } from "../shape";
-import OIMO from "../declarations/oimo";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
@@ -19,7 +18,7 @@ export abstract class AbstractBumper extends Shape {
 		if (!collision) return; // We're probably in a replay if this is the case
 
 		let marble = this.level.marble;
-		
+
 		// Set the velocity along the contact normal, but make sure it's capped
 		marble.setLinearVelocityInDirection(collision.normal, 15, false);
 		marble.slidingTimeout = 2; // Make sure we don't slide on the bumper after bouncing off it

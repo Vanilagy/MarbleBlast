@@ -1,5 +1,4 @@
 import { ForceShape } from "./force_shape";
-import OIMO from "../declarations/oimo";
 import { AudioSource, AudioManager } from "../audio";
 import THREE from "three";
 

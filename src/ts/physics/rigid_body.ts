@@ -87,8 +87,6 @@ export class RigidBody {
 			this.position.lerpVectors(this.prevPosition, this.position, t);
 			q1.copy(this.orientation);
 			this.orientation.copy(this.prevOrientation).slerp(q1, t);
-
-			//this.syncShapes();
 		}
 
 		this.linearVelocity.lerpVectors(this.prevLinearVelocity, this.linearVelocity, t);

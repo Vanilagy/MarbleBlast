@@ -29,7 +29,6 @@
 		"fs-extra": "^9.1.0",
 		"jszip": "^3.6.0",
 		"node-fetch": "^2.6.1",
-		"oimophysics": "^1.2.2",
 		"rollup": "^2.0.0",
 		"rollup-plugin-external-globals": "^0.6.0",
 		"rollup-plugin-node-externals": "^2.2.0",

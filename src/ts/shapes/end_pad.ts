@@ -4,7 +4,6 @@ import { Util, Scheduler } from "../util";
 import { ParticleEmitter } from "../particles";
 import { Level, TimeState } from "../level";
 import { AudioManager } from "../audio";
-import OIMO from "../declarations/oimo";
 
 /** The finish pad. */
 export class EndPad extends Shape {
@@ -28,7 +27,7 @@ export class EndPad extends Shape {
 		this.addCollider((scale: THREE.Vector3) => {
 			// Create the finish area collision geometry
 			// Scaling note: The actual height of the cylinder (here: the y scaling) doesn't change, it's always the same.
-			let finishArea = Util.createCylinderConvexHull(radius, height/2, 64, new OIMO.Vec3(scale.x, 1, scale.y)); 
+			let finishArea = Util.createCylinderConvexHull(radius, height/2, 64, new THREE.Vector3(scale.x, 1, scale.y));
 
 			return finishArea;
 		}, (t: number) => {
@@ -52,7 +51,7 @@ export class EndPad extends Shape {
 	tick(time: TimeState, onlyVisual: boolean) {
 		if (onlyVisual) return;
 		super.tick(time);
-		
+
 		// Tick the firework
 		for (let firework of this.fireworks.slice()) {
 			firework.tick(time.timeSinceLoad);
