@@ -13,6 +13,8 @@ export class Collision {
 	normal: THREE.Vector3;
 	depth: number;
 	point: THREE.Vector3;
+	point1: THREE.Vector3;
+	point2: THREE.Vector3;
 
 	friction: number;
 	restitution: number;
@@ -40,7 +42,10 @@ export class Collision {
 	supplyMinimumSeparatingVector(minimumSeparatingVector: THREE.Vector3) {
 		this.normal = minimumSeparatingVector.clone().normalize();
 		this.depth = minimumSeparatingVector.length();
-		this.point = this.s1.getCenter(new THREE.Vector3()).addScaledVector(this.normal, -0.2).addScaledVector(minimumSeparatingVector, 0.5); // temp!
+
+		this.point1 = this.s1.support(new THREE.Vector3(), v1.copy(this.normal).negate());
+		this.point2 = this.point1.clone().add(minimumSeparatingVector);
+		this.point = this.point1.clone().add(this.point2).multiplyScalar(0.5);
 
 		if (this.s1.materialOverrides.size > 0 || this.s2.materialOverrides.size > 0) {
 			let s1Friction = this.s1.friction;

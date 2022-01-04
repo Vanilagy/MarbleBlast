@@ -995,15 +995,6 @@ export class Level extends Scheduler {
 			this.camera.lookAt(marblePosition);
 			this.camera.position.add(cameraVerticalTranslation);
 
-
-			//let hits = this.world.rayCast(marblePosition.clone().add(new THREE.Vector3(0, 0, 0.5)), new THREE.Vector3(0, 1, 0.2).normalize(), 10);
-			let hits = this.world.castRay(this.camera.position.clone(), directionVector.clone(), 100);
-			for (let hit of hits) {
-				for (let i = 0; i < 1; i++) this.particles.createEmitter(bounceParticleOptions, hit.point, null, new THREE.Vector3());
-				//console.log(hits[0].normal);
-			}
-
-
 			// Handle wall intersections:
 
 			const closeness = 0.1;
@@ -1016,8 +1007,7 @@ export class Level extends Scheduler {
 				rayCastDirection.addScaledVector(rayCastDirection.clone().normalize(), 2);
 
 				let length = rayCastDirection.length();
-				let hits = this.world.castRay(rayCastOrigin.clone(), rayCastDirection.normalize(), 10000 ?? length);
-				//console.log(hits.map(x => x.lambda));
+				let hits = this.world.castRay(rayCastOrigin.clone(), rayCastDirection.normalize(), length);
 				let firstHit = hits.find(x => x.shape !== this.marble.shape);
 
 				if (firstHit) {
@@ -1036,8 +1026,6 @@ export class Level extends Scheduler {
 					// If the camera is too far from the plane anyway, break
 					let dist = plane.distanceToPoint(this.camera.position);
 					if (dist >= closeness) break;
-
-					//console.log(firstHit);
 
 					// Go the projected point and look at the marble
 					this.camera.position.copy(projected.add(normal.multiplyScalar(closeness)));
@@ -1541,7 +1529,7 @@ export class Level extends Scheduler {
 
 		this.replay.recordTouchFinish();
 
-		if (completionOfImpact === undefined && this.gemCount < this.totalGems) {
+		if (this.gemCount < this.totalGems) {
 			AudioManager.play('missinggems.wav');
 			state.menu.hud.displayAlert((state.modification === 'gold')? "You can't finish without all the gems!!" : "You may not finish without all the diamonds!");
 		} else {

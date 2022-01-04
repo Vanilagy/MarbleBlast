@@ -44,7 +44,7 @@ export class Octree {
 		while (!this.root.largerThan(object) || !this.root.containsCenter(object)) {
 			// The root node does not fit the object; we need to grow the tree.
 			if (this.root.depth === MIN_DEPTH) {
-				console.warn("Can't insert large object into octree; the octree has already expanded to its maximum size.");
+				console.warn(`Can't insert ${this.root.largerThan(object)? 'distant' : 'large'} object into octree; the octree has already expanded to its maximum size.`);
 				return;
 			}
 			this.grow(object);

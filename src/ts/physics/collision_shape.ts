@@ -1,10 +1,13 @@
 import THREE from "three";
 import { OctreeObject } from "../octree";
+import { GjkEpa } from "./gjk_epa";
 import { RigidBody } from "./rigid_body";
 
 let t1 = new THREE.Vector3();
 let t2 = new THREE.Vector3();
 let t3 = new THREE.Vector3();
+let t4 = new THREE.Vector3();
+let t5 = new THREE.Vector3();
 let m1 = new THREE.Matrix4();
 let q1 = new THREE.Quaternion();
 
@@ -139,5 +142,33 @@ export class ConvexHullCollisionShape extends CollisionShape {
 		this.boundingBox.copy(this.localAabb);
 
 		super.updateBoundingBox();
+	}
+}
+
+export class CombinedCollisionShape extends CollisionShape {
+	s1: CollisionShape;
+	s2: CollisionShape;
+
+	constructor(s1: CollisionShape, s2: CollisionShape) {
+		super();
+
+		this.s1 = s1;
+		this.s2 = s2;
+	}
+
+	updateInertiaTensor() {}
+
+	support(dst: THREE.Vector3, direction: THREE.Vector3) {
+		let supp1 = this.s1.support(t4, direction);
+		let supp2 = this.s2.support(t5, direction);
+
+		if (supp1.dot(direction) > supp2.dot(direction)) dst.copy(supp1);
+		else dst.copy(supp2);
+
+		return dst;
+	}
+
+	getCenter(dst: THREE.Vector3) {
+		return this.s1.getCenter(dst).add(this.s2.getCenter(t4)).multiplyScalar(0.5);
 	}
 }
