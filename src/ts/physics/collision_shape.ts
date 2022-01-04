@@ -2,11 +2,11 @@ import THREE from "three";
 import { OctreeObject } from "./octree";
 import { RigidBody } from "./rigid_body";
 
-let t1 = new THREE.Vector3();
-let t2 = new THREE.Vector3();
-let t3 = new THREE.Vector3();
-let t4 = new THREE.Vector3();
-let t5 = new THREE.Vector3();
+let v1 = new THREE.Vector3();
+let v2 = new THREE.Vector3();
+let v3 = new THREE.Vector3();
+let v4 = new THREE.Vector3();
+let v5 = new THREE.Vector3();
 let m1 = new THREE.Matrix4();
 let q1 = new THREE.Quaternion();
 
@@ -32,14 +32,14 @@ export abstract class CollisionShape implements OctreeObject {
 	abstract getCenter(dst: THREE.Vector3): THREE.Vector3;
 
 	updateBoundingBox() {
-		m1.compose(this.body.position, this.body.orientation, t1.setScalar(1));
+		m1.compose(this.body.position, this.body.orientation, v1.setScalar(1));
 		this.boundingBox.applyMatrix4(m1);
 
 		if (this.body.prevValid) {
-			let translation = t1.copy(this.body.position).sub(this.body.prevPosition);
-			t2.copy(this.boundingBox.min).sub(translation);
-			t3.copy(this.boundingBox.max).sub(translation);
-			this.boundingBox.expandByPoint(t2).expandByPoint(t3);
+			let translation = v1.copy(this.body.position).sub(this.body.prevPosition);
+			v2.copy(this.boundingBox.min).sub(translation);
+			v3.copy(this.boundingBox.max).sub(translation);
+			this.boundingBox.expandByPoint(v2).expandByPoint(v3);
 		}
 
 		this.body?.world?.octree.update(this);
@@ -105,7 +105,7 @@ export class ConvexHullCollisionShape extends CollisionShape {
 
 	support(dst: THREE.Vector3, direction: THREE.Vector3) {
 		q1.copy(this.body.orientation).conjugate();
-		let localDirection = t1.copy(direction).applyQuaternion(q1); // Transform it to local space
+		let localDirection = v1.copy(direction).applyQuaternion(q1); // Transform it to local space
 
 		let maxDot = -Infinity;
 
@@ -147,8 +147,8 @@ export class CombinedCollisionShape extends CollisionShape {
 	updateInertiaTensor() {}
 
 	support(dst: THREE.Vector3, direction: THREE.Vector3) {
-		let supp1 = this.s1.support(t4, direction);
-		let supp2 = this.s2.support(t5, direction);
+		let supp1 = this.s1.support(v4, direction);
+		let supp2 = this.s2.support(v5, direction);
 
 		if (supp1.dot(direction) > supp2.dot(direction)) dst.copy(supp1);
 		else dst.copy(supp2);
@@ -157,6 +157,6 @@ export class CombinedCollisionShape extends CollisionShape {
 	}
 
 	getCenter(dst: THREE.Vector3) {
-		return this.s1.getCenter(dst).add(this.s2.getCenter(t4)).multiplyScalar(0.5);
+		return this.s1.getCenter(dst).add(this.s2.getCenter(v4)).multiplyScalar(0.5);
 	}
 }

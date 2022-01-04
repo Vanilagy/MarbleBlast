@@ -86,13 +86,13 @@ export class Scene extends Group {
 	 * compiled, no meshes can be added to or removed from it. In a general 3D engine this would be a very hard limitation, however it
 	 * it perfect for Marble Blast, as the number of objects is constant at all times. We can exploit this fact to do some heavy-lifting
 	 * ahead-of-time to save on draw calls and massively reduce rendering CPU overhead, a common problem for WebGL applications.
-	 * 
+	 *
 	 * During the compilation, all meshes will be scanned for the materials they use, and data is arranged in such a way that a single draw
 	 * call is enough to draw all geometry of a single material, eliminating the need for per-mesh draw calls. There is, however, some data
 	 * about meshes that cannot be precomputed as it is dynamic; mainly their transform and opacity. We therefore store this data in a
 	 * floating-point texture that the vertex shader will dynamically read from. Whenever meshes change, we only need to update this texture
 	 * once and we're set.
-	 * 
+	 *
 	 * As is usual with 3D renderers, transparent objects need to get different treatment as they have to be rendered using the painter's
 	 * algorithm (back-to-front) for correct layering. Scene compilation also checks materials for transparency and separates opaque and
 	 * transparent objects. Transparent objects, however, cannot be neatly precompiled and preplanned as opaque objects do.
@@ -190,7 +190,7 @@ export class Scene extends Group {
 		gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, null);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); // LINEAR would make no sense here
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-		
+
 		// Now, allocate the index buffers
 		let opaqueIndexBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, opaqueIndexBuffer);
@@ -253,7 +253,7 @@ export class Scene extends Group {
 
 		materialGroup.indexGroups.push(data);
 		materialGroup.count += data.indices.length;
-		
+
 		return materialGroup;
 	}
 
@@ -308,7 +308,7 @@ export class Scene extends Group {
 
 			for (let j = 0; j < 3; j++) {
 				normal.set(normals[9*i + 3*j + 0], normals[9*i + 3*j + 1], normals[9*i + 3*j + 2]);
-				
+
 				// Gram-Schmidt orthogonalize
 				tangent.copy(sdir).addScaledVector(normal, -normal.dot(sdir)).normalize();
 				// Calculate handedness
@@ -319,7 +319,7 @@ export class Scene extends Group {
 		}
 	}
 
-	/** 
+	/**
 	 * Prepares a scene for rendering by updating shadow maps and preparing transparent objects. Has to be called before each render.
 	 * This is kept separate from `render` because a scene can be rendered multiple times per frame (for cubemaps, for example). It
 	 * would be a waste to prepare the scene for each of those renders as the state hasn't changed.
@@ -407,7 +407,7 @@ export class Scene extends Group {
 		// Update the mesh info data texture
 		gl.bindTexture(gl.TEXTURE_2D, this.meshInfoTexture);
 		gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.meshInfoTextureWidth, this.meshInfoTextureHeight, gl.RGBA, gl.FLOAT, this.meshInfoBuffer);
-		
+
 		// Write the updated VBOs to the GPU. If nothing changed, these calls won't do anything.
 		this.positionBuffer.update();
 		this.normalBuffer.update();

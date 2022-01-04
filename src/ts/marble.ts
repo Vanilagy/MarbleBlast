@@ -681,10 +681,8 @@ export class Marble {
 		let predictedOrientation = dq.multiply(orientation);
 
 		let hits = this.level.world.castShape(this.shape, movementDiff, 1);
-		hits = hits.filter(x => !this.body.collisions.some(y => y.s2 === x.shape)); // Filter out hits with shapes we're already touching
-		let lambda = 1;
-
-		if (hits.length > 0) lambda = hits[0].lambda;
+		let hit = hits.find(x => !this.body.collisions.some(y => y.s2 === x.shape)); // Filter out hits with shapes we're already touching
+		let lambda = hit?.lambda ?? 1;
 
 		this.predictedPosition.lerpVectors(pos, predictedPosition, lambda);
 		this.predictedOrientation.copy(orientation).slerp(predictedOrientation, lambda);

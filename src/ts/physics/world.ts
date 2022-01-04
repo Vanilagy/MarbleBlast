@@ -244,10 +244,10 @@ export class World {
 		return collisions;
 	}
 
-	castRay(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number, collisionDetectionMask = 0b1) {
+	castRay(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, lambdaMax: number, collisionDetectionMask = 0b1) {
 		raycastAabb.makeEmpty();
 		raycastAabb.expandByPoint(rayOrigin);
-		raycastAabb.expandByPoint(v1.copy(rayOrigin).addScaledVector(rayDirection, maxLength));
+		raycastAabb.expandByPoint(v1.copy(rayOrigin).addScaledVector(rayDirection, lambdaMax));
 
 		let candidates = this.octree.intersectAabb(raycastAabb) as CollisionShape[];
 		let hits: RayCastHit[] = [];
@@ -255,19 +255,19 @@ export class World {
 		for (let candidate of candidates) {
 			if ((candidate.collisionDetectionMask & collisionDetectionMask) === 0) continue;
 
-			let hit = CollisionDetection.castRay(candidate, singletonShape, rayOrigin, rayDirection, maxLength);
+			let hit = CollisionDetection.castRay(candidate, singletonShape, rayOrigin, rayDirection, lambdaMax);
 			if (hit) hits.push({ ...hit, shape: candidate });
 		}
 
 		return hits.sort((a, b) => a.lambda - b.lambda);
 	}
 
-	castShape(shape: CollisionShape, direction: THREE.Vector3, maxLength: number) {
+	castShape(shape: CollisionShape, direction: THREE.Vector3, lambdaMax: number) {
 		raycastAabb.makeEmpty();
 		raycastAabb.expandByPoint(shape.boundingBox.min);
 		raycastAabb.expandByPoint(shape.boundingBox.max);
-		raycastAabb.expandByPoint(v1.copy(shape.boundingBox.min).addScaledVector(direction, maxLength));
-		raycastAabb.expandByPoint(v1.copy(shape.boundingBox.max).addScaledVector(direction, maxLength));
+		raycastAabb.expandByPoint(v1.copy(shape.boundingBox.min).addScaledVector(direction, lambdaMax));
+		raycastAabb.expandByPoint(v1.copy(shape.boundingBox.max).addScaledVector(direction, lambdaMax));
 
 		let candidates = this.octree.intersectAabb(raycastAabb) as CollisionShape[];
 		let hits: RayCastHit[] = [];
@@ -277,8 +277,9 @@ export class World {
 			if (shape === candidate) continue;
 			if ((shape.collisionDetectionMask & candidate.collisionDetectionMask) === 0) continue;
 			if (!candidate.body.enabled) continue;
+			if (candidate.body.linearVelocity.lengthSq() > 0) continue;
 
-			let hit = CollisionDetection.castRay(shape, candidate, v1.setScalar(0), negDirection, maxLength);
+			let hit = CollisionDetection.castRay(shape, candidate, v1.setScalar(0), negDirection, lambdaMax);
 			if (hit) hits.push({ ...hit, shape: candidate });
 		}
 

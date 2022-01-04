@@ -90,7 +90,7 @@ export abstract class ResourceManager {
 			} else {
 				current = current[part];
 				if (!current) return [];
-			}	
+			}
 		}
 	}
 
@@ -146,7 +146,7 @@ export abstract class ResourceManager {
 		let promise = new Promise<HTMLImageElement>((resolve) => {
 			let image = new Image();
 			image.src = path;
-			
+
 			image.onload = () => {
 				imageCacheElement.appendChild(image);
 				this.loadedImages.set(path, image);

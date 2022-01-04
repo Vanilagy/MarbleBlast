@@ -10,7 +10,7 @@ export enum RigidBodyType {
 }
 
 let dq = new THREE.Quaternion();
-let t1 = new THREE.Vector3();
+let v1 = new THREE.Vector3();
 let q1 = new THREE.Quaternion();
 
 export class RigidBody {
@@ -66,7 +66,7 @@ export class RigidBody {
 	}
 
 	applyRotation(rotation: THREE.Vector3) {
-		dq.setFromAxisAngle(t1.copy(rotation).normalize(), rotation.length());
+		dq.setFromAxisAngle(v1.copy(rotation).normalize(), rotation.length());
 		this.orientation.multiplyQuaternions(dq, this.orientation).normalize();
 	}
 

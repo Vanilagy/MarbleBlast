@@ -25,8 +25,8 @@ let abc = new THREE.Vector3();
 let acd = new THREE.Vector3();
 let adb = new THREE.Vector3();
 let bdc = new THREE.Vector3();
-let t1 = new THREE.Vector3();
-let t2 = new THREE.Vector3();
+let v1 = new THREE.Vector3();
+let v2 = new THREE.Vector3();
 let translation = new THREE.Vector3();
 let actualPosition1 = new THREE.Vector3();
 let actualPosition2 = new THREE.Vector3();
@@ -50,7 +50,7 @@ for (let i = 0; i < maxEpaLooseEdges; i++) {
 
 export abstract class CollisionDetection {
 	static support(dst: THREE.Vector3, s1: CollisionShape, s2: CollisionShape, direction: THREE.Vector3) {
-		return s1.support(dst, direction).sub(s2.support(t1, t2.copy(direction).negate()));
+		return s1.support(dst, direction).sub(s2.support(v1, v2.copy(direction).negate()));
 	}
 
 	static checkIntersection(s1: CollisionShape, s2: CollisionShape) {
@@ -110,7 +110,7 @@ export abstract class CollisionDetection {
 		return res.lambda;
 	}
 
-	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number) {
+	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, lambdaMax: number) {
 		lastS1 = s1;
 		lastS2 = s2;
 
@@ -137,7 +137,7 @@ export abstract class CollisionDetection {
 				let delta = direction.dot(w) / direction.dot(rayDirection);
 				lambda -= delta;
 
-				if (lambda > maxLength) return null;
+				if (lambda > lambdaMax) return null;
 
 				x.copy(rayOrigin).addScaledVector(rayDirection, lambda);
 				n.copy(direction);
@@ -199,9 +199,9 @@ export abstract class CollisionDetection {
 		numPoints = i;
 
 		if (requireFlip) {
-			t1.copy(points[1]);
+			v1.copy(points[1]);
 			points[1].copy(points[2]);
-			points[2].copy(t1);
+			points[2].copy(v1);
 		}
 	}
 
@@ -315,10 +315,10 @@ export abstract class CollisionDetection {
 
 		if (abc.dot(ao) > 0) {
 			requireFlip = 0;
-			let res = this.closestPointTriangle(t1, a, b, c);
-			let len = t1.lengthSq();
+			let res = this.closestPointTriangle(v1, a, b, c);
+			let len = v1.lengthSq();
 
-			dst.copy(t1);
+			dst.copy(v1);
 			minDist = len;
 			used = res;
 			flip = requireFlip;
@@ -326,11 +326,11 @@ export abstract class CollisionDetection {
 
 		if (acd.dot(ao) > 0) {
 			requireFlip = 0;
-			let res = this.closestPointTriangle(t1, a, c, d);
-			let len = t1.lengthSq();
+			let res = this.closestPointTriangle(v1, a, c, d);
+			let len = v1.lengthSq();
 
 			if (len < minDist) {
-				dst.copy(t1);
+				dst.copy(v1);
 				minDist = len;
 				used = (res & 0b1) | ((res & 0b10) << 1) | ((res & 0b100) << 1);
 				flip = requireFlip;
@@ -339,11 +339,11 @@ export abstract class CollisionDetection {
 
 		if (adb.dot(ao) > 0) {
 			requireFlip = 0;
-			let res = this.closestPointTriangle(t1, a, d, b);
-			let len = t1.lengthSq();
+			let res = this.closestPointTriangle(v1, a, d, b);
+			let len = v1.lengthSq();
 
 			if (len < minDist) {
-				dst.copy(t1);
+				dst.copy(v1);
 				minDist = len;
 				used = (res & 0b1) | ((res & 0b10) << 2) | ((res & 0b100) >> 1);
 				flip = requireFlip;
@@ -353,11 +353,11 @@ export abstract class CollisionDetection {
 
 		if (bdc.dot(bo) > 0) {
 			requireFlip = 0;
-			let res = this.closestPointTriangle(t1, b, d, c);
-			let len = t1.lengthSq();
+			let res = this.closestPointTriangle(v1, b, d, c);
+			let len = v1.lengthSq();
 
 			if (len < minDist) {
-				dst.copy(t1);
+				dst.copy(v1);
 				minDist = len;
 				used = ((res & 0b1) << 1) | ((res & 0b10) << 2) | ((res & 0b100));
 				flip = requireFlip;
@@ -386,19 +386,19 @@ export abstract class CollisionDetection {
 		faces[0][0].copy(a);
 		faces[0][1].copy(b);
 		faces[0][2].copy(c);
-		faces[0][3].copy(b).sub(a).cross(t1.copy(c).sub(a)).normalize(); // ABC
+		faces[0][3].copy(b).sub(a).cross(v1.copy(c).sub(a)).normalize(); // ABC
 		faces[1][0].copy(a);
 		faces[1][1].copy(c);
 		faces[1][2].copy(d);
-		faces[1][3].copy(c).sub(a).cross(t1.copy(d).sub(a)).normalize();
+		faces[1][3].copy(c).sub(a).cross(v1.copy(d).sub(a)).normalize();
 		faces[2][0].copy(a);
 		faces[2][1].copy(d);
 		faces[2][2].copy(b);
-		faces[2][3].copy(d).sub(a).cross(t1.copy(b).sub(a)).normalize();
+		faces[2][3].copy(d).sub(a).cross(v1.copy(b).sub(a)).normalize();
 		faces[3][0].copy(b);
 		faces[3][1].copy(d);
 		faces[3][2].copy(c);
-		faces[3][3].copy(d).sub(b).cross(t1.copy(c).sub(b)).normalize();
+		faces[3][3].copy(d).sub(b).cross(v1.copy(c).sub(b)).normalize();
 
 		let numFaces = 4;
 		let closestFace = 0;
@@ -428,7 +428,7 @@ export abstract class CollisionDetection {
 			// Find all triangles that are facing p
 			let i = 0;
 			while (i < numFaces) {
-				if (faces[i][3].dot(t1.copy(support).sub(faces[i][0])) > 0) { // triangle i faces p, remove it
+				if (faces[i][3].dot(v1.copy(support).sub(faces[i][0])) > 0) { // triangle i faces p, remove it
 					// Add removed triangle's edges to loose edge list.
 					// If it's already there, remove it (both triangles it belonged to are gone)
 					for (let j = 0; j < 3; j++) { // Three edges per face
@@ -477,7 +477,7 @@ export abstract class CollisionDetection {
 				faces[numFaces][0].copy(looseEdges[i][0]);
 				faces[numFaces][1].copy(looseEdges[i][1]);
 				faces[numFaces][2].copy(support);
-				faces[numFaces][3].copy(looseEdges[i][0]).sub(looseEdges[i][1]).cross(t1.copy(looseEdges[i][0]).sub(support)).normalize();
+				faces[numFaces][3].copy(looseEdges[i][0]).sub(looseEdges[i][1]).cross(v1.copy(looseEdges[i][0]).sub(support)).normalize();
 
 				// Check for wrong normal to maintain CCW winding
 				let bias = 0.000001; // in case dot result is only slightly < 0 (because origin is on face)

@@ -151,6 +151,8 @@ export class PathedInterior extends Interior {
 	}
 
 	tick(time: TimeState) {
+		this.body.position.copy(this.currentPosition); // Reset it back to where it should be (render loop might've moved it)
+
 		let transform = this.getTransformAtTime(m1, this.getInternalTime(time.currentAttemptTime));
 
 		this.prevPosition.copy(this.currentPosition);
@@ -244,8 +246,7 @@ export class PathedInterior extends Interior {
 		this.mesh.transform.copy(transform);
 		this.mesh.changedTransform();
 
-		let position = new THREE.Vector3().setFromMatrixPosition(transform);
-		this.body.position.copy(position);
+		this.body.position.setFromMatrixPosition(transform);
 		this.body.syncShapes(); // Set the position of the body as well for correct camera raycasting results
 	}
 
