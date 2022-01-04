@@ -49,9 +49,7 @@ export class World {
 	}
 
 	step(dt: number) {
-		//console.time();
-		for (let i = 0; i < 1; i++) this.substep(dt, 0, 0);
-		//console.timeEnd();
+		this.substep(dt, 0, 0);
 	}
 
 	substep(dt: number, startT: number, depth: number) {
@@ -141,10 +139,11 @@ export class World {
 
 	computeCollisions(dynamicShapes: CollisionShape[], isCcdPass: boolean) {
 		let collisions: Collision[] = [];
-		//let cachedBroadphaseResults = new Map<CollisionShape, CollisionShape[]>();
 
 		for (let i = 0; i < dynamicShapes.length; i++) {
 			let shape = dynamicShapes[i];
+			if (!shape.body.enabled) continue;
+
 			let broadphaseShape = shape.broadphaseShape || shape;
 			let collisionCandidates = this.cachedBroadphaseResults.get(broadphaseShape);
 			let shapeCollisions: Collision[] = [];
@@ -160,7 +159,7 @@ export class World {
 
 				if (shape === candidate) continue;
 				if ((shape.collisionDetectionMask & candidate.collisionDetectionMask) === 0) continue;
-				if (!shape.body.enabled || !candidate.body.enabled) continue;
+				if (!candidate.body.enabled) continue;
 
 				for (let k = 0; k < collisions.length; k++) {
 					let c = collisions[k];
@@ -221,10 +220,10 @@ export class World {
 							size
 						);
 
-						if (hit1) {
+						if (hit1 && hit1.normal.dot(combinedNormal) >= 0.5) { // acos(0.5) = 60°
 							collision.supplyMinimumSeparatingVector(hit1.normal.multiplyScalar(collision.depth));
 						}
-						if (hit2) {
+						if (hit2 && hit2.normal.dot(combinedNormal) >= 0.5) {
 							c2.supplyMinimumSeparatingVector(hit2.normal.multiplyScalar(c2.depth));
 						}
 
@@ -257,6 +256,29 @@ export class World {
 			if ((candidate.collisionDetectionMask & collisionDetectionMask) === 0) continue;
 
 			let hit = CollisionDetection.castRay(candidate, singletonShape, rayOrigin, rayDirection, maxLength);
+			if (hit) hits.push({ ...hit, shape: candidate });
+		}
+
+		return hits.sort((a, b) => a.lambda - b.lambda);
+	}
+
+	castShape(shape: CollisionShape, direction: THREE.Vector3, maxLength: number) {
+		raycastAabb.makeEmpty();
+		raycastAabb.expandByPoint(shape.boundingBox.min);
+		raycastAabb.expandByPoint(shape.boundingBox.max);
+		raycastAabb.expandByPoint(v1.copy(shape.boundingBox.min).addScaledVector(direction, maxLength));
+		raycastAabb.expandByPoint(v1.copy(shape.boundingBox.max).addScaledVector(direction, maxLength));
+
+		let candidates = this.octree.intersectAabb(raycastAabb) as CollisionShape[];
+		let hits: RayCastHit[] = [];
+		let negDirection = v2.copy(direction).negate();
+
+		for (let candidate of candidates) {
+			if (shape === candidate) continue;
+			if ((shape.collisionDetectionMask & candidate.collisionDetectionMask) === 0) continue;
+			if (!candidate.body.enabled) continue;
+
+			let hit = CollisionDetection.castRay(shape, candidate, v1.setScalar(0), negDirection, maxLength);
 			if (hit) hits.push({ ...hit, shape: candidate });
 		}
 

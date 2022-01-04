@@ -2,7 +2,7 @@ import OIMO from "./declarations/oimo";
 import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { isPressed, gamepadAxes, normalizedJoystickHandlePosition, getPressedFlag } from "./input";
-import { TimeState, Level, GO_TIME } from "./level";
+import { TimeState, Level, GO_TIME, PHYSICS_TICK_RATE } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
@@ -87,9 +87,9 @@ export class Marble {
 	sphere: Mesh;
 	ballShape: Shape;
 	/** The predicted position of the marble in the next tick. */
-	predictedPosition: OIMO.Vec3;
+	predictedPosition = new THREE.Vector3();
 	/** The predicted orientation of the marble in the next tick. */
-	predictedOrientation: OIMO.Quat;
+	predictedOrientation = new THREE.Quaternion();
 
 	body: RigidBody;
 	shape: BallCollisionShape;
@@ -666,63 +666,34 @@ export class Marble {
 
 	/** Predicts the position of the marble in the next physics tick to allow for smooth, interpolated rendering. */
 	calculatePredictiveTransforms() {
-		/*
-		let vel = this.body.getLinearVelocity();
-		let pos = this.body.getPosition();
-		let orientation = this.body.getOrientation();
+		let pos = this.body.position;
+		let orientation = this.body.orientation;
+		let linVel = this.body.linearVelocity;
+		let angVel = this.body.angularVelocity;
 
 		// Naive: Just assume the marble moves as if nothing was in its way and it continued with its current velocity.
-		let predictedPosition = pos.add(vel.scale(1 / PHYSICS_TICK_RATE)).addEq(this.level.physics.world.getGravity().scale(1 / PHYSICS_TICK_RATE**2 / 2));
-		let finalPredictedPosition = predictedPosition;
-		let movementDiff = predictedPosition.sub(pos);
+		let predictedPosition = pos.clone().addScaledVector(linVel, 1 / PHYSICS_TICK_RATE).addScaledVector(this.level.world.gravity, 1 / PHYSICS_TICK_RATE**2 / 2);
+		let movementDiff = predictedPosition.clone().sub(pos);
 
-		let physics = this.level.physics;
-		let minFraction = Infinity;
-		let transform = this.body.getTransform();
-		transform.setPosition(transform.getPosition().sub(movementDiff));
+		let dRotation = angVel.clone().multiplyScalar(1 / PHYSICS_TICK_RATE);
+		let dRotationLength = dRotation.length();
+		let dq = new THREE.Quaternion().setFromAxisAngle(dRotation.normalize(), dRotationLength);
+		let predictedOrientation = dq.multiply(orientation);
 
-		// To prevent interpolating the marble into surfaces, perform a convex cast and check for any intersections.
-		physics.world.convexCast(physics.marbleGeometry, transform, movementDiff.scale(10), {
-			process(shape, hit) {
-				if (shape.getRigidBody().getType() !== OIMO.RigidBodyType.STATIC) return;
-				let fraction = hit.fraction * 10 - 1; // Readjust the fraction to the correct interval
-				if (fraction < 0 || fraction > 1) return;
-				if (fraction >= minFraction) return;
+		let hits = this.level.world.castShape(this.shape, movementDiff, 1);
+		hits = hits.filter(x => !this.body.collisions.some(y => y.s2 === x.shape)); // Filter out hits with shapes we're already touching
+		let lambda = 1;
 
-				minFraction = fraction;
-				finalPredictedPosition = Util.lerpOimoVectors(pos, predictedPosition, fraction);
-			}
-		});
+		if (hits.length > 0) lambda = hits[0].lambda;
 
-		let angVel = this.body.getAngularVelocity();
-		let threeOrientation = new THREE.Quaternion(orientation.x, orientation.y, orientation.z, orientation.w);
-		let changeQuat = new THREE.Quaternion();
-		changeQuat.setFromAxisAngle(Util.vecOimoToThree(angVel).normalize(), angVel.length() / PHYSICS_TICK_RATE);
-		changeQuat.multiply(threeOrientation);
-		let predictedOrientation = new OIMO.Quat(threeOrientation.x, threeOrientation.y, threeOrientation.z, threeOrientation.w);
-
-		this.predictedPosition = finalPredictedPosition;
-		this.predictedOrientation = predictedOrientation;
-		*/
+		this.predictedPosition.lerpVectors(pos, predictedPosition, lambda);
+		this.predictedOrientation.copy(orientation).slerp(predictedOrientation, lambda);
 	}
 
 	render(time: TimeState) {
-		this.group.position.copy(this.body.position);
-		this.innerGroup.orientation.copy(this.body.orientation);
-
-		this.group.recomputeTransform();
-		this.innerGroup.recomputeTransform();
-
-		this.forcefield.render(time);
-		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) this.helicopter.render(time);
-
-		return;
-
 		// Position based on current and predicted position and orientation
-		let bodyPosition = Util.lerpOimoVectors(this.body.getPosition(), this.predictedPosition, time.physicsTickCompletion);
-		let bodyOrientation = this.body.getOrientation().slerp(this.predictedOrientation, time.physicsTickCompletion);
-		this.group.position.set(bodyPosition.x, bodyPosition.y, bodyPosition.z);
-		this.innerGroup.orientation.set(bodyOrientation.x, bodyOrientation.y, bodyOrientation.z, bodyOrientation.w);
+		this.group.position.copy(this.body.position).lerp(this.predictedPosition, time.physicsTickCompletion);
+		this.innerGroup.orientation.copy(this.body.orientation).slerp(this.predictedOrientation, time.physicsTickCompletion);
 
 		this.group.recomputeTransform();
 		this.innerGroup.recomputeTransform();
@@ -738,10 +709,8 @@ export class Marble {
 		if (this.teleportDisableTime !== null) teleportFadeCompletion = Util.clamp(1 - (time.currentAttemptTime - this.teleportDisableTime) / TELEPORT_FADE_DURATION, 0, 1);
 
 		if (teleportFadeCompletion > 0) {
-			//this.sphere.castShadow = false;
 			this.sphere.opacity = Util.lerp(1, 0.25, teleportFadeCompletion);
 		} else {
-			//this.sphere.castShadow = true;
 			this.sphere.opacity = Number(!this.ballShape);
 		}
 	}
@@ -831,6 +800,8 @@ export class Marble {
 		this.lastVel.set(0, 0, 0);
 		this.lastAngVel.set(0, 0, 0);
 		this.slidingTimeout = 0;
+		this.predictedPosition.copy(this.body.position);
+		this.predictedOrientation.copy(this.body.orientation);
 		this.setRadius(this.level.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
 	}
 
