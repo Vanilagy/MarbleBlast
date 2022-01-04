@@ -1,5 +1,5 @@
 import THREE from "three";
-import { Octree } from "../octree";
+import { Octree } from "./octree";
 import { Collision } from "./collision";
 import { CollisionShape, CombinedCollisionShape, ConvexHullCollisionShape } from "./collision_shape";
 import { CollisionDetection } from "./collision_detection";

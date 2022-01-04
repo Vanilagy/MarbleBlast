@@ -1,5 +1,5 @@
 import THREE from "three";
-import { OctreeObject } from "../octree";
+import { OctreeObject } from "./octree";
 import { RigidBody } from "./rigid_body";
 
 let t1 = new THREE.Vector3();
