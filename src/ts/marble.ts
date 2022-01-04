@@ -290,17 +290,17 @@ export class Marble {
 		// On some iOS devices, the reflective marble is invisible. That implies a shader compilation error but I sadly cannot check the console on there so we're just disabling them for all iOS devices.
 	}
 
-	findBestCollision() {
+	findBestCollision(withRespectTo: (c: Collision) => number) {
 		let bestCollision: Collision;
-		let bestCollisionDot = -Infinity;
+		let bestCollisionValue = -Infinity;
 		for (let collision of this.body.collisions) {
 			if (collision.s1 !== this.shape) continue; // Could also be an aux collider that caused the collision but we don't wanna count that here
 
-			let dot = collision.normal.dot(Util.vecOimoToThree(this.level.currentUp));
+			let value = withRespectTo(collision);
 
-			if (dot > bestCollisionDot) {
+			if (value > bestCollisionValue) {
 				bestCollision = collision;
-				bestCollisionDot = dot;
+				bestCollisionValue = value;
 			}
 		}
 
@@ -359,7 +359,7 @@ export class Marble {
 		// The axis of rotation (for angular velocity) is the cross product of the current up vector and the movement vector, since the axis of rotation is perpendicular to both.
 		let movementRotationAxis = Util.vecOimoToThree(this.level.currentUp).cross(movementVec);
 
-		let bestCollision = this.findBestCollision();
+		let bestCollision = this.findBestCollision(c => c.normal.dot(Util.vecOimoToThree(this.level.currentUp)));
 
 		if (bestCollision) {
 			let { collision, contactNormal, contactNormalUpDot } = bestCollision;
@@ -468,7 +468,7 @@ export class Marble {
 	}
 
 	onAfterCollisionResponse() {
-		let bestCollision = this.findBestCollision();
+		let bestCollision = this.findBestCollision(c => c.normal.dot(Util.vecOimoToThree(this.level.currentUp)));
 		if (!bestCollision) return;
 
 		let { collision, contactNormal, contactShape, contactNormalUpDot } = bestCollision;
@@ -521,7 +521,10 @@ export class Marble {
 		}
 
 		// Create bounce particles
-		let impactVelocity = -contactNormal.dot(this.lastVel.clone().sub(contactShape.body.linearVelocity));
+		let mostPowerfulCollision = this.findBestCollision(c => {
+			return -c.normal.dot(this.lastVel.clone().sub(c.s2.body.linearVelocity));
+		});
+		let impactVelocity = -mostPowerfulCollision.contactNormal.dot(this.lastVel.clone().sub(contactShape.body.linearVelocity));
 		if (impactVelocity > 6) this.showBounceParticles();
 
 		// Handle bounce sound

@@ -1,6 +1,5 @@
 import THREE from "three";
 import { OctreeObject } from "../octree";
-import { GjkEpa } from "./gjk_epa";
 import { RigidBody } from "./rigid_body";
 
 let t1 = new THREE.Vector3();
@@ -29,7 +28,7 @@ export abstract class CollisionShape implements OctreeObject {
 	userData: any;
 
 	abstract updateInertiaTensor(): void;
-	abstract support(dst: THREE.Vector3, direction: THREE.Vector3, translation?: THREE.Vector3): THREE.Vector3;
+	abstract support(dst: THREE.Vector3, direction: THREE.Vector3): THREE.Vector3;
 	abstract getCenter(dst: THREE.Vector3): THREE.Vector3;
 
 	updateBoundingBox() {
@@ -44,10 +43,6 @@ export abstract class CollisionShape implements OctreeObject {
 		}
 
 		this.body?.world?.octree.update(this);
-	}
-
-	isIntersectedByRay() {
-		return false; // Raycasting isn't implemented in the octree but in GJK
 	}
 }
 
@@ -67,12 +62,8 @@ export class BallCollisionShape extends CollisionShape {
 		this.invInertia.getInverse(this.inertia);
 	}
 
-	support(dst: THREE.Vector3, direction: THREE.Vector3, translation?: THREE.Vector3) {
-		dst.copy(direction).normalize().multiplyScalar(this.radius).add(this.body.position);
-
-		if (translation && direction.dot(translation) > 0) dst.add(translation);
-
-		return dst;
+	support(dst: THREE.Vector3, direction: THREE.Vector3) {
+		return dst.copy(direction).normalize().multiplyScalar(this.radius).add(this.body.position);
 	}
 
 	getCenter(dst: THREE.Vector3) {
@@ -112,7 +103,7 @@ export class ConvexHullCollisionShape extends CollisionShape {
 		// Do nothing for now, we likely won't need it because there is no dynamic convex hull object
 	}
 
-	support(dst: THREE.Vector3, direction: THREE.Vector3, translation?: THREE.Vector3) {
+	support(dst: THREE.Vector3, direction: THREE.Vector3) {
 		q1.copy(this.body.orientation).conjugate();
 		let localDirection = t1.copy(direction).applyQuaternion(q1); // Transform it to local space
 
@@ -128,10 +119,7 @@ export class ConvexHullCollisionShape extends CollisionShape {
 			}
 		}
 
-		this.body.transformPoint(dst);
-		if (translation && direction.dot(translation) > 0) dst.add(translation);
-
-		return dst;
+		return this.body.transformPoint(dst);
 	}
 
 	getCenter(dst: THREE.Vector3) {

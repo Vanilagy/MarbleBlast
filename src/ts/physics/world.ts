@@ -1,17 +1,16 @@
 import THREE from "three";
-import { bounceParticleOptions } from "../marble";
 import { Octree } from "../octree";
-import { state } from "../state";
-import { Util } from "../util";
 import { Collision } from "./collision";
 import { CollisionShape, CombinedCollisionShape, ConvexHullCollisionShape } from "./collision_shape";
-import { GjkEpa } from "./gjk_epa";
+import { CollisionDetection } from "./collision_detection";
 import { RigidBody, RigidBodyType } from "./rigid_body";
+import { CollisionResponse } from "./collision_response";
 
 const MAX_SUBSTEPS = 10;
 
 let v1 = new THREE.Vector3();
 let v2 = new THREE.Vector3();
+let v3 = new THREE.Vector3();
 let raycastAabb = new THREE.Box3();
 
 let singletonShape = new ConvexHullCollisionShape([new THREE.Vector3()]);
@@ -37,6 +36,8 @@ export class World {
 	inContact = new Set<CollisionShape>();
 	newInContact = new Set<CollisionShape>();
 
+	cachedBroadphaseResults = new Map<CollisionShape, CollisionShape[]>();
+
 	add(body: RigidBody) {
 		if (body.world) {
 			throw new Error("RigidBody already belongs to a world.");
@@ -48,13 +49,13 @@ export class World {
 	}
 
 	step(dt: number) {
-		this.substep(dt, 0, 0);
+		//console.time();
+		for (let i = 0; i < 1; i++) this.substep(dt, 0, 0);
+		//console.timeEnd();
 	}
 
 	substep(dt: number, startT: number, depth: number) {
 		if (dt < 0.00001 || depth >= MAX_SUBSTEPS) return;
-
-		console.log(depth);
 
 		let dynamicBodies: RigidBody[] = [];
 		let dynamicShapes: CollisionShape[] = [];
@@ -75,6 +76,8 @@ export class World {
 				dynamicShapes.push(...body.shapes);
 			}
 		}
+
+		this.cachedBroadphaseResults.clear();
 
 		let ccdCollisions = this.computeCollisions(dynamicShapes, true);
 		let t = 1;
@@ -122,8 +125,8 @@ export class World {
 			let collision = collisions[i];
 			if ((collision.s1.collisionResponseMask & collision.s2.collisionResponseMask) === 0) continue;
 
-			collision.solvePosition();
-			collision.solveVelocity();
+			CollisionResponse.solvePosition(collision);
+			CollisionResponse.solveVelocity(collision);
 		}
 
 		for (let body of collidingBodies) body.onAfterCollisionResponse(cumT, dt * t);
@@ -138,17 +141,17 @@ export class World {
 
 	computeCollisions(dynamicShapes: CollisionShape[], isCcdPass: boolean) {
 		let collisions: Collision[] = [];
-		let cachedBroadphaseResults = new Map<CollisionShape, CollisionShape[]>();
+		//let cachedBroadphaseResults = new Map<CollisionShape, CollisionShape[]>();
 
 		for (let i = 0; i < dynamicShapes.length; i++) {
 			let shape = dynamicShapes[i];
 			let broadphaseShape = shape.broadphaseShape || shape;
-			let collisionCandidates = cachedBroadphaseResults.get(broadphaseShape);
+			let collisionCandidates = this.cachedBroadphaseResults.get(broadphaseShape);
 			let shapeCollisions: Collision[] = [];
 
 			if (!collisionCandidates) {
 				collisionCandidates = this.octree.intersectAabb(shape.boundingBox) as CollisionShape[];
-				cachedBroadphaseResults.set(shape, collisionCandidates);
+				this.cachedBroadphaseResults.set(broadphaseShape, collisionCandidates);
 			}
 
 			outer:
@@ -164,19 +167,8 @@ export class World {
 					if (c.s1 === candidate && c.s2 === shape) continue outer;
 				}
 
-				/*
-				let minimumSeparatingVector: THREE.Vector3 = null;
-				let transVec: THREE.Vector3 = null;
-
 				if (isCcdPass) {
-					transVec = shape.body.getRelativeMotionVector(v1, candidate.body);
-					transVec.negate(); // Translate backwards from where we came from, doesn't matter since we just care about the boolean result
-				} else {
-					minimumSeparatingVector = v2.set(0, 0, 0);
-				}*/
-
-				if (isCcdPass) {
-					let timeOfImpact = GjkEpa.determineTimeOfImpact(shape, candidate);
+					let timeOfImpact = CollisionDetection.determineTimeOfImpact(shape, candidate);
 					if (timeOfImpact === null) continue;
 
 					let collision = new Collision(shape, candidate);
@@ -184,17 +176,18 @@ export class World {
 					this.newInContactCcd.add(candidate);
 					collisions.push(collision);
 				} else {
-					let collides = GjkEpa.gjk(shape, candidate);
+					let collides = CollisionDetection.checkIntersection(shape, candidate);
 					if (!collides) continue;
 
-					let minimumSeparatingVector = GjkEpa.epa(v2);
 					let collision = new Collision(shape, candidate);
-					collision.supplyMinimumSeparatingVector(minimumSeparatingVector);
+					let isMainCollisionShape = !!(shape.collisionDetectionMask & 1); // Meaning, no aux stuff, no triggers, whatever
 
-					let doInternalEdgeHitCorrection = !!(shape.collisionDetectionMask & 1);
-					doInternalEdgeHitCorrection = false;
+					if (isMainCollisionShape) {
+						let minimumSeparatingVector = CollisionDetection.determineMinimumSeparatingVector(v2);
+						collision.supplyMinimumSeparatingVector(minimumSeparatingVector);
+					}
 
-					if (doInternalEdgeHitCorrection) for (let k = 0; k < shapeCollisions.length; k++) {
+					if (isMainCollisionShape) for (let k = 0; k < shapeCollisions.length; k++) {
 						let c2 = shapeCollisions[k];
 						let distSq = collision.point2.distanceToSquared(c2.point2);
 						if (distSq >= 0.1**2) continue;
@@ -202,29 +195,29 @@ export class World {
 						combinedCollisionShape.s1 = c2.s2;
 						combinedCollisionShape.s2 = candidate;
 
-						let msv = new THREE.Vector3();
-						GjkEpa.gjk(shape, combinedCollisionShape);
-						GjkEpa.epa(msv);
-						msv.normalize();
+						let combinedNormal = v3.setScalar(0);
+						CollisionDetection.checkIntersection(shape, combinedCollisionShape);
+						CollisionDetection.determineMinimumSeparatingVector(combinedNormal);
+						combinedNormal.normalize();
 
-						if (collision.normal.dot(msv) <= 0 || c2.normal.dot(msv) <= 0) break; // Incase the result is totally out of wack
+						if (collision.normal.dot(combinedNormal) <= 0 || c2.normal.dot(combinedNormal) <= 0) break; // Incase the result is totally out of wack
 
 						let size: number;
 
 						size = candidate.boundingBox.min.distanceTo(candidate.boundingBox.max);
-						let hit1 = GjkEpa.castRay(
+						let hit1 = CollisionDetection.castRay(
 							candidate,
 							singletonShape,
-							candidate.getCenter(v1).add(v2.copy(msv).multiplyScalar(size)),
-							v2.copy(msv).negate(),
+							candidate.getCenter(v1).addScaledVector(combinedNormal, size),
+							v2.copy(combinedNormal).negate(),
 							size
 						);
 						size = c2.s2.boundingBox.min.distanceTo(c2.s2.boundingBox.max);
-						let hit2 = GjkEpa.castRay(
+						let hit2 = CollisionDetection.castRay(
 							c2.s2,
 							singletonShape,
-							c2.s2.getCenter(v1).add(v2.copy(msv).multiplyScalar(size)),
-							v2.copy(msv).negate(),
+							c2.s2.getCenter(v1).addScaledVector(combinedNormal, size),
+							v2.copy(combinedNormal).negate(),
 							size
 						);
 
@@ -244,79 +237,10 @@ export class World {
 					collision.s2.body.collisions.push(collision);
 					this.newInContact.add(candidate);
 				}
-
-				/*
-
-				let collides = GjkEpa.gjk(shape, candidate, null, minimumSeparatingVector, transVec);
-
-				if (collides) {
-					let collision = new Collision(shape, candidate);
-
-					if (isCcdPass) {
-						let timeOfImpact = GjkEpa.determineTimeOfImpact(shape, candidate);
-						collision.timeOfImpact = timeOfImpact;
-						this.newInContactCcd.add(candidate);
-
-						collisions.push(collision);
-					} else {
-						collision.supplyMinimumSeparatingVector(minimumSeparatingVector);
-
-						let doInternalEdgeHitCorrection = !!(shape.collisionDetectionMask & 1);
-
-						if (doInternalEdgeHitCorrection) for (let k = 0; k < shapeCollisions.length; k++) {
-							let c2 = shapeCollisions[k];
-							let distSq = collision.point2.distanceToSquared(c2.point2);
-							if (distSq >= 0.1**2) continue;
-
-							combinedCollisionShape.s1 = c2.s2;
-							combinedCollisionShape.s2 = candidate;
-
-							let msv = new THREE.Vector3();
-							GjkEpa.gjk(shape, combinedCollisionShape, null, msv);
-							msv.normalize();
-
-							if (collision.normal.dot(msv) <= 0 || c2.normal.dot(msv) <= 0) break; // Incase the result is totally out of wack
-
-							let size: number;
-
-							size = candidate.boundingBox.min.distanceTo(candidate.boundingBox.max);
-							let hit1 = GjkEpa.castRay(
-								candidate,
-								singletonShape,
-								candidate.getCenter(v1).add(v2.copy(msv).multiplyScalar(size)),
-								v2.copy(msv).negate(),
-								size
-							);
-							size = c2.s2.boundingBox.min.distanceTo(c2.s2.boundingBox.max);
-							let hit2 = GjkEpa.castRay(
-								c2.s2,
-								singletonShape,
-								c2.s2.getCenter(v1).add(v2.copy(msv).multiplyScalar(size)),
-								v2.copy(msv).negate(),
-								size
-							);
-
-							if (hit1) {
-								collision.supplyMinimumSeparatingVector(hit1.normal.multiplyScalar(collision.depth));
-							}
-							if (hit2) {
-								c2.supplyMinimumSeparatingVector(hit2.normal.multiplyScalar(c2.depth));
-							}
-
-							break;
-						}
-
-						collisions.push(collision);
-						shapeCollisions.push(collision);
-						shape.body.collisions.push(collision);
-						collision.s2.body.collisions.push(collision);
-						this.newInContact.add(candidate);
-					}
-				}
-
-				*/
 			}
 		}
+
+		for (let i = 0; i < collisions.length; i++) collisions[i].updateMaterialProperties();
 
 		return collisions;
 	}
@@ -324,7 +248,7 @@ export class World {
 	castRay(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number, collisionDetectionMask = 0b1) {
 		raycastAabb.makeEmpty();
 		raycastAabb.expandByPoint(rayOrigin);
-		raycastAabb.expandByPoint(rayOrigin.clone().addScaledVector(rayDirection, maxLength));
+		raycastAabb.expandByPoint(v1.copy(rayOrigin).addScaledVector(rayDirection, maxLength));
 
 		let candidates = this.octree.intersectAabb(raycastAabb) as CollisionShape[];
 		let hits: RayCastHit[] = [];
@@ -332,7 +256,7 @@ export class World {
 		for (let candidate of candidates) {
 			if ((candidate.collisionDetectionMask & collisionDetectionMask) === 0) continue;
 
-			let hit = GjkEpa.castRay(candidate, singletonShape, rayOrigin, rayDirection, maxLength);
+			let hit = CollisionDetection.castRay(candidate, singletonShape, rayOrigin, rayDirection, maxLength);
 			if (hit) hits.push({ ...hit, shape: candidate });
 		}
 

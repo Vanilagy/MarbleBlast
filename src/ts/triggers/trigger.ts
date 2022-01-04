@@ -69,7 +69,7 @@ export class Trigger {
 
 		let ownShape = new ConvexHullCollisionShape(aabbVertices);
 		ownShape.collisionDetectionMask = 0b100; // Collide with the small aux marble
-		
+
 		let ownBody = new RigidBody();
 		ownBody.type = RigidBodyType.Static;
 		ownBody.addCollisionShape(ownShape);

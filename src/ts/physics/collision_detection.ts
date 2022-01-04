@@ -30,14 +30,13 @@ let t2 = new THREE.Vector3();
 let translation = new THREE.Vector3();
 let actualPosition1 = new THREE.Vector3();
 let actualPosition2 = new THREE.Vector3();
-let scaledTranslation = new THREE.Vector3();
-let distance = new THREE.Vector3();
 let x = new THREE.Vector3();
 let n = new THREE.Vector3();
 let w = new THREE.Vector3();
 let requireFlip = 0;
 let lastS1: CollisionShape = null;
 let lastS2: CollisionShape = null;
+let o = new THREE.Vector3(0, 0, 0);
 
 // EPA state
 let faces: THREE.Vector3[][] = [];
@@ -49,12 +48,12 @@ for (let i = 0; i < maxEpaLooseEdges; i++) {
 	looseEdges.push([new THREE.Vector3(), new THREE.Vector3()]);
 }
 
-export abstract class GjkEpa {
-	static support(dst: THREE.Vector3, s1: CollisionShape, s2: CollisionShape, direction: THREE.Vector3, s1Translation?: THREE.Vector3) {
-		return s1.support(dst, direction, s1Translation).sub(s2.support(t1, t2.copy(direction).negate()));
+export abstract class CollisionDetection {
+	static support(dst: THREE.Vector3, s1: CollisionShape, s2: CollisionShape, direction: THREE.Vector3) {
+		return s1.support(dst, direction).sub(s2.support(t1, t2.copy(direction).negate()));
 	}
 
-	static gjk(s1: CollisionShape, s2: CollisionShape) {
+	static checkIntersection(s1: CollisionShape, s2: CollisionShape) {
 		lastS1 = s1;
 		lastS2 = s2;
 
@@ -97,7 +96,7 @@ export abstract class GjkEpa {
 		s1.body.position.copy(s1.body.prevPosition);
 		s2.body.position.copy(s2.body.prevPosition);
 
-		let res = this.castRay(s1, s2, new THREE.Vector3(), translation.negate(), 1);
+		let res = this.castRay(s1, s2, o, translation.negate(), 1);
 
 		s1.body.position.copy(actualPosition1);
 		s2.body.position.copy(actualPosition2);
@@ -112,6 +111,9 @@ export abstract class GjkEpa {
 	}
 
 	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number) {
+		lastS1 = s1;
+		lastS2 = s2;
+
 		direction.copy(s2.body.position).sub(s1.body.position).normalize();
 
 		this.support(support, s1, s2, direction);
@@ -373,7 +375,7 @@ export abstract class GjkEpa {
 		return used;
 	}
 
-	static epa(dst: THREE.Vector3) {
+	static determineMinimumSeparatingVector(dst: THREE.Vector3) {
 		// EPA code taken from https://github.com/kevinmoran/GJK/blob/master/GJK.h
 
 		let a = points[0];

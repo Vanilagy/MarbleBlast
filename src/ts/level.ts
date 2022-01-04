@@ -568,7 +568,7 @@ export class Level extends Scheduler {
 					promises.push(this.addShape(element));
 					break;
 				case MissionElementType.Trigger:
-					//promises.push(this.addTrigger(element));
+					promises.push(this.addTrigger(element));
 					break;
 				case MissionElementType.TSStatic:
 					promises.push(this.addTSStatic(element));

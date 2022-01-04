@@ -3216,9 +3216,6 @@
 		if ( y === void 0 ) y = 0;
 		if ( z === void 0 ) z = 0;
 
-
-		Object.defineProperty( this, 'isVector3', { value: true } );
-
 		this.x = x;
 		this.y = y;
 		this.z = z;
@@ -5624,7 +5621,7 @@
 
 		var te = this.elements;
 
-		if ( x.isVector3 ) {
+		if ( x instanceof Vector3 ) {
 
 			te[ 12 ] = x.x;
 			te[ 13 ] = x.y;
@@ -6662,7 +6659,7 @@
 
 			// This method does not support objects having non-uniformly-scaled parent(s)
 
-			if ( x.isVector3 ) {
+			if ( x instanceof Vector3 ) {
 
 				_target.copy( x );
 
