@@ -422,10 +422,7 @@ export class Marble {
 		// Apply angular acceleration, but make sure the angular velocity doesn't exceed some maximum
 		Util.addToVectorCapped(this.body.angularVelocity, movementRotationAxis, 120 * this.speedFac);
 
-		this.lastVel.copy(this.body.linearVelocity);
-		this.lastAngVel.copy(this.body.angularVelocity);
-
-		this.slidingTimeout--;
+		if (this.level.finishTime) this.body.linearVelocity.multiplyScalar(0.9);
 
 		if (allowUserInput && this.level.heldPowerUp && (isPressed('use') || this.level.useQueued) && getPressedFlag('use')) {
 			this.level.replay.recordUsePowerUp(this.level.heldPowerUp);
@@ -436,6 +433,11 @@ export class Marble {
 			this.useBlast();
 			this.level.blastQueued = false;
 		}
+
+		this.lastVel.copy(this.body.linearVelocity);
+		this.lastAngVel.copy(this.body.angularVelocity);
+
+		this.slidingTimeout--;
 	}
 
 	onAfterIntegrate() {
@@ -558,17 +560,9 @@ export class Marble {
 			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 		}
-
-		// Store sound state in the replay
-		let r = this.level.replay;
-		if (r.canStore) {
-			r.rollingSoundGain.push(this.rollingSound.gain.gain.value);
-			r.rollingSoundPlaybackRate.push((this.rollingSound.node as AudioBufferSourceNode).playbackRate.value);
-			r.slidingSoundGain.push(this.slidingSound.gain.gain.value);
-		}
 	}
 
-	updatePowerUpStates(time: TimeState) {
+	tick(time: TimeState) {
 		if (time.currentAttemptTime - this.shockAbsorberEnableTime < 5000) {
 			// Show the shock absorber (takes precedence over super bounce)
 			this.forcefield.setOpacity(1);
@@ -632,6 +626,16 @@ export class Marble {
 			this.setRadius(this.level.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
 			this.rollingSound.play();
 			this.rollingMegaMarbleSound?.stop();
+		}
+	}
+
+	postTick() {
+		// Store sound state in the replay
+		let r = this.level.replay;
+		if (r.canStore) {
+			r.rollingSoundGain.push(this.rollingSound.gain.gain.value);
+			r.rollingSoundPlaybackRate.push((this.rollingSound.node as AudioBufferSourceNode).playbackRate.value);
+			r.slidingSoundGain.push(this.slidingSound.gain.gain.value);
 		}
 	}
 

@@ -1,6 +1,6 @@
 import THREE from "three";
 import { Util } from "../util";
-import { CollisionShape } from "./collision_shape";
+import { BallCollisionShape, CollisionShape } from "./collision_shape";
 
 const maxIterations = 64;
 const maxEpaFaces = 64;
@@ -57,6 +57,18 @@ export abstract class CollisionDetection {
 		lastS1 = s1;
 		lastS2 = s2;
 
+		if (s1 instanceof BallCollisionShape && s2 instanceof BallCollisionShape) {
+			return this.checkBallBallIntersection(s1, s2);
+		} else {
+			return this.checkConvexConvexIntersection(s1, s2);
+		}
+	}
+
+	static checkBallBallIntersection(s1: BallCollisionShape, s2: BallCollisionShape) {
+		return s1.body.position.distanceTo(s2.body.position) <= s1.radius + s2.radius;
+	}
+
+	static checkConvexConvexIntersection(s1: CollisionShape, s2: CollisionShape) {
 		direction.copy(s2.body.position).sub(s1.body.position).normalize(); // Can really be anything but this is a good start
 
 		this.support(support, s1, s2, direction);
@@ -376,6 +388,11 @@ export abstract class CollisionDetection {
 	}
 
 	static determineMinimumSeparatingVector(dst: THREE.Vector3) {
+		if (lastS1 instanceof BallCollisionShape && lastS2 instanceof BallCollisionShape) {
+			let len = lastS1.radius + lastS2.radius - lastS1.body.position.distanceTo(lastS2.body.position);
+			return dst.copy(lastS1.body.position).sub(lastS2.body.position).normalize().multiplyScalar(len);
+		}
+
 		// EPA code taken from https://github.com/kevinmoran/GJK/blob/master/GJK.h
 
 		let a = points[0];

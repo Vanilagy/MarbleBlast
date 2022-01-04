@@ -316,35 +316,35 @@ export class Replay {
 			if (obj.tickIndex !== i) continue;
 
 			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.triggers.find(x => x.id === obj.id);
-			object.onMarbleInside(this.level.timeState);
+			object.onMarbleInside(1);
 		}
 
 		for (let obj of this.marbleEnter) {
 			if (obj.tickIndex !== i) continue;
 
 			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.triggers.find(x => x.id === obj.id);
-			object.onMarbleEnter(this.level.timeState);
+			object.onMarbleEnter(1);
 		}
 
 		for (let obj of this.marbleLeave) {
 			if (obj.tickIndex !== i) continue;
 
 			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.triggers.find(x => x.id === obj.id);
-			object.onMarbleLeave(this.level.timeState);
+			object.onMarbleLeave();
 		}
 
 		for (let obj of this.marbleContact) {
 			if (obj.tickIndex !== i) continue;
 
 			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.interiors.find(x => x.id === obj.id);
-			object.onMarbleContact(this.level.timeState, null);
+			object.onMarbleContact(null, 1000 / PHYSICS_TICK_RATE);
 		}
 
 		for (let use of this.uses) {
 			if (use.tickIndex !== i) continue;
 
 			let powerUp = this.level.shapes.find(x => x.id === use.id) as PowerUp;
-			powerUp.use(this.level.timeState);
+			powerUp.use(0);
 		}
 
 		for (let blast of this.blasts) {

@@ -1137,9 +1137,16 @@ export class Level extends Scheduler {
 			for (let interior of this.interiors) interior.tick(this.timeState);
 			for (let trigger of this.triggers) trigger.tick(this.timeState);
 			for (let shape of this.shapes) if (!shape.isTSStatic) shape.tick(this.timeState);
-			this.marble.updatePowerUpStates(this.timeState);
+			this.marble.tick(this.timeState);
 
-			this.world.step(1 / PHYSICS_TICK_RATE);
+			if (!playReplay) {
+				let gravityBefore = this.world.gravity.clone();
+				if (this.finishTime) this.world.gravity.setScalar(0);
+				this.world.step(1 / PHYSICS_TICK_RATE);
+				this.world.gravity.copy(gravityBefore);
+			}
+
+			this.marble.postTick();
 
 			/*
 			// Update pathed interior velocities before running the simulation step
