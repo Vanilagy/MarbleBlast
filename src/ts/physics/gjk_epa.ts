@@ -32,8 +32,12 @@ let actualPosition1 = new THREE.Vector3();
 let actualPosition2 = new THREE.Vector3();
 let scaledTranslation = new THREE.Vector3();
 let distance = new THREE.Vector3();
+let x = new THREE.Vector3();
+let n = new THREE.Vector3();
 let w = new THREE.Vector3();
 let requireFlip = 0;
+let lastS1: CollisionShape = null;
+let lastS2: CollisionShape = null;
 
 // EPA state
 let faces: THREE.Vector3[][] = [];
@@ -50,10 +54,13 @@ export abstract class GjkEpa {
 		return s1.support(dst, direction, s1Translation).sub(s2.support(t1, t2.copy(direction).negate()));
 	}
 
-	static gjk(s1: CollisionShape, s2: CollisionShape, distance?: THREE.Vector3, minimumSeparatingVector?: THREE.Vector3, s1Translation?: THREE.Vector3) {
+	static gjk(s1: CollisionShape, s2: CollisionShape) {
+		lastS1 = s1;
+		lastS2 = s2;
+
 		direction.copy(s2.body.position).sub(s1.body.position).normalize(); // Can really be anything but this is a good start
 
-		this.support(support, s1, s2, direction, s1Translation);
+		this.support(support, s1, s2, direction);
 
 		numPoints = 1;
 		points[0].copy(support);
@@ -61,11 +68,10 @@ export abstract class GjkEpa {
 		direction.copy(support).negate();
 
 		for (let i = 0; i < maxIterations; i++) {
-			this.support(support, s1, s2, direction, s1Translation);
+			this.support(support, s1, s2, direction);
 
 			if (support.dot(direction) <= 0) {
 				// No collision
-				if (distance) distance.copy(direction).negate();
 				return false;
 			}
 
@@ -75,7 +81,6 @@ export abstract class GjkEpa {
 
 			if (numPoints === 4) {
 				// Yes collision
-				if (minimumSeparatingVector) this.epa(minimumSeparatingVector, s1, s2, s1Translation);
 				return true;
 			}
 		}
@@ -83,50 +88,27 @@ export abstract class GjkEpa {
 		return false;
 	}
 
-	static determineTimeOfImpact(s1: CollisionShape, s2: CollisionShape, minimumSeparatingVector?: THREE.Vector3, eps = 0.01) {
+	static determineTimeOfImpact(s1: CollisionShape, s2: CollisionShape, eps = 0.03) {
 		s1.body.getRelativeMotionVector(translation, s2.body);
+		let translationLength = translation.length();
 
 		actualPosition1.copy(s1.body.position);
 		actualPosition2.copy(s2.body.position);
 		s1.body.position.copy(s1.body.prevPosition);
 		s2.body.position.copy(s2.body.prevPosition);
 
-		let low = 0;
-		let high = 1;
-		let mid: number;
-		let translationLength = translation.length();
-
-		let i: number;
-		for (i = 0; i < 32; i++) {
-			mid = (low + high) / 2;
-
-			scaledTranslation.copy(translation).multiplyScalar(mid);
-			let intersects = this.gjk(s1, s2, distance, null, scaledTranslation);
-
-			if (intersects) {
-				if ((high - low) * translationLength <= eps) {
-					if (i === 0) mid = high; // todo explain this lol
-					break;
-				}
-
-				high = mid;
-			} else {
-				let invMid = 1 - mid;
-				let skipAhead = Math.max(distance.dot(translation) * invMid / (invMid * translationLength)**2, 0);
-
-				skipAhead = 0;
-
-				low = mid + skipAhead * invMid;
-			}
-		}
-
-		if (minimumSeparatingVector)
-			this.gjk(s1, s2, null, minimumSeparatingVector, scaledTranslation); // Run EPA on the thing
+		let res = this.castRay(s1, s2, new THREE.Vector3(), translation.negate(), 1);
 
 		s1.body.position.copy(actualPosition1);
 		s2.body.position.copy(actualPosition2);
 
-		return mid;
+		if (!res) return null;
+
+		let toAdd = Math.min(eps * translationLength, eps / translationLength);
+		res.lambda += toAdd;
+		res.lambda = Util.clamp(res.lambda, 0, 1);
+
+		return res.lambda;
 	}
 
 	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, maxLength: number) {
@@ -136,8 +118,8 @@ export abstract class GjkEpa {
 
 		numPoints = 0;
 
-		let x = rayOrigin.clone();
-		let n = new THREE.Vector3();
+		x.copy(rayOrigin);
+		n.setScalar(0);
 		let lambda = 0;
 
 		direction.copy(x).sub(support);
@@ -171,7 +153,7 @@ export abstract class GjkEpa {
 			}
 
 			if (direction.lengthSq() < 10 * Number.EPSILON * maxDist2) {
-				return { point: x, lambda, normal: n.normalize() };
+				return { point: x.clone(), lambda, normal: n.clone().normalize() };
 			}
 
 			for (let i = 0; i < numPoints; i++) points[i].sub(x).negate();
@@ -391,7 +373,7 @@ export abstract class GjkEpa {
 		return used;
 	}
 
-	static epa(dst: THREE.Vector3, s1: CollisionShape, s2: CollisionShape, s1Translation?: THREE.Vector3) {
+	static epa(dst: THREE.Vector3) {
 		// EPA code taken from https://github.com/kevinmoran/GJK/blob/master/GJK.h
 
 		let a = points[0];
@@ -433,11 +415,10 @@ export abstract class GjkEpa {
 
 			// search normal to face that's closest to origin
 			direction.copy(faces[closestFace][3]);
-			this.support(support, s1, s2, direction, s1Translation);
+			this.support(support, lastS1, lastS2, direction);
 			if (support.dot(direction) - minDist < epaTolerance) {
 				// Convergence (new point is not significantly further from origin)
-				dst.copy(faces[closestFace][3]).multiplyScalar(support.dot(direction)).negate(); // dot vertex with normal to resolve collision along normal!
-				return;
+				return dst.copy(faces[closestFace][3]).multiplyScalar(support.dot(direction)).negate(); // dot vertex with normal to resolve collision along normal!
 			}
 
 			let numLooseEdges = 0;
@@ -507,6 +488,6 @@ export abstract class GjkEpa {
 				numFaces++;
 			}
 		}
-		dst.copy(faces[closestFace][3]).multiplyScalar(faces[closestFace][0].dot(faces[closestFace][3])).negate();
+		return dst.copy(faces[closestFace][3]).multiplyScalar(faces[closestFace][0].dot(faces[closestFace][3])).negate();
 	}
 }

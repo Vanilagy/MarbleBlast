@@ -1,7 +1,6 @@
 import { PowerUp } from "./power_up";
 import * as THREE from "three";
 import { Util } from "../util";
-import { TimeState } from "../level";
 import { AudioManager } from "../audio";
 import { state } from "../state";
 import { MissionElementItem } from "../parsing/mis_parser";
@@ -25,12 +24,12 @@ export class AntiGravity extends PowerUp {
 		return !Util.isSameVector(direction, this.level.currentUp);
 	}
 
-	use(time: TimeState) {
+	use() {
 		// Determine the new up vector
 		let direction = new THREE.Vector3(0, 0, -1);
 		direction.applyQuaternion(this.worldOrientation);
 
-		this.level.setUp(Util.vecThreeToOimo(direction), time);
+		this.level.setUp(Util.vecThreeToOimo(direction));
 		AudioManager.play(this.sounds[0]);
 	}
 }

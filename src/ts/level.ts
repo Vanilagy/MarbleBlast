@@ -568,7 +568,7 @@ export class Level extends Scheduler {
 					promises.push(this.addShape(element));
 					break;
 				case MissionElementType.Trigger:
-					promises.push(this.addTrigger(element));
+					//promises.push(this.addTrigger(element));
 					break;
 				case MissionElementType.TSStatic:
 					promises.push(this.addTSStatic(element));
@@ -1243,7 +1243,9 @@ export class Level extends Scheduler {
 	}
 
 	/** Sets the current up vector and gravity with it. */
-	setUp(newUp: OIMO.Vec3, time: TimeState, instant = false) {
+	setUp(newUp: OIMO.Vec3, instant = false) {
+		let time = this.timeState;
+
 		newUp.normalize(); // We never know 👀
 		this.currentUp = newUp;
 		let gravityStrength = this.world.gravity.length();
@@ -1464,10 +1466,10 @@ export class Level extends Scheduler {
 			// In this case, we set the gravity to the relative "up" vector of the checkpoint shape.
 			let up = new THREE.Vector3(0, 0, 1);
 			up.applyQuaternion(this.currentCheckpoint.worldOrientation);
-			this.setUp(Util.vecThreeToOimo(up), this.timeState, true);
+			this.setUp(Util.vecThreeToOimo(up), true);
 		} else {
 			// Otherwise, we restore gravity to what was stored.
-			this.setUp(this.checkpointUp, this.timeState, true);
+			this.setUp(this.checkpointUp, true);
 		}
 
 		// Determine where to spawn the marble
