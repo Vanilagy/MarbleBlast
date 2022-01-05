@@ -1,5 +1,6 @@
 import { Texture } from "./rendering/texture";
 import { state } from "./state";
+import { mainRenderer } from "./ui/misc";
 
 const imageCacheElement = document.querySelector('#image-cache');
 
@@ -50,6 +51,7 @@ export abstract class ResourceManager {
 		let promise = new Promise<Texture>(async (resolve) => {
 			let image = await this.loadImage(fullPath);
 			let texture = new Texture(image);
+			texture.getGLTexture(mainRenderer); // Any texture is immediately uploaded to the main renderer context as a preloading measure. This avoids flickering later.
 
 			this.textureCache.set(fullPath, texture);
 			resolve(texture);

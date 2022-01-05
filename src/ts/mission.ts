@@ -328,9 +328,13 @@ export class Mission {
 		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
 			let blob = await this.getBlobForFile(base + path);
 			let url = ResourceManager.getUrlToBlob(blob);
-			return await ResourceManager.getTexture(url, '');
+			let texture = await ResourceManager.getTexture(url, '');
+
+			return texture;
 		} else {
-			return await ResourceManager.getTexture(path, 'assets/' + base);
+			let texture = await ResourceManager.getTexture(path, 'assets/' + base);
+
+			return texture;
 		}
 	}
 

@@ -1,4 +1,3 @@
-import { ResourceManager } from "./resources";
 import { ConvexHullCollisionShape } from "./physics/collision_shape";
 import { Vector2 } from "./math/vector2";
 import { Vector3 } from "./math/vector3";
@@ -512,8 +511,12 @@ export abstract class Util {
 
 	static async arrayBufferToBase64(buf: ArrayBuffer) {
 		let blob = new Blob([buf]);
-		let dataUrl = await ResourceManager.readBlobAsDataUrl(blob);
-		return dataUrl.slice(dataUrl.indexOf(',') + 1); // Remove the stupid preable
+		let dataUrl = await new Promise<string>((resolve) => {
+			let reader = new FileReader();
+			reader.onload = (e) => resolve(e.target.result as string);
+			reader.readAsDataURL(blob);
+		});
+		return dataUrl.slice(dataUrl.indexOf(',') + 1); // Remove the stupid preamble
 	}
 
 	static randomNumberQueue: number[] = [];

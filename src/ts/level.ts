@@ -174,6 +174,7 @@ export class Level extends Scheduler {
 	/** The last performance.now() time the physics were ticked. */
 	lastPhysicsTick: number = null;
 	lastFrameTime: number = null;
+	started = false;
 	paused = true;
 	/** If the level is stopped, it shouldn't be used anymore. */
 	stopped = false;
@@ -286,6 +287,7 @@ export class Level extends Scheduler {
 	async start() {
 		if (this.stopped) return;
 
+		this.started = true;
 		this.paused = false;
 		this.restart(true);
 		for (let interior of this.interiors) await interior.onLevelStart();
@@ -1330,7 +1332,7 @@ export class Level extends Scheduler {
 	}
 
 	onMouseMove(e: MouseEvent) {
-		if (!document.pointerLockElement || this.finishTime || this.paused || this.replay.mode === 'playback') return;
+		if (!this.started || !document.pointerLockElement || this.finishTime || this.paused || this.replay.mode === 'playback') return;
 
 		let totalDistance = Math.hypot(e.movementX, e.movementY);
 
