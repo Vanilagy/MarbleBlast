@@ -150,7 +150,7 @@ export class World {
 			let shapeCollisions: Collision[] = [];
 
 			if (!collisionCandidates) {
-				collisionCandidates = this.octree.intersectAabb(shape.boundingBox) as CollisionShape[];
+				collisionCandidates = this.octree.intersectAabb(broadphaseShape.boundingBox) as CollisionShape[];
 				this.cachedBroadphaseResults.set(broadphaseShape, collisionCandidates);
 			}
 
