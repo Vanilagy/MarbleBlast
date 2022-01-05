@@ -1,4 +1,5 @@
-import THREE from "three";
+import { Quaternion } from "../math/quaternion";
+import { Vector3 } from "../math/vector3";
 import { Util } from "../util";
 import { Collision } from "./collision";
 import { CollisionShape } from "./collision_shape";
@@ -9,25 +10,25 @@ export enum RigidBodyType {
 	Static
 }
 
-let dq = new THREE.Quaternion();
-let v1 = new THREE.Vector3();
-let q1 = new THREE.Quaternion();
+let dq = new Quaternion();
+let v1 = new Vector3();
+let q1 = new Quaternion();
 
 export class RigidBody {
 	world: World = null;
 	type: RigidBodyType = RigidBodyType.Dynamic;
 	enabled = true;
 
-	position = new THREE.Vector3();
-	orientation = new THREE.Quaternion();
+	position = new Vector3();
+	orientation = new Quaternion();
 
-	linearVelocity = new THREE.Vector3();
-	angularVelocity = new THREE.Vector3();
+	linearVelocity = new Vector3();
+	angularVelocity = new Vector3();
 
-	prevPosition = new THREE.Vector3();
-	prevOrientation = new THREE.Quaternion();
-	prevLinearVelocity = new THREE.Vector3();
-	prevAngularVelocity = new THREE.Vector3();
+	prevPosition = new Vector3();
+	prevOrientation = new Quaternion();
+	prevLinearVelocity = new Vector3();
+	prevAngularVelocity = new Vector3();
 	prevValid = false;
 
 	shapes: CollisionShape[] = [];
@@ -36,11 +37,11 @@ export class RigidBody {
 
 	userData: any;
 
-	transformPoint(p: THREE.Vector3) {
+	transformPoint(p: Vector3) {
 		return p.applyQuaternion(this.orientation).add(this.position);
 	}
 
-	transformPointInv(p: THREE.Vector3) {
+	transformPointInv(p: Vector3) {
 		q1.copy(this.orientation).conjugate();
 		return p.sub(this.position).applyQuaternion(q1);
 	}
@@ -61,11 +62,11 @@ export class RigidBody {
 		this.syncShapes();
 	}
 
-	applyTranslation(translation: THREE.Vector3) {
+	applyTranslation(translation: Vector3) {
 		this.position.add(translation);
 	}
 
-	applyRotation(rotation: THREE.Vector3) {
+	applyRotation(rotation: Vector3) {
 		dq.setFromAxisAngle(v1.copy(rotation).normalize(), rotation.length());
 		this.orientation.multiplyQuaternions(dq, this.orientation).normalize();
 	}
@@ -122,7 +123,7 @@ export class RigidBody {
 		}
 	}
 
-	getRelativeMotionVector(dst: THREE.Vector3, b2: RigidBody) {
+	getRelativeMotionVector(dst: Vector3, b2: RigidBody) {
 		return dst.copy(this.position).sub(this.prevPosition).sub(b2.position).add(b2.prevPosition);
 	}
 

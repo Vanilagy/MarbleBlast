@@ -1,27 +1,28 @@
-import THREE from "three";
+import { Vector3 } from "../math/vector3";
 import { Util } from "../util";
+import { OrthographicCamera } from "./camera";
 import { Renderer } from "./renderer";
 import { Scene } from "./scene";
 
 /** Represents a light source that casts light globally in a specific direction. Can cast shadows. */
 export class DirectionalLight {
 	renderer: Renderer;
-	color: THREE.Color;
-	direction: THREE.Vector3;
-	camera: THREE.OrthographicCamera = null;
+	color: Vector3;
+	direction: Vector3;
+	camera: OrthographicCamera = null;
 	depthTexture: WebGLTexture;
 	colorTexture: WebGLTexture;
 	depthFramebuffer: WebGLFramebuffer;
 	textureResolution: number;
 
-	constructor(renderer: Renderer, color: THREE.Color, direction: THREE.Vector3) {
+	constructor(renderer: Renderer, color: Vector3, direction: Vector3) {
 		this.renderer = renderer;
 		this.color = color;
 		this.direction = direction;
 	}
 
 	/** Turns on shadow casting for this light and sets up the necessary textures and buffers. */
-	enableShadowCasting(textureResolution: number, camera: THREE.OrthographicCamera) {
+	enableShadowCasting(textureResolution: number, camera: OrthographicCamera) {
 		Util.assert(Util.isPowerOf2(textureResolution)); // We never know 😓
 
 		let { gl } = this.renderer;
@@ -62,11 +63,11 @@ export class DirectionalLight {
 		this.textureResolution = textureResolution;
 	}
 
-	/** 
+	/**
 	 * Updates the position of the shadow camera.
 	 * @param offset Specifies the offset in the direction of the light from `position`.
 	 */
-	updateCamera(position: THREE.Vector3, offset: number) {
+	updateCamera(position: Vector3, offset: number) {
 		if (!this.camera) return;
 
 		this.camera.position.copy(position.clone().addScaledVector(this.direction, offset));

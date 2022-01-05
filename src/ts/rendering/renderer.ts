@@ -1,12 +1,12 @@
 import { MaterialGroup, Scene } from "./scene";
 import { Program } from './program';
-import THREE from 'three';
 import shadowMapVert from './shaders/shadow_map_vert.glsl';
 import shadowMapFrag from './shaders/shadow_map_frag.glsl';
 import particleVert from './shaders/particle_vert.glsl';
 import particleFrag from './shaders/particle_frag.glsl';
 import { ParticleManager } from "../particles";
 import { ResourceManager } from "../resources";
+import { OrthographicCamera, PerspectiveCamera } from "./camera";
 
 /** Wrapper around a framebuffer to bundle extra metadata with it. */
 interface FramebufferInfo {
@@ -14,6 +14,12 @@ interface FramebufferInfo {
 	width: number;
 	height: number;
 	colorTexture: WebGLTexture;
+}
+
+export enum BlendingType {
+	Normal,
+	Additive,
+	Subtractve
 }
 
 const DEFAULT_CONTEXT_OPTIONS = {
@@ -82,7 +88,7 @@ export class Renderer {
 		this.extensions.KHR_parallel_shader_compile = gl.getExtension('KHR_parallel_shader_compile');
 		this.extensions.OES_texture_float = gl.getExtension('OES_texture_float');
 		this.extensions.OES_vertex_array_object = gl.getExtension('OES_vertex_array_object');
-		
+
 		this.shadowMapProgram = new Program(this, shadowMapVert, shadowMapFrag);
 		this.particleProgram = new Program(this, particleVert, particleFrag);
 
@@ -95,7 +101,7 @@ export class Renderer {
 		gl.cullFace(gl.BACK);
 		gl.frontFace(gl.CCW);
 	}
-	
+
 	setSize(width: number, height: number) {
 		this.width = width;
 		this.height = height;
@@ -117,7 +123,7 @@ export class Renderer {
 	}
 
 	/** Renders a scene to a framebuffer (or the canvas) from the perspective of a camera. */
-	render(scene: Scene, camera: THREE.PerspectiveCamera | THREE.OrthographicCamera, framebuffer: FramebufferInfo = null, clearColorBuffer = true) {
+	render(scene: Scene, camera: PerspectiveCamera | OrthographicCamera, framebuffer: FramebufferInfo = null, clearColorBuffer = true) {
 		if (!scene.compiled) throw new Error("Scene not compiled! Can't render it.");
 		if (!scene.preparedForRender) throw new Error("Scene not prepared for render! Can't render it.");
 
@@ -140,7 +146,7 @@ export class Renderer {
 		// Precompute some uniform values
 		let uViewMatrix = new Float32Array(camera.matrixWorldInverse.elements);
 		let uProjectionMatrix = new Float32Array(camera.projectionMatrix.elements);
-		let uInverseProjectionMatrix = new Float32Array(new THREE.Matrix4().getInverse(camera.projectionMatrix).elements);
+		let uInverseProjectionMatrix = new Float32Array(camera.projectionMatrix.clone().invert().elements);
 		let uLogDepthBufFC = 2.0 / (Math.log(camera.far + 1.0) / Math.LN2); // Used for logarithmic depth buffer
 		let uEyePosition = new Float32Array(camera.position.toArray());
 
@@ -231,10 +237,10 @@ export class Renderer {
 			gl.uniform1f(program.getUniformLocation('shininess'), material.shininess);
 			gl.uniform1f(program.getUniformLocation('reflectivity'), material.reflectivity);
 			gl.uniform1f(program.getUniformLocation('secondaryMapUvFactor'), material.secondaryMapUvFactor);
-			
-			if (material.blending === THREE.NormalBlending) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // Premultiplied alpha
-			else if (material.blending === THREE.AdditiveBlending) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-			else if (material.blending === THREE.SubtractiveBlending) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // I actually dunno if this one's correct
+
+			if (material.blending === BlendingType.Normal) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // Premultiplied alpha
+			else if (material.blending === BlendingType.Additive) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+			else if (material.blending === BlendingType.Subtractve) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // I actually dunno if this one's correct
 
 			gl.depthMask(material.depthWrite);
 
@@ -253,7 +259,7 @@ export class Renderer {
 		}
 	}
 
-	renderParticles(particleManager: ParticleManager, camera: THREE.PerspectiveCamera | THREE.OrthographicCamera) {
+	renderParticles(particleManager: ParticleManager, camera: PerspectiveCamera | OrthographicCamera) {
 		let { gl } = this;
 
 		let program = this.particleProgram;
@@ -264,7 +270,7 @@ export class Renderer {
 		let uViewMatrix = new Float32Array(camera.matrixWorldInverse.elements);
 		let uProjectionMatrix = new Float32Array(camera.projectionMatrix.elements);
 		let uLogDepthBufFC = 2.0 / (Math.log(camera.far + 1.0) / Math.LN2);
-		
+
 		gl.uniformMatrix4fv(
 			program.getUniformLocation('viewMatrix'),
 			false,
@@ -294,9 +300,9 @@ export class Renderer {
 			let diffuseMap = ResourceManager.getTextureFromCache(options.texture);
 			this.bindTexture(diffuseMap.getGLTexture(this), 0, gl.TEXTURE_2D);
 
-			if (options.blending === THREE.NormalBlending) gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // No premultiplied alpha
-			else if (options.blending === THREE.AdditiveBlending) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-			else if (options.blending === THREE.SubtractiveBlending) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+			if (options.blending === BlendingType.Normal) gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // No premultiplied alpha
+			else if (options.blending === BlendingType.Additive) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+			else if (options.blending === BlendingType.Subtractve) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
 			// Bind uniforms describing the particle simulation
 			gl.uniform1f(program.getUniformLocation('acceleration'), group.uniforms.acceleration);

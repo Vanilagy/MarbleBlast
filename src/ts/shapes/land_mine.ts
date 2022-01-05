@@ -2,7 +2,8 @@ import { Shape } from "../shape";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
-import * as THREE from "three";
+import { Vector3 } from "../math/vector3";
+import { BlendingType } from "../rendering/renderer";
 
 /** Land mines explode on contact and knock the marble away. */
 export class LandMine extends Shape {
@@ -64,14 +65,14 @@ export class LandMine extends Shape {
 /** The fire particle. */
 const landMineParticle = {
 	ejectionPeriod: 0.2,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 2,
 	velocityVariance: 1,
 	emitterLifetime: 50,
 	inheritedVelFactor: 0.2,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -87,14 +88,14 @@ const landMineParticle = {
 /** The smoke particle. */
 export const landMineSmokeParticle = {
 	ejectionPeriod: 0.5,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 0.8,
 	velocityVariance: 0.4,
 	emitterLifetime: 50,
 	inheritedVelFactor: 0.25,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -110,14 +111,14 @@ export const landMineSmokeParticle = {
 /** The sparks exploding away. */
 export const landMineSparksParticle = {
 	ejectionPeriod: 0.4,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 13 / 4,
 	velocityVariance: 6.75 / 4,
 	emitterLifetime: 100,
 	inheritedVelFactor: 0.2,
 	particleOptions: {
 		texture: 'particles/spark.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,

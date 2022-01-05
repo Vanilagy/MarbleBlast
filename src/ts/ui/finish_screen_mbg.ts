@@ -68,7 +68,7 @@ export class MbgFinishScreen extends FinishScreen {
 		this.qualifyTimeElement.style.color = failedToQualify? 'red' : '';
 		this.qualifyTimeElement.style.textShadow = failedToQualify? '1px 1px 0px black' : '';
 		Util.monospaceNumbers(this.qualifyTimeElement);
-		
+
 		let goldTime = level.mission.goldTime;
 		this.goldTimeElement.textContent = Util.secondsToTimeString(goldTime / 1000);
 		this.goldTimeElement.parentElement.style.display = (goldTime !== -Infinity)? '' : 'none';

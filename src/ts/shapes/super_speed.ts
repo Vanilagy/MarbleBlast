@@ -1,8 +1,9 @@
 import { PowerUp } from "./power_up";
-import * as THREE from "three";
-import { Util } from "../util";
 import { AudioManager } from "../audio";
 import { state } from "../state";
+import { Vector3 } from "../math/vector3";
+import { Quaternion } from "../math/quaternion";
+import { BlendingType } from "../rendering/renderer";
 
 /** Accelerates the marble. */
 export class SuperSpeed extends PowerUp {
@@ -17,15 +18,15 @@ export class SuperSpeed extends PowerUp {
 	use() {
 		let level = this.level;
 		let marble = this.level.marble;
-		let movementVector = new THREE.Vector3(1, 0, 0);
-		movementVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), level.yaw);
+		let movementVector = new Vector3(1, 0, 0);
+		movementVector.applyAxisAngle(new Vector3(0, 0, 1), level.yaw);
 
 		// Okay, so Super Speed directionality is a bit strange. In general, the direction is based on the normal vector of the last surface you had contact with.
 
 		let quat = level.newOrientationQuat;
 		movementVector.applyQuaternion(quat);
 
-		let quat2 = new THREE.Quaternion();
+		let quat2 = new Quaternion();
 		quat2.setFromUnitVectors(this.level.currentUp, marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
 		movementVector.applyQuaternion(quat2); // ...then rotate the movement bonus vector by that amount.
 
@@ -40,14 +41,14 @@ export class SuperSpeed extends PowerUp {
 
 export const superSpeedParticleOptions = {
 	ejectionPeriod: 5,
-	ambientVelocity: new THREE.Vector3(0, 0, 0.2),
+	ambientVelocity: new Vector3(0, 0, 0.2),
 	ejectionVelocity: 1 * 0.5,
 	velocityVariance: 0.25 * 0.5,
 	emitterLifetime: 1100,
 	inheritedVelFactor: 0.25,
 	particleOptions: {
 		texture: 'particles/spark.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 0,
 		spinRandomMin: 0,
 		spinRandomMax: 0,

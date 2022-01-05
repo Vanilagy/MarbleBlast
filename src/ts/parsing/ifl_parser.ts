@@ -32,7 +32,7 @@ export class IflParser {
 	}
 
 	static cachedFiles = new Map<string, IflFile>();
-	
+
 	/** Loads and parses an .ifl file. Returns a cached version if already loaded. */
 	static async loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
@@ -40,7 +40,7 @@ export class IflParser {
 		let blob = await ResourceManager.loadResource(path);
 		let text = await ResourceManager.readBlobAsText(blob);
 		let parser = new IflParser(text);
-		
+
 		let result = parser.parse();
 		this.cachedFiles.set(path, result);
 

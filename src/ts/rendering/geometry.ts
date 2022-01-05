@@ -1,4 +1,4 @@
-import THREE from "three";
+import { Vector3 } from "../math/vector3";
 import { Util } from "../util";
 
 /** Defines the geometry for a 3D mesh. */
@@ -59,8 +59,8 @@ Material Indices: ${this.materials.length/1}
 		let index = 0;
 		const grid = [];
 
-		const vertex = new THREE.Vector3();
-		const normal = new THREE.Vector3();
+		const vertex = new Vector3();
+		const normal = new Vector3();
 
 		// buffers
 

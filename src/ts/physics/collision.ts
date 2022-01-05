@@ -1,8 +1,9 @@
-import THREE from "three";
+import { Quaternion } from "../math/quaternion";
+import { Vector3 } from "../math/vector3";
 import { CollisionShape } from "./collision_shape";
 
-let v1 = new THREE.Vector3();
-let q1 = new THREE.Quaternion();
+let v1 = new Vector3();
+let q1 = new Quaternion();
 
 export class Collision {
 	s1: CollisionShape;
@@ -10,11 +11,11 @@ export class Collision {
 
 	timeOfImpact = 1;
 
-	normal: THREE.Vector3;
+	normal: Vector3;
 	depth: number;
-	point: THREE.Vector3;
-	point1: THREE.Vector3;
-	point2: THREE.Vector3;
+	point: Vector3;
+	point1: Vector3;
+	point2: Vector3;
 
 	friction: number;
 	restitution: number;
@@ -23,8 +24,8 @@ export class Collision {
 	s1Restitution: number;
 	s2Friction: number;
 	s2Restitution: number;
-	s1MaterialOverride: THREE.Vector3 = null;
-	s2MaterialOverride: THREE.Vector3 = null;
+	s1MaterialOverride: Vector3 = null;
+	s2MaterialOverride: Vector3 = null;
 
 	constructor(s1: CollisionShape, s2: CollisionShape) {
 		this.s1 = s1;
@@ -39,11 +40,11 @@ export class Collision {
 		this.s2Restitution = s2.restitution;
 	}
 
-	supplyMinimumSeparatingVector(minimumSeparatingVector: THREE.Vector3) {
+	supplyMinimumSeparatingVector(minimumSeparatingVector: Vector3) {
 		this.normal = minimumSeparatingVector.clone().normalize();
 		this.depth = minimumSeparatingVector.length();
 
-		this.point1 = this.s1.support(new THREE.Vector3(), v1.copy(this.normal).negate());
+		this.point1 = this.s1.support(new Vector3(), v1.copy(this.normal).negate());
 		this.point2 = this.point1.clone().add(minimumSeparatingVector);
 		this.point = this.point1.clone().add(this.point2).multiplyScalar(0.5);
 	}

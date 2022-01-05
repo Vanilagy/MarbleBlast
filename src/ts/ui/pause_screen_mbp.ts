@@ -99,7 +99,7 @@ class Jukebox {
 				this.closeButton.src = menu.uiAssetPath + 'jukebox/close_d.png';
 			}
 		});
-		
+
 		window.addEventListener('keyup', (e) => {
 			if (!this.div.classList.contains('hidden') && e.key === 'Escape') {
 				this.closeButton.src = menu.uiAssetPath + 'jukebox/close_n.png';
@@ -149,7 +149,7 @@ class Jukebox {
 			if (this.nextButton.src.endsWith('i.png')) this.nextButton.src = this.menu.uiAssetPath + 'play/next_n.png';
 			this.nextButton.style.pointerEvents = '';
 		}
-	
+
 		// Enable or disable the prev button based on if there are still songs to come
 		if (this.selectedIndex === null || this.selectedIndex === 0) {
 			this.prevButton.src = this.menu.uiAssetPath + 'play/prev_i.png';

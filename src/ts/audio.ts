@@ -1,9 +1,9 @@
 import { ResourceManager } from "./resources";
 import { Util } from "./util";
 import { state } from "./state";
-import * as THREE from "three";
 import { TimeState } from "./level";
 import { StorageManager } from "./storage";
+import { Vector3 } from "./math/vector3";
 
 /** A class used as an utility for sound playback. */
 export abstract class AudioManager {
@@ -119,7 +119,7 @@ export abstract class AudioManager {
 	 * @param position Optional: The position of the audio source in 3D space.
 	 * @param preferStreaming If true, uses a normal <audio> element instead of play the audio as quickly as possible.
 	 */
-	static createAudioSource(path: string | string[], destination = this.soundGain, position?: THREE.Vector3, preferStreaming = false) {
+	static createAudioSource(path: string | string[], destination = this.soundGain, position?: Vector3, preferStreaming = false) {
 		let chosenPath = (typeof path === "string")? path : Util.randomFromArray(path);
 		let fullPath = this.toFullPath(chosenPath);
 		let audioSource: AudioSource;
@@ -152,14 +152,14 @@ export abstract class AudioManager {
 	}
 
 	/** Utility method for creating an audio source and playing it immediately. */
-	static play(path: string | string[], volume = 1, destination = this.soundGain, position?: THREE.Vector3) {
+	static play(path: string | string[], volume = 1, destination = this.soundGain, position?: Vector3) {
 		let audioSource = this.createAudioSource(path, destination, position);
 		audioSource.gain.gain.value = position? 0 : volume;
 		audioSource.play();
 	}
 
 	/** Updates the pan and volume of positional audio sources based on the listener's location. */
-	static updatePositionalAudio(time: TimeState, listenerPos: THREE.Vector3, listenerYaw: number) {
+	static updatePositionalAudio(time: TimeState, listenerPos: Vector3, listenerYaw: number) {
 		let quat = state.level.getOrientationQuat(time);
 		quat.conjugate();
 
@@ -169,7 +169,7 @@ export abstract class AudioManager {
 			// Get the relative position of the audio source from the listener's POV
 			let relativePosition = source.position.clone().sub(listenerPos);
 			relativePosition.applyQuaternion(quat);
-			relativePosition.applyAxisAngle(new THREE.Vector3(0, 0, 1), -listenerYaw);
+			relativePosition.applyAxisAngle(new Vector3(0, 0, 1), -listenerYaw);
 			relativePosition.normalize();
 			relativePosition.z = 0;
 
@@ -223,7 +223,7 @@ export class AudioSource {
 	node: AudioBufferSourceNode | MediaElementAudioSourceNode;
 	gain: GainNode;
 	panner: StereoPannerNode | PannerNode;
-	position: THREE.Vector3;
+	position: Vector3;
 	stopped = false;
 	playing = false;
 	gainFactor = 1;
@@ -231,7 +231,7 @@ export class AudioSource {
 	loop = false;
 	playbackRate = 1;
 
-	constructor(source: Promise<AudioBuffer> | HTMLAudioElement, destination: AudioNode, position?: THREE.Vector3) {
+	constructor(source: Promise<AudioBuffer> | HTMLAudioElement, destination: AudioNode, position?: Vector3) {
 		if (source instanceof Promise) {
 			this.promise = source;
 		} else {

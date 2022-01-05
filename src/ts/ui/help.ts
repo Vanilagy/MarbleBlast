@@ -17,7 +17,7 @@ export abstract class HelpScreen {
 	}
 
 	abstract initProperties(): void;
-	
+
 	async init() {}
 
 	show() {

@@ -238,7 +238,7 @@ export class Vector3 {
 	}
 
 	transformDirection(m: Matrix4) {
-		// input: THREE.Matrix4 affine matrix
+		// input: Matrix4 affine matrix
 		// vector interpreted as a direction
 
 		const x = this.x,

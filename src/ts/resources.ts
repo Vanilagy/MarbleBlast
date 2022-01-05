@@ -1,4 +1,3 @@
-import * as THREE from "three";
 import { Texture } from "./rendering/texture";
 import { state } from "./state";
 
@@ -17,7 +16,6 @@ const MBP_REDIRECT_RULES = {
 export abstract class ResourceManager {
 	static textureCache = new Map<string, Texture>();
 	static loadTexturePromises = new Map<string, Promise<Texture>>();
-	static textureLoader = new THREE.TextureLoader();
 	/** The structure in the assets/data directory. Used mainly to look up file extensions. */
 	static dataDirectoryStructure: DirectoryStructure = {};
 	static dataMbpDirectoryStructure: DirectoryStructure = {};

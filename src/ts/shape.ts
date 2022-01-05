@@ -1,5 +1,4 @@
 import { DtsFile, MeshType, DtsParser } from "./parsing/dts_parser";
-import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
 import { Util } from "./util";
@@ -15,6 +14,11 @@ import { Texture } from "./rendering/texture";
 import { RigidBody, RigidBodyType } from "./physics/rigid_body";
 import { CollisionShape, ConvexHullCollisionShape } from "./physics/collision_shape";
 import { Collision } from "./physics/collision";
+import { Vector3 } from "./math/vector3";
+import { Quaternion } from "./math/quaternion";
+import { Matrix4 } from "./math/matrix4";
+import { Box3 } from "./math/box3";
+import { BlendingType } from "./rendering/renderer";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
@@ -26,15 +30,15 @@ interface MaterialInfo {
 /** Data necessary for updating skinned meshes. */
 interface SkinMeshData {
 	meshIndex: number,
-	vertices: THREE.Vector3[],
-	normals: THREE.Vector3[],
+	vertices: Vector3[],
+	normals: Vector3[],
 	mesh: Mesh
 }
 
 interface ColliderInfo {
-	generateShape: (scale: THREE.Vector3) => CollisionShape,
+	generateShape: (scale: Vector3) => CollisionShape,
 	body: RigidBody,
-	transform: THREE.Matrix4
+	transform: Matrix4
 }
 
 /** Data that is shared with other shapes of the same type. */
@@ -43,7 +47,7 @@ export interface SharedShapeData {
 	geometries: Geometry[],
 	geometryMatrixIndices: number[],
 	collisionGeometries: Set<Geometry>,
-	nodeTransforms: THREE.Matrix4[],
+	nodeTransforms: Matrix4[],
 	rootGraphNodes: GraphNode[],
 	skinnedMeshIndex: number
 }
@@ -105,13 +109,13 @@ export class Shape {
 	/** Not physical colliders, but a list bodies that overlap is checked with. This is used for things like force fields. */
 	colliders: ColliderInfo[] = [];
 	/** For each shape, the untransformed vertices of their convex hull geometry. */
-	shapeVertices = new Map<CollisionShape, THREE.Vector3[]>();
+	shapeVertices = new Map<CollisionShape, Vector3[]>();
 	isCurrentlyColliding = false;
 
-	worldPosition = new THREE.Vector3();
-	worldOrientation = new THREE.Quaternion();
-	worldScale = new THREE.Vector3();
-	worldMatrix = new THREE.Matrix4();
+	worldPosition = new Vector3();
+	worldOrientation = new Quaternion();
+	worldScale = new Vector3();
+	worldMatrix = new Matrix4();
 
 	/** Can be used to override certain material names. */
 	matNamesOverride: Record<string, string | Texture> = {};
@@ -125,7 +129,7 @@ export class Shape {
 	/** Stores only the roots of the tree (no parent). */
 	rootGraphNodes: GraphNode[] = [];
 	/** One transformation matrix per DTS node */
-	nodeTransforms: THREE.Matrix4[] = [];
+	nodeTransforms: Matrix4[] = [];
 	skinMeshInfo: SkinMeshData;
 
 	showSequences = true;
@@ -190,7 +194,7 @@ export class Shape {
 				this.level.sharedShapeData.set(this.getShareHash(), sharedDataPromise);
 			}
 
-			for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new THREE.Matrix4());
+			for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new Matrix4());
 
 			await this.computeMaterials();
 
@@ -236,8 +240,8 @@ export class Shape {
 							if (mesh.verts.length === 0) continue; // No need
 
 							// The reason we precompute position/normal here is because skinned meshes need vector instances they can modify each frame.
-							let vertices = mesh.verts.map((v) => new THREE.Vector3(v.x, v.y, v.z));
-							let vertexNormals = mesh.norms.map((v) => new THREE.Vector3(v.x, v.y, v.z));
+							let vertices = mesh.verts.map((v) => new Vector3(v.x, v.y, v.z));
+							let vertexNormals = mesh.norms.map((v) => new Vector3(v.x, v.y, v.z));
 
 							let geometry = this.generateGeometryFromMesh(mesh, vertices, vertexNormals);
 							geometries.push(geometry);
@@ -257,8 +261,8 @@ export class Shape {
 				if (!dtsMesh || dtsMesh.type !== MeshType.Skin) continue;
 
 				// Create arrays of zero vectors as they will get changed later anyway
-				let vertices = new Array(dtsMesh.verts.length).fill(null).map(() => new THREE.Vector3());
-				let vertexNormals = new Array(dtsMesh.norms.length).fill(null).map(() => new THREE.Vector3());
+				let vertices = new Array(dtsMesh.verts.length).fill(null).map(() => new Vector3());
+				let vertexNormals = new Array(dtsMesh.norms.length).fill(null).map(() => new Vector3());
 				let geometry = this.generateGeometryFromMesh(dtsMesh, vertices, vertexNormals);
 				geometries.push(geometry); // Even though the mesh is animated, it doesn't count as dynamic because it's not part of any node and therefore cannot follow its transforms.
 				geometryMatrixIndices.push(null);
@@ -315,8 +319,8 @@ export class Shape {
 				// Will be used for animating the skin later
 				this.skinMeshInfo = {
 					meshIndex: sharedData.skinnedMeshIndex,
-					vertices: this.dts.meshes[sharedData.skinnedMeshIndex].verts.map(_ => new THREE.Vector3()),
-					normals: this.dts.meshes[sharedData.skinnedMeshIndex].norms.map(_ => new THREE.Vector3()),
+					vertices: this.dts.meshes[sharedData.skinnedMeshIndex].verts.map(_ => new Vector3()),
+					normals: this.dts.meshes[sharedData.skinnedMeshIndex].norms.map(_ => new Vector3()),
 					mesh: mesh
 				};
 			}
@@ -436,8 +440,8 @@ export class Shape {
 				material.transparent = true;
 				material.depthWrite = false;
 			}
-			if (flags & MaterialFlags.Additive) material.blending = THREE.AdditiveBlending;
-			if (flags & MaterialFlags.Subtractive) material.blending = THREE.SubtractiveBlending;
+			if (flags & MaterialFlags.Additive) material.blending = BlendingType.Additive;
+			if (flags & MaterialFlags.Subtractive) material.blending = BlendingType.Subtractve;
 			if (this.isTSStatic && !(flags & MaterialFlags.NeverEnvMap)) {
 				material.reflectivity = this.dts.matNames.length === 1? 1 : environmentMaterial? 0.5 : 0.333;
 				material.envMap = this.level.envMap;
@@ -457,7 +461,7 @@ export class Shape {
 	}
 
 	/** Generates geometry info from a given DTS mesh. */
-	generateGeometryFromMesh(dtsMesh: DtsFile["meshes"][number], vertices: THREE.Vector3[], vertexNormals: THREE.Vector3[]) {
+	generateGeometryFromMesh(dtsMesh: DtsFile["meshes"][number], vertices: Vector3[], vertexNormals: Vector3[]) {
 		let geometry = new Geometry();
 
 		for (let i = 0; i < vertices.length; i++) {
@@ -470,8 +474,8 @@ export class Shape {
 			geometry.uvs.push(uv.x, uv.y);
 		}
 
-		let ab = new THREE.Vector3();
-		let ac = new THREE.Vector3();
+		let ab = new Vector3();
+		let ac = new Vector3();
 		const addTriangleFromIndices = (i1: number, i2: number, i3: number, materialIndex: number) => {
 			// We first perform a check: If the computed face normal points in the opposite direction of all vertex normals, we need to invert the winding order of the vertices.
 			ab.set(vertices[i2].x - vertices[i1].x, vertices[i2].y - vertices[i1].y, vertices[i2].z - vertices[i1].z);
@@ -551,7 +555,7 @@ export class Shape {
 
 					for (let primitive of mesh.primitives) {
 						// Create the collision shape but with all zero vectors for now
-						let shape = new ConvexHullCollisionShape(Array(primitive.numElements).fill(null).map(_ => new THREE.Vector3()));
+						let shape = new ConvexHullCollisionShape(Array(primitive.numElements).fill(null).map(_ => new Vector3()));
 						shape.restitution = this.restitution;
 						shape.friction = this.friction;
 						if (!this.collideable) shape.collisionDetectionMask = 0b10; // Collide with the big aux marble
@@ -561,7 +565,7 @@ export class Shape {
 						// Remember the actual untransformed vertices for this geometry
 						let vertices = mesh.indices.slice(primitive.start, primitive.start + primitive.numElements)
 							.map((index) => mesh.verts[index])
-							.map((vert) => new THREE.Vector3(vert.x, vert.y, vert.z));
+							.map((vert) => new Vector3(vert.x, vert.y, vert.z));
 						this.shapeVertices.set(shape, vertices);
 					}
 				}
@@ -572,12 +576,12 @@ export class Shape {
 			// Create collision geometry based on the bounding box
 			let body = this.bodies[0];
 
-			let bounds = new THREE.Box3();
+			let bounds = new Box3();
 			bounds.min.set(dts.bounds.min.x, dts.bounds.min.y, dts.bounds.min.z);
 			bounds.max.set(dts.bounds.max.x, dts.bounds.max.y, dts.bounds.max.z);
 
 			// Create an empty collision shape for now
-			let shape = new ConvexHullCollisionShape(Array(8).fill(null).map(_ => new THREE.Vector3()));
+			let shape = new ConvexHullCollisionShape(Array(8).fill(null).map(_ => new Vector3()));
 			shape.restitution = this.restitution;
 			shape.friction = this.friction;
 			if (!this.collideable) shape.collisionDetectionMask = 0b10; // Collide with the big aux marble
@@ -595,12 +599,12 @@ export class Shape {
 	 * @param translations One translation for each node.
 	 * @param bitfield Specifies which nodes have changed.
 	 */
-	updateNodeTransforms(quaternions?: THREE.Quaternion[], translations?: THREE.Vector3[], bitfield = 0xffffffff) {
+	updateNodeTransforms(quaternions?: Quaternion[], translations?: Vector3[], bitfield = 0xffffffff) {
 		if (!quaternions) {
 			// Create the default array of quaternions
 			quaternions = this.dts.nodes.map((node, index) => {
 				let rotation = this.dts.defaultRotations[index];
-				let quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+				let quaternion = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
 				quaternion.normalize();
 				quaternion.conjugate();
 
@@ -612,11 +616,11 @@ export class Shape {
 			// Create the default array of translations
 			translations = this.dts.nodes.map((node, index) => {
 				let translation = this.dts.defaultTranslations[index];
-				return new THREE.Vector3(translation.x, translation.y, translation.z);
+				return new Vector3(translation.x, translation.y, translation.z);
 			});
 		}
 
-		let utilityMatrix = new THREE.Matrix4();
+		let utilityMatrix = new Matrix4();
 
 		const traverse = (node: GraphNode, needsUpdate: boolean) => {
 			if (((1 << node.index) & bitfield) !== 0) needsUpdate = true;
@@ -631,7 +635,7 @@ export class Shape {
 					mat.copy(this.nodeTransforms[node.parent.index]);
 				}
 
-				utilityMatrix.compose(translations[node.index], quaternions[node.index], new THREE.Vector3(1, 1, 1));
+				utilityMatrix.compose(translations[node.index], quaternions[node.index], new Vector3(1, 1, 1));
 				mat.multiplyMatrices(mat, utilityMatrix);
 			}
 
@@ -650,7 +654,7 @@ export class Shape {
 	updateCollisionGeometry(bitfield: number) {
 		for (let i = 0; i < this.bodies.length; i++) {
 			let body = this.bodies[i];
-			let mat: THREE.Matrix4;
+			let mat: Matrix4;
 
 			if (body.userData?.nodeIndex !== undefined) {
 				if (((1 << body.userData.nodeIndex) & bitfield) === 0) continue;
@@ -689,8 +693,8 @@ export class Shape {
 				let trans = sequence.translationMatters[0] ?? 0;
 				let affectedCount = 0;
 				let completion = time.timeSinceLoad / (sequence.duration * 1000);
-				let quaternions: THREE.Quaternion[];
-				let translations: THREE.Vector3[];
+				let quaternions: Quaternion[];
+				let translations: Vector3[];
 
 				// Possibly get the keyframe from the overrides
 				let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
@@ -709,11 +713,11 @@ export class Shape {
 						let rot1 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeLow];
 						let rot2 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeHigh];
 
-						let quaternion1 = new THREE.Quaternion(rot1.x, rot1.y, rot1.z, rot1.w);
+						let quaternion1 = new Quaternion(rot1.x, rot1.y, rot1.z, rot1.w);
 						quaternion1.normalize();
 						quaternion1.conjugate();
 
-						let quaternion2 = new THREE.Quaternion(rot2.x, rot2.y, rot2.z, rot2.w);
+						let quaternion2 = new Quaternion(rot2.x, rot2.y, rot2.z, rot2.w);
 						quaternion2.normalize();
 						quaternion2.conjugate();
 
@@ -725,7 +729,7 @@ export class Shape {
 					} else {
 						// The rotation for this node is not animated and therefore we returns the default rotation.
 						let rotation = this.dts.defaultRotations[index];
-						let quaternion = new THREE.Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+						let quaternion = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
 						quaternion.normalize();
 						quaternion.conjugate();
 
@@ -743,11 +747,11 @@ export class Shape {
 						let trans2 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeHigh];
 
 						// Interpolate between the two translations
-						return new THREE.Vector3(Util.lerp(trans1.x, trans2.x, t), Util.lerp(trans1.y, trans2.y, t), Util.lerp(trans1.z, trans2.z, t));
+						return new Vector3(Util.lerp(trans1.x, trans2.x, t), Util.lerp(trans1.y, trans2.y, t), Util.lerp(trans1.z, trans2.z, t));
 					} else {
 						// The translation for this node is not animated and therefore we returns the default translation.
 						let translation = this.dts.defaultTranslations[index];
-						return new THREE.Vector3(translation.x, translation.y, translation.z);
+						return new Vector3(translation.x, translation.y, translation.z);
 					}
 				});
 
@@ -778,10 +782,10 @@ export class Shape {
 			}
 
 			// Compute the transformation matrix for each bone
-			let boneTransformations: THREE.Matrix4[] = [];
-			let boneTransformationsTransposed: THREE.Matrix4[] = [];
+			let boneTransformations: Matrix4[] = [];
+			let boneTransformationsTransposed: Matrix4[] = [];
 			for (let i = 0; i < mesh.nodeIndices.length; i++) {
-				let mat = new THREE.Matrix4();
+				let mat = new Matrix4();
 				mat.elements = mesh.initialTransforms[i].slice();
 				mat.transpose();
 				mat.multiplyMatrices(this.nodeTransforms[mesh.nodeIndices[i]], mat);
@@ -791,8 +795,8 @@ export class Shape {
 			}
 
 			// Now fill the vertex and normal vector values
-			let vec = new THREE.Vector3();
-			let vec2 = new THREE.Vector3();
+			let vec = new Vector3();
+			let vec2 = new Vector3();
 			for (let i = 0; i < mesh.vertIndices.length; i++) {
 				let vIndex = mesh.vertIndices[i];
 				let vertex = mesh.verts[vIndex];
@@ -856,8 +860,8 @@ export class Shape {
 
 		// Spin the shape round 'n' round
 		if (this.ambientRotate) {
-			let spinAnimation = new THREE.Quaternion();
-			let up = new THREE.Vector3(0, 0, 1);
+			let spinAnimation = new Quaternion();
+			let up = new Vector3(0, 0, 1);
 			spinAnimation.setFromAxisAngle(up, time.timeSinceLoad * this.ambientSpinFactor);
 
 			let orientation = this.worldOrientation.clone();
@@ -869,7 +873,7 @@ export class Shape {
 	}
 
 	/** Updates the transform of the shape's objects and bodies. */
-	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
+	setTransform(position: Vector3, orientation: Quaternion, scale: Vector3) {
 		let scaleUpdated = scale.clone().sub(this.worldScale).length() !== 0;
 
 		this.worldPosition = position;
@@ -882,17 +886,17 @@ export class Shape {
 		this.group.scale.copy(scale);
 		this.group.recomputeTransform();
 
-		let colliderMatrix = new THREE.Matrix4();
-		colliderMatrix.compose(this.worldPosition, this.worldOrientation, new THREE.Vector3(1, 1, 1));
+		let colliderMatrix = new Matrix4();
+		colliderMatrix.compose(this.worldPosition, this.worldOrientation, new Vector3(1, 1, 1));
 
 		// Update the colliders
 		for (let collider of this.colliders) {
 			let mat = collider.transform.clone();
 			mat.multiplyMatrices(colliderMatrix, mat);
 
-			let position = new THREE.Vector3();
-			let orientation = new THREE.Quaternion();
-			mat.decompose(position, orientation, new THREE.Vector3());
+			let position = new Vector3();
+			let orientation = new Quaternion();
+			mat.decompose(position, orientation, new Vector3());
 
 			collider.body.position.copy(position);
 			collider.body.orientation.copy(orientation);
@@ -918,7 +922,7 @@ export class Shape {
 	}
 
 	/** Adds a collider shape. Whenever the marble overlaps with the shape, a callback is fired. */
-	addCollider(generateShape: (scale: THREE.Vector3) => CollisionShape, onInside: (t: number, dt: number) => void, localTransform: THREE.Matrix4) {
+	addCollider(generateShape: (scale: Vector3) => CollisionShape, onInside: (t: number, dt: number) => void, localTransform: Matrix4) {
 		let body = new RigidBody();
 		body.type = RigidBodyType.Static;
 

@@ -1,6 +1,5 @@
 import materialVert from './shaders/material_vert.glsl';
 import materialFrag from './shaders/material_frag.glsl';
-import THREE from "three";
 import { AmbientLight } from "./ambient_light";
 import { VertexBuffer, VertexBufferGroup } from "./vertex_buffer";
 import { DirectionalLight } from "./directional_light";
@@ -11,6 +10,10 @@ import { Renderer } from "./renderer";
 import { Program } from './program';
 import { Util } from '../util';
 import { ParticleManager } from '../particles';
+import { Vector3 } from '../math/vector3';
+import { Vector2 } from '../math/vector2';
+import { Matrix4 } from '../math/matrix4';
+import { Camera } from './camera';
 
 /** Groups together different geometry from different meshes which all share the same material, so that they can all be drawn together. */
 export interface MaterialGroup {
@@ -214,13 +217,13 @@ export class Scene extends Group {
 		// Now, let's prepare the lights.
 
 		// Ambient light is simple: Simply condense all ambient lights into one by adding up their colors.
-		let totalAmbientLight = new THREE.Color(0);
+		let totalAmbientLight = new Vector3();
 		this.ambientLights.forEach(x => totalAmbientLight.add(x.color));
 		this.ambientLightBuffer = new Float32Array(totalAmbientLight.toArray());
 
 		// For directional lights, there's no correct solution for more than one light, so we just average the direction vectors and sum the colors.
-		let totalDirectionalLight = new THREE.Color(0);
-		let directionalLightDirection = new THREE.Vector3();
+		let totalDirectionalLight = new Vector3();
+		let directionalLightDirection = new Vector3();
 		for (let light of this.directionalLights) {
 			totalDirectionalLight.add(light.color);
 			directionalLightDirection.addScaledVector(light.direction, 1 / this.directionalLights.length);
@@ -262,16 +265,16 @@ export class Scene extends Group {
 		let verts = positions.length / 3;
 		let tris = verts / 3;
 
-		let v1 = new THREE.Vector3();
-		let v2 = new THREE.Vector3();
-		let v3 = new THREE.Vector3();
-		let w1 = new THREE.Vector2();
-		let w2 = new THREE.Vector2();
-		let w3 = new THREE.Vector2();
-		let sdir = new THREE.Vector3();
-		let tdir = new THREE.Vector3();
-		let normal = new THREE.Vector3();
-		let tangent = new THREE.Vector3();
+		let v1 = new Vector3();
+		let v2 = new Vector3();
+		let v3 = new Vector3();
+		let w1 = new Vector2();
+		let w2 = new Vector2();
+		let w3 = new Vector2();
+		let sdir = new Vector3();
+		let tdir = new Vector3();
+		let normal = new Vector3();
+		let tangent = new Vector3();
 
 		for (let i = 0; i < tris; i++) {
 			v1.set(positions[9*i + 0], positions[9*i + 1], positions[9*i + 2]);
@@ -324,13 +327,13 @@ export class Scene extends Group {
 	 * This is kept separate from `render` because a scene can be rendered multiple times per frame (for cubemaps, for example). It
 	 * would be a waste to prepare the scene for each of those renders as the state hasn't changed.
 	 */
-	prepareForRender(camera: THREE.PerspectiveCamera | THREE.OrthographicCamera) {
+	prepareForRender(camera: Camera) {
 		let { gl } = this.renderer;
 
 		this.update();
 		this.directionalLights[0]?.renderShadowMap(this);
 
-		let temp = new THREE.Vector3();
+		let temp = new Vector3();
 		let cameraPosition = camera.position;
 		let transparentMeshes = this.allMeshes.filter(x => x.hasTransparentMaterials || (x.opacity < 1 && x.opacity > 0)); // Find out which meshes are transparent so we don't sort opaque stuff too
 
@@ -424,7 +427,7 @@ export class Scene extends Group {
 		if (!firstLight) return;
 
 		if (firstLight.camera) {
-			let mat4 = new THREE.Matrix4();
+			let mat4 = new Matrix4();
 			mat4.multiplyMatrices(firstLight.camera.projectionMatrix, firstLight.camera.matrixWorldInverse);
 			this.directionalLightTransformBuffer.set(mat4.elements, 0);
 		}

@@ -1,19 +1,21 @@
 import { Interior } from "./interior";
 import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "./parsing/mis_parser";
 import { Util } from "./util";
-import * as THREE from "three";
 import { TimeState, PHYSICS_TICK_RATE, Level } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
 import { AudioManager, AudioSource } from "./audio";
+import { Matrix4 } from "./math/matrix4";
+import { Vector3 } from "./math/vector3";
+import { Quaternion } from "./math/quaternion";
 
-let v1 = new THREE.Vector3();
-let m1 = new THREE.Matrix4();
+let v1 = new Vector3();
+let m1 = new Matrix4();
 
 interface MarkerData {
 	msToNext: number,
 	smoothingType: string,
-	position: THREE.Vector3,
-	rotation: THREE.Quaternion
+	position: Vector3,
+	rotation: Quaternion
 }
 
 /** Represents a Torque 3D Pathed Interior moving along a set path. */
@@ -26,7 +28,7 @@ export class PathedInterior extends Interior {
 	hasCollision: boolean;
 	/** Some pathed interiors emit a sound; this is for that. */
 	soundSource: AudioSource;
-	soundPosition: THREE.Vector3;
+	soundPosition: Vector3;
 
 	/** The total duration of the path. */
 	duration: number;
@@ -37,11 +39,11 @@ export class PathedInterior extends Interior {
 	/** The start reference point in time of interior interpolation */
 	changeTime = 0;
 
-	basePosition: THREE.Vector3;
-	baseOrientation: THREE.Quaternion;
-	baseScale: THREE.Vector3;
-	prevPosition = new THREE.Vector3();
-	currentPosition = new THREE.Vector3();
+	basePosition: Vector3;
+	baseOrientation: Quaternion;
+	baseScale: Vector3;
+	prevPosition = new Vector3();
+	currentPosition = new Vector3();
 
 	allowSpecialMaterials = false; // Frictions don't work on pathed interiors
 
@@ -105,7 +107,7 @@ export class PathedInterior extends Interior {
 
 		// Create a sound effect if so specified
 		if (this.element.datablock?.toLowerCase() === 'pathedmovingblock') {
-			this.soundPosition = new THREE.Vector3(); // This position will be modified
+			this.soundPosition = new Vector3(); // This position will be modified
 			this.soundSource = AudioManager.createAudioSource('movingblockloop.wav', AudioManager.soundGain, this.soundPosition);
 			this.soundSource.setLoop(true);
 
@@ -165,7 +167,7 @@ export class PathedInterior extends Interior {
 		this.body.linearVelocity.copy(velocity);
 
 		// Modify the sound effect position, if present
-		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new THREE.Vector3());
+		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
 	}
 
 	onBeforeIntegrate() {
@@ -174,7 +176,7 @@ export class PathedInterior extends Interior {
 	}
 
 	/** Computes the transform of the interior at a point in time along the path. */
-	getTransformAtTime(dst: THREE.Matrix4, time: number) {
+	getTransformAtTime(dst: Matrix4, time: number) {
 		let m1 = this.markerData[0];
 		let m2 = this.markerData[1];
 
@@ -199,7 +201,7 @@ export class PathedInterior extends Interior {
 		let m1Time = currentEndTime - m1.msToNext;
 		let m2Time = currentEndTime;
 		let duration = m2Time - m1Time;
-		let position: THREE.Vector3;
+		let position: Vector3;
 
 		let completion = Util.clamp(duration? (time - m1Time) / duration : 1, 0, 1);
 		if (m1.smoothingType === "Accelerate") {
@@ -271,6 +273,6 @@ export class PathedInterior extends Interior {
 		this.prevPosition.setFromMatrixPosition(transform);
 		this.currentPosition.setFromMatrixPosition(transform);
 
-		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new THREE.Vector3());
+		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
 	}
 }

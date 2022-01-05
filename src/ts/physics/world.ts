@@ -1,34 +1,35 @@
-import THREE from "three";
 import { Octree } from "./octree";
 import { Collision } from "./collision";
 import { CollisionShape, CombinedCollisionShape, ConvexHullCollisionShape } from "./collision_shape";
 import { CollisionDetection } from "./collision_detection";
 import { RigidBody, RigidBodyType } from "./rigid_body";
 import { CollisionResponse } from "./collision_response";
+import { Vector3 } from "../math/vector3";
+import { Box3 } from "../math/box3";
 
 const MAX_SUBSTEPS = 10;
 
-let v1 = new THREE.Vector3();
-let v2 = new THREE.Vector3();
-let v3 = new THREE.Vector3();
-let raycastAabb = new THREE.Box3();
+let v1 = new Vector3();
+let v2 = new Vector3();
+let v3 = new Vector3();
+let raycastAabb = new Box3();
 
-let singletonShape = new ConvexHullCollisionShape([new THREE.Vector3()]);
+let singletonShape = new ConvexHullCollisionShape([new Vector3()]);
 let combinedCollisionShape = new CombinedCollisionShape(null, null);
 let utilBody = new RigidBody();
 utilBody.addCollisionShape(singletonShape);
 utilBody.addCollisionShape(combinedCollisionShape);
 
 export interface RayCastHit {
-	point: THREE.Vector3,
-	normal: THREE.Vector3,
+	point: Vector3,
+	normal: Vector3,
 	lambda: number,
 	shape: CollisionShape
 }
 
 export class World {
 	bodies: RigidBody[] = [];
-	gravity = new THREE.Vector3();
+	gravity = new Vector3();
 	octree = new Octree();
 
 	inContactCcd = new Set<CollisionShape>();
@@ -244,7 +245,7 @@ export class World {
 		return collisions;
 	}
 
-	castRay(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, lambdaMax: number, collisionDetectionMask = 0b1) {
+	castRay(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number, collisionDetectionMask = 0b1) {
 		raycastAabb.makeEmpty();
 		raycastAabb.expandByPoint(rayOrigin);
 		raycastAabb.expandByPoint(v1.copy(rayOrigin).addScaledVector(rayDirection, lambdaMax));
@@ -262,7 +263,7 @@ export class World {
 		return hits.sort((a, b) => a.lambda - b.lambda);
 	}
 
-	castShape(shape: CollisionShape, direction: THREE.Vector3, lambdaMax: number) {
+	castShape(shape: CollisionShape, direction: Vector3, lambdaMax: number) {
 		raycastAabb.makeEmpty();
 		raycastAabb.expandByPoint(shape.boundingBox.min);
 		raycastAabb.expandByPoint(shape.boundingBox.max);

@@ -22,7 +22,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 
 	openGl: HTMLImageElement;
 	direct3D: HTMLImageElement;
-	
+
 	windowedButton: HTMLImageElement;
 	fullButton: HTMLImageElement;
 
@@ -120,7 +120,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 
 		this.windowedButton = document.querySelector('#graphics-windowed') as HTMLImageElement;
 		this.fullButton = document.querySelector('#graphics-full') as HTMLImageElement;
-		
+
 		this.depth16 = document.querySelector('#graphics-depth16') as HTMLImageElement;
 		this.depth32 = document.querySelector('#graphics-depth32') as HTMLImageElement;
 
@@ -213,7 +213,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 
 		const handler = () => {
 			if (!this.draggingMusicVolume && !this.draggingSoundVolume && !this.draggingMouseSensitivity) return;
-		
+
 			// Release all dragging things
 			this.draggingMusicVolume = this.draggingSoundVolume = this.draggingMouseSensitivity = false;
 			StorageManager.store();
@@ -260,7 +260,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 			StorageManager.data.settings.invertMouse &= ~0b10;
 			StorageManager.data.settings.invertMouse |= Number(!this.invertY.hasAttribute('data-locked')) << 1;
 			StorageManager.store();
-		
+
 			// Toggle the checkbox
 			if (!this.invertY.hasAttribute('data-locked')) {
 				this.invertY.setAttribute('data-locked', '');
@@ -273,7 +273,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		menu.setupButton(this.alwaysFreeLook, 'options/cntrl_mous_freel', () => {
 			StorageManager.data.settings.alwaysFreeLook = !this.alwaysFreeLook.hasAttribute('data-locked');
 			StorageManager.store();
-		
+
 			// Toggle the checkbox
 			if (!this.alwaysFreeLook.hasAttribute('data-locked')) {
 				this.alwaysFreeLook.setAttribute('data-locked', '');
@@ -326,7 +326,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		// Default selection
 		this.selectControlsTab('marble');
 		this.selectTab('graphics');
-		
+
 		await ResourceManager.loadImages(['cntrl_marb_bse.png', 'cntrl_cam_bse.png', 'cntrl_mous_base.png'].map(x => './assets/ui/options/' + x));
 
 		await this.updateAllElements();
@@ -343,7 +343,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		this.mouseSensitivityKnob.style.left = Math.floor(this.mouseSensitivityKnobLeft + StorageManager.data.settings.mouseSensitivity * this.trackLength) + 'px';
 
 		this.refreshKeybindings();
-		
+
 		if (!!(StorageManager.data.settings.invertMouse & 0b10) !== this.invertY.hasAttribute('data-locked')) this.invertY.click();
 		if (StorageManager.data.settings.alwaysFreeLook !== this.alwaysFreeLook.hasAttribute('data-locked')) this.alwaysFreeLook.click();
 		if ((StorageManager.data.settings.marbleReflectivity === 2) !== this.reflectiveMarbleCheckbox.hasAttribute('data-locked')) this.reflectiveMarbleCheckbox.click();
@@ -358,9 +358,9 @@ export class MbgOptionsScreen extends OptionsScreen {
 		for (let elem of [this.graphicsDiv, this.audioDiv, this.controlsDiv]) {
 			elem.classList.add('hidden');
 		}
-	
+
 		let index = ['graphics', 'audio', 'controls'].indexOf(which);
-	
+
 		let elem = [this.tabGraphics, this.tabAudio, this.tabControls][index];
 		elem.style.zIndex = "0";
 		[this.graphicsDiv, this.audioDiv, this.controlsDiv][index].classList.remove('hidden');
@@ -381,7 +381,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		StorageManager.data.settings.resolution = index;
 		StorageManager.store();
 	}
-	
+
 	unlockResolutionButtons() {
 		// Deselect all resolution buttons
 		this.resolution640.src = './assets/ui/options/graf640_n.png';
@@ -399,7 +399,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		StorageManager.data.settings.videoDriver = index;
 		StorageManager.store();
 	}
-	
+
 	unlockVideoDriverButtons() {
 		// Deselect all video driver buttons
 		this.openGl.src = './assets/ui/options/grafopgl_n.png';
@@ -415,7 +415,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		StorageManager.data.settings.screenStyle = index;
 		StorageManager.store();
 	}
-	
+
 	unlockScreenStyleButtons() {
 		// Deselect all screen style buttons
 		this.windowedButton.src = './assets/ui/options/grafwindo_n.png';
@@ -431,7 +431,7 @@ export class MbgOptionsScreen extends OptionsScreen {
 		StorageManager.data.settings.colorDepth = index;
 		StorageManager.store();
 	}
-	
+
 	unlockColorDepthButtons() {
 		// Deselect all color depth buttons
 		this.depth16.src = './assets/ui/options/graf16bt_n.png';
@@ -443,37 +443,37 @@ export class MbgOptionsScreen extends OptionsScreen {
 	async updateSliders() {
 		requestAnimationFrame(() => this.updateSliders());
 		if (this.div.classList.contains('hidden')) return;
-	
+
 		// Updates all sliders based on mouse position.
-	
+
 		if (this.draggingMusicVolume) {
 			let leftStart = this.div.getBoundingClientRect().left * SCALING_RATIO + this.musicVolumeKnobLeft;
 			let completion = Util.clamp(((currentMousePosition.x - 12) - leftStart) / this.trackLength, 0, 1);
-	
+
 			this.musicVolumeKnob.style.left = Math.floor(this.musicVolumeKnobLeft + completion * this.trackLength) + 'px';
 			StorageManager.data.settings.musicVolume = completion;
 			AudioManager.updateVolumes();
 		}
-	
+
 		if (this.draggingSoundVolume) {
 			let leftStart = this.div.getBoundingClientRect().left * SCALING_RATIO + this.soundVolumeKnobLeft;
 			let completion = Util.clamp(((currentMousePosition.x - 12) - leftStart) / this.trackLength, 0, 1);
-	
+
 			this.soundVolumeKnob.style.left = Math.floor(this.soundVolumeKnobLeft + completion * this.trackLength) + 'px';
 			StorageManager.data.settings.soundVolume = completion;
 			AudioManager.updateVolumes();
-	
+
 			if (!this.soundTestingSound) {
 				this.soundTestingSound = AudioManager.createAudioSource('testing.wav');
 				this.soundTestingSound.setLoop(true);
 				this.soundTestingSound.play();
 			}
 		}
-	
+
 		if (this.draggingMouseSensitivity) {
 			let leftStart = this.div.getBoundingClientRect().left * SCALING_RATIO + this.mouseSensitivityKnobLeft;
 			let completion = Util.clamp(((currentMousePosition.x - 12) - leftStart) / this.trackLength, 0, 1);
-	
+
 			this.mouseSensitivityKnob.style.left = Math.floor(this.mouseSensitivityKnobLeft + completion * this.trackLength) + 'px';
 			StorageManager.data.settings.mouseSensitivity = completion;
 		}
@@ -483,13 +483,13 @@ export class MbgOptionsScreen extends OptionsScreen {
 		for (let elem of [this.marbleControlsDiv, this.cameraControlsDiv, this.mouseControlsDiv]) {
 			elem.classList.add('hidden');
 		}
-	
+
 		let index = ['marble', 'camera', 'mouse'].indexOf(which);
 		let elem = [this.marbleControlsDiv, this.cameraControlsDiv, this.mouseControlsDiv][index];
 		elem.classList.remove('hidden');
-		
+
 		this.controlsBackground.src = './assets/ui/options/' + ['cntrl_marb_bse.png', 'cntrl_cam_bse.png', 'cntrl_mous_base.png'][index];
-	
+
 		if (which === 'mouse') {
 			// The mouse background is sized differently and requires its own transform
 			this.controlsBackground.style.left = '2px';

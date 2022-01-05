@@ -1,6 +1,5 @@
 import './input';
 import { ResourceManager } from "./resources";
-import * as THREE from "three";
 import { AudioManager } from "./audio";
 import { StorageManager } from './storage';
 import { Util } from './util';
@@ -9,8 +8,6 @@ import { MissionLibrary } from './mission_library';
 import { state } from './state';
 import { setMenu } from './ui/menu_setter';
 import { initMainRenderer } from './ui/misc';
-
-THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
 
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
 const loadingDetail = document.querySelector('#loading-detail') as HTMLDivElement;

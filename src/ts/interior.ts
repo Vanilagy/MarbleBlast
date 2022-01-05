@@ -1,5 +1,4 @@
 import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
-import * as THREE from "three";
 import { TimeState, Level, PHYSICS_TICK_RATE } from "./level";
 import { Util } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
@@ -10,6 +9,10 @@ import { Material } from "./rendering/material";
 import { RigidBody, RigidBodyType } from "./physics/rigid_body";
 import { ConvexHullCollisionShape } from "./physics/collision_shape";
 import { Collision } from "./physics/collision";
+import { Vector3 } from "./math/vector3";
+import { Matrix4 } from "./math/matrix4";
+import { Plane } from "./math/plane";
+import { Quaternion } from "./math/quaternion";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -149,11 +152,11 @@ const customMaterialFactories: Record<string, (interior: Interior) => Promise<Ma
 
 /** Stores a list of all vertices with similar face normal. */
 interface VertexBucket {
-	referenceNormal: THREE.Vector3,
+	referenceNormal: Vector3,
 	/** The index at which to write the normal vector. */
 	normalIndices: number[],
 	/** The face normal per vertex. */
-	normals: THREE.Vector3[]
+	normals: Vector3[]
 }
 
 interface InitCacheType {
@@ -181,10 +184,8 @@ export class Interior {
 	body: RigidBody;
 	/** The relevant detail level to read from (non-default for pathed interiors) */
 	detailLevel: DifFile["detailLevels"][number];
-	worldMatrix = new THREE.Matrix4();
-	scale: THREE.Vector3;
-	materials: THREE.Material[];
-	//materialGeometry: MaterialGeometry = [];
+	worldMatrix = new Matrix4();
+	scale: Vector3;
 	/** Simply contains the file names of the materials without the path to them. */
 	materialNames: string[] = [];
 	/** Whether or not frictions and bouncy floors work on this interior. */
@@ -296,7 +297,7 @@ export class Interior {
 			for (let [, buckets] of vertexBuckets) {
 				for (let i = 0; i < buckets.length; i++) {
 					let bucket = buckets[i];
-					let avgNormal = new THREE.Vector3();
+					let avgNormal = new Vector3();
 
 					// Average all vertex normals of this bucket
 					for (let j = 0; j < bucket.normals.length; j++) avgNormal.add(bucket.normals[j]);
@@ -333,8 +334,8 @@ export class Interior {
 		let detailLevel = this.detailLevel;
 		let texGenEqs = detailLevel.texGenEqs[surface.texGenIndex];
 		// These are needed for UVs
-		let texPlaneX = new THREE.Plane(new THREE.Vector3(texGenEqs.planeX.x, texGenEqs.planeX.y, texGenEqs.planeX.z), texGenEqs.planeX.d);
-		let texPlaneY = new THREE.Plane(new THREE.Vector3(texGenEqs.planeY.x, texGenEqs.planeY.y, texGenEqs.planeY.z), texGenEqs.planeY.d);
+		let texPlaneX = new Plane(new Vector3(texGenEqs.planeX.x, texGenEqs.planeX.y, texGenEqs.planeX.z), texGenEqs.planeX.d);
+		let texPlaneY = new Plane(new Vector3(texGenEqs.planeY.x, texGenEqs.planeY.y, texGenEqs.planeY.z), texGenEqs.planeY.d);
 		let planeData = detailLevel.planes[surface.planeIndex & ~0x8000]; // Mask it here because the bit at 0x8000 specifies whether or not to invert the plane's normal.
 		let planeNormal = detailLevel.normals[planeData.normalIndex];
 		//let geometryData = this.materialGeometry[surface.textureIndex];
@@ -353,15 +354,15 @@ export class Interior {
 				i3 = temp;
 			}
 
-			let faceNormal = new THREE.Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
+			let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
 			if (surface.planeIndex & 0x8000) faceNormal.multiplyScalar(-1); // Invert the plane if so specified
 
 			for (let index of [i1, i2, i3]) {
 				let position = this.detailLevel.points[index];
 
 				// Figure out UV coordinates by getting the distances of the corresponding vertices to the plane.
-				let u = texPlaneX.distanceToPoint(new THREE.Vector3(position.x, position.y, position.z));
-				let v = texPlaneY.distanceToPoint(new THREE.Vector3(position.x, position.y, position.z));
+				let u = texPlaneX.distanceToPoint(new Vector3(position.x, position.y, position.z));
+				let v = texPlaneY.distanceToPoint(new Vector3(position.x, position.y, position.z));
 				if (this.level.mission.modification === 'ultra' && material === 'plate_1') u /= 2, v/= 2; // This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
 
 				geometry.positions.push(position.x, position.y, position.z);
@@ -404,7 +405,7 @@ export class Interior {
 		}
 	}
 
-	addConvexHull(hullIndex: number, scale: THREE.Vector3) {
+	addConvexHull(hullIndex: number, scale: Vector3) {
 		let hull = this.detailLevel.convexHulls[hullIndex];
 		let materials = new Set<string>();
 
@@ -422,12 +423,12 @@ export class Interior {
 
 		if (materials.size === 0) return;
 
-		let vertices: THREE.Vector3[] = [];
+		let vertices: Vector3[] = [];
 
 		// Get the vertices
 		for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
 			let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
-			vertices.push(new THREE.Vector3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
+			vertices.push(new Vector3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
 		}
 
 		let shape = new ConvexHullCollisionShape(vertices);
@@ -449,7 +450,7 @@ export class Interior {
 
 				let planeData = this.detailLevel.planes[surface.planeIndex & ~0x8000];
 				let planeNormal = this.detailLevel.normals[planeData.normalIndex];
-				let faceNormal = new THREE.Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
+				let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
 				if (surface.planeIndex & 0x8000) faceNormal.multiplyScalar(-1);
 
 				let properties = this.getCollisionMaterialProperties(material);
@@ -485,7 +486,7 @@ export class Interior {
 		return { friction, restitution, force, isRandom };
 	}
 
-	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
+	setTransform(position: Vector3, orientation: Quaternion, scale: Vector3) {
 		this.worldMatrix.compose(position, orientation, scale);
 		this.scale = scale;
 		this.mesh.transform.copy(this.worldMatrix);

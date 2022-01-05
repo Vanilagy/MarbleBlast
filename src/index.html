@@ -617,16 +617,8 @@
 		<div style="font-family: DomCasualRegular; opacity: 0; pointer-events: none;">ABC</div>
 		<div style="font-family: Expo; opacity: 0; pointer-events: none;">ABC</div>
 		<div style="font-family: MarkerFelt; opacity: 0; pointer-events: none;">ABC</div>
-
-		<script>
-			let isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-			let isFirefox = navigator.userAgent.includes('Firefox');
-			if (isSafari || isFirefox) {
-				document.write('<script src="./lib/oggdec.js" defer' + '><' + '/script>');
-			}
-		</script>
+		
 		<script src="./lib/oggdec.js" defer></script>
-		<script src="./lib/three.js" defer></script>
 		<script src="./lib/pako.js" defer></script>
 		<script src="./lib/jszip.js" defer></script>
 		<div></div>

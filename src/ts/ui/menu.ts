@@ -86,7 +86,7 @@ export abstract class Menu {
 
 			return x >= rect.x - radius && x < rect.x + rect.width + radius && y >= rect.y - radius && y < rect.y + rect.height + radius;
 		};
-		
+
 		element.addEventListener('mouseenter', () => {
 			if (Util.isTouchDevice) return;
 			hovered = true;
@@ -100,7 +100,7 @@ export abstract class Menu {
 			hovered = false;
 			element.removeAttribute('data-hovered');
 			if (element.style.pointerEvents === 'none') return;
-			if (!element.hasAttribute('data-locked')) element.src = normal();		
+			if (!element.hasAttribute('data-locked')) element.src = normal();
 		});
 		element.addEventListener('touchmove', () => {
 			if (element.style.pointerEvents === 'none') return;
@@ -152,7 +152,7 @@ export abstract class Menu {
 			if (e.isTrusted && (Util.isTouchDevice && 'ontouchstart' in window)) return; // Do the extra check here to make sure people don't nuke themselves with options
 			if (e.button === 0) onclick(e);
 		});
-	
+
 		for (let ogPath of ogPaths) {
 			if (!ogPath) continue;
 
@@ -283,12 +283,12 @@ export abstract class Menu {
 			};
 			window.addEventListener('keydown', handler1);
 			window.addEventListener('keyup', handler2);
-	
+
 			div.append(okayButton);
-	
+
 			this.popupContainer.append(div);
 			this.popupContainer.style.display = '';
-		});	
+		});
 	}
 
 	/** Shows a customizable confirm (yes/no) pop-up on screen. */
@@ -306,7 +306,7 @@ export abstract class Menu {
 
 				resolve(false);
 			});
-	
+
 			let yesButton = document.createElement('img');
 			yesButton.classList.add('_yes');
 			this.setupButton(yesButton, this.popupYesSrc, () => {
@@ -326,9 +326,9 @@ export abstract class Menu {
 			};
 			window.addEventListener('keydown', handler1);
 			window.addEventListener('keyup', handler2);
-	
+
 			div.append(noButton, yesButton);
-	
+
 			this.popupContainer.append(div);
 			this.popupContainer.style.display = '';
 		});

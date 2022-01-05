@@ -11,9 +11,9 @@ export class Quaternion {
 
 	constructor(x = 0, y = 0, z = 0, w = 1) {
 		this.x = x;
-		this.x = y;
-		this.x = z;
-		this.x = w;
+		this.y = y;
+		this.z = z;
+		this.w = w;
 	}
 
 	set(x: number, y: number, z: number, w: number) {

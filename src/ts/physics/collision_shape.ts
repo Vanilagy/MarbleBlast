@@ -1,18 +1,22 @@
-import THREE from "three";
+import { Box3 } from "../math/box3";
+import { Matrix3 } from "../math/matrix3";
+import { Matrix4 } from "../math/matrix4";
+import { Quaternion } from "../math/quaternion";
+import { Vector3 } from "../math/vector3";
 import { OctreeObject } from "./octree";
 import { RigidBody } from "./rigid_body";
 
-let v1 = new THREE.Vector3();
-let v2 = new THREE.Vector3();
-let v3 = new THREE.Vector3();
-let v4 = new THREE.Vector3();
-let v5 = new THREE.Vector3();
-let m1 = new THREE.Matrix4();
-let q1 = new THREE.Quaternion();
+let v1 = new Vector3();
+let v2 = new Vector3();
+let v3 = new Vector3();
+let v4 = new Vector3();
+let v5 = new Vector3();
+let m1 = new Matrix4();
+let q1 = new Quaternion();
 
 export abstract class CollisionShape implements OctreeObject {
 	body: RigidBody = null;
-	boundingBox = new THREE.Box3();
+	boundingBox = new Box3();
 	broadphaseShape: CollisionShape = null;
 	collisionDetectionMask = 0b1;
 	collisionResponseMask = 0b1;
@@ -20,16 +24,16 @@ export abstract class CollisionShape implements OctreeObject {
 	friction = 1;
 	restitution = 1;
 	mass = 1;
-	inertia = new THREE.Matrix3().identity();
-	invInertia = new THREE.Matrix3().identity();
+	inertia = new Matrix3().identity();
+	invInertia = new Matrix3().identity();
 
-	materialOverrides = new Map<THREE.Vector3, { friction: number, restitution: number }>();
+	materialOverrides = new Map<Vector3, { friction: number, restitution: number }>();
 
 	userData: any;
 
 	abstract updateInertiaTensor(): void;
-	abstract support(dst: THREE.Vector3, direction: THREE.Vector3): THREE.Vector3;
-	abstract getCenter(dst: THREE.Vector3): THREE.Vector3;
+	abstract support(dst: Vector3, direction: Vector3): Vector3;
+	abstract getCenter(dst: Vector3): Vector3;
 
 	updateBoundingBox() {
 		m1.compose(this.body.position, this.body.orientation, v1.setScalar(1));
@@ -59,14 +63,14 @@ export class BallCollisionShape extends CollisionShape {
 	updateInertiaTensor() {
 		let scalar = 2/5 * this.mass * this.radius**2;
 		this.inertia.identity().multiplyScalar(scalar);
-		this.invInertia.getInverse(this.inertia);
+		this.invInertia.copy(this.inertia).invert();
 	}
 
-	support(dst: THREE.Vector3, direction: THREE.Vector3) {
+	support(dst: Vector3, direction: Vector3) {
 		return dst.copy(direction).normalize().multiplyScalar(this.radius).add(this.body.position);
 	}
 
-	getCenter(dst: THREE.Vector3) {
+	getCenter(dst: Vector3) {
 		return dst.copy(this.body.position);
 	}
 
@@ -79,11 +83,11 @@ export class BallCollisionShape extends CollisionShape {
 }
 
 export class ConvexHullCollisionShape extends CollisionShape {
-	points: THREE.Vector3[];
-	localCenter = new THREE.Vector3();
-	localAabb = new THREE.Box3();
+	points: Vector3[];
+	localCenter = new Vector3();
+	localAabb = new Box3();
 
-	constructor(points: THREE.Vector3[]) {
+	constructor(points: Vector3[]) {
 		super();
 
 		this.points = points;
@@ -103,7 +107,7 @@ export class ConvexHullCollisionShape extends CollisionShape {
 		// Do nothing for now, we likely won't need it because there is no dynamic convex hull object
 	}
 
-	support(dst: THREE.Vector3, direction: THREE.Vector3) {
+	support(dst: Vector3, direction: Vector3) {
 		q1.copy(this.body.orientation).conjugate();
 		let localDirection = v1.copy(direction).applyQuaternion(q1); // Transform it to local space
 
@@ -122,7 +126,7 @@ export class ConvexHullCollisionShape extends CollisionShape {
 		return this.body.transformPoint(dst);
 	}
 
-	getCenter(dst: THREE.Vector3) {
+	getCenter(dst: Vector3) {
 		return this.body.transformPoint(dst.copy(this.localCenter));
 	}
 
@@ -146,7 +150,7 @@ export class CombinedCollisionShape extends CollisionShape {
 
 	updateInertiaTensor() {}
 
-	support(dst: THREE.Vector3, direction: THREE.Vector3) {
+	support(dst: Vector3, direction: Vector3) {
 		let supp1 = this.s1.support(v4, direction);
 		let supp2 = this.s2.support(v5, direction);
 
@@ -156,7 +160,7 @@ export class CombinedCollisionShape extends CollisionShape {
 		return dst;
 	}
 
-	getCenter(dst: THREE.Vector3) {
+	getCenter(dst: Vector3) {
 		return this.s1.getCenter(dst).add(this.s2.getCenter(v4)).multiplyScalar(0.5);
 	}
 }

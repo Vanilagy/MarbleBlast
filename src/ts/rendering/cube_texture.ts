@@ -31,7 +31,7 @@ export class CubeTexture {
 			if (images.some(x => !x.complete)) throw new Error("Can only pass loaded images into CubeTexture.");
 
 			this.size = images[0].naturalWidth; // Assume square images
-			
+
 			gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[0]);
 			gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[1]);
 			gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, images[2]);
@@ -51,7 +51,7 @@ export class CubeTexture {
 			gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
 			gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
 			gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-			
+
 			gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		}
@@ -81,7 +81,7 @@ export class CubeTexture {
 		this.depthBuffer = depthBuffer;
 	}
 
-	/** 
+	/**
 	 * Renders a given scene to the cube texture. Depending on the budget, this might not render to all six faces.
 	 * @param budget Defines the maximum amount of time in milliseconds this method should run. Can be used to set an upper bound on render time, since rendering a scene six times _can_ get expensive.
 	 */

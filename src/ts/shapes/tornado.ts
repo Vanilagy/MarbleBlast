@@ -1,6 +1,6 @@
 import { ForceShape } from "./force_shape";
 import { AudioSource, AudioManager } from "../audio";
-import THREE from "three";
+import { Vector3 } from "../math/vector3";
 
 /** Sucks the marble in and then slings it upwards. */
 export class Tornado extends ForceShape {
@@ -14,7 +14,7 @@ export class Tornado extends ForceShape {
 
 		this.addSphericalForce(8, -60);
 		this.addSphericalForce(3, 60);
-		this.addFieldForce(3, new THREE.Vector3(0, 0, 150)); // The upwards force is always in the same direction, which is fine considering tornados never appear with modified gravity.
+		this.addFieldForce(3, new Vector3(0, 0, 150)); // The upwards force is always in the same direction, which is fine considering tornados never appear with modified gravity.
 	}
 
 	async onLevelStart() {

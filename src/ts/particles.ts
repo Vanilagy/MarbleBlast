@@ -1,10 +1,11 @@
 import { RGBAColor, Util } from "./util";
 import { Level } from "./level";
-import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { VertexBuffer, VertexBufferGroup } from "./rendering/vertex_buffer";
-import { Renderer } from "./rendering/renderer";
+import { BlendingType, Renderer } from "./rendering/renderer";
 import { Texture } from "./rendering/texture";
+import { Vector3 } from "./math/vector3";
+import { Matrix4 } from "./math/matrix4";
 
 const PATHS = ['particles/bubble.png', 'particles/saturn.png', 'particles/smoke.png', 'particles/spark.png', 'particles/star.png', 'particles/twirl.png'];
 const MAX_PARTICLES_PER_GROUP = 2**14;
@@ -13,7 +14,7 @@ const MAX_PARTICLES_PER_GROUP = 2**14;
 interface ParticleOptions {
 	texture: string,
 	/** Which blending mode to use. */
-	blending: number,
+	blending: BlendingType,
 	/** The spinning speed in degrees per second. */
 	spinSpeed: number,
 	spinRandomMin: number,
@@ -34,7 +35,7 @@ export interface ParticleEmitterOptions {
 	/** The time between particle ejections. */
 	ejectionPeriod: number,
 	/** A fixed velocity to add to each particle. */
-	ambientVelocity: THREE.Vector3,
+	ambientVelocity: Vector3,
 	/** The particle is ejected in a random direction with this velocity. */
 	ejectionVelocity: number,
 	velocityVariance: number,
@@ -42,7 +43,7 @@ export interface ParticleEmitterOptions {
 	/** How much of the emitter's own velocity the particle should inherit. */
 	inheritedVelFactor: number,
 	/** Computes a spawn offset for each particle. */
-	spawnOffset?: () => THREE.Vector3,
+	spawnOffset?: () => Vector3,
 	particleOptions: ParticleOptions
 }
 
@@ -147,7 +148,7 @@ export class ParticleManager {
 		let buffer = new Float32Array(floatsPerParticle * vertsPerParticle * MAX_PARTICLES_PER_GROUP); // Make the buffer large enough so that we won't ever have to worry about not being able to fit enough particles in
 		let vertexBuffer = new VertexBuffer(this.renderer, buffer, attributes);
 
-		let colorsMatrix = new THREE.Matrix4();
+		let colorsMatrix = new Matrix4();
 		colorsMatrix.set(
 			o.colors[0]?.r || 0, o.colors[0]?.g || 0, o.colors[0]?.b || 0, o.colors[0]?.a || 0,
 			o.colors[1]?.r || 0, o.colors[1]?.g || 0, o.colors[1]?.b || 0, o.colors[1]?.a || 0,
@@ -179,7 +180,7 @@ export class ParticleManager {
 		return this.level.timeState.timeSinceLoad;
 	}
 
-	createEmitter(options: ParticleEmitterOptions, initialPos: THREE.Vector3, getPos?: () => THREE.Vector3, spawnSphereSquish?: THREE.Vector3) {
+	createEmitter(options: ParticleEmitterOptions, initialPos: Vector3, getPos?: () => Vector3, spawnSphereSquish?: Vector3) {
 		let emitter = new ParticleEmitter(options, this, getPos, spawnSphereSquish);
 		emitter.currPos = getPos?.() ?? initialPos.clone();
 		emitter.currPosTime = this.getTime();
@@ -241,19 +242,19 @@ export class ParticleEmitter {
 	lastEmitTime: number;
 	currentWaitPeriod: number;
 
-	lastPos: THREE.Vector3;
+	lastPos: Vector3;
 	lastPosTime: number;
-	currPos: THREE.Vector3;
+	currPos: Vector3;
 	currPosTime: number;
-	vel = new THREE.Vector3();
-	getPos: () => THREE.Vector3;
-	spawnSphereSquish: THREE.Vector3;
+	vel = new Vector3();
+	getPos: () => Vector3;
+	spawnSphereSquish: Vector3;
 
-	constructor(options: ParticleEmitterOptions, manager: ParticleManager, getPos?: () => THREE.Vector3, spawnSphereSquish?: THREE.Vector3) {
+	constructor(options: ParticleEmitterOptions, manager: ParticleManager, getPos?: () => Vector3, spawnSphereSquish?: Vector3) {
 		this.o = options;
 		this.manager = manager;
 		this.getPos = getPos;
-		this.spawnSphereSquish = spawnSphereSquish ?? new THREE.Vector3(1, 1, 1);
+		this.spawnSphereSquish = spawnSphereSquish ?? new Vector3(1, 1, 1);
 	}
 
 	spawn(time: number) {
@@ -285,7 +286,7 @@ export class ParticleEmitter {
 		if (this.o.spawnOffset) pos.add(this.o.spawnOffset()); // Call the spawnOffset function if it's there
 
 		// Generate a point uniformly chosen on a sphere's surface.
-		let randomPointOnSphere = new THREE.Vector3(Util.randomGaussian(), Util.randomGaussian(), Util.randomGaussian()).normalize();
+		let randomPointOnSphere = new Vector3(Util.randomGaussian(), Util.randomGaussian(), Util.randomGaussian()).normalize();
 		randomPointOnSphere.multiply(this.spawnSphereSquish);
 		// Compute the total velocity
 		let vel = this.vel.clone().multiplyScalar(this.o.inheritedVelFactor).add(randomPointOnSphere.multiplyScalar(this.o.ejectionVelocity + this.o.velocityVariance * (Math.random() * 2 - 1))).add(this.o.ambientVelocity);
@@ -306,7 +307,7 @@ export class ParticleEmitter {
 		return this.lastPos.clone().lerp(this.currPos, completion);
 	}
 
-	setPos(pos: THREE.Vector3, time: number) {
+	setPos(pos: Vector3, time: number) {
 		this.lastPos = this.currPos;
 		this.lastPosTime = this.currPosTime;
 		this.currPos = pos.clone();
@@ -316,7 +317,7 @@ export class ParticleEmitter {
 
 	static cloneOptions(options: ParticleEmitterOptions) {
 		let clone = Util.jsonClone(options);
-		clone.ambientVelocity = new THREE.Vector3(options.ambientVelocity.x, options.ambientVelocity.y, options.ambientVelocity.z);
+		clone.ambientVelocity = new Vector3(options.ambientVelocity.x, options.ambientVelocity.y, options.ambientVelocity.z);
 		clone.spawnOffset = options.spawnOffset;
 
 		return clone as ParticleEmitterOptions;
@@ -328,12 +329,12 @@ class Particle {
 	manager: ParticleManager;
 
 	spawnTime: number;
-	pos: THREE.Vector3;
-	vel: THREE.Vector3;
+	pos: Vector3;
+	vel: Vector3;
 	lifetime: number;
 	initialSpin: number;
 
-	constructor(options: ParticleOptions, manager: ParticleManager, spawnTime: number, pos: THREE.Vector3, vel: THREE.Vector3) {
+	constructor(options: ParticleOptions, manager: ParticleManager, spawnTime: number, pos: Vector3, vel: Vector3) {
 		this.o = options;
 		this.manager = manager;
 
@@ -374,14 +375,14 @@ class Particle {
 export const particleNodeEmittersEmitterOptions = {
 	MarbleTrailEmitter: {
 		ejectionPeriod: 5,
-		ambientVelocity: new THREE.Vector3(0, 0, 0),
+		ambientVelocity: new Vector3(0, 0, 0),
 		ejectionVelocity: 0,
 		velocityVariance: 0.25,
 		emitterLifetime: 10000,
 		inheritedVelFactor: 0,
 		particleOptions: {
 			texture: 'particles/smoke.png',
-			blending: THREE.NormalBlending,
+			blending: BlendingType.Normal,
 			spinSpeed: 0,
 			spinRandomMin: 0,
 			spinRandomMax: 0,
@@ -396,14 +397,14 @@ export const particleNodeEmittersEmitterOptions = {
 	},
 	LandMineEmitter: {
 		ejectionPeriod: 10,
-		ambientVelocity: new THREE.Vector3(0, 0, 0),
+		ambientVelocity: new Vector3(0, 0, 0),
 		ejectionVelocity: 0.5,
 		velocityVariance: 0.25,
 		emitterLifetime: Infinity,
 		inheritedVelFactor: 0.2,
 		particleOptions: {
 			texture: 'particles/smoke.png',
-			blending: THREE.AdditiveBlending,
+			blending: BlendingType.Additive,
 			spinSpeed: 40,
 			spinRandomMin: -90,
 			spinRandomMax: 90,

@@ -1,7 +1,8 @@
 import { Shape } from "../shape";
-import * as THREE from "three";
 import { Util } from "../util";
 import { BallCollisionShape } from "../physics/collision_shape";
+import { Vector3 } from "../math/vector3";
+import { Matrix4 } from "../math/matrix4";
 
 /** A shape with force areas that can push or pull the marble. */
 export abstract class ForceShape extends Shape {
@@ -18,7 +19,7 @@ export abstract class ForceShape extends Shape {
 		this.addCollider(() => new BallCollisionShape(distance), (t: number, dt: number) => {
 			let marble = this.level.marble;
 
-			let perpendicular = new THREE.Vector3(0, 0, 1); // The normal to the fan
+			let perpendicular = new Vector3(0, 0, 1); // The normal to the fan
 			perpendicular.applyQuaternion(this.worldOrientation);
 
 			let conetip = this.worldPosition.clone().sub(perpendicular.multiplyScalar(0.7)); // The tip of the cone
@@ -45,7 +46,7 @@ export abstract class ForceShape extends Shape {
 
 			// Now we apply it
 			marble.body.linearVelocity.addScaledVector(force, forcemag * dt);
-		}, new THREE.Matrix4());
+		}, new Matrix4());
 	}
 
 	/** Like `addConicForce`, but directly ported from OpenMBU (which did some reverse-engineering magic) */
@@ -59,7 +60,7 @@ export abstract class ForceShape extends Shape {
 
 			// Now we apply it
 			this.level.marble.body.linearVelocity.add(force);
-		}, new THREE.Matrix4());
+		}, new Matrix4());
 	}
 
 	computeAccurateConicForce(forceRadius: number, forceArc: number, forceStrength: number) {
@@ -68,14 +69,14 @@ export abstract class ForceShape extends Shape {
 
 		let strength = 0.0;
 		let dot = 0.0;
-		let posVec = new THREE.Vector3();
-		let retForce = new THREE.Vector3();
+		let posVec = new Vector3();
+		let retForce = new Vector3();
 
 		let node = this.worldMatrix.clone(); // In the general case, this is a mount node, but we're only using this method for magnets so far and those don't have that, so use the magnet's transform instead
-		let nodeVec = new THREE.Vector3(node.elements[4], node.elements[5], node.elements[6]); // Gets the second column, so basically the transformed y axis
+		let nodeVec = new Vector3(node.elements[4], node.elements[5], node.elements[6]); // Gets the second column, so basically the transformed y axis
 		nodeVec.normalize();
 
-		posVec = pos.clone().sub(new THREE.Vector3().setFromMatrixPosition(node));
+		posVec = pos.clone().sub(new Vector3().setFromMatrixPosition(node));
 		dot = posVec.length();
 
 		if (forceRadius < dot) {
@@ -105,17 +106,17 @@ export abstract class ForceShape extends Shape {
 			let strengthFac = 1 - Util.clamp(vec.length() / radius, 0, 1)**2; // Quadratic falloff with distance
 
 			marble.body.linearVelocity.addScaledVector(vec.normalize(), strength * strengthFac * dt);
-		}, new THREE.Matrix4());
+		}, new Matrix4());
 	}
 
 	/** Creates a spherical-shaped force whose force acts in the direction of the vector specified. */
-	addFieldForce(radius: number, forceVector: THREE.Vector3) {
+	addFieldForce(radius: number, forceVector: Vector3) {
 		this.addCollider(() => new BallCollisionShape(radius), (t: number, dt: number) => {
 			let marble = this.level.marble;
 			if (marble.body.position.distanceTo(this.worldPosition) >= radius) return;
 
 			// Simply add the force
 			marble.body.linearVelocity.addScaledVector(forceVector, dt);
-		}, new THREE.Matrix4());
+		}, new Matrix4());
 	}
 }

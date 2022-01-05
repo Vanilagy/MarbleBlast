@@ -41,7 +41,7 @@ export abstract class LoadingScreen {
 	async loadLevel(mission: Mission, getReplay?: () => Replay) {
 		this.show();
 		let indexAtStart = this.loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
-		
+
 		this.levelNameElement.textContent = mission.title;
 		this.progressBar.style.width = '0px';
 

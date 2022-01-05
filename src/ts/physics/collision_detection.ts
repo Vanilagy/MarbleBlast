@@ -1,4 +1,4 @@
-import THREE from "three";
+import { Vector3 } from "../math/vector3";
 import { Util } from "../util";
 import { BallCollisionShape, CollisionShape } from "./collision_shape";
 
@@ -9,47 +9,47 @@ const maxEpaLooseEdges = 64;
 const maxEpaIterations = 64;
 
 // Global algorithm state
-let points = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(),  new THREE.Vector3()];
+let points = [new Vector3(), new Vector3(), new Vector3(),  new Vector3()];
 let numPoints = 0;
-let support = new THREE.Vector3();
-let direction = new THREE.Vector3();
-let ao = new THREE.Vector3();
-let bo = new THREE.Vector3();
-let co = new THREE.Vector3();
-let ab = new THREE.Vector3();
-let ac = new THREE.Vector3();
-let ad = new THREE.Vector3();
-let bc = new THREE.Vector3();
-let bd = new THREE.Vector3();
-let abc = new THREE.Vector3();
-let acd = new THREE.Vector3();
-let adb = new THREE.Vector3();
-let bdc = new THREE.Vector3();
-let v1 = new THREE.Vector3();
-let v2 = new THREE.Vector3();
-let translation = new THREE.Vector3();
-let actualPosition1 = new THREE.Vector3();
-let actualPosition2 = new THREE.Vector3();
-let x = new THREE.Vector3();
-let n = new THREE.Vector3();
-let w = new THREE.Vector3();
+let support = new Vector3();
+let direction = new Vector3();
+let ao = new Vector3();
+let bo = new Vector3();
+let co = new Vector3();
+let ab = new Vector3();
+let ac = new Vector3();
+let ad = new Vector3();
+let bc = new Vector3();
+let bd = new Vector3();
+let abc = new Vector3();
+let acd = new Vector3();
+let adb = new Vector3();
+let bdc = new Vector3();
+let v1 = new Vector3();
+let v2 = new Vector3();
+let translation = new Vector3();
+let actualPosition1 = new Vector3();
+let actualPosition2 = new Vector3();
+let x = new Vector3();
+let n = new Vector3();
+let w = new Vector3();
 let requireFlip = 0;
 let lastS1: CollisionShape = null;
 let lastS2: CollisionShape = null;
-let o = new THREE.Vector3(0, 0, 0);
+let o = new Vector3(0, 0, 0);
 
 // EPA state
-let faces: THREE.Vector3[][] = [];
-let looseEdges: THREE.Vector3[][] = [];
+let faces: Vector3[][] = [];
+let looseEdges: Vector3[][] = [];
 for (let i = 0; i < maxEpaIterations; i++) {
-	faces.push([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]);
+	faces.push([new Vector3(), new Vector3(), new Vector3(), new Vector3()]);
 }
 for (let i = 0; i < maxEpaLooseEdges; i++) {
-	looseEdges.push([new THREE.Vector3(), new THREE.Vector3()]);
+	looseEdges.push([new Vector3(), new Vector3()]);
 }
 
 export abstract class CollisionDetection {
-	static support(dst: THREE.Vector3, s1: CollisionShape, s2: CollisionShape, direction: THREE.Vector3) {
+	static support(dst: Vector3, s1: CollisionShape, s2: CollisionShape, direction: Vector3) {
 		return s1.support(dst, direction).sub(s2.support(v1, v2.copy(direction).negate()));
 	}
 
@@ -122,7 +122,7 @@ export abstract class CollisionDetection {
 		return res.lambda;
 	}
 
-	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, lambdaMax: number) {
+	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number) {
 		lastS1 = s1;
 		lastS2 = s2;
 
@@ -176,7 +176,7 @@ export abstract class CollisionDetection {
 		return null;
 	}
 
-	static addPointToSimplex(p: THREE.Vector3) {
+	static addPointToSimplex(p: Vector3) {
 		for (let i = 0; i < numPoints; i++) {
 			if (p.distanceToSquared(points[i]) < 10 * Number.EPSILON) return;
 		}
@@ -189,7 +189,7 @@ export abstract class CollisionDetection {
 		numPoints++;
 	}
 
-	static updateSimplexAndClosestPoint(dst: THREE.Vector3) {
+	static updateSimplexAndClosestPoint(dst: Vector3) {
 		let used: number;
 		requireFlip = 0;
 
@@ -217,13 +217,13 @@ export abstract class CollisionDetection {
 		}
 	}
 
-	static closestPointPoint(dst: THREE.Vector3, a: THREE.Vector3) {
+	static closestPointPoint(dst: Vector3, a: Vector3) {
 		dst.copy(a);
 
 		return 0b0001;
 	}
 
-	static closestPointLineSegment(dst: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3) {
+	static closestPointLineSegment(dst: Vector3, a: Vector3, b: Vector3) {
 		ab.copy(b).sub(a);
 		ao.copy(a).negate();
 
@@ -241,7 +241,7 @@ export abstract class CollisionDetection {
 		}
 	}
 
-	static closestPointTriangle(dst: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) {
+	static closestPointTriangle(dst: Vector3, a: Vector3, b: Vector3, c: Vector3) {
 		ab.copy(b).sub(a);
 		ac.copy(c).sub(a);
 		ao.copy(a).negate();
@@ -306,7 +306,7 @@ export abstract class CollisionDetection {
 		return 0b0111;
 	}
 
-	static closestPointTetrahedron(dst: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, d: THREE.Vector3) {
+	static closestPointTetrahedron(dst: Vector3, a: Vector3, b: Vector3, c: Vector3, d: Vector3) {
 		ab.copy(b).sub(a);
 		ac.copy(c).sub(a);
 		ad.copy(d).sub(a);
@@ -387,7 +387,7 @@ export abstract class CollisionDetection {
 		return used;
 	}
 
-	static determineMinimumSeparatingVector(dst: THREE.Vector3) {
+	static determineMinimumSeparatingVector(dst: Vector3) {
 		if (lastS1 instanceof BallCollisionShape && lastS2 instanceof BallCollisionShape) {
 			let len = lastS1.radius + lastS2.radius - lastS1.body.position.distanceTo(lastS2.body.position);
 			return dst.copy(lastS1.body.position).sub(lastS2.body.position).normalize().multiplyScalar(len);

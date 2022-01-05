@@ -1,5 +1,4 @@
 import { PowerUp } from "./power_up";
-import { TimeState } from "../level";
 import { state } from "../state";
 
 /** Reduces gravity temporarily. */

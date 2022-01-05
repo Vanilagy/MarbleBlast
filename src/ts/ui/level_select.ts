@@ -76,7 +76,7 @@ export abstract class LevelSelect {
 
 		window.addEventListener('keydown', (e) => {
 			if (this.div.classList.contains('hidden')) return;
-		
+
 			if (e.code === 'ArrowLeft' && (!this.searchInput.value || document.activeElement === document.body)) {
 				this.cycleMission(-1);
 				if (!this.prevButton.style.pointerEvents) this.prevButton.src = this.menu.uiAssetPath + 'play/prev_d.png';
@@ -87,10 +87,10 @@ export abstract class LevelSelect {
 				this.homeButton.src = this.menu.uiAssetPath + this.homeButtonSrc + '_d.png';
 			}
 		});
-		
+
 		window.addEventListener('keyup', (e) => {
 			if (this.div.classList.contains('hidden')) return;
-		
+
 			if (e.code === 'ArrowLeft') {
 				if (!this.prevButton.style.pointerEvents) this.prevButton.src = this.prevButton.hasAttribute('data-hovered')? this.menu.uiAssetPath + 'play/prev_h.png' : this.menu.uiAssetPath + 'play/prev_n.png';
 			} else if (e.code === 'ArrowRight') {
@@ -181,7 +181,7 @@ export abstract class LevelSelect {
 	playCurrentMission(replayData?: ArrayBuffer) {
 		let currentMission = this.currentMission;
 		if (!currentMission) return;
-	
+
 		this.div.classList.add('hidden');
 		this.menu.loadingScreen.loadLevel(currentMission, replayData? () => Replay.fromSerialized(replayData) : undefined); // Initiate level loading
 	}
@@ -217,10 +217,10 @@ export abstract class LevelSelect {
 				break;
 			}
 		}
-	
+
 		return canGoNext;
 	}
-	
+
 	/** Returns true if there is a previous mission to go back to. */
 	canGoPrev() {
 		let canGoPrev = false;
@@ -230,10 +230,10 @@ export abstract class LevelSelect {
 				break;
 			}
 		}
-	
+
 		return canGoPrev;
 	}
-	
+
 	updateNextPrevButtons() {
 		// Enable or disable the next button based on if there are still missions to come
 		if (!this.canGoNext()) {
@@ -243,7 +243,7 @@ export abstract class LevelSelect {
 			if (this.nextButton.src.endsWith('i.png')) this.nextButton.src = this.menu.uiAssetPath + 'play/next_n.png';
 			this.nextButton.style.pointerEvents = '';
 		}
-	
+
 		// Enable or disable the prev button based on if there are still missions to come
 		if (!this.canGoPrev()) {
 			this.prevButton.src = this.menu.uiAssetPath + 'play/prev_i.png';
@@ -258,39 +258,39 @@ export abstract class LevelSelect {
 	setImages(fromTimeout = false, doTimeout = true) {
 		if (fromTimeout) {
 			// We come from a timeout, so clear it
-			clearTimeout(this.setImagesTimeout);	
+			clearTimeout(this.setImagesTimeout);
 			this.setImagesTimeout = null;
 		}
-	
+
 		if (this.setImagesTimeout !== null && doTimeout) {
 			// There is currently a timeout ongoing; reset the timer and return.
 			clearTimeout(this.setImagesTimeout);
 			this.setImagesTimeout = setTimeout(() => this.setImages(true), 75) as any as number;
 			return;
 		}
-	
+
 		// List of missions whose image should be loaded
 		let toLoad = new Set<Mission>();
-	
+
 		// Preload the neighboring-mission images for faster flicking between missions without having to wait for images to load.
 		for (let i = 0; i <= 10; i++) {
 			let index = this.getCycleMissionIndex(Math.ceil(i / 2) * ((i % 2)? 1 : -1)); // Go in an outward spiral pattern, but only visit the missions that match the current search
 			let mission = this.currentMissionArray[index];
 			if (!mission) continue;
-	
+
 			toLoad.add(mission);
 		}
-	
+
 		// Preload the next shuffled missions
 		for (let mission of this.getNextShuffledMissions()) toLoad.add(mission);
-	
+
 		for (let mission of toLoad) {
 			let imagePath = mission.getImagePath();
 			let start = performance.now();
-	
+
 			ResourceManager.loadResource(imagePath).then(async blob => {
 				if (!blob) return;
-	
+
 				if (mission === this.currentMission) {
 					// Show the thumbnail if the mission is the same
 					let dataUrl = await ResourceManager.readBlobAsDataUrl(blob);
@@ -300,7 +300,7 @@ export abstract class LevelSelect {
 						this.levelImage.src = dataUrl;
 					}
 				}
-	
+
 				let elapsed = performance.now() - start;
 				if (elapsed > 75 && !this.setImagesTimeout && doTimeout) {
 					// If the image took too long to load, set a timeout to prevent spamming requests.
@@ -312,17 +312,17 @@ export abstract class LevelSelect {
 
 	shuffle() {
 		if (this.currentMissionArray.length <= 1) return;
-	
+
 		// Find a random mission that isn't the current one
 		let nextIndex = this.currentMissionIndex;
 		while (nextIndex === this.currentMissionIndex) {
 			nextIndex = Math.floor(Util.popRandomNumber() * this.currentMissionArray.length);
 		}
-	
+
 		this.currentMissionIndex = nextIndex;
 		this.displayMission();
 	}
-	
+
 	/** Returns the next few missions that would be selected by repeating pressing of the shuffle button. */
 	getNextShuffledMissions() {
 		let missions: Mission[] = [];
@@ -484,16 +484,16 @@ export abstract class LevelSelect {
 		this.currentQuery = str;
 		this.currentQueryWords = str.split(' ');
 		if (!str) this.currentQueryWords.length = 0;
-	
+
 		this.selectBasedOnSearchQuery();
 		this.updateNextPrevButtons();
 	}
-	
+
 	/** Selects a valid mission based on the current search query. */
 	selectBasedOnSearchQuery(display = true) {
 		// Check if the current mission already matches the search. In that case, don't do anything.
 		if (this.currentMission?.matchesSearch(this.currentQueryWords, this.currentQuery)) return;
-	
+
 		// Find the first matching mission
 		for (let i = 0; i < this.currentMissionArray.length; i++) {
 			let mis = this.currentMissionArray[i];
@@ -510,13 +510,13 @@ export abstract class LevelSelect {
 		let fileInput = document.createElement('input');
 		fileInput.setAttribute('type', 'file');
 		fileInput.setAttribute('accept', ".wrec");
-	
+
 		fileInput.onchange = async () => {
 			try {
 				let file = fileInput.files[0];
 				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(file);
 				let replay = Replay.fromSerialized(arrayBuffer);
-	
+
 				let mission = MissionLibrary.allMissions.find(x => x.path === replay.missionPath);
 				if (!mission) throw new Error("Mission not found.");
 
@@ -525,7 +525,7 @@ export abstract class LevelSelect {
 					state.menu.showAlertPopup('Warning', "You can't watch replays of Platinum level inside Marble Blast Gold.");
 					return;
 				}
-	
+
 				this.div.classList.add('hidden');
 				this.menu.loadingScreen.loadLevel(mission, () => replay);
 			} catch (e) {

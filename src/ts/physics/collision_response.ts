@@ -1,28 +1,29 @@
-import THREE from "three";
+import { Matrix3 } from "../math/matrix3";
+import { Vector3 } from "../math/vector3";
 import { Collision } from "./collision";
 
-let c_1 = new THREE.Vector3();
-let c_2 = new THREE.Vector3();
-let r_1 = new THREE.Vector3();
-let r_2 = new THREE.Vector3();
-let x = new THREE.Vector3();
-let y = new THREE.Vector3();
-let z = new THREE.Vector3();
-let B = new THREE.Matrix3();
-let BInv = new THREE.Matrix3();
-let M_1 = new THREE.Matrix3();
-let M_2 = new THREE.Matrix3();
-let R_1 = new THREE.Matrix3();
-let R_2 = new THREE.Matrix3();
-let K_world = new THREE.Matrix3();
-let K_contact = new THREE.Matrix3();
-let K_contactInv = new THREE.Matrix3();
-let theta_1 = new THREE.Vector3();
-let theta_2 = new THREE.Vector3();
-let deltaDeltaTheta_12 = new THREE.Vector3();
-let deltaJ = new THREE.Vector3();
-let deltaI = new THREE.Vector3();
-let m1 = new THREE.Matrix3();
+let c_1 = new Vector3();
+let c_2 = new Vector3();
+let r_1 = new Vector3();
+let r_2 = new Vector3();
+let x = new Vector3();
+let y = new Vector3();
+let z = new Vector3();
+let B = new Matrix3();
+let BInv = new Matrix3();
+let M_1 = new Matrix3();
+let M_2 = new Matrix3();
+let R_1 = new Matrix3();
+let R_2 = new Matrix3();
+let K_world = new Matrix3();
+let K_contact = new Matrix3();
+let K_contactInv = new Matrix3();
+let theta_1 = new Vector3();
+let theta_2 = new Vector3();
+let deltaDeltaTheta_12 = new Vector3();
+let deltaJ = new Vector3();
+let deltaI = new Vector3();
+let m1 = new Matrix3();
 
 export abstract class CollisionResponse {
 	static solvePosition(collision: Collision) {
@@ -73,7 +74,7 @@ export abstract class CollisionResponse {
 			-r_2.y, r_2.x, 0
 		);
 
-		const add = (m1: THREE.Matrix3, m2: THREE.Matrix3) => {
+		const add = (m1: Matrix3, m2: Matrix3) => {
 			for (let i = 0; i < m1.elements.length; i++) {
 				m1.elements[i] += m2.elements[i];
 			}
@@ -83,7 +84,7 @@ export abstract class CollisionResponse {
 		add(add(K_world.copy(M_1), m1.copy(R_1).multiply(collision.s1.invInertia).multiply(R_1).multiplyScalar(-1)), add(M_2, m1.copy(R_2).multiply(collision.s2.invInertia).multiply(R_2).multiplyScalar(-1)));
 
 		K_contact.copy(BInv).multiply(K_world).multiply(B); // Change of basis thang
-		K_contactInv.getInverse(K_contact);
+		K_contactInv.copy(K_contact).invert();
 
 		let b1 = collision.s1.body;
 		let b2 = collision.s2.body;

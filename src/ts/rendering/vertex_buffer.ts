@@ -18,7 +18,7 @@ export class VertexBuffer {
 		this.attributes = attributes;
 		this.stride = Object.values(attributes).reduce((a, b) => a + b, 0);
 		if (Object.keys(attributes).length === 1) this.stride = 0; // Indicates a tightly-packed vertex attribute
-		
+
 		let { gl } = renderer;
 
 		// Upload the data and done

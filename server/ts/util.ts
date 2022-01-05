@@ -22,7 +22,7 @@ export const secondsToTimeString = (seconds: number, decimalDigits = 3) => {
 	let minutes = Math.floor(abs / 60);
 	let string = leftPadZeroes(minutes.toString(), 2) + ':' + leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + leftPadZeroes(Math.floor(abs % 1 * 10**decimalDigits).toString(), decimalDigits);
 	if (seconds < 0) string = '-' + string;
-	
+
 	return string;
 };
 

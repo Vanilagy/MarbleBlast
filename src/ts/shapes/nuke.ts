@@ -1,6 +1,7 @@
-import THREE from "three";
 import { AudioManager } from "../audio";
 import { TimeState } from "../level";
+import { Vector3 } from "../math/vector3";
+import { BlendingType } from "../rendering/renderer";
 import { Shape } from "../shape";
 import { Util } from "../util";
 
@@ -34,7 +35,7 @@ export class Nuke extends Shape {
 	}
 
 	/** Computes the force of the explosion based on the vector to the nuke. Ported from decompiled MBG. */
-	computeExplosionForce(distVec: THREE.Vector3) {
+	computeExplosionForce(distVec: Vector3) {
 		const range = 10;
 		const power = 100;
 
@@ -64,14 +65,14 @@ export class Nuke extends Shape {
 /** The fire particle. */
 const nukeParticle = {
 	ejectionPeriod: 0.2,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 2,
 	velocityVariance: 1,
 	emitterLifetime: 50,
 	inheritedVelFactor: 0.2,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -87,14 +88,14 @@ const nukeParticle = {
 /** The smoke particle. */
 export const nukeSmokeParticle = {
 	ejectionPeriod: 0.5,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 1.3,
 	velocityVariance: 0.5,
 	emitterLifetime: 50,
 	inheritedVelFactor: 0.25,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Normal,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -110,14 +111,14 @@ export const nukeSmokeParticle = {
 /** The sparks exploding away. */
 export const nukeSparksParticle = {
 	ejectionPeriod: 1.7,
-	ambientVelocity: new THREE.Vector3(0, -0.5, 0),
+	ambientVelocity: new Vector3(0, -0.5, 0),
 	ejectionVelocity: 13 / 1.5,
 	velocityVariance: 5 / 1,
 	emitterLifetime: 5000,
 	inheritedVelFactor: 0.2,
 	particleOptions: {
 		texture: 'particles/spark.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,

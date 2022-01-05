@@ -1,6 +1,6 @@
-import THREE from "three";
 import { AudioManager, AudioSource } from "../audio";
 import { DEFAULT_PITCH, Level, TimeState } from "../level";
+import { Vector3 } from "../math/vector3";
 import { MisParser, MissionElementTrigger } from "../parsing/mis_parser";
 import { state } from "../state";
 import { Util } from "../util";
@@ -70,11 +70,11 @@ export class TeleportTrigger extends Trigger {
 		let body = this.level.marble.body;
 
 		// Determine where to place the marble
-		let position: THREE.Vector3;
+		let position: Vector3;
 		if (this.element.centerdestpoint || destination.element.centerdestpoint) {
 			position = destination.body.position;
 		} else {
-			position = destination.vertices[0].clone().add(new THREE.Vector3(0, 0, 3));
+			position = destination.vertices[0].clone().add(new Vector3(0, 0, 3));
 		}
 		body.position.copy(position);
 		body.prevPosition.copy(position); // Avoid funky CCD business

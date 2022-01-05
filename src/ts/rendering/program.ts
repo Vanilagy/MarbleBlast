@@ -102,7 +102,7 @@ export class Program {
 		if  (!this.compileStatusChecked) this.checkCompileStatus();
 
 		this.renderer.currentProgram?.unuse();
-		
+
 		this.renderer.gl.useProgram(this.glProgram);
 		this.renderer.currentProgram = this;
 	}

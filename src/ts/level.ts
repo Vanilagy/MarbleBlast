@@ -1,5 +1,4 @@
 import { Interior } from "./interior";
-import * as THREE from "three";
 import { Marble, bounceParticleOptions } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
 import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
@@ -67,6 +66,11 @@ import { mainCanvas, mainRenderer, resize, SCALING_RATIO } from "./ui/misc";
 import { FRAME_RATE_OPTIONS } from "./ui/options_mbp";
 import { World } from "./physics/world";
 import { CollisionShape } from "./physics/collision_shape";
+import { Vector3 } from "./math/vector3";
+import { Quaternion } from "./math/quaternion";
+import { Euler } from "./math/euler";
+import { OrthographicCamera, PerspectiveCamera } from "./rendering/camera";
+import { Plane } from "./math/plane";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -101,11 +105,11 @@ const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
 	MarbleTrailEmitter: particleNodeEmittersEmitterOptions.MarbleTrailEmitter,
 	MarbleSuperJumpEmitter: Object.assign(ParticleEmitter.cloneOptions(superJumpParticleOptions), {
 		emitterLifetime: 5000,
-		ambientVelocity: new THREE.Vector3(-0.3, 0, -0.5)
+		ambientVelocity: new Vector3(-0.3, 0, -0.5)
 	}),
 	MarbleSuperSpeedEmitter: Object.assign(ParticleEmitter.cloneOptions(superSpeedParticleOptions), {
 		emitterLifetime: 5000,
-		ambientVelocity: new THREE.Vector3(-0.5, 0, -0.5)
+		ambientVelocity: new Vector3(-0.5, 0, -0.5)
 	}),
 	LandMineEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter,
 	LandMineSmokeEmitter: landMineSmokeParticle,
@@ -145,7 +149,7 @@ export class Level extends Scheduler {
 	loadingState: LoadingState;
 
 	scene: Scene;
-	camera: THREE.PerspectiveCamera;
+	camera: PerspectiveCamera;
 	envMap: CubeTexture;
 	world: World;
 	particles: ParticleManager;
@@ -160,7 +164,7 @@ export class Level extends Scheduler {
 	/** The shapes used for drawing HUD overlay (powerups in the corner) */
 	overlayShapes: Shape[] = [];
 	overlayScene: Scene;
-	overlayCamera: THREE.OrthographicCamera;
+	overlayCamera: OrthographicCamera;
 	/** The last end pad element in the mission file. */
 	endPadElement: MissionElementStaticShape;
 
@@ -183,15 +187,15 @@ export class Level extends Scheduler {
 	pitch = 0;
 	yaw = 0;
 	/** Where the camera was when the marble went OOB. */
-	oobCameraPosition: THREE.Vector3;
-	lastVerticalTranslation = new THREE.Vector3();
-	currentUp = new THREE.Vector3(0, 0, 1);
+	oobCameraPosition: Vector3;
+	lastVerticalTranslation = new Vector3();
+	currentUp = new Vector3(0, 0, 1);
 	/** The last time the orientation was changed (by a gravity modifier) */
 	orientationChangeTime = -Infinity;
 	/** The old camera orientation quat */
-	oldOrientationQuat = new THREE.Quaternion();
+	oldOrientationQuat = new Quaternion();
 	/** The new target camera orientation quat  */
-	newOrientationQuat = new THREE.Quaternion();
+	newOrientationQuat = new Quaternion();
 	/** See usage. */
 	previousMouseMovementDistance = 0;
 
@@ -222,7 +226,7 @@ export class Level extends Scheduler {
 	checkpointCollectedGems = new Set<Gem>();
 	checkpointHeldPowerUp: PowerUp = null;
 	/** Up vector at the point of checkpointing */
-	checkpointUp: THREE.Vector3 = null;
+	checkpointUp: Vector3 = null;
 	checkpointBlast: number = null;
 
 	timeTravelSound: AudioSource;
@@ -313,12 +317,12 @@ export class Level extends Scheduler {
 			let sunDirection = MisParser.parseVector3(element.direction);
 
 			// Create the ambient light
-			this.scene.addAmbientLight(new AmbientLight(new THREE.Color(ambientColor.x, ambientColor.y, ambientColor.z)));
+			this.scene.addAmbientLight(new AmbientLight(new Vector3(ambientColor.x, ambientColor.y, ambientColor.z)));
 
 			// Create the sunlight
 			let directionalLight = new DirectionalLight(
 				mainRenderer,
-				new THREE.Color(directionalColor.x, directionalColor.y, directionalColor.z),
+				new Vector3(directionalColor.x, directionalColor.y, directionalColor.z),
 				sunDirection.clone()
 			);
 			this.scene.addDirectionalLight(directionalLight);
@@ -326,7 +330,7 @@ export class Level extends Scheduler {
 			if (!addedShadow) {
 				addedShadow = true;
 
-				let shadowCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
+				let shadowCamera = new OrthographicCamera(-1, 1, 1, -1, 0, 10);
 				directionalLight.enableShadowCasting(256, shadowCamera);
 			}
 		}
@@ -345,7 +349,7 @@ export class Level extends Scheduler {
 
 		mainRenderer.setClearColor(fogColor.x, fogColor.y, fogColor.z, 1);
 
-		this.camera = new THREE.PerspectiveCamera(
+		this.camera = new PerspectiveCamera(
 			StorageManager.data.settings.fov,
 			window.innerWidth / window.innerHeight,
 			0.01,
@@ -443,10 +447,10 @@ export class Level extends Scheduler {
 		}
 
 		this.overlayScene = new Scene(mainRenderer);
-		let overlayLight = new AmbientLight(new THREE.Color(0xffffff));
+		let overlayLight = new AmbientLight(new Vector3().setScalar(1));
 		this.overlayScene.addAmbientLight(overlayLight);
 
-		this.overlayCamera = new THREE.OrthographicCamera(
+		this.overlayCamera = new OrthographicCamera(
 			-window.innerWidth/2,
 			window.innerWidth/2,
 			-window.innerHeight/2,
@@ -455,7 +459,7 @@ export class Level extends Scheduler {
 			1000
 		);
 		this.overlayCamera.up.set(0, 0, -1);
-		this.overlayCamera.lookAt(new THREE.Vector3(1, 0, 0));
+		this.overlayCamera.lookAt(new Vector3(1, 0, 0));
 
 		for (let path of hudOverlayShapePaths) {
 			let shape = new Shape();
@@ -798,8 +802,8 @@ export class Level extends Scheduler {
 		// Reset the physics
 		this.currentUp.set(0, 0, 1);
 		this.orientationChangeTime = -Infinity;
-		this.oldOrientationQuat = new THREE.Quaternion();
-		this.newOrientationQuat = new THREE.Quaternion();
+		this.oldOrientationQuat = new Quaternion();
+		this.newOrientationQuat = new Quaternion();
 		this.setGravityIntensity(this.defaultGravity);
 
 		this.deselectPowerUp();
@@ -959,10 +963,10 @@ export class Level extends Scheduler {
 	updateCamera(timeState: TimeState) {
 		let marblePosition = this.marble.group.position;
 		let orientationQuat = this.getOrientationQuat(timeState);
-		let up = new THREE.Vector3(0, 0, 1).applyQuaternion(orientationQuat);
-		let directionVector = new THREE.Vector3(1, 0, 0);
+		let up = new Vector3(0, 0, 1).applyQuaternion(orientationQuat);
+		let directionVector = new Vector3(1, 0, 0);
 		// The camera is translated up a bit so it looks "over" the marble
-		let cameraVerticalTranslation = new THREE.Vector3(0, 0, 0.3);
+		let cameraVerticalTranslation = new Vector3(0, 0, 0.3);
 
 		if (this.replay.mode === 'playback') {
 			let indexLow = Math.max(0, this.replay.currentTickIndex - 1);
@@ -981,12 +985,12 @@ export class Level extends Scheduler {
 		}
 
 		if (!this.outOfBounds) {
-			directionVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
-			directionVector.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
+			directionVector.applyAxisAngle(new Vector3(0, 1, 0), this.pitch);
+			directionVector.applyAxisAngle(new Vector3(0, 0, 1), this.yaw);
 			directionVector.applyQuaternion(orientationQuat);
 
-			cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.pitch);
-			cameraVerticalTranslation.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.yaw);
+			cameraVerticalTranslation.applyAxisAngle(new Vector3(0, 1, 0), this.pitch);
+			cameraVerticalTranslation.applyAxisAngle(new Vector3(0, 0, 1), this.yaw);
 			cameraVerticalTranslation.applyQuaternion(orientationQuat);
 
 			this.camera.up = up;
@@ -1013,13 +1017,13 @@ export class Level extends Scheduler {
 					processedShapes.add(firstHit.shape);
 
 					// Construct a plane at the point of ray impact based on the normal
-					let plane = new THREE.Plane();
+					let plane = new Plane();
 					let normal = firstHit.normal;//.multiplyScalar(-1);
 					let position = firstHit.point;
 					plane.setFromNormalAndCoplanarPoint(normal, position);
 
 					// Project the camera position onto the plane
-					let target = new THREE.Vector3();
+					let target = new Vector3();
 					let projected = plane.projectPoint(this.camera.position, target);
 
 					// If the camera is too far from the plane anyway, break
@@ -1030,13 +1034,14 @@ export class Level extends Scheduler {
 					this.camera.position.copy(projected.add(normal.multiplyScalar(closeness)));
 					Util.cameraLookAtDirect(this.camera, marblePosition);
 
-					let rotationAxis = new THREE.Vector3(1, 0, 0);
-					rotationAxis.applyQuaternion(this.camera.quaternion);
+					let rotationAxis = new Vector3(1, 0, 0);
+					rotationAxis.applyQuaternion(this.camera.orientation);
 
 					let theta = Math.atan(0.3 / 2.5); // 0.3 is the vertical translation, 2.5 the distance away from the marble.
 
 					// Rotate the camera back upwards such that the marble is in the same visual location on screen as before
-					this.camera.rotateOnWorldAxis(rotationAxis, theta);
+					let rot = new Quaternion().setFromAxisAngle(rotationAxis, theta);
+					this.camera.orientation.premultiply(rot);
 					continue;
 				}
 
@@ -1249,7 +1254,7 @@ export class Level extends Scheduler {
 	}
 
 	/** Sets the current up vector and gravity with it. */
-	setUp(newUp: THREE.Vector3, instant = false) {
+	setUp(newUp: Vector3, instant = false) {
 		let time = this.timeState;
 
 		newUp.normalize(); // We never know 👀
@@ -1258,18 +1263,18 @@ export class Level extends Scheduler {
 		this.world.gravity.copy(newUp).multiplyScalar(-1 * gravityStrength);
 
 		let currentQuat = this.getOrientationQuat(time);
-		let oldUp = new THREE.Vector3(0, 0, 1);
+		let oldUp = new Vector3(0, 0, 1);
 		oldUp.applyQuaternion(currentQuat);
 
-		let quatChange = new THREE.Quaternion();
+		let quatChange = new Quaternion();
 		let dot = newUp.dot(oldUp);
 		if (dot <= -(1 - 1e-15) && !(this.replay.version < 3)) { // If the old and new up are exact opposites, there are infinitely many possible rotations we could do. So choose the one that maintains the current look vector the best. Replay check so we don't break old stuff.
-			let lookVector = new THREE.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion);
+			let lookVector = new Vector3(0, 0, 1).applyQuaternion(this.camera.orientation);
 			let intermediateVector = oldUp.clone().cross(lookVector).normalize();
 
 			// First rotation to the intermediate vector, then rotate from there to the new up
 			quatChange.setFromUnitVectors(oldUp, intermediateVector);
-			quatChange.multiplyQuaternions(new THREE.Quaternion().setFromUnitVectors(intermediateVector, newUp), quatChange);
+			quatChange.multiplyQuaternions(new Quaternion().setFromUnitVectors(intermediateVector, newUp), quatChange);
 		} else {
 			// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
 			quatChange.setFromUnitVectors(oldUp, newUp);
@@ -1284,8 +1289,8 @@ export class Level extends Scheduler {
 	getStartPositionAndOrientation() {
 		// The player is spawned at the last start pad in the mission file.
 		let startPad = Util.findLast(this.shapes, (shape) => shape instanceof StartPad);
-		let position: THREE.Vector3;
-		let euler = new THREE.Euler();
+		let position: Vector3;
+		let euler = new Euler();
 
 		if (startPad) {
 			// If there's a start pad, start there
@@ -1299,7 +1304,7 @@ export class Level extends Scheduler {
 				position = MisParser.parseVector3(first.position);
 			} else {
 				// If there isn't anything, start at this weird point
-				position = new THREE.Vector3(0, 0, 300);
+				position = new Vector3(0, 0, 300);
 			}
 		}
 
@@ -1470,7 +1475,7 @@ export class Level extends Scheduler {
 		let gravityField = (this.currentCheckpoint.srcElement as any)?.gravity || this.currentCheckpointTrigger?.element.gravity;
 		if (MisParser.parseBoolean(gravityField) || this.mission.modification === 'ultra') {
 			// In this case, we set the gravity to the relative "up" vector of the checkpoint shape.
-			let up = new THREE.Vector3(0, 0, 1);
+			let up = new Vector3(0, 0, 1);
 			up.applyQuaternion(this.currentCheckpoint.worldOrientation);
 			this.setUp(up, true);
 		} else {
@@ -1479,7 +1484,7 @@ export class Level extends Scheduler {
 		}
 
 		// Determine where to spawn the marble
-		let offset = new THREE.Vector3();
+		let offset = new Vector3();
 		let add = (this.currentCheckpoint.srcElement as any)?.add || this.currentCheckpointTrigger?.element.add;
 		if (add) offset.add(MisParser.parseVector3(add));
 		let sub = (this.currentCheckpoint.srcElement as any)?.sub || this.currentCheckpointTrigger?.element.sub;
@@ -1497,7 +1502,7 @@ export class Level extends Scheduler {
 		marble.calculatePredictiveTransforms();
 
 		// Set camera orienation
-		let euler: THREE.Euler = new THREE.Euler();
+		let euler: Euler = new Euler();
 		euler.setFromQuaternion(this.currentCheckpoint.worldOrientation, "ZXY");
 		this.yaw = euler.z + Math.PI/2;
 		this.pitch = DEFAULT_PITCH;

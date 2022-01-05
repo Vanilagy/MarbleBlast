@@ -120,7 +120,7 @@ export class Mission {
 
 		const traverse = (simGroup: MissionElementSimGroup) => {
 			for (let element of simGroup.elements) {
-				this.allElements.push(element);		
+				this.allElements.push(element);
 				if (element._type === MissionElementType.SimGroup) traverse(element);
 			}
 		};
@@ -198,7 +198,7 @@ export class Mission {
 		if (this.missionInfo.game?.toLowerCase() === 'ultra' || MisParser.parseBoolean(this.missionInfo.useultramarble))
 			this.hasUltraMarble = true;
 	}
- 
+
 	getDirectoryMissionPath() {
 		if (this.modification === 'gold') return 'missions/' + this.path;
 		if (this.modification === 'ultra') return 'missions_mbu/' + this.path.slice(4);

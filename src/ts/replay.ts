@@ -10,7 +10,8 @@ import { PushButton } from "./shapes/push_button";
 import { Mission } from "./mission";
 import { Interior } from "./interior";
 import { Nuke } from "./shapes/nuke";
-import THREE from "three";
+import { Vector3 } from "./math/vector3";
+import { Quaternion } from "./math/quaternion";
 
 /** Stores everything necessary for a correct replay of a playthrough. Instead of relying on replaying player inputs, the replay simply stores all necessary state. */
 export class Replay {
@@ -26,13 +27,13 @@ export class Replay {
 	timestamp: number;
 
 	/** The position of the marble at each physics tick. */
-	marblePositions: THREE.Vector3[] = [];
+	marblePositions: Vector3[] = [];
 	/** The orientation of the marble at each physics tick. */
-	marbleOrientations: THREE.Quaternion[] = [];
+	marbleOrientations: Quaternion[] = [];
 	/** The linear velocity of the marble at each physics tick. */
-	marbleLinearVelocities: THREE.Vector3[] = [];
+	marbleLinearVelocities: Vector3[] = [];
 	/** The angular velocity of the marble at each physics tick. */
-	marbleAngularVelocities: THREE.Vector3[] = [];
+	marbleAngularVelocities: Vector3[] = [];
 	/** Stores the times the marble was inside a shape/trigger. */
 	marbleInside: {
 		tickIndex: number,
@@ -485,7 +486,7 @@ export class Replay {
 		return replay;
 	}
 
-	static vec3sToBuffer(arr: THREE.Vector3[]) {
+	static vec3sToBuffer(arr: Vector3[]) {
 		let buffer = new Float32Array(arr.length * 3);
 		for (let i = 0; i < arr.length; i++) {
 			buffer[i * 3 + 0] = arr[i].x;
@@ -496,7 +497,7 @@ export class Replay {
 		return buffer;
 	}
 
-	static quatsToBuffer(arr: THREE.Quaternion[]) {
+	static quatsToBuffer(arr: Quaternion[]) {
 		let buffer = new Float32Array(arr.length * 4);
 		for (let i = 0; i < arr.length; i++) {
 			buffer[i * 4 + 0] = arr[i].x;
@@ -509,10 +510,10 @@ export class Replay {
 	}
 
 	static bufferToVec3s(buf: Float32Array) {
-		let vecs: THREE.Vector3[] = [];
+		let vecs: Vector3[] = [];
 
 		for (let i = 0; i < buf.length / 3; i++) {
-			let vec = new THREE.Vector3(buf[i * 3 + 0], buf[i * 3 + 1], buf[i * 3 + 2]);
+			let vec = new Vector3(buf[i * 3 + 0], buf[i * 3 + 1], buf[i * 3 + 2]);
 			vecs.push(vec);
 		}
 
@@ -520,10 +521,10 @@ export class Replay {
 	}
 
 	static bufferToQuats(buf: Float32Array) {
-		let quats: THREE.Quaternion[] = [];
+		let quats: Quaternion[] = [];
 
 		for (let i = 0; i < buf.length / 4; i++) {
-			let quat = new THREE.Quaternion(buf[i * 4 + 0], buf[i * 4 + 1], buf[i * 4 + 2], buf[i * 4 + 3]);
+			let quat = new Quaternion(buf[i * 4 + 0], buf[i * 4 + 1], buf[i * 4 + 2], buf[i * 4 + 3]);
 			quats.push(quat);
 		}
 

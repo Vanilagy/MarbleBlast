@@ -1,4 +1,3 @@
-import * as THREE from "three";
 import { ResourceManager } from "./resources";
 import { isPressed, gamepadAxes, normalizedJoystickHandlePosition, getPressedFlag } from "./input";
 import { TimeState, Level, GO_TIME, PHYSICS_TICK_RATE } from "./level";
@@ -20,6 +19,10 @@ import { mainRenderer } from "./ui/misc";
 import { RigidBody } from "./physics/rigid_body";
 import { BallCollisionShape } from "./physics/collision_shape";
 import { Collision } from "./physics/collision";
+import { Vector3 } from "./math/vector3";
+import { Quaternion } from "./math/quaternion";
+import { Euler } from "./math/euler";
+import { BlendingType } from "./rendering/renderer";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -29,14 +32,14 @@ const TELEPORT_FADE_DURATION = 500;
 
 export const bounceParticleOptions: ParticleEmitterOptions = {
 	ejectionPeriod: 1,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 2.6,
 	velocityVariance: 0.25 * 0.5,
 	emitterLifetime: 3, // Spawn 4 particles
 	inheritedVelFactor: 0,
 	particleOptions: {
 		texture: 'particles/star.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Normal,
 		spinSpeed: 90,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -52,14 +55,14 @@ export const bounceParticleOptions: ParticleEmitterOptions = {
 
 const blastParticleOptions: ParticleEmitterOptions = {
 	ejectionPeriod: 0.9,
-	ambientVelocity: new THREE.Vector3(0, 0, -0.3),
+	ambientVelocity: new Vector3(0, 0, -0.3),
 	ejectionVelocity: 3,
 	velocityVariance: 0.4,
 	emitterLifetime: 300,
 	inheritedVelFactor: 0.25,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 20,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -86,9 +89,9 @@ export class Marble {
 	sphere: Mesh;
 	ballShape: Shape;
 	/** The predicted position of the marble in the next tick. */
-	predictedPosition = new THREE.Vector3();
+	predictedPosition = new Vector3();
 	/** The predicted orientation of the marble in the next tick. */
-	predictedOrientation = new THREE.Quaternion();
+	predictedOrientation = new Quaternion();
 
 	body: RigidBody;
 	shape: BallCollisionShape;
@@ -120,11 +123,11 @@ export class Marble {
 	teleportEnableTime: number;
 	teleportDisableTime: number;
 
-	lastMovementVec = new THREE.Vector3();
-	beforeVel = new THREE.Vector3();
-	beforeAngVel = new THREE.Vector3();
+	lastMovementVec = new Vector3();
+	beforeVel = new Vector3();
+	beforeAngVel = new Vector3();
 	/** Necessary for super speed. */
-	lastContactNormal = new THREE.Vector3();
+	lastContactNormal = new Vector3();
 	slidingTimeout = 0;
 
 	rollingSound: AudioSource;
@@ -240,7 +243,7 @@ export class Marble {
 		this.body.onAfterCollisionResponse = this.onAfterCollisionResponse.bind(this);
 
 		// Set the marble's default orientation to be close to actual MBP
-		this.body.orientation.setFromEuler(new THREE.Euler(Math.PI/2, Math.PI * 7/6, 0));
+		this.body.orientation.setFromEuler(new Euler(Math.PI/2, Math.PI * 7/6, 0));
 
 		this.forcefield = new Shape();
 		this.forcefield.dtsPath = "shapes/images/glow_bounce.dts";
@@ -321,15 +324,15 @@ export class Marble {
 		let allowUserInput = !state.menu.finishScreen.showing;
 
 		// Construct the raw movement vector from inputs
-		let movementVec = new THREE.Vector3(0, 0, 0);
-		if (isPressed('up')) movementVec.add(new THREE.Vector3(1, 0, 0));
-		if (isPressed('down')) movementVec.add(new THREE.Vector3(-1, 0, 0));
-		if (isPressed('left')) movementVec.add(new THREE.Vector3(0, 1, 0));
-		if (isPressed('right')) movementVec.add(new THREE.Vector3(0, -1, 0));
+		let movementVec = new Vector3(0, 0, 0);
+		if (isPressed('up')) movementVec.add(new Vector3(1, 0, 0));
+		if (isPressed('down')) movementVec.add(new Vector3(-1, 0, 0));
+		if (isPressed('left')) movementVec.add(new Vector3(0, 1, 0));
+		if (isPressed('right')) movementVec.add(new Vector3(0, -1, 0));
 
 		// Add gamepad input and restrict if necessary
-		movementVec.add(new THREE.Vector3(-gamepadAxes.marbleY, -gamepadAxes.marbleX));
-		if (normalizedJoystickHandlePosition) movementVec.add(new THREE.Vector3(
+		movementVec.add(new Vector3(-gamepadAxes.marbleY, -gamepadAxes.marbleX));
+		if (normalizedJoystickHandlePosition) movementVec.add(new Vector3(
 			-Util.signedSquare(normalizedJoystickHandlePosition.y),
 			-Util.signedSquare(normalizedJoystickHandlePosition.x)
 		));
@@ -347,7 +350,7 @@ export class Marble {
 
 		// Rotate the vector accordingly
 		movementVec.multiplyScalar(MARBLE_ROLL_FORCE * 5 * dt);
-		movementVec.applyAxisAngle(new THREE.Vector3(0, 0, 1), this.level.yaw);
+		movementVec.applyAxisAngle(new Vector3(0, 0, 1), this.level.yaw);
 
 		let quat = this.level.newOrientationQuat;
 		movementVec.applyQuaternion(quat);
@@ -363,7 +366,7 @@ export class Marble {
 			let { collision, contactNormal, contactNormalUpDot } = bestCollision;
 
 			// The rotation necessary to get from the up vector to the contact normal.
-			let contactNormalRotation = new THREE.Quaternion().setFromUnitVectors(this.level.currentUp, contactNormal);
+			let contactNormalRotation = new Quaternion().setFromUnitVectors(this.level.currentUp, contactNormal);
 			movementRotationAxis.applyQuaternion(contactNormalRotation);
 
 			// Weaken the marble's angular power based on the friction and steepness of the surface
@@ -596,7 +599,7 @@ export class Marble {
 		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) {
 			// Show the helicopter
 			this.helicopter.setOpacity(1);
-			this.helicopter.setTransform(new THREE.Vector3(0, 0, this.radius - DEFAULT_RADIUS).applyQuaternion(this.level.newOrientationQuat), this.level.newOrientationQuat, new THREE.Vector3(1, 1, 1));
+			this.helicopter.setTransform(new Vector3(0, 0, this.radius - DEFAULT_RADIUS).applyQuaternion(this.level.newOrientationQuat), this.level.newOrientationQuat, new Vector3(1, 1, 1));
 			this.level.setGravityIntensity(this.level.defaultGravity * 0.25);
 
 			if (!this.helicopterSound) {
@@ -646,11 +649,11 @@ export class Marble {
 
 	showBounceParticles() {
 		this.level.particles.createEmitter(bounceParticleOptions, this.body.position, null,
-			new THREE.Vector3(1, 1, 1).addScaledVector(Util.absVector(this.level.currentUp.clone()), -0.8));
+			new Vector3(1, 1, 1).addScaledVector(Util.absVector(this.level.currentUp.clone()), -0.8));
 	}
 
 	/** Sets linear velocity in a specific direction, but capped. Used for things like jumping and bumpers. */
-	setLinearVelocityInDirection(direction: THREE.Vector3, magnitude: number, onlyIncrease: boolean, onIncrease: () => any = () => {}) {
+	setLinearVelocityInDirection(direction: Vector3, magnitude: number, onlyIncrease: boolean, onIncrease: () => any = () => {}) {
 		let unitVelocity = this.body.linearVelocity.clone().normalize();
 		let dot = unitVelocity.dot(direction);
 		let directionalSpeed = dot * this.body.linearVelocity.length();
@@ -677,7 +680,7 @@ export class Marble {
 
 		let dRotation = angVel.clone().multiplyScalar(1 / PHYSICS_TICK_RATE);
 		let dRotationLength = dRotation.length();
-		let dq = new THREE.Quaternion().setFromAxisAngle(dRotation.normalize(), dRotationLength);
+		let dq = new Quaternion().setFromAxisAngle(dRotation.normalize(), dRotationLength);
 		let predictedOrientation = dq.multiply(orientation);
 
 		let hits = this.level.world.castShape(this.shape, movementDiff, 1);
@@ -758,7 +761,7 @@ export class Marble {
 			(this.level.blastAmount > 1)? blastMaxParticleOptions : blastParticleOptions,
 			null,
 			() => this.body.position.clone().addScaledVector(this.level.currentUp, -this.radius * 0.4),
-			new THREE.Vector3(1, 1, 1).addScaledVector(Util.absVector(this.level.currentUp.clone()), -0.8)
+			new Vector3(1, 1, 1).addScaledVector(Util.absVector(this.level.currentUp.clone()), -0.8)
 		);
 
 		this.level.blastAmount = 0;
@@ -772,7 +775,7 @@ export class Marble {
 		this.radius = radius;
 		this.sphere.scale.setScalar(radius);
 		this.sphere.recomputeTransform();
-		this.ballShape?.setTransform(new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3().setScalar(radius / DEFAULT_RADIUS));
+		this.ballShape?.setTransform(new Vector3(), new Quaternion(), new Vector3().setScalar(radius / DEFAULT_RADIUS));
 
 		this.shape.radius = radius;
 		this.shape.updateInertiaTensor();

@@ -37,7 +37,7 @@ export abstract class PauseScreen {
 		window.addEventListener('keydown', (e) => {
 			if (!state.level) return;
 			if (state.menu !== menu) return;
-		
+
 			if (e.key === 'Escape') {
 				if (state.level.paused) {
 					if (!this.preventClose) this.noButton.src = menu.uiAssetPath + this.noSrc + '_d.png';
@@ -50,11 +50,11 @@ export abstract class PauseScreen {
 				state.level.pressingRestart = true; // Prevents the level from restarting again immediately (kinda hacky 😅)
 			}
 		});
-		
+
 		window.addEventListener('keyup', (e) => {
 			if (!state.level) return;
 			if (state.menu !== menu) return;
-		
+
 			if (state.level.paused && e.key === 'Escape' && this.noButton.src.endsWith('_d.png')) {
 				this.noButton.src = menu.uiAssetPath + this.noSrc + '_n.png';
 				state.level.unpause();
@@ -68,7 +68,7 @@ export abstract class PauseScreen {
 		this.div.classList.remove('hidden');
 		setEnterFullscreenButtonVisibility(true);
 	}
-	
+
 	hide() {
 		this.div.classList.add('hidden');
 		setEnterFullscreenButtonVisibility(false);
@@ -76,7 +76,7 @@ export abstract class PauseScreen {
 
 	async onReplayButtonClick(download: boolean) {
 		let level = state.level;
-	
+
 		if (download) {
 			let serialized = await level.replay.serialize();
 			Replay.download(serialized, level.mission, false, true);
@@ -84,7 +84,7 @@ export abstract class PauseScreen {
 		} else {
 			let confirmed = await state.menu.showConfirmPopup('Confirm', "Do you want to watch this replay? Note that you can only watch it once. If you want to watch it more often, download it first. (alt-click (or long-press on touch devices))");
 			if (!confirmed) return;
-		
+
 			level.replay.mode = 'playback';
 			this.restartButton.click();
 		}

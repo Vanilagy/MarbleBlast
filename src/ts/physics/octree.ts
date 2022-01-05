@@ -1,21 +1,22 @@
-import * as THREE from "three";
+import { Box3 } from "../math/box3";
+import { Vector3 } from "../math/vector3";
 
 const DEFAULT_ROOT_NODE_SIZE = 1;
 const MIN_DEPTH = -32;
 const MAX_DEPTH = 8;
 
-let v1 = new THREE.Vector3();
-let v2 = new THREE.Vector3();
-let b1 = new THREE.Box3();
+let v1 = new Vector3();
+let v2 = new Vector3();
+let b1 = new Box3();
 
 /** Specifies an object that an octree can index. */
 export interface OctreeObject {
-	boundingBox: THREE.Box3
+	boundingBox: Box3
 }
 
 export interface OctreeIntersection {
 	object: OctreeObject,
-	point: THREE.Vector3,
+	point: Vector3,
 	distance: number
 }
 
@@ -42,6 +43,7 @@ export class Octree {
 		while (!this.root.largerThan(object) || !this.root.containsCenter(object)) {
 			// The root node does not fit the object; we need to grow the tree.
 			if (this.root.depth === MIN_DEPTH) {
+				console.log(object);
 				console.warn(`Can't insert ${this.root.largerThan(object)? 'distant' : 'large'} object into octree; the octree has already expanded to its maximum size.`);
 				return;
 			}
@@ -153,7 +155,7 @@ export class Octree {
 		this.shrink();
 	}
 
-	intersectAabb(aabb: THREE.Box3) {
+	intersectAabb(aabb: Box3) {
 		this.beforeOperation?.();
 
 		let intersections: OctreeObject[] = [];
@@ -167,7 +169,7 @@ class OctreeNode {
 	octree: Octree;
 	parent: OctreeNode = null;
 	/** The min corner of the bounding box. */
-	min = new THREE.Vector3();
+	min = new Vector3();
 	/** The size of the bounding box on all three axes. This forces the bounding box to be a cube. */
 	size: number;
 	octants: OctreeNode[] = null;
@@ -315,14 +317,14 @@ class OctreeNode {
 			this.min.z <= z && z < (this.min.z + this.size);
 	}
 
-	containsPoint(point: THREE.Vector3) {
+	containsPoint(point: Vector3) {
 		let { x, y, z } = point;
 		return this.min.x <= x && x < (this.min.x + this.size) &&
 			this.min.y <= y && y < (this.min.y + this.size) &&
 			this.min.z <= z && z < (this.min.z + this.size);
 	}
 
-	intersectAabb(aabb: THREE.Box3, intersections: OctreeObject[]) {
+	intersectAabb(aabb: Box3, intersections: OctreeObject[]) {
 		let looseBoundingBox = b1;
 		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
 		looseBoundingBox.max.copy(this.min).addScalar(this.size * 3/2);

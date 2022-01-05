@@ -64,7 +64,7 @@ export abstract class OptionsScreen {
 
 		window.addEventListener('keydown', (e) => {
 			if (!this.currentlyRebinding || this.rebindValue) return;
-		
+
 			if (e.code === 'Escape') {
 				// Exits keybinding without changing anything
 				this.currentlyRebinding = null;
@@ -73,13 +73,13 @@ export abstract class OptionsScreen {
 				this.setKeybinding(this.currentlyRebinding, e.code);
 			}
 		});
-		
+
 		window.addEventListener('mousedown', (e) => {
 			if (!this.currentlyRebinding || this.rebindValue) return;
-		
+
 			let buttonName = ["LMB", "MMB", "RMB"][e.button];
 			if (!buttonName) return;
-		
+
 			this.setKeybinding(this.currentlyRebinding, buttonName);
 		});
 
@@ -88,10 +88,10 @@ export abstract class OptionsScreen {
 			for (let key in StorageManager.data.settings.gameButtonMapping) {
 				let typedKey = key as keyof typeof StorageManager.data.settings.gameButtonMapping;
 				let otherValue = StorageManager.data.settings.gameButtonMapping[typedKey];
-		
+
 				if (otherValue === this.rebindValue) StorageManager.data.settings.gameButtonMapping[typedKey] = '';
 			}
-			
+
 			// Bind the new value
 			StorageManager.data.settings.gameButtonMapping[this.currentlyRebinding] = this.rebindValue;
 			StorageManager.store();
@@ -138,7 +138,7 @@ export abstract class OptionsScreen {
 		this.rebindDialog.children[1].innerHTML = `Press a new key or button for<br>"${map[button]}"`;
 		this.currentlyRebinding = button;
 	}
-	
+
 	/** Updates the binding for a given button. */
 	setKeybinding(button: keyof typeof StorageManager.data.settings.gameButtonMapping, value: string) {
 		let map = (state.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
@@ -147,18 +147,18 @@ export abstract class OptionsScreen {
 		for (let key in StorageManager.data.settings.gameButtonMapping) {
 			let typedKey = key as keyof typeof StorageManager.data.settings.gameButtonMapping;
 			let otherValue = StorageManager.data.settings.gameButtonMapping[typedKey];
-	
+
 			if (otherValue === value && typedKey !== button) {
 				// We found another binding that binds to the same key, bring up the conflict dialog.
 				this.rebindDialog.classList.add('hidden');
 				this.rebindConfirm.classList.remove('hidden');
 				this.rebindConfirm.children[1].innerHTML = `"${this.formatKeybinding(typedKey)}" is already bound to "${map[typedKey]}"!<br>` + this.rebindConfirmWarningEnding;
 				this.rebindValue = value;
-	
+
 				return;
 			}
 		}
-	
+
 		// Simply store the keybind.
 		StorageManager.data.settings.gameButtonMapping[button] = value;
 		StorageManager.store();
