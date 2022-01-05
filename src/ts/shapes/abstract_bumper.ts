@@ -3,11 +3,15 @@ import { Util } from "../util";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
 import { Collision } from "../physics/collision";
-import { Vector3 } from "../math/vector3";
 
 /** A bumper is a shape which knocks the marble away on contact. */
 export abstract class AbstractBumper extends Shape {
 	wiggleAnimationStart = -Infinity;
+	shareNodeTransforms = false;
+
+	get animationDuration() {
+		return this.dts.sequences[0].duration * 1000;
+	}
 
 	onMarbleContact(collision: Collision) {
 		let time = this.level.timeState;
@@ -27,16 +31,11 @@ export abstract class AbstractBumper extends Shape {
 	}
 
 	render(time: TimeState) {
+		let currentCompletion = Util.clamp((time.timeSinceLoad - this.wiggleAnimationStart) / this.animationDuration, 0, 1);
+
+		// Override the keyframe for the "wiggle" effect
+		this.sequenceKeyframeOverride.set(this.dts.sequences[0], currentCompletion * (this.dts.sequences[0].numKeyframes - 1));
+
 		super.render(time);
-
-		// Create the "wiggle" effect
-		let elapsed = Math.min(1e10, time.timeSinceLoad - this.wiggleAnimationStart);
-		let wiggleFactor = Util.clamp(1 - elapsed / 333, 0, 1);
-		let sine = Util.lerp(0, Math.sin(elapsed / 50), wiggleFactor);
-		let wiggleX = 1 + 0.4 * sine;
-		let wiggleY = 1 - 0.4 * sine;
-
-		this.group.transform.compose(this.worldPosition, this.worldOrientation, new Vector3(this.worldScale.x * wiggleX, this.worldScale.y * wiggleY, this.worldScale.z));
-		this.group.changedTransform();
 	}
 }

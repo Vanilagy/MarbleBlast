@@ -2,7 +2,6 @@ import { Shape } from "../shape";
 import { TimeState } from "../level";
 import { Util } from "../util";
 
-const ANIMATION_DURATION = 233.33433270454407;
 const RESET_TIME = 5000;
 
 /** A simple shape representing a button that is pushed down when the shape is touched. */
@@ -10,6 +9,10 @@ export class PushButton extends Shape {
 	dtsPath = 'shapes/buttons/pushbutton.dts';
 	lastContactTime = -Infinity;
 	shareNodeTransforms = false;
+
+	get animationDuration() {
+		return this.dts.sequences[0].duration * 1000;
+	}
 
 	tick(time: TimeState, onlyVisual: boolean) {
 		let currentCompletion = this.getCurrentCompletion(time);
@@ -22,8 +25,8 @@ export class PushButton extends Shape {
 	/** Gets the current completion of the button pressedness. 0 = not pressed, 1 = completely pressed down. */
 	getCurrentCompletion(time: TimeState) {
 		let elapsed = time.timeSinceLoad - this.lastContactTime;
-		let completion = Util.clamp(elapsed / ANIMATION_DURATION, 0, 1);
-		if (elapsed > RESET_TIME) completion = Util.clamp(1 - (elapsed - RESET_TIME) / ANIMATION_DURATION, 0, 1);
+		let completion = Util.clamp(elapsed / this.animationDuration, 0, 1);
+		if (elapsed > RESET_TIME) completion = Util.clamp(1 - (elapsed - RESET_TIME) / this.animationDuration, 0, 1);
 
 		return completion;
 	}

@@ -597,9 +597,10 @@ export class Shape {
 	/** Recursively updates node transformations in the node tree.
 	 * @param quaternions One quaternion for each node.
 	 * @param translations One translation for each node.
+	 * @param scales One scale for each node.
 	 * @param bitfield Specifies which nodes have changed.
 	 */
-	updateNodeTransforms(quaternions?: Quaternion[], translations?: Vector3[], bitfield = 0xffffffff) {
+	updateNodeTransforms(quaternions?: Quaternion[], translations?: Vector3[], scales?: Vector3[], bitfield = 0xffffffff) {
 		if (!quaternions) {
 			// Create the default array of quaternions
 			quaternions = this.dts.nodes.map((node, index) => {
@@ -620,6 +621,13 @@ export class Shape {
 			});
 		}
 
+		if (!scales) {
+			// Create the default array of scales
+			scales = this.dts.nodes.map(() => {
+				return new Vector3().setScalar(1);
+			});
+		}
+
 		let utilityMatrix = new Matrix4();
 
 		const traverse = (node: GraphNode, needsUpdate: boolean) => {
@@ -635,7 +643,7 @@ export class Shape {
 					mat.copy(this.nodeTransforms[node.parent.index]);
 				}
 
-				utilityMatrix.compose(translations[node.index], quaternions[node.index], new Vector3(1, 1, 1));
+				utilityMatrix.compose(translations[node.index], quaternions[node.index], scales[node.index]);
 				mat.multiplyMatrices(mat, utilityMatrix);
 			}
 
@@ -691,10 +699,12 @@ export class Shape {
 			if (!this.shareNodeTransforms || this.isMaster) for (let sequence of this.dts.sequences) {
 				let rot = sequence.rotationMatters[0] ?? 0;
 				let trans = sequence.translationMatters[0] ?? 0;
+				let scale = sequence.scaleMatters[0] ?? 0;
 				let affectedCount = 0;
 				let completion = time.timeSinceLoad / (sequence.duration * 1000);
 				let quaternions: Quaternion[];
 				let translations: Vector3[];
+				let scales: Vector3[];
 
 				// Possibly get the keyframe from the overrides
 				let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
@@ -727,7 +737,7 @@ export class Shape {
 						affectedCount++;
 						return quaternion1;
 					} else {
-						// The rotation for this node is not animated and therefore we returns the default rotation.
+						// The rotation for this node is not animated and therefore we return the default rotation.
 						let rotation = this.dts.defaultRotations[index];
 						let quaternion = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
 						quaternion.normalize();
@@ -746,18 +756,39 @@ export class Shape {
 						let trans1 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeLow];
 						let trans2 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeHigh];
 
+						affectedCount++;
+
 						// Interpolate between the two translations
 						return new Vector3(Util.lerp(trans1.x, trans2.x, t), Util.lerp(trans1.y, trans2.y, t), Util.lerp(trans1.z, trans2.z, t));
 					} else {
-						// The translation for this node is not animated and therefore we returns the default translation.
+						// The translation for this node is not animated and therefore we return the default translation.
 						let translation = this.dts.defaultTranslations[index];
 						return new Vector3(translation.x, translation.y, translation.z);
 					}
 				});
 
-				if (rot || trans) {
-					this.updateNodeTransforms(quaternions, translations, rot | trans);
-					if (!onlyVisual) this.updateCollisionGeometry(rot | trans);
+				// Handle scale sequences
+				affectedCount = 0;
+				if (scale > 0) scales = this.dts.nodes.map((node, index) => {
+					let affected = ((1 << index) & scale) !== 0;
+
+					if (affected) {
+						let scale1 = this.dts.nodeAlignedScales[sequence.numKeyframes * affectedCount + keyframeLow];
+						let scale2 = this.dts.nodeAlignedScales[sequence.numKeyframes * affectedCount + keyframeHigh];
+
+						affectedCount++;
+
+						// Interpolate between the two scales
+						return new Vector3(Util.lerp(scale1.x, scale2.x, t), Util.lerp(scale1.y, scale2.y, t), Util.lerp(scale1.z, scale2.z, t));
+					} else {
+						// The scale for this node is not animated and therefore we return the default scale.
+						return new Vector3().setScalar(1); // Apparently always this
+					}
+				});
+
+				if (rot | trans | scale) {
+					this.updateNodeTransforms(quaternions, translations, scales, rot | trans | scale);
+					if (!onlyVisual) this.updateCollisionGeometry(rot | trans | scale);
 				}
 			}
 
