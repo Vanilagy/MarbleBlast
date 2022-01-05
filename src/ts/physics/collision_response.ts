@@ -27,7 +27,7 @@ let m1 = new Matrix3();
 
 export abstract class CollisionResponse {
 	static solvePosition(collision: Collision) {
-		let threshold = 0.01;
+		let threshold = 0.002; // This seems to be the lowest we can go?
 		let remainingPenetration = 0.5;
 
 		if (collision.depth < threshold) return;

@@ -95,7 +95,7 @@ export const landMineSmokeParticle = {
 	inheritedVelFactor: 0.25,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: BlendingType.Additive,
+		blending: BlendingType.Normal,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,

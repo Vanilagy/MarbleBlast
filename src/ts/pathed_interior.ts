@@ -160,10 +160,8 @@ export class PathedInterior extends Interior {
 		this.prevPosition.copy(this.currentPosition);
 		this.currentPosition.setFromMatrixPosition(transform); // The orientation doesn't matter in that version of TGE, so we only need position
 
-		let nextTransform = this.getTransformAtTime(m1, this.getInternalTime(time.currentAttemptTime + 1000 / PHYSICS_TICK_RATE));
-
 		// Approximate the velocity numerically
-		let velocity = v1.setFromMatrixPosition(nextTransform).sub(this.currentPosition).multiplyScalar(PHYSICS_TICK_RATE);
+		let velocity = v1.copy(this.currentPosition).sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
 		this.body.linearVelocity.copy(velocity);
 
 		// Modify the sound effect position, if present

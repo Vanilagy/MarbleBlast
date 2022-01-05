@@ -1502,7 +1502,7 @@ export class Level extends Scheduler {
 		marble.calculatePredictiveTransforms();
 
 		// Set camera orienation
-		let euler: Euler = new Euler();
+		let euler = new Euler();
 		euler.setFromQuaternion(this.currentCheckpoint.worldOrientation, "ZXY");
 		this.yaw = euler.z + Math.PI/2;
 		this.pitch = DEFAULT_PITCH;

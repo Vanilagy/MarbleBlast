@@ -439,6 +439,10 @@ export class Marble {
 	}
 
 	onAfterIntegrate() {
+		// We'll need these for collision response lata
+		this.beforeVel.copy(this.body.linearVelocity);
+		this.beforeAngVel.copy(this.body.angularVelocity);
+
 		let time = this.level.timeState;
 		let playReplay = this.level.replay.mode === 'playback';
 
@@ -464,8 +468,7 @@ export class Marble {
 	}
 
 	onBeforeCollisionResponse() {
-		this.beforeVel.copy(this.body.linearVelocity);
-		this.beforeAngVel.copy(this.body.angularVelocity);
+		// Nothing.
 	}
 
 	onAfterCollisionResponse() {
@@ -482,7 +485,8 @@ export class Marble {
 
 		// Implements sliding: If we hit the surface at an angle below 45°, and have movement keys pressed, we don't bounce.
 		let dot0 = -contactNormal.dot(lastSurfaceRelativeVelocity.clone().normalize());
-		if (this.slidingTimeout <= 0 && dot0 > 0.001 && dot0 <= maxDotSlide && this.lastMovementVec.length() > 0) {
+		let slidinigEligible = contactNormalUpDot > 0.1; // Kinda arbitrary rn, it's about 84°, definitely makes sure we don't slide on walls
+		if (slidinigEligible && this.slidingTimeout <= 0 && dot0 > 0.001 && dot0 <= maxDotSlide && this.lastMovementVec.length() > 0) {
 			let dot = contactNormal.dot(surfaceRelativeVelocity);
 			let linearVelocity = this.body.linearVelocity;
 			let originalLength = linearVelocity.length();

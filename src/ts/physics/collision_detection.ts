@@ -4,7 +4,7 @@ import { BallCollisionShape, CollisionShape } from "./collision_shape";
 
 const maxIterations = 64;
 const maxEpaFaces = 64;
-const epaTolerance = 0.0001;
+const epaTolerance = 10 * Number.EPSILON;
 const maxEpaLooseEdges = 64;
 const maxEpaIterations = 64;
 
@@ -87,8 +87,7 @@ export abstract class CollisionDetection {
 			}
 
 			this.addPointToSimplex(support);
-			this.updateSimplexAndClosestPoint(direction);
-			direction.negate();
+			this.updateSimplexFast();
 
 			if (numPoints === 4) {
 				// Yes collision
@@ -187,6 +186,98 @@ export abstract class CollisionDetection {
 
 		points[0].copy(p);
 		numPoints++;
+	}
+
+	static updateSimplexFast() {
+		switch (numPoints) {
+			case 2: return this.updateLine();
+			case 3: return this.updateTriangle();
+			case 4: return this.updateTetrahedron();
+			default: throw new Error("Shouldn't happen: " + numPoints);
+		}
+	}
+
+	static updateLine() {
+		let a = points[0];
+		let b = points[1];
+
+		ab.copy(b).sub(a);
+		ao.copy(a).negate();
+
+		if (ab.dot(ao) > 0) {
+			direction.copy(ab).cross(ao).cross(ab);
+		} else {
+			numPoints--;
+			direction.copy(ao);
+		}
+	}
+
+	static updateTriangle() {
+		let a = points[0];
+		let b = points[1];
+		let c = points[2];
+
+		ab.copy(b).sub(a);
+		ac.copy(c).sub(a);
+		ao.copy(a).negate();
+
+		abc.copy(ab).cross(ac);
+
+		if (v1.copy(abc).cross(ac).dot(ao) > 0) {
+			if (ac.dot(ao) > 0) {
+				b.copy(c);
+				numPoints--;
+				direction.copy(ac).cross(ao).cross(ac);
+			} else {
+				numPoints--;
+				return this.updateLine();
+			}
+		} else {
+			if (v1.copy(ab).cross(abc).dot(ao) > 0) {
+				numPoints--;
+				return this.updateLine();
+			} else {
+				if (abc.dot(ao) > 0) {
+					direction.copy(abc);
+				} else {
+					v1.copy(c);
+					c.copy(b);
+					b.copy(v1);
+					direction.copy(abc).negate();
+				}
+			}
+		}
+	}
+
+	static updateTetrahedron() {
+		let a = points[0];
+		let b = points[1];
+		let c = points[2];
+		let d = points[3];
+
+		ab.copy(b).sub(a);
+		ac.copy(c).sub(a);
+		ad.copy(d).sub(a);
+		ao.copy(a).negate();
+
+		abc.copy(ab).cross(ac);
+		acd.copy(ac).cross(ad);
+		adb.copy(ad).cross(ab);
+
+		if (abc.dot(ao) > 0) {
+			numPoints--;
+			return this.updateTriangle();
+		} else if (acd.dot(ao) > 0) {
+			b.copy(c);
+			c.copy(d);
+			numPoints--;
+			return this.updateTriangle();
+		} else if (adb.dot(ao) > 0) {
+			c.copy(b);
+			b.copy(d);
+			numPoints--;
+			return this.updateTriangle();
+		}
 	}
 
 	static updateSimplexAndClosestPoint(dst: Vector3) {
