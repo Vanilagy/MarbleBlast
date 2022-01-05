@@ -90,6 +90,7 @@ export class ParticleManager {
 	particleGroups = new Map<ParticleOptions, ParticleGroup>();
 	/** For non-instanced, legacy particles. */
 	particles: Particle[] = [];
+	currentRenderTime: number;
 
 	positionBuffer: VertexBuffer;
 	uvBuffer: VertexBuffer;
@@ -206,6 +207,8 @@ export class ParticleManager {
 	}
 
 	render(time: number) {
+		this.currentRenderTime = time;
+
 		// Update all the particle groups
 		for (let [, group] of this.particleGroups) {
 			for (let i = 0; i < group.particles.length; i++) {

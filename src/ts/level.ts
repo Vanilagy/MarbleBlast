@@ -866,8 +866,8 @@ export class Level extends Scheduler {
 
 		if (this.stopped) return; // Check it again here 'cuz the tick might've changed it
 
-		let physicsTickLength = 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
-		let completion = Util.clamp((time - this.lastPhysicsTick) / physicsTickLength, 0, 1);
+		let physicsTickLength = 1000 / PHYSICS_TICK_RATE;
+		let completion = Util.clamp((time - this.lastPhysicsTick) / physicsTickLength * PLAYBACK_SPEED, 0, 1);
 		// Set up an intermediate time state for smoother rendering
 		let tempTimeState: TimeState = {
 			timeSinceLoad: this.timeState.timeSinceLoad + completion * physicsTickLength,

@@ -286,7 +286,7 @@ export class Renderer {
 			uLogDepthBufFC
 		);
 		gl.uniform1i(program.getUniformLocation('diffuseMap'), 0);
-		gl.uniform1f(program.getUniformLocation('time'), particleManager.getTime()); // Since the particle is simulated in-shader, the shader needs to know the current simulation time
+		gl.uniform1f(program.getUniformLocation('time'), particleManager.currentRenderTime); // Since the particle is simulated in-shader, the shader needs to know the current simulation time
 
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, particleManager.indexBuffer);
 
