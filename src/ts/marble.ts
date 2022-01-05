@@ -94,8 +94,11 @@ export class Marble {
 	predictedOrientation = new Quaternion();
 
 	body: RigidBody;
+	/** Main collision shape of the marble. */
 	shape: BallCollisionShape;
+	/** First auxiliary collision shape of the marble; being twice as big as the normal shape, it's responsible for colliding with shapes such as gems and power-ups. */
 	largeAuxShape: BallCollisionShape;
+	/** Second auxiliary collision shape of the marble; is responsible for colliding with triggers. */
 	smallAuxShape: BallCollisionShape;
 
 	/** The radius of the marble. */
@@ -216,7 +219,7 @@ export class Marble {
 		// Create the physics stuff
 		this.body = new RigidBody();
 		this.body.evaluationOrder = 1000; // Make sure this body's handlers are called after all the other ones (interiors, shapes, etc)
-		let colShape = new BallCollisionShape(0);
+		let colShape = new BallCollisionShape(0); // We'll update the radius later
 		colShape.restitution = this.bounceRestitution;
 		this.shape = colShape;
 		this.body.addCollisionShape(colShape);

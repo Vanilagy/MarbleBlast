@@ -9,7 +9,9 @@ const maxEpaLooseEdges = 64;
 const maxEpaIterations = 64;
 
 // Global algorithm state
+/** The points of the current simplex. Only points with index < numPoints are valid. */
 let points = [new Vector3(), new Vector3(), new Vector3(),  new Vector3()];
+/** The amount of points in the current simplex. */
 let numPoints = 0;
 let support = new Vector3();
 let direction = new Vector3();
@@ -33,6 +35,7 @@ let actualPosition2 = new Vector3();
 let x = new Vector3();
 let n = new Vector3();
 let w = new Vector3();
+/** Indicates if the current triangle (3-point simplex) needs to have its winding order reversed. */
 let requireFlip = 0;
 let lastS1: CollisionShape = null;
 let lastS2: CollisionShape = null;
@@ -48,26 +51,34 @@ for (let i = 0; i < maxEpaLooseEdges; i++) {
 	looseEdges.push([new Vector3(), new Vector3()]);
 }
 
+/** Provides methods for testing for intersection of convex shapes. */
 export abstract class CollisionDetection {
+	/** Joined support function; returns the support function of the Minkowski difference of shape 1 and 2. */
 	static support(dst: Vector3, s1: CollisionShape, s2: CollisionShape, direction: Vector3) {
 		return s1.support(dst, direction).sub(s2.support(v1, v2.copy(direction).negate()));
 	}
 
+	/** Returns true iff `s1` and `s2` intersect. */
 	static checkIntersection(s1: CollisionShape, s2: CollisionShape) {
+		// Remember the shapes for later
 		lastS1 = s1;
 		lastS2 = s2;
 
 		if (s1 instanceof BallCollisionShape && s2 instanceof BallCollisionShape) {
+			// Since this case is trivial, we have a special method for it to process it quickly
 			return this.checkBallBallIntersection(s1, s2);
 		} else {
+			// Otherwise, do general GJK
 			return this.checkConvexConvexIntersection(s1, s2);
 		}
 	}
 
 	static checkBallBallIntersection(s1: BallCollisionShape, s2: BallCollisionShape) {
+		// Simply compare distance and radius sum
 		return s1.body.position.distanceTo(s2.body.position) <= s1.radius + s2.radius;
 	}
 
+	/** Check for intersection of two shapes using the Gilbert-Johnson-Keerthi (GJK) algorithm. */
 	static checkConvexConvexIntersection(s1: CollisionShape, s2: CollisionShape) {
 		direction.copy(s2.body.position).sub(s1.body.position).normalize(); // Can really be anything but this is a good start
 
@@ -76,7 +87,7 @@ export abstract class CollisionDetection {
 		numPoints = 1;
 		points[0].copy(support);
 
-		direction.copy(support).negate();
+		direction.copy(support).negate(); // ao
 
 		for (let i = 0; i < maxIterations; i++) {
 			this.support(support, s1, s2, direction);
@@ -86,11 +97,12 @@ export abstract class CollisionDetection {
 				return false;
 			}
 
+			// Update the simplex
 			this.addPointToSimplex(support);
 			this.updateSimplexFast();
 
 			if (numPoints === 4) {
-				// Yes collision
+				// We managed to enclose the origin in a tetrahedron, meaning we're intersecting
 				return true;
 			}
 		}
@@ -98,29 +110,35 @@ export abstract class CollisionDetection {
 		return false;
 	}
 
+	/** Determines the time of impact of two moving shapes by simply linearly translating the shapes between their last and current position. */
 	static determineTimeOfImpact(s1: CollisionShape, s2: CollisionShape, eps = 0.03) {
-		s1.body.getRelativeMotionVector(translation, s2.body);
+		s1.body.getRelativeMotionVector(translation, s2.body); // We assume s2 is stationary and s1's movement is now relative to s2's frame
 		let translationLength = translation.length();
 
+		// Remember the positions and revert the shapes back one position
 		actualPosition1.copy(s1.body.position);
 		actualPosition2.copy(s2.body.position);
 		s1.body.position.copy(s1.body.prevPosition);
 		s2.body.position.copy(s2.body.prevPosition);
 
+		// A simple ray cast on the Minkowski difference will return the time of impact
 		let res = this.castRay(s1, s2, o, translation.negate(), 1);
 
+		// Reset the position
 		s1.body.position.copy(actualPosition1);
 		s2.body.position.copy(actualPosition2);
 
 		if (!res) return null;
 
-		let toAdd = Math.min(eps * translationLength, eps / translationLength);
+		// To ensure that collision is actually detected, nudge the point of impact a little bit forward so the shapes definitely intersect.
+		let toAdd = Math.min(eps * translationLength, eps / translationLength); // Don't ask, there's no clean derivation for this
 		res.lambda += toAdd;
 		res.lambda = Util.clamp(res.lambda, 0, 1);
 
 		return res.lambda;
 	}
 
+	/** Performs a GJK raycast on the Minkowski difference of two shapes. Uses the method described by Gino van den Bergen in http://dtecta.com/papers/jgt04raycast.pdf. */
 	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number) {
 		lastS1 = s1;
 		lastS2 = s2;
@@ -131,9 +149,9 @@ export abstract class CollisionDetection {
 
 		numPoints = 0;
 
-		x.copy(rayOrigin);
-		n.setScalar(0);
-		let lambda = 0;
+		x.copy(rayOrigin); // x will be the point of impact
+		n.setScalar(0); // n will be the surface normal at the point of impact
+		let lambda = 0; // lambda will be the number such that origin + lambda * direction = x
 
 		direction.copy(x).sub(support);
 
@@ -145,6 +163,7 @@ export abstract class CollisionDetection {
 			if (direction.dot(w) > 0) {
 				if (direction.dot(rayDirection) >= 0) return null;
 
+				// Nudge forward
 				let delta = direction.dot(w) / direction.dot(rayDirection);
 				lambda -= delta;
 
@@ -156,8 +175,10 @@ export abstract class CollisionDetection {
 
 			this.addPointToSimplex(support);
 
+			// Offset the entire simplex temporarily
 			for (let i = 0; i < numPoints; i++) points[i].negate().add(x);
 
+			// This now finds the feature of the simplex closest to x, not the origin anymore, because we offset the simplex.
 			this.updateSimplexAndClosestPoint(direction);
 
 			let maxDist2 = 0;
@@ -169,25 +190,31 @@ export abstract class CollisionDetection {
 				return { point: x.clone(), lambda, normal: n.clone().normalize() };
 			}
 
+			// Offset the simplex back
 			for (let i = 0; i < numPoints; i++) points[i].sub(x).negate();
 		}
 
 		return null;
 	}
 
+	/** Expands the current simplex by one point. */
 	static addPointToSimplex(p: Vector3) {
+		// Check if the point is already contained in the simplex, and if so, don't add it
 		for (let i = 0; i < numPoints; i++) {
 			if (p.distanceToSquared(points[i]) < 10 * Number.EPSILON) return;
 		}
 
+		// Shift all points one to the right
 		for (let i = numPoints; i > 0; i--) {
 			points[i].copy(points[i-1]);
 		}
 
+		// Add the point at the front
 		points[0].copy(p);
 		numPoints++;
 	}
 
+	/** Updates the simplex and search direction quickly, meaning it doesn't perform a thourough search for the precise closest feature but just gets the general direction right. Uses the approach from https://blog.winter.dev/2020/gjk-algorithm/. */
 	static updateSimplexFast() {
 		switch (numPoints) {
 			case 2: return this.updateLine();
@@ -205,8 +232,10 @@ export abstract class CollisionDetection {
 		ao.copy(a).negate();
 
 		if (ab.dot(ao) > 0) {
+			// Keep searching perpendicular to the line
 			direction.copy(ab).cross(ao).cross(ab);
 		} else {
+			// Discard point B
 			numPoints--;
 			direction.copy(ao);
 		}
@@ -225,18 +254,22 @@ export abstract class CollisionDetection {
 
 		if (v1.copy(abc).cross(ac).dot(ao) > 0) {
 			if (ac.dot(ao) > 0) {
+				// We're on the AC side
 				b.copy(c);
 				numPoints--;
 				direction.copy(ac).cross(ao).cross(ac);
 			} else {
+				// We're on the AB side
 				numPoints--;
 				return this.updateLine();
 			}
 		} else {
 			if (v1.copy(ab).cross(abc).dot(ao) > 0) {
+				// We're on the AB side
 				numPoints--;
 				return this.updateLine();
 			} else {
+				// Origin must be above or below the triangle, figure out the direction
 				if (abc.dot(ao) > 0) {
 					direction.copy(abc);
 				} else {
@@ -264,6 +297,7 @@ export abstract class CollisionDetection {
 		acd.copy(ac).cross(ad);
 		adb.copy(ad).cross(ab);
 
+		// Simply do a triangle case with the face that's pointing towards the origin
 		if (abc.dot(ao) > 0) {
 			numPoints--;
 			return this.updateTriangle();
@@ -278,10 +312,13 @@ export abstract class CollisionDetection {
 			numPoints--;
 			return this.updateTriangle();
 		}
+
+		// If we're here, the origin is enclosed!
 	}
 
+	/** Computes the closest point to the origin on the current simplex and reduces the simplex to the smallest feature that contains that point. Method somewhat taken from BulletPhysics. */
 	static updateSimplexAndClosestPoint(dst: Vector3) {
-		let used: number;
+		let used: number; // A 4-bit number where the i'th bit represents if the i'th point (order: A, B, C, D) is present in the reduced feature.
 		requireFlip = 0;
 
 		switch (numPoints) {
@@ -292,6 +329,7 @@ export abstract class CollisionDetection {
 			default: throw new Error("Shouldn't get here! " + numPoints);
 		}
 
+		// Do the whole point assignerino based on whatever points make up the closest feature
 		let i = 0;
 		for (let j = 0; j < 4; j++) {
 			if (used & (1 << j)) {
@@ -301,6 +339,7 @@ export abstract class CollisionDetection {
 		}
 		numPoints = i;
 
+		// Flip winding order of triangle if needed
 		if (requireFlip) {
 			v1.copy(points[1]);
 			points[1].copy(points[2]);
@@ -318,7 +357,7 @@ export abstract class CollisionDetection {
 		ab.copy(b).sub(a);
 		ao.copy(a).negate();
 
-		let t =  Util.clamp(ab.dot(ao) / ab.dot(ab), 0, 1);
+		let t = Util.clamp(ab.dot(ao) / ab.dot(ab), 0, 1); // Clamp to the line segment
 
 		if (t === 0) {
 			dst.copy(a);
@@ -416,6 +455,8 @@ export abstract class CollisionDetection {
 		let flip: number;
 		let ownFlip = 0;
 
+		// We simply do 4 triangle cases, one for each face of the tetrahedron, and the min wins.
+
 		if (abc.dot(ao) > 0) {
 			requireFlip = 0;
 			let res = this.closestPointTriangle(v1, a, b, c);
@@ -435,7 +476,7 @@ export abstract class CollisionDetection {
 			if (len < minDist) {
 				dst.copy(v1);
 				minDist = len;
-				used = (res & 0b1) | ((res & 0b10) << 1) | ((res & 0b100) << 1);
+				used = (res & 0b1) | ((res & 0b10) << 1) | ((res & 0b100) << 1); // Shift the bits around so they match the passed points
 				flip = requireFlip;
 			}
 		}
@@ -471,6 +512,7 @@ export abstract class CollisionDetection {
 		requireFlip = flip ^ ownFlip;
 
 		if (minDist === Infinity) {
+			// The origin is inside the tetrahedron!
 			dst.setScalar(0);
 			used = 0b1111;
 		}
@@ -478,8 +520,10 @@ export abstract class CollisionDetection {
 		return used;
 	}
 
+	/** Given the last two intersecting shapes s1 and s2, returns the smallest vector v such that s1 + v and s2 don't intersect anymore. Uses the Expanding Polytope Algorithm (EPA). */
 	static determineMinimumSeparatingVector(dst: Vector3) {
 		if (lastS1 instanceof BallCollisionShape && lastS2 instanceof BallCollisionShape) {
+			// Easy case
 			let len = lastS1.radius + lastS2.radius - lastS1.body.position.distanceTo(lastS2.body.position);
 			return dst.copy(lastS1.body.position).sub(lastS2.body.position).normalize().multiplyScalar(len);
 		}
@@ -494,7 +538,7 @@ export abstract class CollisionDetection {
 		faces[0][0].copy(a);
 		faces[0][1].copy(b);
 		faces[0][2].copy(c);
-		faces[0][3].copy(b).sub(a).cross(v1.copy(c).sub(a)).normalize(); // ABC
+		faces[0][3].copy(b).sub(a).cross(v1.copy(c).sub(a)).normalize();
 		faces[1][0].copy(a);
 		faces[1][1].copy(c);
 		faces[1][2].copy(d);

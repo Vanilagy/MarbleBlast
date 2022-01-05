@@ -7,7 +7,7 @@ import { World } from "./world";
 
 export enum RigidBodyType {
 	Dynamic,
-	Static
+	Static // Has infinite mass and doesn't get affected by external forces such as gravity
 }
 
 let dq = new Quaternion();
@@ -17,6 +17,7 @@ let q1 = new Quaternion();
 export class RigidBody {
 	world: World = null;
 	type: RigidBodyType = RigidBodyType.Dynamic;
+	/** Disabled bodies will be skipped in the simulation loop. */
 	enabled = true;
 
 	position = new Vector3();
@@ -29,10 +30,14 @@ export class RigidBody {
 	prevOrientation = new Quaternion();
 	prevLinearVelocity = new Vector3();
 	prevAngularVelocity = new Vector3();
+	/** Indicates whether the previous values are valid, i.e. have been set. */
 	prevValid = false;
 
+	/** The shapes that make up this rigid body. */
 	shapes: CollisionShape[] = [];
+	/** The list of collisions this body was a part of in the last simulation step. */
 	collisions: Collision[] = [];
+	/** Bodies with lower evaluation order will be evaluated first in the simulation loop. */
 	evaluationOrder = 0;
 
 	userData: any;
@@ -46,6 +51,7 @@ export class RigidBody {
 		return p.sub(this.position).applyQuaternion(q1);
 	}
 
+	/** Updates this body's position and orientation based on its linear and angular velocities. */
 	integrate(dt: number) {
 		if (this.type !== RigidBodyType.Dynamic) return;
 
@@ -80,6 +86,7 @@ export class RigidBody {
 		this.prevValid = true;
 	}
 
+	/** Reverts this body's state to a linearly interpolated state between the current and last states. */
 	revert(t: number) {
 		let posEq = this.position.equals(this.prevPosition);
 		let oriEq = this.orientation.equals(this.prevOrientation);
@@ -116,6 +123,7 @@ export class RigidBody {
 		shape.body = null;
 	}
 
+	/** Updates this body's collision shapes' bounding boxes and position in the octree. */
 	syncShapes() {
 		for (let i = 0; i < this.shapes.length; i++) {
 			let shape = this.shapes[i];
@@ -123,6 +131,7 @@ export class RigidBody {
 		}
 	}
 
+	/** Gets the relative motion vector of this body and `b2`. */
 	getRelativeMotionVector(dst: Vector3, b2: RigidBody) {
 		return dst.copy(this.position).sub(this.prevPosition).sub(b2.position).add(b2.prevPosition);
 	}

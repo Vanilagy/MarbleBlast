@@ -404,6 +404,18 @@ export class Matrix4 {
 		return this;
 	}
 
+	add(m: Matrix4) {
+		for (let i = 0; i < 16; i++) this.elements[i] += m.elements[i];
+
+		return this;
+	}
+
+	sub(m: Matrix4) {
+		for (let i = 0; i < 16; i++) this.elements[i] -= m.elements[i];
+
+		return this;
+	}
+
 	determinant() {
 		const te = this.elements;
 

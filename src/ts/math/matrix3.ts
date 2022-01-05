@@ -131,6 +131,18 @@ export class Matrix3 {
 		return this;
 	}
 
+	add(m: Matrix3) {
+		for (let i = 0; i < 9; i++) this.elements[i] += m.elements[i];
+
+		return this;
+	}
+
+	sub(m: Matrix3) {
+		for (let i = 0; i < 9; i++) this.elements[i] -= m.elements[i];
+
+		return this;
+	}
+
 	determinant() {
 		const te = this.elements;
 

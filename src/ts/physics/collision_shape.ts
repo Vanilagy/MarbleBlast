@@ -14,9 +14,12 @@ let v5 = new Vector3();
 let m1 = new Matrix4();
 let q1 = new Quaternion();
 
+/** Represents a convex collision shape. */
 export abstract class CollisionShape implements OctreeObject {
+	/** The body this shape belongs to. */
 	body: RigidBody = null;
 	boundingBox = new Box3();
+	/** If set, this shape will be used instead for broadphase collision detection (allows for better caching). */
 	broadphaseShape: CollisionShape = null;
 	collisionDetectionMask = 0b1;
 	collisionResponseMask = 0b1;
@@ -24,9 +27,10 @@ export abstract class CollisionShape implements OctreeObject {
 	friction = 1;
 	restitution = 1;
 	mass = 1;
-	inertia = new Matrix3().identity();
-	invInertia = new Matrix3().identity();
+	inertia = new Matrix3();
+	invInertia = new Matrix3();
 
+	/** Material overrides allow a single collision shape to have more than one material (i.e. friction and restitution). These properties are described by a direction vector (intended to be the normal vector of the face the material applies) to, and the material with the highest dot product with the collision normal is chosen. */
 	materialOverrides = new Map<Vector3, { friction: number, restitution: number }>();
 
 	userData: any;
@@ -37,19 +41,22 @@ export abstract class CollisionShape implements OctreeObject {
 
 	updateBoundingBox() {
 		m1.compose(this.body.position, this.body.orientation, v1.setScalar(1));
-		this.boundingBox.applyMatrix4(m1);
+		this.boundingBox.applyMatrix4(m1); // Puts a bounding box around the translated bounding box
 
 		if (this.body.prevValid) {
+			// Extend the bounding box towards the previous position for CCD purposes
 			let translation = v1.copy(this.body.position).sub(this.body.prevPosition);
 			v2.copy(this.boundingBox.min).sub(translation); // Go backwards
 			v3.copy(this.boundingBox.max).sub(translation);
 			this.boundingBox.expandByPoint(v2).expandByPoint(v3);
 		}
 
+		// Update the octree
 		this.body?.world?.octree.update(this);
 	}
 }
 
+/** Represents a ball with a given radius. */
 export class BallCollisionShape extends CollisionShape {
 	radius: number;
 
@@ -82,6 +89,7 @@ export class BallCollisionShape extends CollisionShape {
 	}
 }
 
+/** Represents the convex hull of a set of points. */
 export class ConvexHullCollisionShape extends CollisionShape {
 	points: Vector3[];
 	localCenter = new Vector3();
@@ -97,6 +105,8 @@ export class ConvexHullCollisionShape extends CollisionShape {
 	}
 
 	computeLocalBoundingBox() {
+		// Precompute some stuff so it's faster later
+
 		this.localCenter.setScalar(0);
 		for (let point of this.points) this.localCenter.addScaledVector(point, 1 / this.points.length);
 
@@ -113,6 +123,7 @@ export class ConvexHullCollisionShape extends CollisionShape {
 
 		let maxDot = -Infinity;
 
+		// Naive O(n) support function, loop over all points and find the one with the biggest dot
 		for (let i = 0; i < this.points.length; i++) {
 			let point = this.points[i];
 			let dot = point.dot(localDirection);
@@ -123,7 +134,7 @@ export class ConvexHullCollisionShape extends CollisionShape {
 			}
 		}
 
-		return this.body.transformPoint(dst);
+		return this.body.transformPoint(dst); // Transform it from local into world space
 	}
 
 	getCenter(dst: Vector3) {
@@ -137,6 +148,7 @@ export class ConvexHullCollisionShape extends CollisionShape {
 	}
 }
 
+/** Represents the convex hull of two other collision shapes. */
 export class CombinedCollisionShape extends CollisionShape {
 	s1: CollisionShape;
 	s2: CollisionShape;
@@ -151,6 +163,8 @@ export class CombinedCollisionShape extends CollisionShape {
 	updateInertiaTensor() {}
 
 	support(dst: Vector3, direction: Vector3) {
+		// Simply return the max of the two support functions
+
 		let supp1 = this.s1.support(v4, direction);
 		let supp2 = this.s2.support(v5, direction);
 
@@ -161,6 +175,7 @@ export class CombinedCollisionShape extends CollisionShape {
 	}
 
 	getCenter(dst: Vector3) {
+		// Return the average, this is probably not correct
 		return this.s1.getCenter(dst).add(this.s2.getCenter(v4)).multiplyScalar(0.5);
 	}
 }

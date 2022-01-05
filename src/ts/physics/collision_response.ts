@@ -25,7 +25,9 @@ let deltaJ = new Vector3();
 let deltaI = new Vector3();
 let m1 = new Matrix3();
 
+/** Provides methods for performing an impulse-based collision response. Approach taken from https://www10.cs.fau.de/publications/theses/2010/Schornbaum_DA_2010.pdf. */
 export abstract class CollisionResponse {
+	/** Fixes interpenetration of two shapes. */
 	static solvePosition(collision: Collision) {
 		let threshold = 0.002; // This seems to be the lowest we can go?
 		let remainingPenetration = 0.5;
@@ -33,12 +35,11 @@ export abstract class CollisionResponse {
 		if (collision.depth < threshold) return;
 
 		let distance = collision.depth - remainingPenetration * threshold;
-		collision.s1.body.position.addScaledVector(collision.normal, distance);
+		collision.s1.body.position.addScaledVector(collision.normal, distance); // Always move the first body
 	}
 
+	/** Adjusts linear and angular velocities of the collision shapes. */
 	static solveVelocity(collision: Collision) {
-		// Approach taken from https://www10.cs.fau.de/publications/theses/2010/Schornbaum_DA_2010.pdf
-
 		collision.s1.getCenter(c_1);
 		collision.s2.getCenter(c_2);
 
@@ -53,12 +54,13 @@ export abstract class CollisionResponse {
 
 		z.copy(x).cross(y);
 
+		// This here forms the contact basis, where the first column represents the direction along the normal
 		B.set(
 			x.x, y.x, z.x,
 			x.y, y.y, z.y,
 			x.z, y.z, z.z
 		);
-		BInv.copy(B).transpose(); // B is orthonormal
+		BInv.copy(B).transpose(); // B is orthonormal - BInv converts from contact space back into world space
 
 		M_1.identity().multiplyScalar(1 / collision.s1.mass);
 		M_2.identity().multiplyScalar(1 / collision.s2.mass);
@@ -74,14 +76,7 @@ export abstract class CollisionResponse {
 			-r_2.y, r_2.x, 0
 		);
 
-		const add = (m1: Matrix3, m2: Matrix3) => {
-			for (let i = 0; i < m1.elements.length; i++) {
-				m1.elements[i] += m2.elements[i];
-			}
-			return m1;
-		};
-
-		add(add(K_world.copy(M_1), m1.copy(R_1).multiply(collision.s1.invInertia).multiply(R_1).multiplyScalar(-1)), add(M_2, m1.copy(R_2).multiply(collision.s2.invInertia).multiply(R_2).multiplyScalar(-1)));
+		K_world.copy(M_1).sub(m1.copy(R_1).multiply(collision.s1.invInertia).multiply(R_1)).add(M_2).sub(m1.copy(R_2).multiply(collision.s2.invInertia).multiply(R_2));
 
 		K_contact.copy(BInv).multiply(K_world).multiply(B); // Change of basis thang
 		K_contactInv.copy(K_contact).invert();
@@ -92,16 +87,18 @@ export abstract class CollisionResponse {
 		theta_1.copy(b1.angularVelocity).cross(r_1).add(b1.linearVelocity).applyMatrix3(BInv);
 		theta_2.copy(b2.angularVelocity).cross(r_2).add(b2.linearVelocity).applyMatrix3(BInv);
 
-		let deltaThing = theta_1.x - theta_2.x;
-		if (deltaThing > -0.0001) return;
+		// Relative velocity along the normal
+		let deltaTheta = theta_1.x - theta_2.x;
+		if (deltaTheta > -0.0001) return; // Not a "closing contact"
 
 		let res = collision.restitution;
-		if (deltaThing > -0.5) res = 0;
+		if (deltaTheta > -0.5) res = 0; // Set the restitution to 0 for low-impact collisions, allowing for objects to rest on the floor.
 
 		deltaDeltaTheta_12.set(-(1 + res) * (theta_1.x - theta_2.x), -(theta_1.y - theta_2.y), -(theta_1.z - theta_2.z));
 		deltaJ.copy(deltaDeltaTheta_12).applyMatrix3(K_contactInv);
 		let alpha = deltaJ.y**2 + deltaJ.z**2;
 
+		// Handle friction
 		let staticFriction = collision.friction;
 		if (alpha > staticFriction**2 * deltaJ.x**2) {
 			let beta = collision.friction / Math.sqrt(alpha);
@@ -113,6 +110,7 @@ export abstract class CollisionResponse {
 
 		deltaI.copy(deltaJ).applyMatrix3(B);
 
+		// Finally, adjust the velocities
 		b1.linearVelocity.addScaledVector(deltaI, 1 / collision.s1.mass);
 		b1.angularVelocity.add(r_1.cross(deltaI).applyMatrix3(collision.s1.invInertia));
 		b2.linearVelocity.addScaledVector(deltaI, -1 / collision.s2.mass);
