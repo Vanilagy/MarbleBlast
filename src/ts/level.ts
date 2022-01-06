@@ -1018,7 +1018,7 @@ export class Level extends Scheduler {
 			// Handle wall intersections:
 
 			const closeness = 0.1;
-			let rayCastOrigin = marblePosition.clone().addScaledVector(this.currentUp, this.marble.radius);
+			let rayCastOrigin = marblePosition;
 
 			let processedShapes = new Set<CollisionShape>();
 			for (let i = 0; i < 3; i++) {
@@ -1027,7 +1027,7 @@ export class Level extends Scheduler {
 				rayCastDirection.addScaledVector(rayCastDirection.clone().normalize(), 2);
 
 				let length = rayCastDirection.length();
-				let hits = this.world.castRay(rayCastOrigin.clone(), rayCastDirection.normalize(), length);
+				let hits = this.world.castRay(rayCastOrigin, rayCastDirection.normalize(), length);
 				let firstHit = hits.find(x => x.shape !== this.marble.shape);
 
 				if (firstHit) {
