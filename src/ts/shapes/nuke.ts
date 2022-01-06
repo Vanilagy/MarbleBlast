@@ -29,7 +29,7 @@ export class Nuke extends Shape {
 		this.level.particles.createEmitter(nukeParticle, this.worldPosition);
 		this.level.particles.createEmitter(nukeSmokeParticle, this.worldPosition);
 		this.level.particles.createEmitter(nukeSparksParticle, this.worldPosition);
-		// Normally, we would add a light here, but that's too expensive for THREE, apparently.
+		// Normally, we would add a light here, but eh
 
 		this.level.replay.recordMarbleContact(this);
 	}

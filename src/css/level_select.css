@@ -146,6 +146,7 @@
 	margin-left: 30px;
 	font-size: 20px;
 	white-space: pre-line;
+	overflow-wrap: break-word;
 }
 
 #level-artist {
@@ -154,6 +155,7 @@
 	margin-left: 31px;
 	font-size: 9px;
 	white-space: pre-line;
+	overflow-wrap: break-word;
 }
 
 #level-description {
@@ -164,6 +166,7 @@
 	width: 207px;
 	font-size: 11px;
 	white-space: pre-line;
+	overflow-wrap: break-word;
 }
 
 #level-qualify-time {
@@ -172,6 +175,7 @@
 	margin-left: 30px;
 	font-size: 20px;
 	white-space: pre-line;
+	overflow-wrap: break-word;
 }
 
 #best-times-heading {
