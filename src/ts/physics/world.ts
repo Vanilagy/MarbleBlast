@@ -59,7 +59,7 @@ export class World {
 	}
 
 	substep(dt: number, startT: number, depth: number) {
-		// Roughly follows Algorithm 4 from  https://www10.cs.fau.de/publications/theses/2010/Schornbaum_DA_2010.pdf.
+		// Roughly follows Algorithm 4 from https://www10.cs.fau.de/publications/theses/2010/Schornbaum_DA_2010.pdf.
 
 		if (dt < 0.00001 || depth >= MAX_SUBSTEPS) return;
 

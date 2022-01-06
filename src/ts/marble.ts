@@ -635,16 +635,6 @@ export class Marble {
 		}
 	}
 
-	postTick() {
-		// Store sound state in the replay
-		let r = this.level.replay;
-		if (r.canStore) {
-			r.rollingSoundGain.push(this.rollingSound.gain.gain.value);
-			r.rollingSoundPlaybackRate.push((this.rollingSound.node as AudioBufferSourceNode).playbackRate.value);
-			r.slidingSoundGain.push(this.slidingSound.gain.gain.value);
-		}
-	}
-
 	playJumpSound() {
 		AudioManager.play(['jump.wav']);
 	}
@@ -690,6 +680,7 @@ export class Marble {
 		let dq = new Quaternion().setFromAxisAngle(dRotation.normalize(), dRotationLength);
 		let predictedOrientation = dq.multiply(orientation);
 
+		// See if we hit something, do this to prevent clipping through things
 		let hits = this.level.world.castShape(this.shape, movementDiff, 1);
 		let hit = hits.find(x => !this.body.collisions.some(y => y.s2 === x.shape)); // Filter out hits with shapes we're already touching
 		let lambda = hit?.lambda ?? 1;

@@ -19,6 +19,8 @@ export abstract class CollisionShape implements OctreeObject {
 	/** The body this shape belongs to. */
 	body: RigidBody = null;
 	boundingBox = new Box3();
+	/** The collision margin of this shape, can be used to make the shape thiccer in all directions. */
+	margin = 0;
 	/** If set, this shape will be used instead for broadphase collision detection (allows for better caching). */
 	broadphaseShape: CollisionShape = null;
 	collisionDetectionMask = 0b1;
@@ -42,6 +44,9 @@ export abstract class CollisionShape implements OctreeObject {
 	updateBoundingBox() {
 		m1.compose(this.body.position, this.body.orientation, v1.setScalar(1));
 		this.boundingBox.applyMatrix4(m1); // Puts a bounding box around the translated bounding box
+
+		this.boundingBox.min.subScalar(this.margin);
+		this.boundingBox.max.addScalar(this.margin);
 
 		if (this.body.prevValid) {
 			// Extend the bounding box towards the previous position for CCD purposes
@@ -74,7 +79,10 @@ export class BallCollisionShape extends CollisionShape {
 	}
 
 	support(dst: Vector3, direction: Vector3) {
-		return dst.copy(direction).normalize().multiplyScalar(this.radius).add(this.body.position);
+		dst.copy(direction).setLength(this.radius).add(this.body.position);
+		if (this.margin > 0) dst.add(v1.copy(direction).setLength(this.margin));
+
+		return dst;
 	}
 
 	getCenter(dst: Vector3) {
@@ -134,7 +142,10 @@ export class ConvexHullCollisionShape extends CollisionShape {
 			}
 		}
 
-		return this.body.transformPoint(dst); // Transform it from local into world space
+		this.body.transformPoint(dst); // Transform it from local into world space
+		if (this.margin > 0) dst.add(v1.copy(direction).setLength(this.margin));
+
+		return dst;
 	}
 
 	getCenter(dst: Vector3) {

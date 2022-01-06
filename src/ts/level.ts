@@ -75,6 +75,7 @@ import { Plane } from "./math/plane";
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
 const PLAYBACK_SPEED = 1; // Major attack surface for cheaters here 😟
+
 /** The vertical offsets of overlay shapes to get them all visually centered. */
 const SHAPE_OVERLAY_OFFSETS = {
 	"shapes/images/helicopter.dts": -67,
@@ -132,7 +133,9 @@ export interface TimeState {
 	/** The gameplay time, affected by time travels and what not. */
 	gameplayClock: number,
 	/** A value in [0, 1], representing how far in between two physics ticks we are. */
-	physicsTickCompletion: number
+	physicsTickCompletion: number,
+	/** Which tick the simulation is currently on. */
+	tickIndex: number
 }
 
 interface LoadingState {
@@ -258,10 +261,11 @@ export class Level extends Scheduler {
 		this.loadingState.total += 6 + 1 + 3 + 6 + 1; // For the scene, marble, UI, sounds (includes music!), and scene compile
 
 		this.timeState = {
-			timeSinceLoad: 0,
+			timeSinceLoad: -1000 / PHYSICS_TICK_RATE, // Will become 0 with first tick
 			currentAttemptTime: 0,
 			gameplayClock: 0,
-			physicsTickCompletion: 0
+			physicsTickCompletion: 0,
+			tickIndex: 0
 		};
 
 		// Apply overridden gravity
@@ -757,8 +761,18 @@ export class Level extends Scheduler {
 		let hud = state.menu.hud;
 		hud.setPowerupButtonState(false, true);
 
-		this.timeState.currentAttemptTime = 0;
 		this.timeState.gameplayClock = 0;
+
+		if (this.replay && this.replay.version <= 4) {
+			// In older versions, the first tick would immediately advance the entire simulation to a non-zero time instead of correctly keeping it at 0 for a while.
+			this.timeState.currentAttemptTime = 0;
+			this.timeState.tickIndex = 0;
+		} else {
+			// Both of these will become zero after the first tick:
+			this.timeState.currentAttemptTime = -1000 / PHYSICS_TICK_RATE;
+			this.timeState.tickIndex = -1;
+		}
+
 		this.currentTimeTravelBonus = 0;
 		this.outOfBounds = false;
 		this.lastPhysicsTick = null;
@@ -875,7 +889,8 @@ export class Level extends Scheduler {
 			timeSinceLoad: this.timeState.timeSinceLoad + completion * physicsTickLength,
 			currentAttemptTime: this.timeState.currentAttemptTime + completion * physicsTickLength,
 			gameplayClock: (this.currentTimeTravelBonus || this.timeState.currentAttemptTime < GO_TIME)? this.timeState.gameplayClock : this.timeState.gameplayClock + completion * physicsTickLength,
-			physicsTickCompletion: completion
+			physicsTickCompletion: completion,
+			tickIndex: this.timeState.tickIndex + completion
 		};
 
 		this.marble.render(tempTimeState);
@@ -1102,14 +1117,6 @@ export class Level extends Scheduler {
 		let tickDone = false;
 		// Make sure to execute the correct amount of ticks
 		while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
-			// By ticking we advance time, so advance time.
-			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
-			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
-			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
-			elapsed -= 1000 / PHYSICS_TICK_RATE;
-
-			let prevGameplayClock = this.timeState.gameplayClock;
-
 			// Update gameplay clock, taking into account the Time Travel state
 			if (this.timeState.currentAttemptTime >= GO_TIME) {
 				if (this.currentTimeTravelBonus > 0) {
@@ -1136,6 +1143,14 @@ export class Level extends Scheduler {
 				}
 			}
 
+			this.timeState.timeSinceLoad += 1000 / PHYSICS_TICK_RATE;
+			this.timeState.currentAttemptTime += 1000 / PHYSICS_TICK_RATE;
+			this.timeState.tickIndex++;
+			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
+			elapsed -= 1000 / PHYSICS_TICK_RATE;
+
+			let prevGameplayClock = this.timeState.gameplayClock;
+
 			this.tickSchedule(this.timeState.currentAttemptTime);
 
 			if (this.mission.hasBlast && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
@@ -1151,8 +1166,6 @@ export class Level extends Scheduler {
 				this.world.step(1 / PHYSICS_TICK_RATE);
 				this.world.gravity.copy(gravityBefore);
 			}
-
-			this.marble.postTick();
 
 			this.jumpQueued = false;
 			this.useQueued = false;
@@ -1197,8 +1210,9 @@ export class Level extends Scheduler {
 			}
 
 			// Record or playback the replay
-			if (!playReplay) this.replay.record();
-			else {
+			if (!playReplay) {
+				this.replay.record();
+			} else {
 				this.replay.playBack();
 				if (this.replay.isPlaybackComplete()) {
 					this.stopAndExit();
@@ -1535,7 +1549,7 @@ export class Level extends Scheduler {
 			this.finishTime.timeSinceLoad -= toSubtract;
 			this.finishTime.currentAttemptTime -= toSubtract;
 			if (this.currentTimeTravelBonus === 0) this.finishTime.gameplayClock -= toSubtract;
-			this.finishTime.gameplayClock = Math.min(this.finishTime.gameplayClock, MAX_TIME); // Apply the time cap
+			this.finishTime.gameplayClock = Util.clamp(this.finishTime.gameplayClock, 0, MAX_TIME); // Apply the time cap
 			this.finishTime.physicsTickCompletion = completionOfImpact;
 			this.currentTimeTravelBonus = 0;
 			this.alarmSound?.stop();

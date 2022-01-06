@@ -17,7 +17,7 @@ import { Quaternion } from "./math/quaternion";
 export class Replay {
 	level: Level;
 	missionPath: string;
-	version = 4;
+	version = 5;
 	mode: 'record' | 'playback' = 'record';
 	/** If writing to the replay is still permitted. */
 	canStore = true;
@@ -116,7 +116,10 @@ export class Replay {
 	checkpointRespawns: number[] = [];
 
 	/** The current tick index to write to / read from. */
-	currentTickIndex = 0;
+	get currentTickIndex() {
+		return Math.max(this.level.timeState.tickIndex, 0);
+	}
+
 	currentJumpSoundTime = 0;
 	currentBounceTime = 0;
 
@@ -129,8 +132,6 @@ export class Replay {
 
 	/** Inits the replay's values. */
 	init() {
-		this.currentTickIndex = 0;
-
 		if (this.mode === 'record') {
 			// Reset all values
 
@@ -229,18 +230,23 @@ export class Replay {
 	record() {
 		if (this.mode === 'playback' || !this.canStore) return;
 
-		this.marblePositions.push(this.level.marble.body.position.clone());
-		this.marbleOrientations.push(this.level.marble.body.orientation.clone());
-		this.marbleLinearVelocities.push(this.level.marble.body.linearVelocity.clone());
-		this.marbleAngularVelocities.push(this.level.marble.body.angularVelocity.clone());
+		let marble = this.level.marble;
+
+		this.marblePositions.push(marble.body.position.clone());
+		this.marbleOrientations.push(marble.body.orientation.clone());
+		this.marbleLinearVelocities.push(marble.body.linearVelocity.clone());
+		this.marbleAngularVelocities.push(marble.body.angularVelocity.clone());
 		this.cameraOrientations.push({ yaw: this.level.yaw, pitch: this.level.pitch });
+
+		// Store sound state in the replay too
+		this.rollingSoundGain.push(marble.rollingSound.gain.gain.value);
+		this.rollingSoundPlaybackRate.push((marble.rollingSound.node as AudioBufferSourceNode).playbackRate.value);
+		this.slidingSoundGain.push(marble.slidingSound.gain.gain.value);
 
 		if (this.level.finishTime && this.finishTime === null) this.finishTime = Util.jsonClone(this.level.finishTime);
 
-		this.currentTickIndex++;
-
 		// Check if the replay is excessively long. If it is, stop it to prevent a memory error.
-		if (this.marblePositions.length >= PHYSICS_TICK_RATE * 60 * 30) {
+		if (this.marblePositions.length >= PHYSICS_TICK_RATE * 60 * 60) {
 			this.canStore = false;
 			this.isInvalid = this.level.finishTime === null; // If the playthrough was finished, we don't consider the replay invalid.
 		}
@@ -312,6 +318,7 @@ export class Replay {
 	/** Apply the replay's stored state to the world. */
 	playBack() {
 		let i = this.currentTickIndex;
+		if (i >= this.marblePositions.length) return; // Safety measure
 
 		for (let obj of this.marbleInside) {
 			if (obj.tickIndex !== i) continue;
@@ -364,22 +371,20 @@ export class Replay {
 		this.level.yaw = this.cameraOrientations[i].yaw;
 		this.level.pitch = this.cameraOrientations[i].pitch;
 
-		for (let i = this.currentJumpSoundTime; i < this.jumpSoundTimes.length; i++) {
-			if (this.jumpSoundTimes[i] > this.currentTickIndex) break;
-			if (this.jumpSoundTimes[i] === this.currentTickIndex) this.level.marble.playJumpSound();
+		for (let j = this.currentJumpSoundTime; j < this.jumpSoundTimes.length; j++) {
+			if (this.jumpSoundTimes[j] > i) break;
+			if (this.jumpSoundTimes[j] === i) this.level.marble.playJumpSound();
 		}
-		for (let i = this.currentBounceTime; i < this.bounceTimes.length; i++) {
-			if (this.bounceTimes[i].tickIndex > this.currentTickIndex) break;
-			if (this.bounceTimes[i].tickIndex === this.currentTickIndex) {
-				this.level.marble.playBounceSound(this.bounceTimes[i].volume);
-				if (this.bounceTimes[i].showParticles) this.level.marble.showBounceParticles();
+		for (let j = this.currentBounceTime; j < this.bounceTimes.length; j++) {
+			if (this.bounceTimes[j].tickIndex > i) break;
+			if (this.bounceTimes[j].tickIndex === i) {
+				this.level.marble.playBounceSound(this.bounceTimes[j].volume);
+				if (this.bounceTimes[j].showParticles) this.level.marble.showBounceParticles();
 			}
 		}
 		this.level.marble.rollingSound.gain.gain.value = this.rollingSoundGain[i];
 		this.level.marble.rollingSound.setPlaybackRate(this.rollingSoundPlaybackRate[i]);
 		this.level.marble.slidingSound.gain.gain.value = this.slidingSoundGain[i];
-
-		this.currentTickIndex = Math.min(this.marblePositions.length - 1, this.currentTickIndex + 1); // Make sure to stop at the last tick
 	}
 
 	isPlaybackComplete() {
