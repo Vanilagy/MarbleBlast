@@ -247,7 +247,7 @@ export class PathedInterior extends Interior {
 		this.mesh.changedTransform();
 
 		this.body.position.setFromMatrixPosition(transform);
-		this.body.syncShapes(); // Set the position of the body as well for correct camera raycasting results
+		this.body.syncShapes(); // Set the position of the body as well for correct camera ray casting results
 	}
 
 	/** Resets the movement state of the pathed interior to the beginning values. */
@@ -270,6 +270,10 @@ export class PathedInterior extends Interior {
 		let transform = this.getTransformAtTime(m1, this.getInternalTime(0));
 		this.prevPosition.setFromMatrixPosition(transform);
 		this.currentPosition.setFromMatrixPosition(transform);
+
+		// Should prevent incorrect CCD stuff
+		this.body.position.copy(this.currentPosition);
+		this.body.syncShapes();
 
 		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
 	}

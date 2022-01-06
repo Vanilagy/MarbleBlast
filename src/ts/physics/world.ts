@@ -12,7 +12,7 @@ const MAX_SUBSTEPS = 10;
 let v1 = new Vector3();
 let v2 = new Vector3();
 let v3 = new Vector3();
-let raycastAabb = new Box3();
+let rayCastAabb = new Box3();
 
 let singletonShape = new ConvexHullCollisionShape([new Vector3()]);
 let combinedCollisionShape = new CombinedCollisionShape(null, null);
@@ -231,7 +231,7 @@ export class World {
 
 						let size: number;
 
-						// Now, along the combined collision normal from above, perform a raycast onto both shapes to figure out the "correct" normal of the face that's actually visible and part of the collision (as opposed to the internal edge we can't see)
+						// Now, along the combined collision normal from above, perform a ray cast onto both shapes to figure out the "correct" normal of the face that's actually visible and part of the collision (as opposed to the internal edge we can't see). Note that sometimes this method fails and doesn't hit the right face, but that's usually caught later.
 
 						size = candidate.boundingBox.min.distanceTo(candidate.boundingBox.max);
 						let hit1 = CollisionDetection.castRay(
@@ -250,11 +250,11 @@ export class World {
 							size
 						);
 
-						// If we've hit the shapes, replace the collision normals of the collisions
-						if (hit1 && hit1.normal.dot(combinedNormal) >= 0.5) { // acos(0.5) = 60°
+						// If we've hit the shapes, see if we should replace the collision normals of the collisions
+						if (hit1 && hit1.normal.dot(combinedNormal) >= collision.normal.dot(combinedNormal)) { // Only replace if the hit normal is an improvement over the old normal
 							collision.supplyMinimumSeparatingVector(hit1.normal.multiplyScalar(collision.depth));
 						}
-						if (hit2 && hit2.normal.dot(combinedNormal) >= 0.5) {
+						if (hit2 && hit2.normal.dot(combinedNormal) >= c2.normal.dot(combinedNormal)) {
 							c2.supplyMinimumSeparatingVector(hit2.normal.multiplyScalar(c2.depth));
 						}
 
@@ -279,12 +279,12 @@ export class World {
 	/** Casts a ray into the world and returns all intersections. */
 	castRay(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number, collisionDetectionMask = 0b1) {
 		// Build the AABB of the ray
-		raycastAabb.makeEmpty();
-		raycastAabb.expandByPoint(rayOrigin);
-		raycastAabb.expandByPoint(v1.copy(rayOrigin).addScaledVector(rayDirection, lambdaMax));
+		rayCastAabb.makeEmpty();
+		rayCastAabb.expandByPoint(rayOrigin);
+		rayCastAabb.expandByPoint(v1.copy(rayOrigin).addScaledVector(rayDirection, lambdaMax));
 
 		// Query the octree for possible candidates
-		let candidates = this.octree.intersectAabb(raycastAabb) as CollisionShape[];
+		let candidates = this.octree.intersectAabb(rayCastAabb) as CollisionShape[];
 		let hits: RayCastHit[] = [];
 
 		for (let candidate of candidates) {
@@ -301,14 +301,14 @@ export class World {
 	/** Performs convex casting of a given shape: Translates a shape from its current position linearly along a direction (swept volume) and returns all intersections with other shapes.  */
 	castShape(shape: CollisionShape, direction: Vector3, lambdaMax: number) {
 		// Build the AABB of the swept volume
-		raycastAabb.makeEmpty();
-		raycastAabb.expandByPoint(shape.boundingBox.min);
-		raycastAabb.expandByPoint(shape.boundingBox.max);
-		raycastAabb.expandByPoint(v1.copy(shape.boundingBox.min).addScaledVector(direction, lambdaMax));
-		raycastAabb.expandByPoint(v1.copy(shape.boundingBox.max).addScaledVector(direction, lambdaMax));
+		rayCastAabb.makeEmpty();
+		rayCastAabb.expandByPoint(shape.boundingBox.min);
+		rayCastAabb.expandByPoint(shape.boundingBox.max);
+		rayCastAabb.expandByPoint(v1.copy(shape.boundingBox.min).addScaledVector(direction, lambdaMax));
+		rayCastAabb.expandByPoint(v1.copy(shape.boundingBox.max).addScaledVector(direction, lambdaMax));
 
 		// Query the octree for possible candidates
-		let candidates = this.octree.intersectAabb(raycastAabb) as CollisionShape[];
+		let candidates = this.octree.intersectAabb(rayCastAabb) as CollisionShape[];
 		let hits: RayCastHit[] = [];
 		let negDirection = v2.copy(direction).negate();
 

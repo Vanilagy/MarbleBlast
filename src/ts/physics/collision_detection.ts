@@ -138,7 +138,7 @@ export abstract class CollisionDetection {
 		return res.lambda;
 	}
 
-	/** Performs a GJK raycast on the Minkowski difference of two shapes. Uses the method described by Gino van den Bergen in http://dtecta.com/papers/jgt04raycast.pdf. */
+	/** Performs a GJK ray cast on the Minkowski difference of two shapes. Uses the method described by Gino van den Bergen in http://dtecta.com/papers/jgt04raycast.pdf. */
 	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number) {
 		lastS1 = s1;
 		lastS2 = s2;
