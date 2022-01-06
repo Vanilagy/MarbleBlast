@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.1
+- Fixed some Firefox-related styling bugs
+
 ## 2.4.0
 After having rewritten the rendering pipeline, next up were the physics, which still heavily relied on a third-party library. This update completely rewrites the physics engine from scratch, ditching the third-party dependency and thereby gaining more performance and fine-grained control - a necessary step for future updates.
 

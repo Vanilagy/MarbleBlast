@@ -84,3 +84,10 @@ setInterval(() => {
 
 	setEnterFullscreenButtonVisibility(fullscreenButtonVisibility);
 }, 250);
+
+// Disable image dragging in Firefox
+window.addEventListener('dragstart', (e) => {
+	if ((e.target as any).nodeName?.toUpperCase() === 'IMG') {
+		e.preventDefault();
+	}
+});

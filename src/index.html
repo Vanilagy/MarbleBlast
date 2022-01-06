@@ -269,8 +269,10 @@
 				<img id="mbp-options-general">
 				<img id="mbp-options-hotkeys">
 				<img src="./assets/ui_mbp/options/online_i.png" id="mbp-options-online">
-				<div class="_container" id="mbp-options-general-container"></div>
-				<div class="_container" id="mbp-options-hotkeys-container"></div>
+				<div id="mbp-options-container-wrapper">
+					<div class="_container" id="mbp-options-general-container"></div>
+					<div class="_container" id="mbp-options-hotkeys-container"></div>
+				</div>
 
 				<div id="mbp-rebind-dialog" class="hidden">
 					<img src="./assets/ui_mbp/play/window.png">
@@ -621,7 +623,7 @@
 		<script src="./lib/oggdec.js" defer></script>
 		<script src="./lib/pako.js" defer></script>
 		<script src="./lib/jszip.js" defer></script>
-		<div></div>
+		<div></div> <!-- Force Sarcina to put these into different bundles -->
 		<script src="./js/bundle.js" defer></script>
 	</body>
 </html>
