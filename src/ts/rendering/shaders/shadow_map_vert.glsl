@@ -60,8 +60,6 @@ void main() {
 	}
 
 	// Simply transform the vertex and we're done
-	vec4 transformed = transform * vec4(position, 1.0);
-	transformed = viewMatrix * transformed;
-	transformed = projectionMatrix * transformed;
-	gl_Position = transformed;
+	mat4 mvp = projectionMatrix * viewMatrix * transform;
+	gl_Position = mvp * vec4(position, 1.0);
 }

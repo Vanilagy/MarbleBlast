@@ -186,20 +186,21 @@ void main() {
 
 			vec3 addedLight = directionalLightColor * lambert(normal, -directionalLightDirection);
 
+			#ifdef SATURATE_INCOMING_LIGHT
+				// MBG saturates the incoming light to be at most 1.0
+				addedLight = min(vec3(1.0), incomingLight + addedLight) - incomingLight;
+			#endif
+
 			#ifdef RECEIVE_SHADOWS
 				// When the direction has zero length, we make the assumption that there is no directional light in the scene.
 				bool hasDirectionalLight = dot(directionalLightDirection, directionalLightDirection) > 0.0;
 				float intensity = getShadowIntensity(directionalLightShadowMap, vShadowPosition, 250);
 				if (!hasDirectionalLight) intensity = 0.0;
 
-				addedLight *= mix(1.0, 0.5, intensity);
+				addedLight *= mix(1.0, 0.666, intensity);
 			#endif
-
+			
 			incomingLight += addedLight;
-			#ifdef SATURATE_INCOMING_LIGHT
-				// MBG saturates the incoming light to be at most 1.0
-				incomingLight = min(vec3(1.0), incomingLight);
-			#endif
 
 			#ifdef USE_SPECULAR
 				vec3 viewDir = normalize(eyePosition - vPosition.xyz);

@@ -67,7 +67,7 @@ const initServer = (port: number) => {
 		let pathComponents = urlObject.pathname.split('/').slice(1);
 		let body: string = null;
 		let bodyBuffer: Buffer = null;
-	
+
 		const handleRequest = async () => {
 			try {
 				// Determine the type of request
@@ -86,10 +86,10 @@ const initServer = (port: number) => {
 						case 'activity': await registerActivity(res, urlObject); break;
 						default: break outer; // Incorrect API function
 					}
-	
+
 					return;
 				}
-			
+
 				// Just serve the file normally
 				serve(req, res, finalhandler(req, res) as any);
 			} catch (e) {
@@ -99,7 +99,7 @@ const initServer = (port: number) => {
 				res.end();
 			}
 		};
-	
+
 		if (req.method === 'POST') {
 			// Get the body
 			let chunks: Buffer[] = [];
@@ -135,7 +135,7 @@ const init = () => {
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'customs'));
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'backups'));
 	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'user_errors.log'));
-	
+
 	setupDb();
 	initServer(port);
 };

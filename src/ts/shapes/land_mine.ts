@@ -2,7 +2,8 @@ import { Shape } from "../shape";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import { AudioManager } from "../audio";
-import * as THREE from "three";
+import { Vector3 } from "../math/vector3";
+import { BlendingType } from "../rendering/renderer";
 
 /** Land mines explode on contact and knock the marble away. */
 export class LandMine extends Shape {
@@ -11,14 +12,16 @@ export class LandMine extends Shape {
 	sounds = ['explode1.wav'];
 	shareMaterials = false;
 
-	onMarbleContact(time: TimeState) {
+	onMarbleContact() {
+		let time = this.level.timeState;
+
 		let marble = this.level.marble;
-		let minePos = Util.vecThreeToOimo(this.worldPosition);
-		let vec = marble.lastPos.sub(minePos).normalize(); // Use the last pos so that it's a little less RNG
+		let minePos = this.worldPosition;
+		let vec = marble.body.position.clone().sub(minePos);
 
 		// Add velocity to the marble
-		let explosionStrength = this.computeExplosionStrength(this.level.marble.body.getPosition().subEq(minePos).length());
-		marble.body.addLinearVelocity(vec.scale(explosionStrength));
+		let explosionStrength = this.computeExplosionStrength(vec.length());
+		marble.body.linearVelocity.addScaledVector(vec.normalize(), explosionStrength);
 		marble.slidingTimeout = 2;
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
@@ -27,7 +30,7 @@ export class LandMine extends Shape {
 		this.level.particles.createEmitter(landMineParticle, this.worldPosition);
 		this.level.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
 		this.level.particles.createEmitter(landMineSparksParticle, this.worldPosition);
-		// Normally, we would add a light here, but that's too expensive for THREE, apparently.
+		// Normally, we would add a light here, but eh.
 
 		this.level.replay.recordMarbleContact(this);
 	}
@@ -47,7 +50,7 @@ export class LandMine extends Shape {
 
 	tick(time: TimeState, onlyVisual: boolean) {
 		if (onlyVisual) return;
-		
+
 		// Enable or disable the collision based on disappear time
 		let visible = time.timeSinceLoad >= this.disappearTime + 5000;
 		this.setCollisionEnabled(visible);
@@ -62,14 +65,14 @@ export class LandMine extends Shape {
 /** The fire particle. */
 const landMineParticle = {
 	ejectionPeriod: 0.2,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 2,
 	velocityVariance: 1,
 	emitterLifetime: 50,
 	inheritedVelFactor: 0.2,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -85,14 +88,14 @@ const landMineParticle = {
 /** The smoke particle. */
 export const landMineSmokeParticle = {
 	ejectionPeriod: 0.5,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 0.8,
 	velocityVariance: 0.4,
 	emitterLifetime: 50,
 	inheritedVelFactor: 0.25,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Normal,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -108,14 +111,14 @@ export const landMineSmokeParticle = {
 /** The sparks exploding away. */
 export const landMineSparksParticle = {
 	ejectionPeriod: 0.4,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 13 / 4,
 	velocityVariance: 6.75 / 4,
 	emitterLifetime: 100,
 	inheritedVelFactor: 0.2,
 	particleOptions: {
 		texture: 'particles/spark.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,

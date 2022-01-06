@@ -1,5 +1,4 @@
 import { PowerUp } from "./power_up";
-import { TimeState } from "../level";
 import { state } from "../state";
 
 /** Temporarily increase marble restitution. */
@@ -12,8 +11,8 @@ export class SuperBounce extends PowerUp {
 		return this.level.pickUpPowerUp(this);
 	}
 
-	use(time: TimeState) {
-		this.level.marble.enableSuperBounce(time);
+	use() {
+		this.level.marble.enableSuperBounce(this.level.timeState);
 		this.level.deselectPowerUp();
 	}
 }

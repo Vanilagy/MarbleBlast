@@ -128,7 +128,7 @@ export class MbpLevelSelect extends LevelSelect {
 		this.setMissionArray(MissionLibrary.ultraBeginner, false);
 
 		// Show a random beginner category at the start
-		this.setMissionArray(Util.randomFromArray([MissionLibrary.goldBeginner/*, MissionLibrary.platinumBeginner, MissionLibrary.ultraBeginner*/]), false);
+		this.setMissionArray(Util.randomFromArray([MissionLibrary.goldBeginner, MissionLibrary.platinumBeginner, MissionLibrary.ultraBeginner]), false);
 
 		await ResourceManager.loadImages(['play/eggnotfound.png', 'play/eggfound.png', 'play/marble_gold.png', 'play/marble_platinum.png', 'play/marble_ultra.png', 'mp/menu/brown/joined.png', 'mp/menu/brown/divider-orange-joined.png', 'options/textentry.png'].map(x => './assets/ui_mbp/' + x));
 	}
@@ -167,7 +167,7 @@ export class MbpLevelSelect extends LevelSelect {
 
 		this.difficultySelectorContent.append(div);
 	}
-	
+
 	setMissionArray(arr: Mission[], doImageTimeout?: boolean) {
 		super.setMissionArray(arr, doImageTimeout);
 
@@ -223,7 +223,7 @@ export class MbpLevelSelect extends LevelSelect {
 
 		return element;
 	}
-	
+
 	updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number) {
 		element.children[0].innerHTML = `<span>${rank}.</span> ${Util.htmlEscape(score[0])}`;
 		element.children[1].textContent = Util.secondsToTimeString(score[1] / 1000);
@@ -232,7 +232,7 @@ export class MbpLevelSelect extends LevelSelect {
 
 		element.style.color = '';
 		if (!this.currentMission) return;
-		
+
 		if (score[1] <= this.currentMission.goldTime) element.style.color = (this.currentMission.modification === 'gold')? MBP_GOLD_COLOR : MBP_PLATINUM_COLOR;
 		if (score[1] <= this.currentMission.ultimateTime) element.style.color = MBP_ULTIMATE_COLOR;
 	}
@@ -245,7 +245,7 @@ export class MbpLevelSelect extends LevelSelect {
 	/** Sets the background image based on the modification. */
 	updateBackground() {
 		let arr = this.currentMissionArray;
-		state.menu.backgroundImage.src = 
+		state.menu.backgroundImage.src =
 			(MissionLibrary.getModification(arr) === 'gold')? (state.menu as MbpMenu).mbgBg :
 			(MissionLibrary.getModification(arr) === 'ultra')? (state.menu as MbpMenu).mbuBg :
 			(state.menu as MbpMenu).mbpBg;

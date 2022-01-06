@@ -1,17 +1,21 @@
 import { Interior } from "./interior";
 import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "./parsing/mis_parser";
 import { Util } from "./util";
-import * as THREE from "three";
 import { TimeState, PHYSICS_TICK_RATE, Level } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
-import OIMO from "./declarations/oimo";
 import { AudioManager, AudioSource } from "./audio";
+import { Matrix4 } from "./math/matrix4";
+import { Vector3 } from "./math/vector3";
+import { Quaternion } from "./math/quaternion";
+
+let v1 = new Vector3();
+let m1 = new Matrix4();
 
 interface MarkerData {
 	msToNext: number,
 	smoothingType: string,
-	position: THREE.Vector3,
-	rotation: THREE.Quaternion
+	position: Vector3,
+	rotation: Quaternion
 }
 
 /** Represents a Torque 3D Pathed Interior moving along a set path. */
@@ -24,7 +28,7 @@ export class PathedInterior extends Interior {
 	hasCollision: boolean;
 	/** Some pathed interiors emit a sound; this is for that. */
 	soundSource: AudioSource;
-	soundPosition: THREE.Vector3;
+	soundPosition: Vector3;
 
 	/** The total duration of the path. */
 	duration: number;
@@ -35,14 +39,13 @@ export class PathedInterior extends Interior {
 	/** The start reference point in time of interior interpolation */
 	changeTime = 0;
 
-	basePosition: THREE.Vector3;
-	baseOrientation: THREE.Quaternion;
-	baseScale: THREE.Vector3;
-	prevPosition: THREE.Vector3;
-	currentPosition = new THREE.Vector3();
+	basePosition: Vector3;
+	baseOrientation: Quaternion;
+	baseScale: Vector3;
+	prevPosition = new Vector3();
+	currentPosition = new Vector3();
 
 	allowSpecialMaterials = false; // Frictions don't work on pathed interiors
-	canMove = true;
 
 	/** Creates a PathedInterior from a sim group containing it and its path (and possible triggers). */
 	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {
@@ -75,11 +78,14 @@ export class PathedInterior extends Interior {
 		if (this.baseScale.y === 0) this.baseScale.y = 0.0001;
 		if (this.baseScale.z === 0) this.baseScale.z = 0.0001;
 
+		this.body.onBeforeIntegrate = this.onBeforeIntegrate.bind(this);
+		this.body.orientation.copy(this.baseOrientation);
+
+		// Add collision geometry
 		for (let i = 0; i < this.detailLevel.convexHulls.length; i++) this.addConvexHull(i, this.baseScale);
-		this.body.setOrientation(new OIMO.Quat(this.baseOrientation.x, this.baseOrientation.y, this.baseOrientation.z, this.baseOrientation.w));
-		this.path = this.simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 
 		// Parse the markers
+		this.path = this.simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
 		this.markerData = this.path.markers.map(x => {
 			return {
 				msToNext: MisParser.parseNumber(x.mstonext),
@@ -101,7 +107,7 @@ export class PathedInterior extends Interior {
 
 		// Create a sound effect if so specified
 		if (this.element.datablock?.toLowerCase() === 'pathedmovingblock') {
-			this.soundPosition = new THREE.Vector3(); // This position will be modified
+			this.soundPosition = new Vector3(); // This position will be modified
 			this.soundSource = AudioManager.createAudioSource('movingblockloop.wav', AudioManager.soundGain, this.soundPosition);
 			this.soundSource.setLoop(true);
 
@@ -147,46 +153,35 @@ export class PathedInterior extends Interior {
 	}
 
 	tick(time: TimeState) {
-		let transform = this.getTransformAtTime(this.getInternalTime(time.currentAttemptTime));
+		this.body.position.copy(this.currentPosition); // Reset it back to where it should be (render loop might've moved it)
 
-		this.body.setPosition(Util.vecThreeToOimo(this.currentPosition)); // Reset the body's position to the last position used in a proper physics simstep. We do this because the position might've changed since then through render().
+		let transform = this.getTransformAtTime(m1, this.getInternalTime(time.currentAttemptTime));
 
-		let position = new THREE.Vector3().setFromMatrixPosition(transform); // The orientation doesn't matter in that version of TGE, so we only need position
 		this.prevPosition.copy(this.currentPosition);
-		this.currentPosition = position;
+		this.currentPosition.setFromMatrixPosition(transform); // The orientation doesn't matter in that version of TGE, so we only need position
 
-		// Calculate the velocity based on current and last position
-		let velocity = position.clone().sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
-
-		if (velocity.length() > 0) {
-			// If the interior is moving, make sure it's flagged as kinematic
-			this.body.setType(OIMO.RigidBodyType.KINEMATIC);
-			this.body.setLinearVelocity(Util.vecThreeToOimo(velocity));
-		} else if (this.body.getType() !== OIMO.RigidBodyType.STATIC) {
-			// If the interior is currently stationary, we can flag it as that for increased performance
-			this.body.setType(OIMO.RigidBodyType.STATIC);
-			this.body.setLinearVelocity(new OIMO.Vec3());
-		}
+		// Approximate the velocity numerically
+		let velocity = v1.copy(this.currentPosition).sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
+		this.body.linearVelocity.copy(velocity);
 
 		// Modify the sound effect position, if present
-		this.soundPosition?.copy(position).add(this.markerData[0]?.position ?? new THREE.Vector3());
+		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
 	}
 
-	updatePosition() {
-		this.body.setPosition(Util.vecThreeToOimo(this.currentPosition));
+	onBeforeIntegrate() {
+		this.body.position.copy(this.currentPosition);
+		this.body.syncShapes();
 	}
 
 	/** Computes the transform of the interior at a point in time along the path. */
-	getTransformAtTime(time: number) {
+	getTransformAtTime(dst: Matrix4, time: number) {
 		let m1 = this.markerData[0];
 		let m2 = this.markerData[1];
 
 		if (!m1) {
 			// Incase there are no markers at all
-			let mat = new THREE.Matrix4();
-			mat.compose(this.basePosition, this.baseOrientation, this.baseScale);
-
-			return mat;
+			dst.compose(this.basePosition, this.baseOrientation, this.baseScale);
+			return dst;
 		}
 
 		// Find the two markers in question
@@ -195,16 +190,16 @@ export class PathedInterior extends Interior {
 		while (currentEndTime < time && i < this.markerData.length) {
 			m1 = m2;
 			m2 = this.markerData[i++];
-			
+
 			currentEndTime += m1.msToNext;
 		}
-		
+
 		if (!m2) m2 = m1;
 
 		let m1Time = currentEndTime - m1.msToNext;
 		let m2Time = currentEndTime;
 		let duration = m2Time - m1Time;
-		let position: THREE.Vector3;
+		let position: Vector3;
 
 		let completion = Util.clamp(duration? (time - m1Time) / duration : 1, 0, 1);
 		if (m1.smoothingType === "Accelerate") {
@@ -222,7 +217,7 @@ export class PathedInterior extends Interior {
 			let p2 = m2.position;
 			let p3 = this.markerData[postEnd].position;
 
-			position = new THREE.Vector3();
+			position = v1;
 			position.x = Util.catmullRom(completion, p0.x, p1.x, p2.x, p3.x);
 			position.y = Util.catmullRom(completion, p0.y, p1.y, p2.y, p3.y);
 			position.z = Util.catmullRom(completion, p0.z, p1.z, p2.z, p3.z);
@@ -231,7 +226,7 @@ export class PathedInterior extends Interior {
 		if (!position) {
 			let p1 = m1.position;
 			let p2 = m2.position;
-			position = Util.lerpThreeVectors(p1, p2, completion);
+			position = v1.copy(p1).lerp(p2, completion);
 		}
 
 		// Offset by the position of the first marker
@@ -240,20 +235,19 @@ export class PathedInterior extends Interior {
 
 		position.add(this.basePosition); // Add the base position
 
-		let mat = new THREE.Matrix4();
-		mat.compose(position, this.baseOrientation, this.baseScale);
+		dst.compose(position, this.baseOrientation, this.baseScale);
 
-		return mat;
+		return dst;
 	}
 
 	render(time: TimeState) {
-		let transform = this.getTransformAtTime(this.getInternalTime(time.currentAttemptTime));
+		let transform = this.getTransformAtTime(m1, this.getInternalTime(time.currentAttemptTime));
 
 		this.mesh.transform.copy(transform);
 		this.mesh.changedTransform();
 
-		let position = new THREE.Vector3().setFromMatrixPosition(transform);
-		this.body.setPosition(Util.vecThreeToOimo(position)); // Set the position of the body as well for correct camera raycasting results
+		this.body.position.setFromMatrixPosition(transform);
+		this.body.syncShapes(); // Set the position of the body as well for correct camera ray casting results
 	}
 
 	/** Resets the movement state of the pathed interior to the beginning values. */
@@ -273,12 +267,14 @@ export class PathedInterior extends Interior {
 		}
 
 		// Reset the position
-		let transform = this.getTransformAtTime(this.getInternalTime(0));
-		let position = new THREE.Vector3().setFromMatrixPosition(transform);
+		let transform = this.getTransformAtTime(m1, this.getInternalTime(0));
+		this.prevPosition.setFromMatrixPosition(transform);
+		this.currentPosition.setFromMatrixPosition(transform);
 
-		this.prevPosition = position.clone();
-		this.currentPosition = position;
-		this.body.setPosition(Util.vecThreeToOimo(this.currentPosition));
-		this.soundPosition?.copy(position).add(this.markerData[0]?.position ?? new THREE.Vector3());
+		// Should prevent incorrect CCD stuff
+		this.body.position.copy(this.currentPosition);
+		this.body.syncShapes();
+
+		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
 	}
 }

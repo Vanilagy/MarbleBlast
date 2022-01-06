@@ -1,18 +1,20 @@
-import THREE from "three";
+import { Matrix4 } from "../math/matrix4";
+import { Quaternion } from "../math/quaternion";
+import { Vector3 } from "../math/vector3";
 import { Group } from "./group";
 
-const IDENTITY_MATRIX = new THREE.Matrix4();
+const IDENTITY_MATRIX = new Matrix4();
 
 /** Represents an object in 3D space. */
 export class Object3D {
 	parent: Group = null;
 	/** The object's local transform. */
-	transform = new THREE.Matrix4();
-	position = new THREE.Vector3();
-	orientation = new THREE.Quaternion();
-	scale = new THREE.Vector3(1, 1, 1);
+	transform = new Matrix4();
+	position = new Vector3();
+	orientation = new Quaternion();
+	scale = new Vector3(1, 1, 1);
 	/** The object's global transform in world space. */
-	worldTransform = new THREE.Matrix4();
+	worldTransform = new Matrix4();
 	needsWorldTransformUpdate = true;
 
 	/** Updates this object's global transformation matrix. */
@@ -26,7 +28,7 @@ export class Object3D {
 	/** Marks the object as having received a change to its transform and needing to be updated. */
 	changedTransform() {
 		this.needsWorldTransformUpdate = true;
-		
+
 		// Also signal it to all ancestors
 		let parent = this.parent;
 		while (parent && !parent.needsWorldTransformUpdate) {

@@ -4,7 +4,6 @@ import { TimeState } from "../level";
 import { MissionElementStaticShape, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
 
-const ANIMATION_DURATION = 1666.6676998138428;
 const RESET_TIME = 5000;
 
 /** Trap doors open on contact. */
@@ -23,6 +22,10 @@ export class TrapDoor extends Shape {
 		super();
 
 		if (element.timeout) this.timeout = MisParser.parseNumber(element.timeout);
+	}
+
+	get animationDuration() {
+		return this.dts.sequences[0].duration * 1000;
 	}
 
 	tick(time: TimeState, onlyVisual: boolean) {
@@ -45,18 +48,20 @@ export class TrapDoor extends Shape {
 	/** Gets the current completion of the trapdoor openness. 0 = closed, 1 = open. */
 	getCurrentCompletion(time: TimeState) {
 		let elapsed = time.timeSinceLoad - this.lastContactTime;
-		let completion = Util.clamp(elapsed / ANIMATION_DURATION, 0, 1);
-		if (elapsed > RESET_TIME) completion = Util.clamp(1 - (elapsed - RESET_TIME) / ANIMATION_DURATION, 0, 1);
+		let completion = Util.clamp(elapsed / this.animationDuration, 0, 1);
+		if (elapsed > RESET_TIME) completion = Util.clamp(1 - (elapsed - RESET_TIME) / this.animationDuration, 0, 1);
 
 		return completion;
 	}
 
-	onMarbleContact(time: TimeState) {
+	onMarbleContact() {
+		let time = this.level.timeState;
+
 		if (time.timeSinceLoad - this.lastContactTime <= 0) return; // The trapdoor is queued to open, so don't do anything.
 		let currentCompletion = this.getCurrentCompletion(time);
 
 		// Set the last contact time accordingly so that the trapdoor starts closing (again)
-		this.lastContactTime = time.timeSinceLoad - currentCompletion * ANIMATION_DURATION;
+		this.lastContactTime = time.timeSinceLoad - currentCompletion * this.animationDuration;
 		if (currentCompletion === 0) this.lastContactTime += this.timeout;
 
 		this.level.replay.recordMarbleContact(this);

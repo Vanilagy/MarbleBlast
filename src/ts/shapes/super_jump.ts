@@ -1,8 +1,8 @@
 import { PowerUp } from "./power_up";
 import { AudioManager } from "../audio";
-import * as THREE from "three";
-import { Util } from "../util";
 import { state } from "../state";
+import { Vector3 } from "../math/vector3";
+import { BlendingType } from "../rendering/renderer";
 
 /** Gives the marble an upwards boost. */
 export class SuperJump extends PowerUp {
@@ -16,10 +16,10 @@ export class SuperJump extends PowerUp {
 
 	use() {
 		let marble = this.level.marble;
-		marble.body.addLinearVelocity(this.level.currentUp.scale(20)); // Simply add to vertical velocity
+		marble.body.linearVelocity.addScaledVector(this.level.currentUp, 20); // Simply add to vertical velocity
 
 		AudioManager.play(this.sounds[1]);
-		this.level.particles.createEmitter(superJumpParticleOptions, null, () => Util.vecOimoToThree(marble.body.getPosition()));
+		this.level.particles.createEmitter(superJumpParticleOptions, null, () => marble.body.position.clone());
 
 		this.level.deselectPowerUp();
 	}
@@ -27,14 +27,14 @@ export class SuperJump extends PowerUp {
 
 export const superJumpParticleOptions = {
 	ejectionPeriod: 10,
-	ambientVelocity: new THREE.Vector3(0, 0, 0.05),
+	ambientVelocity: new Vector3(0, 0, 0.05),
 	ejectionVelocity: 1 * 0.5,
 	velocityVariance: 0.25 * 0.5,
 	emitterLifetime: 1000,
 	inheritedVelFactor: 0.1,
 	particleOptions: {
 		texture: 'particles/twirl.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 90,
 		spinRandomMin: -90,
 		spinRandomMax: 90,

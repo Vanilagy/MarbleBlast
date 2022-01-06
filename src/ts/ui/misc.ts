@@ -28,7 +28,7 @@ export const resize = async (wait = true) => {
 	document.body.style.height = Math.ceil(window.innerHeight * ratio) + 'px';
 	document.body.style.transform = `scale(${1 / ratio})`;
 	SCALING_RATIO = ratio;
-	
+
 	mainCanvas.style.width = '100%';
 	mainCanvas.style.height = '100%';
 	mainRenderer?.setSize(window.innerWidth, window.innerHeight);

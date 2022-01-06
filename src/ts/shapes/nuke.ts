@@ -1,7 +1,7 @@
-import THREE from "three";
 import { AudioManager } from "../audio";
-import OIMO from "../declarations/oimo";
 import { TimeState } from "../level";
+import { Vector3 } from "../math/vector3";
+import { BlendingType } from "../rendering/renderer";
 import { Shape } from "../shape";
 import { Util } from "../util";
 
@@ -12,13 +12,15 @@ export class Nuke extends Shape {
 	sounds = ['nukeexplode.wav'];
 	shareMaterials = false;
 
-	onMarbleContact(time: TimeState) {
+	onMarbleContact() {
+		let time = this.level.timeState;
+
 		let marble = this.level.marble;
-		let minePos = Util.vecThreeToOimo(this.worldPosition);
+		let nukePos = this.worldPosition;
 
 		// Add velocity to the marble
-		let explosionForce = this.computeExplosionForce(marble.lastPos.sub(minePos));
-		marble.body.addLinearVelocity(explosionForce);
+		let explosionForce = this.computeExplosionForce(marble.body.position.clone().sub(nukePos));
+		marble.body.linearVelocity.add(explosionForce);
 		marble.slidingTimeout = 2;
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
@@ -27,20 +29,20 @@ export class Nuke extends Shape {
 		this.level.particles.createEmitter(nukeParticle, this.worldPosition);
 		this.level.particles.createEmitter(nukeSmokeParticle, this.worldPosition);
 		this.level.particles.createEmitter(nukeSparksParticle, this.worldPosition);
-		// Normally, we would add a light here, but that's too expensive for THREE, apparently.
+		// Normally, we would add a light here, but eh
 
 		this.level.replay.recordMarbleContact(this);
 	}
 
 	/** Computes the force of the explosion based on the vector to the nuke. Ported from decompiled MBG. */
-	computeExplosionForce(distVec: OIMO.Vec3) {
+	computeExplosionForce(distVec: Vector3) {
 		const range = 10;
 		const power = 100;
 
 		let dist = distVec.length();
 		if (dist < range) {
 			let scalar = (1 - dist/range) * power;
-			distVec.scaleEq(scalar);
+			distVec.multiplyScalar(scalar);
 		}
 
 		return distVec;
@@ -48,7 +50,7 @@ export class Nuke extends Shape {
 
 	tick(time: TimeState, onlyVisual: boolean) {
 		if (onlyVisual) return;
-		
+
 		// Enable or disable the collision based on disappear time
 		let visible = time.timeSinceLoad >= this.disappearTime + 15000;
 		this.setCollisionEnabled(visible);
@@ -63,14 +65,14 @@ export class Nuke extends Shape {
 /** The fire particle. */
 const nukeParticle = {
 	ejectionPeriod: 0.2,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 2,
 	velocityVariance: 1,
 	emitterLifetime: 50,
 	inheritedVelFactor: 0.2,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -86,14 +88,14 @@ const nukeParticle = {
 /** The smoke particle. */
 export const nukeSmokeParticle = {
 	ejectionPeriod: 0.5,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 1.3,
 	velocityVariance: 0.5,
 	emitterLifetime: 50,
 	inheritedVelFactor: 0.25,
 	particleOptions: {
 		texture: 'particles/smoke.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Normal,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -109,14 +111,14 @@ export const nukeSmokeParticle = {
 /** The sparks exploding away. */
 export const nukeSparksParticle = {
 	ejectionPeriod: 1.7,
-	ambientVelocity: new THREE.Vector3(0, -0.5, 0),
+	ambientVelocity: new Vector3(0, -0.5, 0),
 	ejectionVelocity: 13 / 1.5,
 	velocityVariance: 5 / 1,
 	emitterLifetime: 5000,
 	inheritedVelFactor: 0.2,
 	particleOptions: {
 		texture: 'particles/spark.png',
-		blending: THREE.AdditiveBlending,
+		blending: BlendingType.Additive,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,

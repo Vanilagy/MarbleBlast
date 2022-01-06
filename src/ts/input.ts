@@ -35,9 +35,9 @@ window.addEventListener('mousedown', (e) => {
 		for (let button in StorageManager.data.settings.gameButtonMapping) {
 			let key = button as keyof typeof StorageManager.data.settings.gameButtonMapping;
 			if (buttonName !== StorageManager.data.settings.gameButtonMapping[key]) continue;
-	
+
 			setPressed(key, buttonName, true);
-			
+
 			if (state.level) {
 				if (key === 'jump' && isPressedOnce(key)) state.level.jumpQueued = true;
 				if (key === 'use' && isPressedOnce(key)) state.level.useQueued = true;
@@ -55,7 +55,7 @@ window.addEventListener('mouseup', (e) => {
 		for (let button in StorageManager.data.settings.gameButtonMapping) {
 			let key = button as keyof typeof StorageManager.data.settings.gameButtonMapping;
 			if (buttonName !== StorageManager.data.settings.gameButtonMapping[key]) continue;
-	
+
 			setPressed(key, buttonName, false);
 		}
 	}
@@ -214,7 +214,7 @@ const updateGamepadInput = () => {
 		for (let key in gamepadAxes) gamepadAxes[key as keyof typeof gamepadAxes] = 0.0;
 		return;
 	}
-	
+
 	// Update the most recent gamepad
 	for (let i = 0; i < gamepads.length; i++) {
 		for (let j = 0; j < gamepads[i].buttons.length; j++) {
@@ -232,7 +232,7 @@ const updateGamepadInput = () => {
 		if (buttonName !== '')
 			setPressed(buttonName as keyof typeof StorageManager.data.settings.gameButtonMapping, presser, state);
 	}
-	
+
 	for (let i = 0; i < gamepads[mostRecentGamepad].axes.length && i < 4; i++) {
 		let axisName = gamepadAxisMappings[i];
 		if (axisName !== '') {
@@ -244,12 +244,12 @@ const updateGamepadInput = () => {
 	}
 
 	// Check for input on the level select screen
-	if (state.menu?.levelSelect && !state.menu.levelSelect.div.classList.contains('hidden')) 
+	if (state.menu?.levelSelect && !state.menu.levelSelect.div.classList.contains('hidden'))
 		state.menu.levelSelect.handleControllerInput(gamepads[mostRecentGamepad]);
-		
+
 	if (state.level?.paused)
 		state.menu.pauseScreen.handleGamepadInput(gamepads[mostRecentGamepad]);
-	
+
 	for (let i = 0; i < gamepads[mostRecentGamepad].buttons.length && i < 18; i++) {
 		previousButtonState[i] = (gamepads[mostRecentGamepad].buttons[i].value > 0.5);
 	}
@@ -309,7 +309,7 @@ const getBlastEnabledOpacityAndEnabled = () => {
 let touchendFuncs: ((touch: Touch, force: boolean) => void)[] = [];
 const setupTouchButton = (element: HTMLImageElement, button: keyof typeof gameButtons, onStart?: (touch: Touch) => void, onEnd?: (touch: Touch) => void, getOpacityAndEnabled?: () => { opacity: string, enabled: boolean }) => {
 	let touchId: number = null;
-	
+
 	element.addEventListener('touchstart', (e) => {
 		let touch = e.changedTouches[0];
 		touchId = touch.identifier;
@@ -423,11 +423,11 @@ window.addEventListener('touchend', (e) => {
 			movementJoystick.style.visibility = 'hidden';
 			normalizedJoystickHandlePosition = null;
 		}
-	
+
 		if (touch.identifier === cameraAreaTouchIdentifier) {
 			cameraAreaTouchIdentifier = null;
 		}
-	
+
 		for (let func of touchendFuncs) func(touch, false);
 	}
 

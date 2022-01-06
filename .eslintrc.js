@@ -28,6 +28,7 @@ module.exports = {
 		"@typescript-eslint/no-unused-vars": ['warn', { argsIgnorePattern: '^_' }],
 		"no-async-promise-executor": ["off"],
 		"@typescript-eslint/no-this-alias": ["off"],
-		"no-empty": ["error", { "allowEmptyCatch": true }]
+		"no-empty": ["error", { "allowEmptyCatch": true }],
+		"no-trailing-spaces": ["warn"]
 	}
 };

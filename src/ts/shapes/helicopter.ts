@@ -1,5 +1,4 @@
 import { PowerUp } from "./power_up";
-import { TimeState } from "../level";
 import { state } from "../state";
 
 /** Reduces gravity temporarily. */
@@ -14,8 +13,8 @@ export class Helicopter extends PowerUp {
 		return this.level.pickUpPowerUp(this);
 	}
 
-	use(time: TimeState) {
-		this.level.marble.enableHelicopter(time);
+	use() {
+		this.level.marble.enableHelicopter(this.level.timeState);
 		this.level.deselectPowerUp();
 	}
 }

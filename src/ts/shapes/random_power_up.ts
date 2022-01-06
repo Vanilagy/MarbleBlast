@@ -1,4 +1,3 @@
-import { TimeState } from "../level";
 import { Helicopter } from "./helicopter";
 import { PowerUp } from "./power_up";
 import { ShockAbsorber } from "./shock_absorber";
@@ -12,7 +11,7 @@ interface Type<T> extends Function {
     new (...args: any[]): T;
 }
 
-export const POSSIBLE_POWERUPS = [SuperJump, SuperSpeed, Helicopter, SuperBounce, ShockAbsorber, TimeTravel];
+export const POSSIBLE_POWERUPS: Type<PowerUp>[] = [SuperJump, SuperSpeed, Helicopter, SuperBounce, ShockAbsorber, TimeTravel];
 
 /** A random power-up decides which power-up it acts like once it is picked up. */
 export class RandomPowerUp extends PowerUp {
@@ -55,12 +54,8 @@ export class RandomPowerUp extends PowerUp {
 		}
 	}
 
-	use(time: TimeState) {
-		if (this.lastInstance instanceof TimeTravel) {
-			this.lastInstance.use(time, this.bodies[0]); // Give it our body so it can compute collision time properly
-		} else {
-			this.lastInstance.use(time);
-		}
+	use(t: number) {
+		this.lastInstance.use(t);
 	}
 
 	getAllDtsPaths() {

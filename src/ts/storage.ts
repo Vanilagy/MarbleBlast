@@ -246,7 +246,7 @@ export abstract class StorageManager {
 
 		await this.databasePut('keyvalue', obj, 'storageData');
 	}
-	
+
 	static async storeBestTimes() {
 		let string = JSON.stringify(this.data.bestTimes);
 		let compressed = await executeOnWorker('compress', string) as string; // Compress the best times to make them take up less space and harder to modify from the outside.

@@ -131,6 +131,7 @@
 	padding: 20px;
 	box-sizing: border-box;
 	white-space: pre-line;
+	overflow-wrap: break-word;
 	font-size: 20px;
 	scrollbar-width: thin;
 	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;

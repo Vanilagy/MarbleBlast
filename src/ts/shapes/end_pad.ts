@@ -1,10 +1,13 @@
 import { Shape } from "../shape";
-import * as THREE from "three";
 import { Util, Scheduler } from "../util";
 import { ParticleEmitter } from "../particles";
 import { Level, TimeState } from "../level";
 import { AudioManager } from "../audio";
-import OIMO from "../declarations/oimo";
+import { Matrix4 } from "../math/matrix4";
+import { Vector3 } from "../math/vector3";
+import { Quaternion } from "../math/quaternion";
+import { Euler } from "../math/euler";
+import { BlendingType } from "../rendering/renderer";
 
 /** The finish pad. */
 export class EndPad extends Shape {
@@ -22,23 +25,23 @@ export class EndPad extends Shape {
 		// Create the finish area collision geometry
 		let height = 4.8;
 		let radius = 1.7;
-		let transform = new THREE.Matrix4();
-		transform.compose(new THREE.Vector3(0, 0, height/2 + 0.2), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2, 0, 0)), new THREE.Vector3(1, 1, 1));
+		let transform = new Matrix4();
+		transform.compose(new Vector3(0, 0, height/2 + 0.2), new Quaternion().setFromEuler(new Euler(-Math.PI/2, 0, 0)), new Vector3(1, 1, 1));
 
-		this.addCollider((scale: THREE.Vector3) => {
+		this.addCollider((scale: Vector3) => {
 			// Create the finish area collision geometry
-			// Using this instead of CylinderGeometry because CylinderGeometry is apparently bugged!
 			// Scaling note: The actual height of the cylinder (here: the y scaling) doesn't change, it's always the same.
-			let finishArea = Util.createCylinderConvexHull(radius, height/2, 64, new OIMO.Vec3(scale.x, 1, scale.y)); 
+			let finishArea = Util.createCylinderConvexHull(radius, height/2, 64, new Vector3(scale.x, 1, scale.y));
+			finishArea.margin = 0.005 * 2; // OIMO had a margin of 0.005 on every shape. We somewhat try to correct for that by adding it back here, but twice, once for the shape itself and one for the would-be-marble margin.
 
 			return finishArea;
-		}, () => {
+		}, (t: number) => {
 			// These checks are to make sure touchFinish is only called once per contact with the collider. For it to be called again, the marble must leave the area again.
 			let exit = this.inArea > 0;
 			this.inArea = 2;
 			if (exit) return;
 
-			this.level.touchFinish();
+			this.level.touchFinish(t);
 		}, transform);
 	}
 
@@ -53,7 +56,7 @@ export class EndPad extends Shape {
 	tick(time: TimeState, onlyVisual: boolean) {
 		if (onlyVisual) return;
 		super.tick(time);
-		
+
 		// Tick the firework
 		for (let firework of this.fireworks.slice()) {
 			firework.tick(time.timeSinceLoad);
@@ -67,18 +70,18 @@ export class EndPad extends Shape {
 /** The ambient smoke coming up from the finish pad. */
 export const fireworkSmoke = {
 	ejectionPeriod: 100,
-	ambientVelocity: new THREE.Vector3(0, 0, 1),
+	ambientVelocity: new Vector3(0, 0, 1),
 	ejectionVelocity: 0,
 	velocityVariance: 0,
 	emitterLifetime: 4000,
 	spawnOffset() {
 		let randomPointInCircle = Util.randomPointInUnitCircle();
-		return new THREE.Vector3(randomPointInCircle.x * 1.6, randomPointInCircle.y * 1.6, Math.random() * 0.4 - 0.5);
+		return new Vector3(randomPointInCircle.x * 1.6, randomPointInCircle.y * 1.6, Math.random() * 0.4 - 0.5);
 	},
 	inheritedVelFactor: 0,
 	particleOptions: {
 		texture: 'particles/saturn.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Normal,
 		spinSpeed: 0,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -95,14 +98,14 @@ export const fireworkSmoke = {
 /** The trail of the red rockets. */
 export const redTrail = {
 	ejectionPeriod: 30,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 0,
 	velocityVariance: 0,
 	emitterLifetime: 10000,
 	inheritedVelFactor: 0,
 	particleOptions: {
 		texture: 'particles/spark.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Normal,
 		spinSpeed: 0,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -119,14 +122,14 @@ export const redTrail = {
 /** The trail of the blue rockets. */
 export const blueTrail = {
 	ejectionPeriod: 30,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 0,
 	velocityVariance: 0,
 	emitterLifetime: 10000,
 	inheritedVelFactor: 0,
 	particleOptions: {
 		texture: 'particles/spark.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Normal,
 		spinSpeed: 0,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -143,14 +146,14 @@ export const blueTrail = {
 /** The explosion effect of the red rockets. */
 export const redSpark = {
 	ejectionPeriod: 1,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 0.8,
 	velocityVariance: 0.25,
 	emitterLifetime: 10,
 	inheritedVelFactor: 0,
 	particleOptions: {
 		texture: 'particles/star.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Normal,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -167,14 +170,14 @@ export const redSpark = {
 /** The explosion effect of the blue rockets. */
 export const blueSpark = {
 	ejectionPeriod: 1,
-	ambientVelocity: new THREE.Vector3(0, 0, 0),
+	ambientVelocity: new Vector3(0, 0, 0),
 	ejectionVelocity: 0.5,
 	velocityVariance: 0.25,
 	emitterLifetime: 10,
 	inheritedVelFactor: 0,
 	particleOptions: {
 		texture: 'particles/bubble.png',
-		blending: THREE.NormalBlending,
+		blending: BlendingType.Normal,
 		spinSpeed: 40,
 		spinRandomMin: -90,
 		spinRandomMax: 90,
@@ -191,7 +194,7 @@ export const blueSpark = {
 interface Trail {
 	type: 'red' | 'blue',
 	smokeEmitter: ParticleEmitter,
-	targetPos: THREE.Vector3,
+	targetPos: Vector3,
 	spawnTime: number,
 	lifetime: number
 }
@@ -199,13 +202,13 @@ interface Trail {
 /** Handles the firework animation that plays on the finish pad upon level completion. */
 class Firework extends Scheduler {
 	level: Level;
-	pos: THREE.Vector3;
+	pos: Vector3;
 	spawnTime: number;
 	trails: Trail[] = [];
 	/** The fireworks are spawned in waves, this controls how many are left. */
 	wavesLeft = 4;
 
-	constructor(level: Level, pos: THREE.Vector3, spawnTime: number) {
+	constructor(level: Level, pos: Vector3, spawnTime: number) {
 		super();
 
 		this.level = level;
@@ -226,7 +229,7 @@ class Firework extends Scheduler {
 
 			// Make the trail travel along an arc (parabola, whatever)
 			let pos = this.pos.clone().multiplyScalar(1 - completion).add(trail.targetPos.clone().multiplyScalar(completion));
-			pos.sub(new THREE.Vector3(0, 0, 1).multiplyScalar(completion**2));
+			pos.sub(new Vector3(0, 0, 1).multiplyScalar(completion**2));
 			trail.smokeEmitter.setPos(pos, time);
 
 			if (completion === 1) {
@@ -263,7 +266,7 @@ class Firework extends Scheduler {
 		let distanceFac = 0.5 + lifetime / 5000; // Make sure the firework doesn't travel a great distance way too quickly
 		let emitter = this.level.particles.createEmitter((type === 'red')? redTrail : blueTrail, this.pos);
 		let randomPointInCircle = Util.randomPointInUnitCircle();
-		let targetPos = new THREE.Vector3(randomPointInCircle.x * 3, randomPointInCircle.y * 3, 1 + Math.sqrt(Math.random()) * 3).multiplyScalar(distanceFac).add(this.pos);
+		let targetPos = new Vector3(randomPointInCircle.x * 3, randomPointInCircle.y * 3, 1 + Math.sqrt(Math.random()) * 3).multiplyScalar(distanceFac).add(this.pos);
 
 		let trail: Trail = {
 			type: type,

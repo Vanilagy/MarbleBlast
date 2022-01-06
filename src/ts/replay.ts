@@ -1,5 +1,4 @@
 import { Level, TimeState, PHYSICS_TICK_RATE } from "./level";
-import OIMO from "./declarations/oimo";
 import { PowerUp } from "./shapes/power_up";
 import { Shape } from "./shape";
 import { Trigger } from "./triggers/trigger";
@@ -11,12 +10,14 @@ import { PushButton } from "./shapes/push_button";
 import { Mission } from "./mission";
 import { Interior } from "./interior";
 import { Nuke } from "./shapes/nuke";
+import { Vector3 } from "./math/vector3";
+import { Quaternion } from "./math/quaternion";
 
 /** Stores everything necessary for a correct replay of a playthrough. Instead of relying on replaying player inputs, the replay simply stores all necessary state. */
 export class Replay {
 	level: Level;
 	missionPath: string;
-	version = 4;
+	version = 5;
 	mode: 'record' | 'playback' = 'record';
 	/** If writing to the replay is still permitted. */
 	canStore = true;
@@ -26,13 +27,13 @@ export class Replay {
 	timestamp: number;
 
 	/** The position of the marble at each physics tick. */
-	marblePositions: OIMO.Vec3[] = [];
+	marblePositions: Vector3[] = [];
 	/** The orientation of the marble at each physics tick. */
-	marbleOrientations: OIMO.Quat[] = [];
+	marbleOrientations: Quaternion[] = [];
 	/** The linear velocity of the marble at each physics tick. */
-	marbleLinearVelocities: OIMO.Vec3[] = [];
+	marbleLinearVelocities: Vector3[] = [];
 	/** The angular velocity of the marble at each physics tick. */
-	marbleAngularVelocities: OIMO.Vec3[] = [];
+	marbleAngularVelocities: Vector3[] = [];
 	/** Stores the times the marble was inside a shape/trigger. */
 	marbleInside: {
 		tickIndex: number,
@@ -115,7 +116,10 @@ export class Replay {
 	checkpointRespawns: number[] = [];
 
 	/** The current tick index to write to / read from. */
-	currentTickIndex = 0;
+	get currentTickIndex() {
+		return Math.max(this.level.timeState.tickIndex, 0);
+	}
+
 	currentJumpSoundTime = 0;
 	currentBounceTime = 0;
 
@@ -128,8 +132,6 @@ export class Replay {
 
 	/** Inits the replay's values. */
 	init() {
-		this.currentTickIndex = 0;
-
 		if (this.mode === 'record') {
 			// Reset all values
 
@@ -228,18 +230,23 @@ export class Replay {
 	record() {
 		if (this.mode === 'playback' || !this.canStore) return;
 
-		this.marblePositions.push(this.level.marble.body.getPosition());
-		this.marbleOrientations.push(this.level.marble.body.getOrientation());
-		this.marbleLinearVelocities.push(this.level.marble.body.getLinearVelocity());
-		this.marbleAngularVelocities.push(this.level.marble.body.getAngularVelocity());
+		let marble = this.level.marble;
+
+		this.marblePositions.push(marble.body.position.clone());
+		this.marbleOrientations.push(marble.body.orientation.clone());
+		this.marbleLinearVelocities.push(marble.body.linearVelocity.clone());
+		this.marbleAngularVelocities.push(marble.body.angularVelocity.clone());
 		this.cameraOrientations.push({ yaw: this.level.yaw, pitch: this.level.pitch });
+
+		// Store sound state in the replay too
+		this.rollingSoundGain.push(marble.rollingSound.gain.gain.value);
+		this.rollingSoundPlaybackRate.push((marble.rollingSound.node as AudioBufferSourceNode).playbackRate.value);
+		this.slidingSoundGain.push(marble.slidingSound.gain.gain.value);
 
 		if (this.level.finishTime && this.finishTime === null) this.finishTime = Util.jsonClone(this.level.finishTime);
 
-		this.currentTickIndex++;
-
 		// Check if the replay is excessively long. If it is, stop it to prevent a memory error.
-		if (this.marblePositions.length >= PHYSICS_TICK_RATE * 60 * 30) {
+		if (this.marblePositions.length >= PHYSICS_TICK_RATE * 60 * 60) {
 			this.canStore = false;
 			this.isInvalid = this.level.finishTime === null; // If the playthrough was finished, we don't consider the replay invalid.
 		}
@@ -311,40 +318,41 @@ export class Replay {
 	/** Apply the replay's stored state to the world. */
 	playBack() {
 		let i = this.currentTickIndex;
+		if (i >= this.marblePositions.length) return; // Safety measure
 
 		for (let obj of this.marbleInside) {
 			if (obj.tickIndex !== i) continue;
 
 			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.triggers.find(x => x.id === obj.id);
-			object.onMarbleInside(this.level.timeState);
+			object.onMarbleInside(1);
 		}
 
 		for (let obj of this.marbleEnter) {
 			if (obj.tickIndex !== i) continue;
 
 			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.triggers.find(x => x.id === obj.id);
-			object.onMarbleEnter(this.level.timeState);
+			object.onMarbleEnter(1);
 		}
 
 		for (let obj of this.marbleLeave) {
 			if (obj.tickIndex !== i) continue;
 
 			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.triggers.find(x => x.id === obj.id);
-			object.onMarbleLeave(this.level.timeState);
+			object.onMarbleLeave();
 		}
 
 		for (let obj of this.marbleContact) {
 			if (obj.tickIndex !== i) continue;
 
 			let object = this.level.shapes.find(x => x.id === obj.id) ?? this.level.interiors.find(x => x.id === obj.id);
-			object.onMarbleContact(this.level.timeState, null);
+			object.onMarbleContact(null, 1000 / PHYSICS_TICK_RATE);
 		}
 
 		for (let use of this.uses) {
 			if (use.tickIndex !== i) continue;
 
 			let powerUp = this.level.shapes.find(x => x.id === use.id) as PowerUp;
-			powerUp.use(this.level.timeState);
+			powerUp.use(0);
 		}
 
 		for (let blast of this.blasts) {
@@ -356,29 +364,27 @@ export class Replay {
 		for (let tickIndex of this.touchFinishTickIndices) if (tickIndex === i) this.level.touchFinish();
 		for (let tickIndex of this.checkpointRespawns) if (tickIndex === i) this.level.loadCheckpointState();
 
-		this.level.marble.body.setPosition(this.marblePositions[i]);
-		this.level.marble.body.setOrientation(this.marbleOrientations[i]);
-		this.level.marble.body.setLinearVelocity(this.marbleLinearVelocities[i]);
-		this.level.marble.body.setAngularVelocity(this.marbleAngularVelocities[i]);
+		this.level.marble.body.position.copy(this.marblePositions[i]);
+		this.level.marble.body.orientation.copy(this.marbleOrientations[i]);
+		this.level.marble.body.linearVelocity.copy(this.marbleLinearVelocities[i]);
+		this.level.marble.body.angularVelocity.copy(this.marbleAngularVelocities[i]);
 		this.level.yaw = this.cameraOrientations[i].yaw;
 		this.level.pitch = this.cameraOrientations[i].pitch;
 
-		for (let i = this.currentJumpSoundTime; i < this.jumpSoundTimes.length; i++) {
-			if (this.jumpSoundTimes[i] > this.currentTickIndex) break;
-			if (this.jumpSoundTimes[i] === this.currentTickIndex) this.level.marble.playJumpSound();
+		for (let j = this.currentJumpSoundTime; j < this.jumpSoundTimes.length; j++) {
+			if (this.jumpSoundTimes[j] > i) break;
+			if (this.jumpSoundTimes[j] === i) this.level.marble.playJumpSound();
 		}
-		for (let i = this.currentBounceTime; i < this.bounceTimes.length; i++) {
-			if (this.bounceTimes[i].tickIndex > this.currentTickIndex) break;
-			if (this.bounceTimes[i].tickIndex === this.currentTickIndex) {
-				this.level.marble.playBounceSound(this.bounceTimes[i].volume);
-				if (this.bounceTimes[i].showParticles) this.level.marble.showBounceParticles();
+		for (let j = this.currentBounceTime; j < this.bounceTimes.length; j++) {
+			if (this.bounceTimes[j].tickIndex > i) break;
+			if (this.bounceTimes[j].tickIndex === i) {
+				this.level.marble.playBounceSound(this.bounceTimes[j].volume);
+				if (this.bounceTimes[j].showParticles) this.level.marble.showBounceParticles();
 			}
 		}
 		this.level.marble.rollingSound.gain.gain.value = this.rollingSoundGain[i];
 		this.level.marble.rollingSound.setPlaybackRate(this.rollingSoundPlaybackRate[i]);
 		this.level.marble.slidingSound.gain.gain.value = this.slidingSoundGain[i];
-
-		this.currentTickIndex = Math.min(this.marblePositions.length - 1, this.currentTickIndex + 1); // Make sure to stop at the last tick
 	}
 
 	isPlaybackComplete() {
@@ -437,7 +443,7 @@ export class Replay {
 		let string = pako.inflate(new Uint8Array(buf), { to: 'string' });
 		let serialized = JSON.parse(string) as SerializedReplay;
 		let version = serialized.version ?? 0;
-		
+
 		replay.version = version;
 		replay.missionPath = (version >= 1)? serialized.missionPath : null;
 		replay.timestamp = (version >= 1)? serialized.timestamp : 0;
@@ -452,7 +458,7 @@ export class Replay {
 		replay.marbleContact = serialized.marbleContact;
 		replay.uses = serialized.uses;
 		replay.blasts = serialized.blasts ?? [];
-		
+
 		let cameraOrientations: {
 			yaw: number,
 			pitch: number
@@ -485,7 +491,7 @@ export class Replay {
 		return replay;
 	}
 
-	static vec3sToBuffer(arr: OIMO.Vec3[]) {
+	static vec3sToBuffer(arr: Vector3[]) {
 		let buffer = new Float32Array(arr.length * 3);
 		for (let i = 0; i < arr.length; i++) {
 			buffer[i * 3 + 0] = arr[i].x;
@@ -496,7 +502,7 @@ export class Replay {
 		return buffer;
 	}
 
-	static quatsToBuffer(arr: OIMO.Quat[]) {
+	static quatsToBuffer(arr: Quaternion[]) {
 		let buffer = new Float32Array(arr.length * 4);
 		for (let i = 0; i < arr.length; i++) {
 			buffer[i * 4 + 0] = arr[i].x;
@@ -509,31 +515,31 @@ export class Replay {
 	}
 
 	static bufferToVec3s(buf: Float32Array) {
-		let vecs: OIMO.Vec3[] = [];
+		let vecs: Vector3[] = [];
 
 		for (let i = 0; i < buf.length / 3; i++) {
-			let vec = new OIMO.Vec3(buf[i * 3 + 0], buf[i * 3 + 1], buf[i * 3 + 2]);
+			let vec = new Vector3(buf[i * 3 + 0], buf[i * 3 + 1], buf[i * 3 + 2]);
 			vecs.push(vec);
 		}
-		
+
 		return vecs;
 	}
 
 	static bufferToQuats(buf: Float32Array) {
-		let quats: OIMO.Quat[] = [];
+		let quats: Quaternion[] = [];
 
 		for (let i = 0; i < buf.length / 4; i++) {
-			let quat = new OIMO.Quat(buf[i * 4 + 0], buf[i * 4 + 1], buf[i * 4 + 2], buf[i * 4 + 3]);
+			let quat = new Quaternion(buf[i * 4 + 0], buf[i * 4 + 1], buf[i * 4 + 2], buf[i * 4 + 3]);
 			quats.push(quat);
 		}
-		
+
 		return quats;
 	}
 
 	/** Downloads a replay as a .wrec file. */
 	static async download(replayData: ArrayBuffer, mission: Mission, normalize = true, unfinished = false) {
 		if (normalize) replayData = await this.maybeUpdateReplay(replayData, mission.path); // Normalize the replay first
-	
+
 		// Create the blob and download it
 		let blob = new Blob([replayData], {
 			type: 'application/octet-stream'
@@ -550,7 +556,7 @@ export class Replay {
 	/** Makes sure a replay fits some requirements. */
 	static async maybeUpdateReplay(replayData: ArrayBuffer, missionPath: string) {
 		let uncompressed = pako.inflate(new Uint8Array(replayData), { to: 'string' });
-		
+
 		// This is a bit unfortunate, but we'd like to bundle the mission path with the replay, but the first replay version didn't include it. So we need to check if the replay actually includes the mission path, which we can check by checking if it includes the "version" field. We then upgrade the replay to verion 1.
 		if (!uncompressed.includes('"version"')) {
 			let json = JSON.parse(uncompressed) as SerializedReplay;
@@ -558,11 +564,11 @@ export class Replay {
 			json.missionPath = missionPath;
 			json.timestamp = 0;
 			json.version = 1;
-	
+
 			let compressed = await executeOnWorker('compress', JSON.stringify(json)) as ArrayBuffer;
 			replayData = compressed;
 		}
-	
+
 		return replayData;
 	}
 }

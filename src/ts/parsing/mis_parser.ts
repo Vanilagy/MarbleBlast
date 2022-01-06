@@ -1,4 +1,6 @@
-import THREE from "three";
+import { Quaternion } from "../math/quaternion";
+import { Vector3 } from "../math/vector3";
+import { Vector4 } from "../math/vector4";
 import { ResourceManager } from "../resources";
 import { Util } from "../util";
 
@@ -647,7 +649,7 @@ export class MisParser {
 	}
 
 	static cachedFiles = new Map<string, MisFile>();
-	
+
 	/** Loads and parses a .mis file. Returns a cached version if already loaded. */
 	static async loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
@@ -655,7 +657,7 @@ export class MisParser {
 		let blob = await ResourceManager.loadResource(path);
 		let text = await ResourceManager.readBlobAsText(blob);
 		let parser = new MisParser(text);
-		
+
 		let result = parser.parse();
 		this.cachedFiles.set(path, result);
 
@@ -664,34 +666,34 @@ export class MisParser {
 
 	/** Parses a 3-component vector from a string of three numbers. */
 	static parseVector3(string: string) {
-		if (!string) return new THREE.Vector3();
+		if (!string) return new Vector3();
 		let parts = string.split(' ').map((part) => Number(part));
-		if (parts.length < 3) return new THREE.Vector3();
-		if (parts.find(x => !isFinite(x)) !== undefined) return new THREE.Vector3();
+		if (parts.length < 3) return new Vector3();
+		if (parts.find(x => !isFinite(x)) !== undefined) return new Vector3();
 
-		return new THREE.Vector3(parts[0], parts[1], parts[2]);
+		return new Vector3(parts[0], parts[1], parts[2]);
 	}
 
 	/** Parses a 4-component vector from a string of four numbers. */
 	static parseVector4(string: string) {
-		if (!string) return new THREE.Vector4();
+		if (!string) return new Vector4();
 		let parts = string.split(' ').map((part) => Number(part));
-		if (parts.length < 4) return new THREE.Vector4();
-		if (parts.find(x => !isFinite(x)) !== undefined) return new THREE.Vector4();
+		if (parts.length < 4) return new Vector4();
+		if (parts.find(x => !isFinite(x)) !== undefined) return new Vector4();
 
-		return new THREE.Vector4(parts[0], parts[1], parts[2], parts[3]);
+		return new Vector4(parts[0], parts[1], parts[2], parts[3]);
 	}
 
 	/** Returns a quaternion based on a rotation specified from 4 numbers. */
 	static parseRotation(string: string) {
-		if (!string) return new THREE.Quaternion();
+		if (!string) return new Quaternion();
 		let parts = string.split(' ').map((part) => Number(part));
-		if (parts.length < 4) return new THREE.Quaternion();
-		if (parts.find(x => !isFinite(x)) !== undefined) return new THREE.Quaternion();
+		if (parts.length < 4) return new Quaternion();
+		if (parts.find(x => !isFinite(x)) !== undefined) return new Quaternion();
 
-		let quaternion = new THREE.Quaternion();
+		let quaternion = new Quaternion();
 		// The first 3 values represent the axis to rotate on, the last represents the negative angle in degrees.
-		quaternion.setFromAxisAngle(new THREE.Vector3(parts[0], parts[1], parts[2]), -Util.degToRad(parts[3]));
+		quaternion.setFromAxisAngle(new Vector3(parts[0], parts[1], parts[2]), -Util.degToRad(parts[3]));
 
 		return quaternion;
 	}
@@ -705,7 +707,7 @@ export class MisParser {
 		return val;
 	}
 
-	
+
 	/** Parses a list of space-separated numbers. */
 	static parseNumberList(string: string) {
 		let parts = string.split(' ');

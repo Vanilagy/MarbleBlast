@@ -121,7 +121,7 @@ export abstract class Hud {
 
 		let joystickSize = StorageManager.data.settings.joystickSize;
 		let joystickHandleSize = JOYSTICK_HANDLE_SIZE_FACTOR * joystickSize;
-		
+
 		movementJoystick.style.width = joystickSize + 'px';
 		movementJoystick.style.height = joystickSize + 'px';
 		movementJoystick.style.borderRadius = joystickHandleSize / 2 + 'px';
@@ -154,7 +154,7 @@ export abstract class Hud {
 		let currentX = 0;
 
 		this.clockCtx.clearRect(0, 0, this.clockCanvas.width, this.clockCanvas.height);
-		
+
 		// Draw every symbol
 		for (let i = 0; i < string.length; i++) {
 			let char = string[i];
@@ -173,7 +173,7 @@ export abstract class Hud {
 	setPowerupButtonState(enabled: boolean, forceUpdate = false) {
 		if (Util.isTouchDevice) {
 			setUseEnabled(enabled);
-			if (enabled || forceUpdate) 
+			if (enabled || forceUpdate)
 				useButton.style.opacity = '0.5';
 			if (!enabled && forceUpdate)
 				useButton.style.opacity = '0.2';
@@ -258,7 +258,7 @@ export abstract class Hud {
 	setCenterText(type: 'none' | 'ready' | 'set' | 'go' | 'outofbounds') {
 		if (type === 'none') this.centerElement.style.display = 'none';
 		else this.centerElement.style.display = '';
-		
+
 		if (type === 'ready') this.centerElement.src = this.menu.uiAssetPath + 'game/ready.png';
 		if (type === 'set') this.centerElement.src = this.menu.uiAssetPath + 'game/set.png';
 		if (type === 'go') this.centerElement.src = this.menu.uiAssetPath + 'game/go.png';

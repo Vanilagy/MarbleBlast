@@ -133,7 +133,7 @@ export abstract class Leaderboard {
 			let localScore = StorageManager.data.bestTimes[missionPath]?.[0];
 
 			if (!onlineScore || !localScore) continue;
-			
+
 			while (localScore && localScore[1] < Number(onlineScore[1]) && localScore[3] === 0) {
 				// Splice all timestamp 0 times that are faster than the current WR on the leaderboard. We do this because the score is outdated.
 				StorageManager.data.bestTimes[missionPath].splice(0, 1);

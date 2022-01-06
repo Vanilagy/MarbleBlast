@@ -1,5 +1,20 @@
 # Version History
 
+## 2.4.0
+After having rewritten the rendering pipeline, next up were the physics, which still heavily relied on a third-party library. This update completely rewrites the physics engine from scratch, ditching the third-party dependency and thereby gaining more performance and fine-grained control - a necessary step for future updates.
+
+- **Completely rewrote the physics pipeline.** In order not to completely invalidate tons of past scores, they should generally feel similar to before.
+- **Greatly increased physics stability and consistency.** The new physics system uses very fine-grained continuous collision detection and other techniques to try and remove all of the jankiness of previous versions. Internal edge hits are basically impossible now, meaning all interiors (especially curved surfaces such as pipes or loops) act the way they should.
+- **Improved performance.** The old physics system used to stutter in complex levels under certain conditions. The new system should perform well under all conditions, even on mobile.
+- **Improved simulation logic.** In previous versions, the way level events and user input were handled was slightly wrong and sometimes delayed. All that's been fixed now.
+
+That's for the main physics update. Some other stuff:
+
+- Fixed flickering textures at the start of levels
+- Fixed incorrect bumper animation
+- Fixed some styling issues in the menu
+- Fixed other stuff I don't remember anymore
+
 ## 2.3.4
 - Fixed certain invisible materials not being invisible
 

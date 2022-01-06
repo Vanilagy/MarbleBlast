@@ -120,7 +120,7 @@ export class Mission {
 
 		const traverse = (simGroup: MissionElementSimGroup) => {
 			for (let element of simGroup.elements) {
-				this.allElements.push(element);		
+				this.allElements.push(element);
 				if (element._type === MissionElementType.SimGroup) traverse(element);
 			}
 		};
@@ -198,7 +198,7 @@ export class Mission {
 		if (this.missionInfo.game?.toLowerCase() === 'ultra' || MisParser.parseBoolean(this.missionInfo.useultramarble))
 			this.hasUltraMarble = true;
 	}
- 
+
 	getDirectoryMissionPath() {
 		if (this.modification === 'gold') return 'missions/' + this.path;
 		if (this.modification === 'ultra') return 'missions_mbu/' + this.path.slice(4);
@@ -328,9 +328,13 @@ export class Mission {
 		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
 			let blob = await this.getBlobForFile(base + path);
 			let url = ResourceManager.getUrlToBlob(blob);
-			return await ResourceManager.getTexture(url, '');
+			let texture = await ResourceManager.getTexture(url, '');
+
+			return texture;
 		} else {
-			return await ResourceManager.getTexture(path, 'assets/' + base);
+			let texture = await ResourceManager.getTexture(path, 'assets/' + base);
+
+			return texture;
 		}
 	}
 

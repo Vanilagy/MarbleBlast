@@ -1,7 +1,5 @@
 import './input';
-import OIMO from "./declarations/oimo";
 import { ResourceManager } from "./resources";
-import * as THREE from "three";
 import { AudioManager } from "./audio";
 import { StorageManager } from './storage';
 import { Util } from './util';
@@ -10,10 +8,6 @@ import { MissionLibrary } from './mission_library';
 import { state } from './state';
 import { setMenu } from './ui/menu_setter';
 import { initMainRenderer } from './ui/misc';
-
-OIMO.Setting.defaultGJKMargin = 0.005; // Without this, the marble is very visibly floating above stuff.
-OIMO.Setting.defaultContactPositionCorrectionAlgorithm = OIMO.PositionCorrectionAlgorithm.NGS; // Slower, but there's really only one collision object anyway so
-THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
 
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
 const loadingDetail = document.querySelector('#loading-detail') as HTMLDivElement;
@@ -64,7 +58,7 @@ const init = async () => {
 		AudioManager.context.resume();
 		state.menu.show();
 	};
-	
+
 	loadingMessage.style.display = 'none';
 	loadingDetail.style.display = 'none';
 	if (AudioManager.context.state === "running" && !Util.isSafari()) {
@@ -74,7 +68,7 @@ const init = async () => {
 	}
 
 	// Otherwise, we need user interaction to start audio.
-	
+
 	if (Util.isInFullscreen() || Util.isTouchDevice) {
 		// No need to tell them to enter fullscreen if they're already in it
 		startGameDialog.children[0].textContent = 'Click anywhere to start';
@@ -83,7 +77,7 @@ const init = async () => {
 		startGameDialog.children[0].textContent = `Press ${Util.isMac()? '^⌘F' : 'F11'} to start in fullscreen mode`;
 	}
 	startGameDialog.style.display = 'block';
-	
+
 	window.addEventListener('mousedown', () => {
 		if (started) return;
 		start();

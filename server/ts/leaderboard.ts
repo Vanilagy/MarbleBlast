@@ -63,16 +63,16 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 		score[0] = score[0].slice(0, 16); // Fuck you
 		let row: ScoreRow = shared.getScoreByUserStatement.get(missionPath, score[0], data.randomId); // See if a score by this player already exists on this mission
 		let inserted = false;
-		
+
 		if (row) {
 			if (row.time > score[1]) {
 				// If the new score is faster, override the old one, otherwise do nothing
 				shared.updateScoreStatement.run(score[1], score[0], data.randomId, timestamp, row.rowid);
 				inserted = true;
-			}	
+			}
 		} else {
 			// Add the new score to the leaderboard
-			shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp);	
+			shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp);
 			inserted = true;
 		}
 
@@ -86,7 +86,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 				let replayBuffer = Buffer.from(data.replays[missionPath], 'base64');
 				promises.push(fs.writeFile(path.join(__dirname, 'storage', 'wrecs', missionPath.replace(/\//g, '_') + '.wrec'), replayBuffer));
 			}
-			
+
 			if (shared.config.discordWebhookUrl) {
 				// Broadcast a world record message to the webhook URL
 				let allowed = true;
@@ -112,7 +112,7 @@ const broadcastToWebhook = (missionPath: string, score: [string, number]) => {
 	let modification = missionPath.startsWith('mbp')? 'platinum': missionPath.startsWith('mbu')? 'ultra' : 'gold';
 	if (modification !== 'gold') missionPath = missionPath.slice(4);
 	let category = uppercaseFirstLetter(missionPath.slice(0, missionPath.indexOf('/')));
-	
+
 	let message = `${escapeDiscord(score[0])} has just achieved a world record on "${missionName}" (Web ${uppercaseFirstLetter(modification)} ${category}) of ${timeString}`;
 
 	fetch(shared.config.discordWebhookUrl, {
@@ -147,7 +147,7 @@ const sendNewScores = (res: http.ServerResponse, timestamp: number) => {
 
 		for (let row of newScores) {
 			if (includedMissions.has(row.mission)) continue;
-	
+
 			// Send over the entire leaderboard for a mission if one score in it changed
 			let rows: ScoreRow[] = shared.getScoresForMissionStatement.all(row.mission);
 			result[row.mission] = rows.map(x => [x.username.slice(0, 16), x.time]);

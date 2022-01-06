@@ -1,7 +1,6 @@
 import { MissionElementTrigger, MisParser } from "../parsing/mis_parser";
 import { Trigger } from "./trigger";
 import { PathedInterior } from "../pathed_interior";
-import { TimeState } from "../level";
 
 /** A must-change trigger controls the path of a pathed interior. */
 export class MustChangeTrigger extends Trigger {
@@ -12,7 +11,9 @@ export class MustChangeTrigger extends Trigger {
 		this.interior = interior;
 	}
 
-	onMarbleEnter(time: TimeState) {
+	onMarbleEnter() {
+		let time = this.level.timeState;
+
 		this.interior.setTargetTime(time, MisParser.parseNumber(this.element.targettime));
 
 		if (this.element.instant === "1") {

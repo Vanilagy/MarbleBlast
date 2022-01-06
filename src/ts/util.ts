@@ -1,6 +1,10 @@
-import OIMO from "./declarations/oimo";
-import * as THREE from "three";
-import { ResourceManager } from "./resources";
+import { ConvexHullCollisionShape } from "./physics/collision_shape";
+import { Vector2 } from "./math/vector2";
+import { Vector3 } from "./math/vector3";
+import { Matrix4 } from "./math/matrix4";
+import { Quaternion } from "./math/quaternion";
+import { Box3 } from "./math/box3";
+import { PerspectiveCamera } from "./rendering/camera";
 
 export interface RGBAColor {
 	r: number,
@@ -86,17 +90,9 @@ export abstract class Util {
 	static lerp(a: number, b: number, t: number) {
 		return (1 - t) * a + t * b;
 	}
-	
+
 	static avg(a: number, b: number) {
 		return (a + b) / 2;
-	}
-
-	static vecOimoToThree(oimoVec: OIMO.Vec3) {
-		return new THREE.Vector3(oimoVec.x, oimoVec.y, oimoVec.z);
-	}
-	
-	static vecThreeToOimo(threeVec: THREE.Vector3) {
-		return new OIMO.Vec3(threeVec.x, threeVec.y, threeVec.z);
 	}
 
 	static isSameVector(v1: {x: number, y: number, z: number}, v2: {x: number, y: number, z: number}) {
@@ -104,16 +100,16 @@ export abstract class Util {
 	}
 
 	/** Add a vector to another vector while making sure not to exceed a certain magnitude. */
-	static addToVectorCapped(target: OIMO.Vec3, add: OIMO.Vec3, magnitudeCap: number) {
+	static addToVectorCapped(target: Vector3, add: Vector3, magnitudeCap: number) {
 		let direction = add.clone().normalize();
 		let dot = Math.max(0, target.dot(direction));
 
 		if (dot + add.length() > magnitudeCap) {
 			let newLength = Math.max(0, magnitudeCap - dot);
-			add = add.normalize().scale(newLength);
+			add.normalize().multiplyScalar(newLength);
 		}
 
-		return target.add(add);
+		target.add(add);
 	}
 
 	static leftPadZeroes(str: string, amount: number) {
@@ -181,8 +177,8 @@ export abstract class Util {
 	static randomPointInUnitCircle() {
 		let r = Math.sqrt(Math.random());
 		let theta = Math.random() * Math.PI * 2;
-		
-		return new THREE.Vector2(r * Math.cos(theta), r * Math.sin(theta));
+
+		return new Vector2(r * Math.cos(theta), r * Math.sin(theta));
 	}
 
 	/** Removes an item from an array, or does nothing if it isn't contained in it. */
@@ -192,7 +188,7 @@ export abstract class Util {
 	}
 
 	/** Used to transform normal vectors. Shamelessly copied from Torque's source code. */
-	static m_matF_x_vectorF(matrix: THREE.Matrix4, v: THREE.Vector3) {
+	static m_matF_x_vectorF(matrix: Matrix4, v: Vector3) {
 		let m = matrix.transpose().elements;
 
 		let v0 = v.x, v1 = v.y, v2 = v.z;
@@ -201,7 +197,7 @@ export abstract class Util {
 		let m8 = m[8], m9 = m[9], m10 = m[10];
 
 		matrix.transpose();
-		
+
 		let vresult_0 = m0*v0 + m1*v1 + m2*v2;
 		let vresult_1 = m4*v0 + m5*v1 + m6*v2;
 		let vresult_2 = m8*v0 + m9*v1 + m10*v2;
@@ -210,8 +206,8 @@ export abstract class Util {
 	}
 
 	/** Creates a cylinder-shaped convex hull geometry, aligned with the y-axis. */
-	static createCylinderConvexHull(radius: number, halfHeight: number, radialSegments = 32, scale = new OIMO.Vec3(1, 1, 1)) {
-		let vertices: OIMO.Vec3[] = [];
+	static createCylinderConvexHull(radius: number, halfHeight: number, radialSegments = 32, scale = new Vector3(1, 1, 1)) {
+		let vertices: Vector3[] = [];
 
 		for (let i = 0; i < 2; i++) {
 			for (let j = 0; j < radialSegments; j++) {
@@ -219,19 +215,11 @@ export abstract class Util {
 				let x = Math.cos(angle);
 				let z = Math.sin(angle);
 
-				vertices.push(new OIMO.Vec3(x * radius * scale.x, (i? halfHeight : -halfHeight) * scale.y, z * radius * scale.z));
+				vertices.push(new Vector3(x * radius * scale.x, (i? halfHeight : -halfHeight) * scale.y, z * radius * scale.z));
 			}
 		}
 
-		return new OIMO.ConvexHullGeometry(vertices);
-	}
-
-	static lerpOimoVectors(v1: OIMO.Vec3, v2: OIMO.Vec3, t: number) {
-		return new OIMO.Vec3(Util.lerp(v1.x, v2.x, t), Util.lerp(v1.y, v2.y, t), Util.lerp(v1.z, v2.z, t));
-	}
-
-	static lerpThreeVectors(v1: THREE.Vector3, v2: THREE.Vector3, t: number) {
-		return new THREE.Vector3(Util.lerp(v1.x, v2.x, t), Util.lerp(v1.y, v2.y, t), Util.lerp(v1.z, v2.z, t));
+		return new ConvexHullCollisionShape(vertices);
 	}
 
 	static uppercaseFirstLetter(str: string) {
@@ -267,14 +255,14 @@ export abstract class Util {
 	}
 
 	/** Makes the camera look at a point directly, meaning with the shortest rotation change possible and while ignoring the camera's up vector. */
-	static cameraLookAtDirect(camera: THREE.PerspectiveCamera, target: THREE.Vector3) {
-		let lookVector = new THREE.Vector3(0, 0, -1);
-		lookVector.applyQuaternion(camera.quaternion);
+	static cameraLookAtDirect(camera: PerspectiveCamera, target: Vector3) {
+		let lookVector = new Vector3(0, 0, -1);
+		lookVector.applyQuaternion(camera.orientation);
 
-		let quat = new THREE.Quaternion();
+		let quat = new Quaternion();
 		quat.setFromUnitVectors(lookVector, target.clone().sub(camera.position).normalize());
 
-		camera.quaternion.copy(quat.multiply(camera.quaternion));
+		camera.orientation.copy(quat.multiply(camera.orientation));
 	}
 
 	static arrayBufferToString(buf: ArrayBuffer) {
@@ -300,19 +288,6 @@ export abstract class Util {
 
 	static stringIsOnlyWhitespace(str: string) {
 		return str.trim().length === 0;
-	}
-
-	/** Creates an axis-aligned bounding box around a point cloud. */
-	static createAabbFromVectors(vecs: THREE.Vector3[]) {
-		let min = new THREE.Vector3(Infinity, Infinity, Infinity);
-		let max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
-
-		for (let vec of vecs) {
-			min.set(Math.min(min.x, vec.x), Math.min(min.y, vec.y), Math.min(min.z, vec.z));
-			max.set(Math.max(max.x, vec.x), Math.max(max.y, vec.y), Math.max(max.z, vec.z));
-		}
-
-		return { min, max };
 	}
 
 	/** Unescapes escaped (\) characters. */
@@ -462,15 +437,15 @@ export abstract class Util {
 		let element = document.createElement('a');
 		element.setAttribute('href', url);
 		element.setAttribute('download', filename);
-		
+
 		element.style.display = 'none';
 		document.body.appendChild(element);
-		
+
 		element.click();
-		
+
 		document.body.removeChild(element);
 	}
-	
+
 	/** Removes all characters from a string that aren't letters or digits. */
 	static removeSpecialChars(str: string) {
 		let regex = /[^\w\d]/gi;
@@ -530,14 +505,18 @@ export abstract class Util {
 		let minutes = Math.floor(abs / 60);
 		let string = Util.leftPadZeroes(minutes.toString(), 2) + ':' + Util.leftPadZeroes(Math.floor(abs % 60).toString(), 2) + '.' + Util.leftPadZeroes(Math.floor(abs * 10**decimalDigits % 10**decimalDigits).toString(), decimalDigits);
 		if (seconds < 0) string = '-' + string;
-		
+
 		return string;
 	}
 
 	static async arrayBufferToBase64(buf: ArrayBuffer) {
 		let blob = new Blob([buf]);
-		let dataUrl = await ResourceManager.readBlobAsDataUrl(blob);
-		return dataUrl.slice(dataUrl.indexOf(',') + 1); // Remove the stupid preable
+		let dataUrl = await new Promise<string>((resolve) => {
+			let reader = new FileReader();
+			reader.onload = (e) => resolve(e.target.result as string);
+			reader.readAsDataURL(blob);
+		});
+		return dataUrl.slice(dataUrl.indexOf(',') + 1); // Remove the stupid preamble
 	}
 
 	static randomNumberQueue: number[] = [];
@@ -592,20 +571,11 @@ export abstract class Util {
 	static signedSquare(x: number) {
 		return x * Math.abs(x);
 	}
-	
+
 	static htmlEscapeElem = document.createElement('p');
 	static htmlEscape(raw: string) {
 		this.htmlEscapeElem.textContent = raw;
 		return this.htmlEscapeElem.innerHTML;
-	}
-
-	/** Standard Normal variate using Box-Muller transform. */
-	// https://stackoverflow.com/questions/25582882/javascript-math-random-normal-distribution-gaussian-bell-curve
-	static randomGaussian() {
-		let u = 0, v = 0;
-		while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
-		while (v === 0) v = Math.random();
-		return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
 	}
 
 	/** Gets a unique id. */
@@ -621,7 +591,7 @@ export abstract class Util {
 	}
 
 	/** Checks if a ray intersects an AABB. Uses the algorithm described at https://tavianator.com/2011/ray_box.html. */
-	static rayIntersectsBox(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, box: THREE.Box3, intersectionPoint?: THREE.Vector3) {
+	static rayIntersectsBox(rayOrigin: Vector3, rayDirection: Vector3, box: Box3, intersectionPoint?: Vector3) {
 		let tx1 = (box.min.x - rayOrigin.x) / rayDirection.x;
 		let tx2 = (box.max.x - rayOrigin.x) / rayDirection.x;
 
@@ -651,11 +621,6 @@ export abstract class Util {
 	static macRomanToUtf8(char: number) {
 		if (char < 128) return String.fromCharCode(char);
 		else return this.macRomanToUtf8Map[char - 128];
-	}
-
-	static supportsInstancing(renderer: THREE.WebGLRenderer) {
-		// Macs weird man
-		return !Util.isMac() && !(renderer.capabilities.isWebGL2 === false && renderer.extensions.has( 'ANGLE_instanced_arrays' ) === false);
 	}
 
 	/** Manually ensures all numbers in the element's text have the same width so they align nicely. */
@@ -688,7 +653,7 @@ export abstract class Util {
 	static isWeeb = Math.random() < 0.001; // Mazik <3
 
 	/** Turns each component's value into its absolute value. */
-	static absVector(vec: THREE.Vector3) {
+	static absVector(vec: Vector3) {
 		vec.x = Math.abs(vec.x);
 		vec.y = Math.abs(vec.y);
 		vec.z = Math.abs(vec.z);
@@ -750,6 +715,23 @@ export abstract class Util {
 
 	static assert(bool: boolean) {
 		if (!bool) throw new Error("Assertion failed: " + bool);
+	}
+
+	static getBoxVertices(box: Box3) {
+		let dx = new Vector3(box.max.x - box.min.x, 0, 0);
+		let dy = new Vector3(0, box.max.y - box.min.y, 0);
+		let dz = new Vector3(0, 0, box.max.z - box.min.z);
+
+		return [
+			box.min.clone(),
+			box.min.clone().add(dx),
+			box.min.clone().add(dy),
+			box.min.clone().add(dz),
+			box.min.clone().add(dx).add(dy),
+			box.min.clone().add(dx).add(dz),
+			box.min.clone().add(dy).add(dz),
+			box.max.clone()
+		];
 	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing

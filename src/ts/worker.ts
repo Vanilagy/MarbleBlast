@@ -27,7 +27,7 @@ function workerBody() {
 }
 
 // Create the worker by converting the function into a blob resource
-let entire = workerBody.toString(); 
+let entire = workerBody.toString();
 let body = entire.slice(entire.indexOf("{") + 1, entire.lastIndexOf("}"));
 let blob = new Blob([body]);
 let worker = new Worker(URL.createObjectURL(blob));

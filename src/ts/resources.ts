@@ -1,6 +1,6 @@
-import * as THREE from "three";
 import { Texture } from "./rendering/texture";
 import { state } from "./state";
+import { mainRenderer } from "./ui/misc";
 
 const imageCacheElement = document.querySelector('#image-cache');
 
@@ -17,7 +17,6 @@ const MBP_REDIRECT_RULES = {
 export abstract class ResourceManager {
 	static textureCache = new Map<string, Texture>();
 	static loadTexturePromises = new Map<string, Promise<Texture>>();
-	static textureLoader = new THREE.TextureLoader();
 	/** The structure in the assets/data directory. Used mainly to look up file extensions. */
 	static dataDirectoryStructure: DirectoryStructure = {};
 	static dataMbpDirectoryStructure: DirectoryStructure = {};
@@ -52,6 +51,7 @@ export abstract class ResourceManager {
 		let promise = new Promise<Texture>(async (resolve) => {
 			let image = await this.loadImage(fullPath);
 			let texture = new Texture(image);
+			texture.getGLTexture(mainRenderer); // Any texture is immediately uploaded to the main renderer context as a preloading measure. This avoids flickering later.
 
 			this.textureCache.set(fullPath, texture);
 			resolve(texture);
@@ -90,7 +90,7 @@ export abstract class ResourceManager {
 			} else {
 				current = current[part];
 				if (!current) return [];
-			}	
+			}
 		}
 	}
 
@@ -146,7 +146,7 @@ export abstract class ResourceManager {
 		let promise = new Promise<HTMLImageElement>((resolve) => {
 			let image = new Image();
 			image.src = path;
-			
+
 			image.onload = () => {
 				imageCacheElement.appendChild(image);
 				this.loadedImages.set(path, image);

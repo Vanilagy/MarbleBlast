@@ -109,7 +109,7 @@ export class MbpFinishScreen extends FinishScreen {
 		this.time.textContent = Util.secondsToTimeString(level.finishTime.gameplayClock / 1000);
 		this.qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? Util.secondsToTimeString(level.mission.qualifyTime / 1000) : Util.secondsToTimeString(5999.999);
 		Util.monospaceNumbers(this.qualifyTimeElement);
-		
+
 		let goldTime = level.mission.goldTime;
 		this.goldTimeElement.parentElement.style.display = 'none';
 		this.platinumTimeElement.parentElement.style.display = 'none';

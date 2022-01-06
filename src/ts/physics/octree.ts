@@ -1,19 +1,22 @@
-import * as THREE from "three";
-import { Util } from "./util";
+import { Box3 } from "../math/box3";
+import { Vector3 } from "../math/vector3";
 
 const DEFAULT_ROOT_NODE_SIZE = 1;
 const MIN_DEPTH = -32;
 const MAX_DEPTH = 8;
 
+let v1 = new Vector3();
+let v2 = new Vector3();
+let b1 = new Box3();
+
 /** Specifies an object that an octree can index. */
 export interface OctreeObject {
-	boundingBox: THREE.Box3,
-	isIntersectedByRay(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, intersectionPoint?: THREE.Vector3): boolean
+	boundingBox: Box3
 }
 
 export interface OctreeIntersection {
 	object: OctreeObject,
-	point: THREE.Vector3,
+	point: Vector3,
 	distance: number
 }
 
@@ -22,7 +25,6 @@ export class Octree {
 	root: OctreeNode;
 	/** A map of each object in the octree to the node that it's in. This accelerates removal drastically, as the lookup step can be skipped. */
 	objectToNode: WeakMap<OctreeObject, OctreeNode>;
-	tempBox = new THREE.Box3();
 	beforeOperation: () => void = null;
 
 	constructor() {
@@ -41,7 +43,8 @@ export class Octree {
 		while (!this.root.largerThan(object) || !this.root.containsCenter(object)) {
 			// The root node does not fit the object; we need to grow the tree.
 			if (this.root.depth === MIN_DEPTH) {
-				console.warn("Can't insert large object into octree; the octree has already expanded to its maximum size.");
+				console.log(object);
+				console.warn(`Can't insert ${this.root.largerThan(object)? 'distant' : 'large'} object into octree; the octree has already expanded to its maximum size.`);
 				return;
 			}
 			this.grow(object);
@@ -63,17 +66,26 @@ export class Octree {
 
 	/** Updates an object in the tree whose bounding box has changed. */
 	update(object: OctreeObject) {
-		this.remove(object);
-		this.insert(object);
+		let node = this.objectToNode.get(object);
+		if (!node) {
+			this.insert(object);
+			return;
+		}
+
+		let success = node.update(object);
+		if (!success) {
+			this.objectToNode.delete(object);
+			this.insert(object);
+		}
 	}
 
 	/** Expand the octree towards an object that doesn't fit in it. */
 	grow(towards: OctreeObject) {
 		// We wanna grow towards all the vertices of the object's bounding box that lie outside the octree, so we determine the average position of those vertices:
-		let averagePoint = new THREE.Vector3();
+		let averagePoint = v1.set(0, 0, 0);
 		let count = 0;
 		for (let i = 0; i < 8; i++) {
-			let vec = new THREE.Vector3();
+			let vec = v2;
 			vec.setComponent(0, (i & 0b001)? towards.boundingBox.min.x : towards.boundingBox.max.x);
 			vec.setComponent(1, (i & 0b010)? towards.boundingBox.min.y : towards.boundingBox.max.y);
 			vec.setComponent(2, (i & 0b100)? towards.boundingBox.min.z : towards.boundingBox.max.z);
@@ -86,7 +98,7 @@ export class Octree {
 		averagePoint.multiplyScalar(1 / count); // count should be greater than 0, because that's why we're growing in the first place.
 
 		// Determine the direction from the root center to the determined point
-		let rootCenter = this.root.min.clone().add(new THREE.Vector3().setScalar(this.root.size / 2));
+		let rootCenter = v2.copy(this.root.min).addScalar(this.root.size / 2);
 		let direction = averagePoint.sub(rootCenter); // Determine the "direction of growth"
 
 		// Create a new root. The current root will become a quadrant in this new root.
@@ -143,31 +155,11 @@ export class Octree {
 		this.shrink();
 	}
 
-	/** Returns a list of all objects that intersect with the given ray, sorted by distance. */
-	raycast(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3) {
-		this.beforeOperation?.();
-
-		let intersections: OctreeIntersection[] = [];
-		this.root.raycast(rayOrigin, rayDirection, intersections);
-		intersections.sort((a, b) => a.distance - b.distance);
-
-		return intersections;
-	}
-
-	intersectAabb(aabb: THREE.Box3) {
+	intersectAabb(aabb: Box3) {
 		this.beforeOperation?.();
 
 		let intersections: OctreeObject[] = [];
 		this.root.intersectAabb(aabb, intersections);
-
-		return intersections;
-	}
-
-	intersectSphere(sphere: THREE.Sphere) {
-		this.beforeOperation?.();
-
-		let intersections: OctreeObject[] = [];
-		this.root.intersectSphere(sphere, intersections);
 
 		return intersections;
 	}
@@ -177,7 +169,7 @@ class OctreeNode {
 	octree: Octree;
 	parent: OctreeNode = null;
 	/** The min corner of the bounding box. */
-	min = new THREE.Vector3();
+	min = new Vector3();
 	/** The size of the bounding box on all three axes. This forces the bounding box to be a cube. */
 	size: number;
 	octants: OctreeNode[] = null;
@@ -186,7 +178,7 @@ class OctreeNode {
 	/** The total number of objects in the subtree with this node as its root. */
 	count = 0;
 	depth: number;
-	
+
 	constructor(octree: Octree, depth: number) {
 		this.octree = octree;
 		this.depth = depth;
@@ -273,6 +265,26 @@ class OctreeNode {
 		}
 	}
 
+	// Basically first performs a remove, then walks up the tree to find the closest ancestor that can fit the object, then inserts it.
+	update(object: OctreeObject) {
+		this.objects.delete(object);
+
+		let node: OctreeNode = this;
+		while (node) {
+			node.count--;
+			node.merge();
+
+			if (node.largerThan(object) && node.containsCenter(object)) {
+				node.insert(object);
+				return true;
+			}
+
+			node = node.parent;
+		}
+
+		return false; // Nothing worked, we need to properly grow the tree
+	}
+
 	merge() {
 		if (this.count > 8 || !this.octants) return;
 
@@ -305,44 +317,15 @@ class OctreeNode {
 			this.min.z <= z && z < (this.min.z + this.size);
 	}
 
-	containsPoint(point: THREE.Vector3) {
+	containsPoint(point: Vector3) {
 		let { x, y, z } = point;
 		return this.min.x <= x && x < (this.min.x + this.size) &&
 			this.min.y <= y && y < (this.min.y + this.size) &&
 			this.min.z <= z && z < (this.min.z + this.size);
 	}
 
-	raycast(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, intersections: OctreeIntersection[]) {
-		// Construct the loose bounding box of this node (2x in size, with the regular bounding box in the center)
-		let looseBoundingBox = this.octree.tempBox;
-		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
-		looseBoundingBox.max.copy(this.min).addScalar(this.size * 3/2);
-
-		if (!Util.rayIntersectsBox(rayOrigin, rayDirection, looseBoundingBox)) return; // The ray doesn't hit the node's loose bounding box; we can stop
-
-		let vec = new THREE.Vector3();
-		// Test all objects for intersection
-		if (this.objects.size > 0) for (let object of this.objects) {
-			if (object.isIntersectedByRay(rayOrigin, rayDirection, vec)) {
-				let intersection: OctreeIntersection = {
-					object: object,
-					point: vec,
-					distance: rayOrigin.distanceTo(vec)
-				};
-				intersections.push(intersection);
-				vec = new THREE.Vector3();
-			}
-		}
-		
-		// Recurse into the octants
-		if (this.octants) for (let i = 0; i < 8; i++) {
-			let octant = this.octants[i];
-			octant.raycast(rayOrigin, rayDirection, intersections);
-		}
-	}
-
-	intersectAabb(aabb: THREE.Box3, intersections: OctreeObject[]) {
-		let looseBoundingBox = this.octree.tempBox;
+	intersectAabb(aabb: Box3, intersections: OctreeObject[]) {
+		let looseBoundingBox = b1;
 		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
 		looseBoundingBox.max.copy(this.min).addScalar(this.size * 3/2);
 
@@ -352,30 +335,13 @@ class OctreeNode {
 		if (this.objects.size > 0) for (let object of this.objects) {
 			if (aabb.intersectsBox(object.boundingBox)) intersections.push(object);
 		}
-		
+
 		// Recurse into the octants
 		if (this.octants) for (let i = 0; i < 8; i++) {
 			let octant = this.octants[i];
+			if (octant.count === 0) continue;
+
 			octant.intersectAabb(aabb, intersections);
-		}
-	}
-
-	intersectSphere(sphere: THREE.Sphere, intersections: OctreeObject[]) {
-		let looseBoundingBox = this.octree.tempBox;
-		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
-		looseBoundingBox.max.copy(this.min).addScalar(this.size * 3/2);
-
-		if (!sphere.intersectsBox(looseBoundingBox)) return;
-
-		// Test all objects for intersection
-		if (this.objects.size > 0) for (let object of this.objects) {
-			if (sphere.intersectsBox(object.boundingBox)) intersections.push(object);
-		}
-		
-		// Recurse into the octants
-		if (this.octants) for (let i = 0; i < 8; i++) {
-			let octant = this.octants[i];
-			octant.intersectSphere(sphere, intersections);
 		}
 	}
 }

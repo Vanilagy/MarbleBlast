@@ -1,5 +1,5 @@
-import THREE from "three";
 import { CubeTexture } from "./cube_texture";
+import { BlendingType } from "./renderer";
 import { Texture } from "./texture";
 
 /** A material defines the visual appearance of a mesh and controls the vertex/fragment shaders that are needed to render it. */
@@ -16,7 +16,7 @@ export class Material {
 	/** When false, the depth buffer will not be written to. */
 	depthWrite = true;
 	opacity = 1;
-	blending = THREE.NormalBlending;
+	blending: BlendingType = BlendingType.Normal;
 	/** When set to true, normals will be normalized in the shader before they are used. */
 	normalizeNormals = false;
 	/** Flips the V texture coordinate. */
@@ -100,7 +100,7 @@ export class Material {
 		if (this.useAccurateReflectionRay) defines.push('USE_ACCURATE_REFLECTION_RAY');
 		if (this.specularIntensity) defines.push('USE_SPECULAR');
 		if (this.saturateIncomingLight) defines.push('SATURATE_INCOMING_LIGHT');
-		if (this.blending === THREE.NormalBlending) defines.push('USE_PREMULTIPLIED_ALPHA');
+		if (this.blending === BlendingType.Normal) defines.push('USE_PREMULTIPLIED_ALPHA');
 
 		return this.defineChunkCache = defines.map(x => `#define ${x}\n`).join('');
 	}

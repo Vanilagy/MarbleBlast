@@ -194,7 +194,7 @@ export class DifParser extends BinaryFileParser {
 			let interior = this.parseInterior();
 			detailLevels.push(interior);
 		}
-		
+
 		let numSubObjects = this.readU32();
 		let subObjects: InteriorDetailLevel[] = [];
 		for (let i = 0; i < numSubObjects; i++) {
@@ -389,7 +389,7 @@ export class DifParser extends BinaryFileParser {
 		for (let i = 0; i < numAlarmLMapIndices; i++) {
 			alarmLMapIndices.push(this.readU8());
 		}
-		
+
 		let numNullSurfaces = this.readU32();
 		let nullSurfaces = [];
 		for (let i = 0; i < numNullSurfaces; i++) {
@@ -563,7 +563,7 @@ export class DifParser extends BinaryFileParser {
 		// All the following values were 0 in the Marble Blast interiors and are therefore not used.
 
 		let numStaticMeshes = this.readU32();
-		
+
 		numNormals = this.readU32();
 		let numTexMatrices = this.readU32();
 		let numTexMatIndices = this.readU32();
@@ -631,7 +631,7 @@ export class DifParser extends BinaryFileParser {
 			alarmAmbientColor
 		};
 	}
-	
+
 	readLightMapTexGen(): LightMapTexGen {
 		let finalWord = this.readU16(),
 			texGenXDistance = this.readF32(),
@@ -665,7 +665,7 @@ export class DifParser extends BinaryFileParser {
 	}
 
 	static cachedFiles = new Map<string, Promise<DifFile>>();
-	
+
 	/** Loads and parses a .dif file. Returns a cached version if already loaded. */
 	static loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
@@ -679,7 +679,7 @@ export class DifParser extends BinaryFileParser {
 
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let parser = new DifParser(arrayBuffer);
-	
+
 			let result = parser.parse();
 			resolve(result);
 		});

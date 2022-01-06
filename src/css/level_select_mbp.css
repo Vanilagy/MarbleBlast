@@ -218,6 +218,7 @@
 	margin: 0;
 	font-size: 22px;
 	white-space: pre-line;
+	overflow-wrap: break-word;
 	color: white;
 	text-shadow: 1px 1px 0px black;
 	text-align: center;
@@ -228,6 +229,7 @@
 	margin: 0;
 	font-size: 17px;
 	white-space: pre-line;
+	overflow-wrap: break-word;
 	color: white;
 	text-shadow: 1px 1px 0px black;
 	text-align: center;
@@ -240,6 +242,7 @@
 	margin: 0;
 	font-size: 17px;
 	white-space: pre-line;
+	overflow-wrap: break-word;
 	color: white;
 	text-shadow: 1px 1px 0px black;
 	opacity: 0.8;

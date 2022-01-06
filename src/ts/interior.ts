@@ -1,14 +1,18 @@
 import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
-import * as THREE from "three";
-import OIMO from "./declarations/oimo";
 import { TimeState, Level, PHYSICS_TICK_RATE } from "./level";
 import { Util } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
-import { Octree, OctreeObject } from "./octree";
 import { StorageManager } from "./storage";
 import { Geometry } from "./rendering/geometry";
 import { Mesh } from "./rendering/mesh";
 import { Material } from "./rendering/material";
+import { RigidBody, RigidBodyType } from "./physics/rigid_body";
+import { ConvexHullCollisionShape } from "./physics/collision_shape";
+import { Collision } from "./physics/collision";
+import { Vector3 } from "./math/vector3";
+import { Matrix4 } from "./math/matrix4";
+import { Plane } from "./math/plane";
+import { Quaternion } from "./math/quaternion";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -148,21 +152,24 @@ const customMaterialFactories: Record<string, (interior: Interior) => Promise<Ma
 
 /** Stores a list of all vertices with similar face normal. */
 interface VertexBucket {
-	referenceNormal: THREE.Vector3,
+	referenceNormal: Vector3,
 	/** The index at which to write the normal vector. */
 	normalIndices: number[],
 	/** The face normal per vertex. */
-	normals: THREE.Vector3[]
-}
-
-interface ConvexHullOctreeObject extends OctreeObject {
-	hullIndex: number
+	normals: Vector3[]
 }
 
 interface InitCacheType {
 	geometry: Geometry,
 	materials: Material[],
 	fancyShaders: boolean
+}
+
+interface CollisionMaterialProperties {
+	friction: number,
+	restitution: number,
+	force: number,
+	isRandom: boolean
 }
 
 /** Represents a Torque 3D Interior, used for the main surfaces and geometry of levels. */
@@ -174,23 +181,15 @@ export class Interior {
 	difPath: string;
 	mesh: Mesh;
 	/** The collision body of the interior. */
-	body: OIMO.RigidBody;
+	body: RigidBody;
 	/** The relevant detail level to read from (non-default for pathed interiors) */
 	detailLevel: DifFile["detailLevels"][number];
-	worldMatrix = new THREE.Matrix4();
-	scale: THREE.Vector3;
-	materials: THREE.Material[];
-	//materialGeometry: MaterialGeometry = [];
+	worldMatrix = new Matrix4();
+	scale: Vector3;
 	/** Simply contains the file names of the materials without the path to them. */
 	materialNames: string[] = [];
-	forceShapes = new WeakMap<OIMO.Shape, number>();
-	randomForces = new WeakSet<OIMO.Shape>();
 	/** Whether or not frictions and bouncy floors work on this interior. */
 	allowSpecialMaterials = true;
-	/** An octree containing all Torque convex hulls of this interior. Used to build OIMO collision geometry quickly and on-demand. */
-	convexHullOctree = new Octree();
-	addedHulls = new Set<number>();
-	canMove = false;
 	specialMaterials: Set<string>;
 
 	/** Avoids recomputation of the same interior. */
@@ -203,9 +202,12 @@ export class Interior {
 		this.detailLevel = (subObjectIndex === undefined)? file.detailLevels[0] : file.subObjects[subObjectIndex];
 		this.materialNames = this.detailLevel.materialList.materials.map(x => x.split('/').pop().toLowerCase());
 
-		let rigidBodyConfig =  new OIMO.RigidBodyConfig();
-		rigidBodyConfig.type = (subObjectIndex === undefined)? OIMO.RigidBodyType.STATIC : OIMO.RigidBodyType.KINEMATIC;
-		this.body = new OIMO.RigidBody(rigidBodyConfig);
+		this.body = new RigidBody();
+		this.body.type = RigidBodyType.Static;
+
+		this.body.onAfterCollisionResponse = (t: number, dt: number) => {
+			for (let collision of this.body.collisions) this.onMarbleContact(collision, dt);
+		};
 
 		// Combine the default special materials with the special ones specified in the .mis file
 		this.specialMaterials = new Set([...specialMaterials, ...Object.keys(this.level.mission.misFile.materialMappings)]);
@@ -249,34 +251,34 @@ export class Interior {
 					mat.opacity = 0;
 					continue;
 				}
-				
+
 				let fullPath = this.difPath.includes('data/')?
 					this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length)
 					: this.difPath.slice(this.difPath.indexOf('data_mbp/') + 'data_mbp/'.length);
 
 				const lookForTexture = async () => {
 					let currentPath = fullPath;
-	
+
 					while (true) {
 						// Search for the texture file inside-out, first looking in the closest directory and then searching in parent directories until it is found.
-		
+
 						currentPath = currentPath.slice(0, Math.max(0, currentPath.lastIndexOf('/')));
 						if (!currentPath) break; // Nothing found
-		
+
 						let fullNames = this.level.mission.getFullNamesOf(currentPath + '/' + fileName);
 						if (fullNames.length > 0) {
 							let name = fullNames.find(x => !x.endsWith('.dif'));
 							if (!name) break;
-		
+
 							// We found the texture file; create the texture.
 							let texture = await this.level.mission.getTexture(currentPath + '/' + name);
 							mat.diffuseMap = texture;
-		
+
 							break;
 						}
 					}
 				};
-	
+
 				await lookForTexture(); // First look for the texture regularly
 				if (!mat.diffuseMap && fullPath.includes('interiors/')) {
 					// If we didn't find the texture, try looking for it in the MBP folder.
@@ -290,17 +292,17 @@ export class Interior {
 
 			// Add every surface
 			for (let surface of this.detailLevel.surfaces) this.addSurface(geometry, surface, vertexBuckets);
-	
+
 			// In order to achieve smooth shading, compute vertex normals by average face normals of faces with similar angles
 			for (let [, buckets] of vertexBuckets) {
 				for (let i = 0; i < buckets.length; i++) {
 					let bucket = buckets[i];
-					let avgNormal = new THREE.Vector3();
-	
+					let avgNormal = new Vector3();
+
 					// Average all vertex normals of this bucket
 					for (let j = 0; j < bucket.normals.length; j++) avgNormal.add(bucket.normals[j]);
 					avgNormal.multiplyScalar(1 / bucket.normals.length);
-	
+
 					// Write the normal vector into the buffers
 					for (let j = 0; j < bucket.normalIndices.length; j++) {
 						let arr = geometry.normals;
@@ -332,8 +334,8 @@ export class Interior {
 		let detailLevel = this.detailLevel;
 		let texGenEqs = detailLevel.texGenEqs[surface.texGenIndex];
 		// These are needed for UVs
-		let texPlaneX = new THREE.Plane(new THREE.Vector3(texGenEqs.planeX.x, texGenEqs.planeX.y, texGenEqs.planeX.z), texGenEqs.planeX.d);
-		let texPlaneY = new THREE.Plane(new THREE.Vector3(texGenEqs.planeY.x, texGenEqs.planeY.y, texGenEqs.planeY.z), texGenEqs.planeY.d);
+		let texPlaneX = new Plane(new Vector3(texGenEqs.planeX.x, texGenEqs.planeX.y, texGenEqs.planeX.z), texGenEqs.planeX.d);
+		let texPlaneY = new Plane(new Vector3(texGenEqs.planeY.x, texGenEqs.planeY.y, texGenEqs.planeY.z), texGenEqs.planeY.d);
 		let planeData = detailLevel.planes[surface.planeIndex & ~0x8000]; // Mask it here because the bit at 0x8000 specifies whether or not to invert the plane's normal.
 		let planeNormal = detailLevel.normals[planeData.normalIndex];
 		//let geometryData = this.materialGeometry[surface.textureIndex];
@@ -352,15 +354,15 @@ export class Interior {
 				i3 = temp;
 			}
 
-			let faceNormal = new THREE.Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
+			let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
 			if (surface.planeIndex & 0x8000) faceNormal.multiplyScalar(-1); // Invert the plane if so specified
 
 			for (let index of [i1, i2, i3]) {
 				let position = this.detailLevel.points[index];
 
 				// Figure out UV coordinates by getting the distances of the corresponding vertices to the plane.
-				let u = texPlaneX.distanceToPoint(new THREE.Vector3(position.x, position.y, position.z));
-				let v = texPlaneY.distanceToPoint(new THREE.Vector3(position.x, position.y, position.z));
+				let u = texPlaneX.distanceToPoint(new Vector3(position.x, position.y, position.z));
+				let v = texPlaneY.distanceToPoint(new Vector3(position.x, position.y, position.z));
 				if (this.level.mission.modification === 'ultra' && material === 'plate_1') u /= 2, v/= 2; // This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
 
 				geometry.positions.push(position.x, position.y, position.z);
@@ -403,161 +405,117 @@ export class Interior {
 		}
 	}
 
-	/** Adds a convex hull collision shape. */
-	addShape(vertices: OIMO.Vec3[], material: string) {
-		let geometry = new OIMO.ConvexHullGeometry(vertices);
-		let shapeConfig = new OIMO.ShapeConfig();
-		shapeConfig.geometry = geometry;
-		shapeConfig.restitution = INTERIOR_DEFAULT_RESTITUTION;
-		shapeConfig.friction = INTERIOR_DEFAULT_FRICTION;
-		let force: number;
-
-		if (this.allowSpecialMaterials) {
-			// Check for a custom material property override in the mission file
-			let specialMatProperties = this.level.mission.misFile.materialProperties[this.level.mission.misFile.materialMappings[material]];
-			
-			let restitution = specialMatProperties?.['restitution'] ?? specialResistutionFactor[material] ?? 1;
-			let friction = specialMatProperties?.['friction'] ?? specialFrictionFactor[material] ?? 1;
-			force = specialMatProperties?.['force'] ?? specialForces[material];
-
-			if (force !== undefined) restitution = 1; // Because we don't want anything to act weird
-
-			shapeConfig.restitution *= restitution;
-			shapeConfig.friction *= friction;
-		}
-
-		let shape = new OIMO.Shape(shapeConfig);
-		shape.userData = this.id;
-		if (this.allowSpecialMaterials && material?.startsWith('mbp_chevron_friction')) this.randomForces.add(shape);
-		if (force !== undefined) this.forceShapes.set(shape, force);
-
-		this.body.addShape(shape);
-	}
-
-	addConvexHull(hullIndex: number, scale: THREE.Vector3) {
+	addConvexHull(hullIndex: number, scale: Vector3) {
 		let hull = this.detailLevel.convexHulls[hullIndex];
-		let materials = new Set();
-		let firstMaterial: string;
+		let materials = new Set<string>();
 
 		// Add all materials
 		for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
 			let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
 			if (!surface) continue;
-			
+
 			let material = this.materialNames[surface.textureIndex];
 			if (!material) continue;
 
+			if (!this.specialMaterials.has(material)) material = ''; // Not a special material, we can group them as one
 			materials.add(material);
-			firstMaterial = material;
 		}
 
-		// In case there is more than one material and one of them is special, generate geometry directly from the surfaces instead of from the convex hull.
-		if (materials.size > 1 && Util.setsHaveOverlap(materials, this.specialMaterials)) {
+		if (materials.size === 0) return;
+
+		let vertices: Vector3[] = [];
+
+		// Get the vertices
+		for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
+			let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
+			vertices.push(new Vector3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
+		}
+
+		let shape = new ConvexHullCollisionShape(vertices);
+
+		if (materials.size === 1) {
+			let material = materials.values().next().value;
+			let properties = this.getCollisionMaterialProperties(material);
+
+			shape.friction = properties.friction;
+			shape.restitution = properties.restitution;
+			shape.userData = properties;
+		} else {
 			for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
 				let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
 				if (!surface) continue;
 
 				let material = this.materialNames[surface.textureIndex];
 				if (!material) continue;
-				let vertices: OIMO.Vec3[] = [];
 
-				for (let k = surface.windingStart; k < surface.windingStart + surface.windingCount; k++) {
-					let point = this.detailLevel.points[this.detailLevel.windings[k]];
-					vertices.push(new OIMO.Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
-				}
+				let planeData = this.detailLevel.planes[surface.planeIndex & ~0x8000];
+				let planeNormal = this.detailLevel.normals[planeData.normalIndex];
+				let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
+				if (surface.planeIndex & 0x8000) faceNormal.multiplyScalar(-1);
 
-				this.addShape(vertices, material);
+				let properties = this.getCollisionMaterialProperties(material);
+				shape.materialOverrides.set(faceNormal, properties);
 			}
-		} else {
-			// Otherwise, just add one shape for the entire convex hull.
-			let vertices: OIMO.Vec3[] = [];
-
-			// Get the vertices
-			for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
-				let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
-				vertices.push(new OIMO.Vec3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
-			}
-
-			if (firstMaterial) this.addShape(vertices, firstMaterial);
 		}
+
+		this.body.addCollisionShape(shape);
 	}
 
-	setTransform(position: THREE.Vector3, orientation: THREE.Quaternion, scale: THREE.Vector3) {
+	getCollisionMaterialProperties(material: string): CollisionMaterialProperties {
+		let friction = INTERIOR_DEFAULT_RESTITUTION;
+		let restitution = INTERIOR_DEFAULT_RESTITUTION;
+		let force: number;
+		let isRandom = false;
+
+		if (this.allowSpecialMaterials) {
+			// Check for a custom material property override in the mission file
+			let specialMatProperties = this.level.mission.misFile.materialProperties[this.level.mission.misFile.materialMappings[material]];
+
+			let frictionFac = specialMatProperties?.['friction'] ?? specialFrictionFactor[material] ?? 1;
+			let restitutionFac = specialMatProperties?.['restitution'] ?? specialResistutionFactor[material] ?? 1;
+			force = specialMatProperties?.['force'] ?? specialForces[material];
+
+			if (force !== undefined) restitutionFac = 1; // Because we don't want anything to act weird
+
+			restitution *= restitutionFac;
+			friction *= frictionFac;
+		}
+
+		if (this.allowSpecialMaterials && material?.startsWith('mbp_chevron_friction')) isRandom = true;
+
+		return { friction, restitution, force, isRandom };
+	}
+
+	setTransform(position: Vector3, orientation: Quaternion, scale: Vector3) {
 		this.worldMatrix.compose(position, orientation, scale);
 		this.scale = scale;
 		this.mesh.transform.copy(this.worldMatrix);
-		
-		this.initConvexHullOctree();
 
-		this.body.setPosition(new OIMO.Vec3(position.x, position.y, position.z));
-		this.body.setOrientation(new OIMO.Quat(orientation.x, orientation.y, orientation.z, orientation.w));
+		this.body.position.copy(position);
+		this.body.orientation.copy(orientation);
+
+		for (let i = 0; i < this.detailLevel.convexHulls.length; i++)
+			this.addConvexHull(i, this.scale);
 	}
 
-	/** Initiates the octree with all convex hull collision geometries for fast querying later. */
-	initConvexHullOctree() {
-		for (let i = 0; i < this.detailLevel.convexHulls.length; i++) {
-			let hull = this.detailLevel.convexHulls[i];
-			let vertices: THREE.Vector3[] = [];
- 
-			// Get the vertices
-			for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
-				let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
-				vertices.push(new THREE.Vector3(point.x, point.y, point.z).applyMatrix4(this.worldMatrix));
-			}
-
-			let aabb = new THREE.Box3();
-			aabb.setFromPoints(vertices);
-
-			let object: ConvexHullOctreeObject = { boundingBox: aabb, isIntersectedByRay: null, hullIndex: i };
-			this.convexHullOctree.insert(object);
-		}
-	}
-
-	/** Adds collision geometry for nearby convex hulls. */
-	buildCollisionGeometry() {
-		if (this.canMove) return; // We already added everything
-
+	onMarbleContact(collision: Collision, dt: number) {
+		let contactShape = collision.s2;
 		let marble = this.level.marble;
+		let materialProperties = (contactShape.userData || contactShape.materialOverrides.get(collision.s2MaterialOverride)) as CollisionMaterialProperties;
 
-		// Create a sphere that includes all geometry possibly reachable by the marble
-		let sphere = new THREE.Sphere();
-		sphere.center.copy(Util.vecOimoToThree(marble.body.getPosition()));
-		sphere.radius = 5 + marble.body.getLinearVelocity().length() / PHYSICS_TICK_RATE * 2; // Should be plenty (constant summand because of camera)
-
-		let intersects = this.convexHullOctree.intersectSphere(sphere) as ConvexHullOctreeObject[];
-		for (let intersect of intersects) {
-			if (this.addedHulls.has(intersect.hullIndex)) continue; // We already added this convex hull, skip it
-			this.addConvexHull(intersect.hullIndex, this.scale);
-			this.addedHulls.add(intersect.hullIndex);
-		}
-	}
-
-	onMarbleContact(time: TimeState, contact?: OIMO.Contact): boolean {
-		let contactShape = contact.getShape1();
-		if (contactShape === this.level.marble.shape) contactShape = contact.getShape2();
-
-		let marble = this.level.marble;
-		// Get the contact normal
-		let contactNormal = contact.getManifold().getNormal();
-		if (contact.getShape1().userData === this.id) contactNormal.scaleEq(-1);
-
-		if (this.forceShapes.has(contactShape)) {
+		if (materialProperties.force !== undefined) {
 			// Set the velocity along the contact normal, but make sure it's capped
-			marble.setLinearVelocityInDirection(contactNormal, this.forceShapes.get(contactShape), false);
+			marble.setLinearVelocityInDirection(collision.normal, materialProperties.force, false);
 			marble.slidingTimeout = 2; // Make sure we don't slide on the interior after bouncing off it
+		} else if (materialProperties.isRandom) {
+			let fac = dt / (1 / PHYSICS_TICK_RATE);
+			let angVel = marble.body.angularVelocity.clone();
+			let movementVec = angVel.cross(collision.normal);
 
-			return false;
-		} else if (this.randomForces.has(contactShape)) {
-			let angVel = marble.body.getAngularVelocity();
-			let movementVec = angVel.cross(contactNormal);
 			// Move the marble in the opposite direction
-			marble.body.addLinearVelocity(movementVec.scaleEq(-0.0015));
-			marble.body.setAngularVelocity(angVel.scaleEq(1.07 * marble.speedFac));
-
-			return true; // Prevent immunity so we can trigger this code every tick and not every second tick or whatever
+			marble.body.linearVelocity.addScaledVector(movementVec, -0.0015 * fac);
+			marble.body.angularVelocity.multiplyScalar(1 + (0.07 * marble.speedFac * fac));
 		}
-
-		return true;
 	}
 
 	/* eslint-disable @typescript-eslint/no-unused-vars */

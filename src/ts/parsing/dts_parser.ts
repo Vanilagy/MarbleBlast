@@ -129,7 +129,7 @@ export interface DtsFile {
 	groundRotations: Quat16[],
 	names: string[],
 	alphaIn: number[],
-	alphaOut: number[], 
+	alphaOut: number[],
 	/** A list of sequences, used for animation of transforms and/or materials. */
 	sequences: {
 		nameIndex: number,
@@ -187,7 +187,7 @@ class Alloc {
 		this.index32 += 4;
 		return val;
 	}
-	
+
 	readS32() {
 		let val = this.view.getInt32(this.index32, true);
 		this.index32 += 4;
@@ -214,7 +214,7 @@ class Alloc {
 			z: this.readF32()
 		};
 	}
-	
+
 	readBoxF(): Box3F {
 		return {
 			min: this.readPoint3F(),
@@ -227,7 +227,7 @@ class Alloc {
 		this.index16 += 2;
 		return val;
 	}
-	
+
 	readS16() {
 		let val = this.view.getInt16(this.index16, true);
 		this.index16 += 2;
@@ -239,7 +239,7 @@ class Alloc {
 		this.index8 += 1;
 		return val;
 	}
- 
+
 	readQuat16(): Quat16 {
 		return {
 			x: this.readS16(),
@@ -418,9 +418,9 @@ export class DtsParser extends BinaryFileParser {
 			start16 = this.readU32();
 			start8 = this.readU32();
 			start32 = this.index;
-	
+
 			this.index += sizeMemBuffer * 4;
-	
+
 			let numSequences = this.readS32();
 			sequences = [];
 			for (let i = 0; i < numSequences; i++) {
@@ -626,13 +626,13 @@ export class DtsParser extends BinaryFileParser {
 
 		for (let i = 0; i < numMeshes; i++) {
 			let type = alloc.readU32();
-			
+
 			if (type === MeshType.Null) {
 				// Null meshes are simply skipped
 				meshes.push(null);
 				continue;
 			}
-			
+
 			alloc.guard();
 
 			let numFrames = alloc.readS32();
@@ -775,7 +775,7 @@ export class DtsParser extends BinaryFileParser {
 			alphaOut
 		};
 	}
-	
+
 	parseSequence() {
 		/// A Sequence holds all the information necessary to perform a particular animation (sequence).
 		///
@@ -1109,7 +1109,7 @@ export class DtsParser extends BinaryFileParser {
 	}
 
 	static cachedFiles = new Map<string, Promise<DtsFile>>();
-	
+
 	/** Loads and parses a .dts file. Returns a cached version if already loaded. */
 	static loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
@@ -1120,10 +1120,10 @@ export class DtsParser extends BinaryFileParser {
 				reject("Missing resource: " + path);
 				return;
 			}
-			
+
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let parser = new DtsParser(arrayBuffer);
-	
+
 			let result = parser.parse();
 			resolve(result);
 		});
