@@ -1,6 +1,9 @@
 import { Matrix4 } from "./matrix4";
 import { Quaternion } from "./quaternion";
 
+// Adapted from https://github.com/mrdoob/three.js/tree/dev/src/math
+
+/** Class representing a 4D vector. */
 export class Vector4 {
 	x: number;
 	y: number;
@@ -30,6 +33,7 @@ export class Vector4 {
 		this.w = value;
 	}
 
+	/** Sets the x, y, z and w components of this vector. */
 	set(x: number, y: number, z: number, w: number) {
 		this.x = x;
 		this.y = y;
@@ -39,6 +43,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Sets the x, y, z and w values of this vector both equal to scalar. */
 	setScalar(scalar: number) {
 		this.x = scalar;
 		this.y = scalar;
@@ -48,30 +53,35 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Replaces this vector's x value with x. */
 	setX(x: number) {
 		this.x = x;
 
 		return this;
 	}
 
+	/** Replaces this vector's y value with y. */
 	setY(y: number) {
 		this.y = y;
 
 		return this;
 	}
 
+	/** Replaces this vector's z value with z. */
 	setZ(z: number) {
 		this.z = z;
 
 		return this;
 	}
 
+	/** Replaces this vector's w value with w. */
 	setW(w: number) {
 		this.w = w;
 
 		return this;
 	}
 
+	/** If index equals 0 set x to value. If index equals 1 set y to value. If index equals 2 set z to value. If index equals 3 set w to value. */
 	setComponent(index: number, value: number) {
 		switch (index) {
 			case 0:
@@ -93,6 +103,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** If index equals 0 returns the x value. If index equals 1 returns the y value. If index equals 2 returns the z value. If index equals 3 returns the w value. */
 	getComponent(index: number) {
 		switch (index) {
 			case 0:
@@ -108,10 +119,12 @@ export class Vector4 {
 		}
 	}
 
+	/** Returns a new Vector4 with the same x, y, z and w values as this one. */
 	clone() {
 		return new Vector4(this.x, this.y, this.z, this.w);
 	}
 
+	/** Copies the values of the passed Vector4's x, y, z and w properties to this Vector4. */
 	copy(v: Vector4) {
 		this.x = v.x;
 		this.y = v.y;
@@ -121,6 +134,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Adds v to this vector. */
 	add(v: Vector4) {
 		this.x += v.x;
 		this.y += v.y;
@@ -130,6 +144,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Adds the scalar value s to this vector's x, y, z and w values. */
 	addScalar(s: number) {
 		this.x += s;
 		this.y += s;
@@ -139,6 +154,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Sets this vector to a + b. */
 	addVectors(a: Vector4, b: Vector4) {
 		this.x = a.x + b.x;
 		this.y = a.y + b.y;
@@ -148,6 +164,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Adds the multiple of v and s to this vector. */
 	addScaledVector(v: Vector4, s: number) {
 		this.x += v.x * s;
 		this.y += v.y * s;
@@ -157,6 +174,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Subtracts v from this vector. */
 	sub(v: Vector4) {
 		this.x -= v.x;
 		this.y -= v.y;
@@ -166,6 +184,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Subtracts s from this vector's x, y, z and w compnents. */
 	subScalar(s: number) {
 		this.x -= s;
 		this.y -= s;
@@ -175,6 +194,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Sets this vector to a - b. */
 	subVectors(a: Vector4, b: Vector4) {
 		this.x = a.x - b.x;
 		this.y = a.y - b.y;
@@ -184,6 +204,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Multiplies this vector by v. */
 	multiply(v: Vector4) {
 		this.x *= v.x;
 		this.y *= v.y;
@@ -193,6 +214,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Multiplies this vector by scalar s. */
 	multiplyScalar(scalar: number) {
 		this.x *= scalar;
 		this.y *= scalar;
@@ -202,6 +224,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Multiplies this vector by 4 x 4 m. */
 	applyMatrix4(m: Matrix4) {
 		const x = this.x,
 			y = this.y,
@@ -217,10 +240,12 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Divides this vector by scalar s. */
 	divideScalar(scalar: number) {
 		return this.multiplyScalar(1 / scalar);
 	}
 
+	/** Sets the x, y and z components of this vector to the quaternion's axis and w to the angle. */
 	setAxisAngleFromQuaternion(q: Quaternion) {
 		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/index.htm
 
@@ -243,6 +268,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Sets the x, y and z to the axis of rotation and w to the angle. */
 	setAxisAngleFromRotationMatrix(m: Matrix4) {
 		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToAngle/index.htm
 
@@ -346,6 +372,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** If this vector's x, y, z or w value is greater than v's x, y, z or w value, replace that value with the corresponding min value. */
 	min(v: Vector4) {
 		this.x = Math.min(this.x, v.x);
 		this.y = Math.min(this.y, v.y);
@@ -355,6 +382,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** If this vector's x, y, z or w value is less than v's x, y, z or w value, replace that value with the corresponding max value. */
 	max(v: Vector4) {
 		this.x = Math.max(this.x, v.x);
 		this.y = Math.max(this.y, v.y);
@@ -364,6 +392,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** If this vector's x, y, z or w value is greater than the max vector's x, y, z or w value, it is replaced by the corresponding value. If this vector's x, y, z or w value is less than the min vector's x, y, z or w value, it is replaced by the corresponding value. */
 	clamp(min: Vector4, max: Vector4) {
 		// assumes min < max, componentwise
 
@@ -375,6 +404,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** If this vector's x, y, z or w values are greater than the max value, they are replaced by the max value. If this vector's x, y, z or w values are less than the min value, they are replaced by the min value. */
 	clampScalar(minVal: number, maxVal: number) {
 		this.x = Math.max(minVal, Math.min(maxVal, this.x));
 		this.y = Math.max(minVal, Math.min(maxVal, this.y));
@@ -384,12 +414,14 @@ export class Vector4 {
 		return this;
 	}
 
+	/** If this vector's length is greater than the max value, it is replaced by the max value. If this vector's length is less than the min value, it is replaced by the min value. */
 	clampLength(min: number, max: number) {
 		const length = this.length();
 
 		return this.divideScalar(length || 1).multiplyScalar(Math.max(min, Math.min(max, length)));
 	}
 
+	/** The components of this vector are rounded down to the nearest integer value. */
 	floor() {
 		this.x = Math.floor(this.x);
 		this.y = Math.floor(this.y);
@@ -399,6 +431,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** The components of this vector are rounded up to the nearest integer value. */
 	ceil() {
 		this.x = Math.ceil(this.x);
 		this.y = Math.ceil(this.y);
@@ -408,6 +441,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** The components of this vector are rounded to the nearest integer value. */
 	round() {
 		this.x = Math.round(this.x);
 		this.y = Math.round(this.y);
@@ -417,6 +451,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** The components of this vector are rounded towards zero (up if negative, down if positive) to an integer value. */
 	roundToZero() {
 		this.x = this.x < 0 ? Math.ceil(this.x) : Math.floor(this.x);
 		this.y = this.y < 0 ? Math.ceil(this.y) : Math.floor(this.y);
@@ -426,6 +461,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Inverts this vector - i.e. sets x = -x, y = -y, z = -z and w = -w. */
 	negate() {
 		this.x = -this.x;
 		this.y = -this.y;
@@ -435,30 +471,37 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Calculates the dot product of this vector and v. */
 	dot(v: Vector4) {
 		return this.x * v.x + this.y * v.y + this.z * v.z + this.w * v.w;
 	}
 
+	/** Computes the square of the Euclidean length (straight-line length) from (0, 0, 0, 0) to (x, y, z, w). */
 	lengthSq() {
 		return this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w;
 	}
 
+	/** Computes the Euclidean length (straight-line length) from (0, 0, 0, 0) to (x, y, z, w). */
 	length() {
 		return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
 	}
 
+	/** Computes the Manhattan length of this vector. */
 	manhattanLength() {
 		return Math.abs(this.x) + Math.abs(this.y) + Math.abs(this.z) + Math.abs(this.w);
 	}
 
+	/** Converts this vector to a unit vector - that is, sets it equal to a vector with the same direction as this one, but length 1. */
 	normalize() {
 		return this.divideScalar(this.length() || 1);
 	}
 
+	/** Sets this vector to a vector with the same direction as this one, but length l. */
 	setLength(length: number) {
 		return this.normalize().multiplyScalar(length);
 	}
 
+	/** Linearly interpolates between this vector and v, where alpha is the percent distance along the line - alpha = 0 will be this vector, and alpha = 1 will be v. */
 	lerp(v: Vector4, alpha: number) {
 		this.x += (v.x - this.x) * alpha;
 		this.y += (v.y - this.y) * alpha;
@@ -468,6 +511,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Sets this vector to be the vector linearly interpolated between v1 and v2 where alpha is the percent distance along the line connecting the two vectors - alpha = 0 will be v1, and alpha = 1 will be v2. */
 	lerpVectors(v1: Vector4, v2: Vector4, alpha: number) {
 		this.x = v1.x + (v2.x - v1.x) * alpha;
 		this.y = v1.y + (v2.y - v1.y) * alpha;
@@ -477,10 +521,12 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Returns true if the components of this vector and v are strictly equal; false otherwise. */
 	equals(v: Vector4) {
 		return v.x === this.x && v.y === this.y && v.z === this.z && v.w === this.w;
 	}
 
+	/** Sets this vector's x value to be array[offset + 0], y value to be array[offset + 1] z value to be array[offset + 2] and w value to be array[offset + 3]. */
 	fromArray(array: number[], offset = 0) {
 		this.x = array[offset];
 		this.y = array[offset + 1];
@@ -490,6 +536,7 @@ export class Vector4 {
 		return this;
 	}
 
+	/** Returns an array [x, y, z, w], or copies x, y, z and w into the provided array. */
 	toArray(array: number[] = [], offset = 0) {
 		array[offset] = this.x;
 		array[offset + 1] = this.y;
@@ -499,6 +546,7 @@ export class Vector4 {
 		return array;
 	}
 
+	/** Sets each component of this vector to a pseudo-random value between 0 and 1, excluding 1. */
 	random() {
 		this.x = Math.random();
 		this.y = Math.random();

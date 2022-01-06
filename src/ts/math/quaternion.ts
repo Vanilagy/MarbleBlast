@@ -3,6 +3,9 @@ import { Euler } from "./euler";
 import { Matrix4 } from "./matrix4";
 import { Vector3 } from "./vector3";
 
+// Adapted from https://github.com/mrdoob/three.js/tree/dev/src/math
+
+/** Implementation of a quaternion. */
 export class Quaternion {
 	x: number;
 	y: number;
@@ -16,6 +19,7 @@ export class Quaternion {
 		this.w = w;
 	}
 
+	/** Sets x, y, z, w properties of this quaternion. */
 	set(x: number, y: number, z: number, w: number) {
 		this.x = x;
 		this.y = y;
@@ -25,10 +29,12 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Creates a new Quaternion with identical x, y, z and w properties to this one. */
 	clone() {
 		return new Quaternion(this.x, this.y, this.z, this.w);
 	}
 
+	/** Copies the x, y, z and w properties of `q` into this quaternion. */
 	copy(quaternion: Quaternion) {
 		this.x = quaternion.x;
 		this.y = quaternion.y;
@@ -38,6 +44,7 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Sets this quaternion from the rotation specified by Euler angle. */
 	setFromEuler(euler: Euler) {
 		const x = euler.x,
 			y = euler.y,
@@ -109,6 +116,7 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Sets this quaternion from rotation specified by `axis` and `angle`. Axis is assumed to be normalized, angle is in radians. */
 	setFromAxisAngle(axis: Vector3, angle: number) {
 		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/index.htm
 
@@ -125,6 +133,7 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Sets this quaternion from rotation component of `m`. */
 	setFromRotationMatrix(m: Matrix4) {
 		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
 
@@ -175,6 +184,7 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Sets this quaternion to the rotation required to rotate direction vector `vFrom` to direction vector `vTo`. `vFrom` and `vTo` are assumed to be normalized. */
 	setFromUnitVectors(vFrom: Vector3, vTo: Vector3) {
 		// assumes direction vectors vFrom and vTo are normalized
 
@@ -208,10 +218,12 @@ export class Quaternion {
 		return this.normalize();
 	}
 
+	/** Returns the angle between this quaternion and quaternion `q` in radians. */
 	angleTo(q: Quaternion) {
 		return 2 * Math.acos(Math.abs(Util.clamp(this.dot(q), -1, 1)));
 	}
 
+	/** Rotates this quaternion by a given angular step to the defined quaternion `q`. The method ensures that the final quaternion will not overshoot `q`. */
 	rotateTowards(q: Quaternion, step: number) {
 		const angle = this.angleTo(q);
 
@@ -224,16 +236,19 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Sets this quaternion to the identity quaternion; that is, to the quaternion that represents "no rotation". */
 	identity() {
 		return this.set(0, 0, 0, 1);
 	}
 
+	/** Inverts this quaternion - calculates the conjugate. The quaternion is assumed to have unit length. */
 	invert() {
 		// quaternion is assumed to have unit length
 
 		return this.conjugate();
 	}
 
+	/** Returns the rotational conjugate of this quaternion. The conjugate of a quaternion represents the same rotation in the opposite direction about the rotational axis. */
 	conjugate() {
 		this.x *= -1;
 		this.y *= -1;
@@ -242,18 +257,22 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Calculates the dot product of quaternions `v` and this one. */
 	dot(v: Quaternion) {
 		return this.x * v.x + this.y * v.y + this.z * v.z + this.w * v.w;
 	}
 
+	/** Computes the squared Euclidean length (straight-line length) of this quaternion, considered as a 4 dimensional vector. */
 	lengthSq() {
 		return this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w;
 	}
 
+	/** Computes the Euclidean length (straight-line length) of this quaternion, considered as a 4 dimensional vector. */
 	length() {
 		return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
 	}
 
+	/** Normalizes this quaternion - that is, calculated the quaternion that performs the same rotation as this one, but has length equal to 1. */
 	normalize() {
 		let l = this.length();
 
@@ -274,14 +293,17 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Multiplies this quaternion by `q`. */
 	multiply(q: Quaternion) {
 		return this.multiplyQuaternions(this, q);
 	}
 
+	/** Pre-multiplies this quaternion by `q`. */
 	premultiply(q: Quaternion) {
 		return this.multiplyQuaternions(q, this);
 	}
 
+	/** Sets this quaternion to `a` x `b`. */
 	multiplyQuaternions(a: Quaternion, b: Quaternion) {
 		// from http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/code/index.htm
 
@@ -302,6 +324,7 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Handles the spherical linear interpolation between quaternions. t represents the amount of rotation between this quaternion (where `t` is 0) and `qb` (where `t` is 1). This quaternion is set to the result. */
 	slerp(qb: Quaternion, t: number) {
 		if (t === 0) return this;
 		if (t === 1) return this.copy(qb);
@@ -362,10 +385,12 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Performs a spherical linear interpolation between the given quaternions and stores the result in this quaternion. */
 	slerpQuaternions(qa: Quaternion, qb: Quaternion, t: number) {
 		return this.copy(qa).slerp(qb, t);
 	}
 
+	/** Sets this quaternion to a uniformly random, normalized quaternion. */
 	random() {
 		// Derived from http://planning.cs.uiuc.edu/node198.html
 		// Note, this source uses w, x, y, z ordering,
@@ -382,12 +407,14 @@ export class Quaternion {
 		return this.set(sqrt1u1 * Math.cos(u2), sqrtu1 * Math.sin(u3), sqrtu1 * Math.cos(u3), sqrt1u1 * Math.sin(u2));
 	}
 
+	/** Compares the x, y, z and w properties of v to the equivalent properties of this quaternion to determine if they represent the same rotation. */
 	equals(quaternion: Quaternion) {
 		return (
 			quaternion.x === this.x && quaternion.y === this.y && quaternion.z === this.z && quaternion.w === this.w
 		);
 	}
 
+	/** Sets this quaternion's x, y, z and w properties from an array. */
 	fromArray(array: number[], offset = 0) {
 		this.x = array[offset];
 		this.y = array[offset + 1];
@@ -397,6 +424,7 @@ export class Quaternion {
 		return this;
 	}
 
+	/** Returns the numerical elements of this quaternion in an array of format [x, y, z, w]. */
 	toArray(array: number[] = [], offset = 0) {
 		array[offset] = this.x;
 		array[offset + 1] = this.y;

@@ -3,13 +3,18 @@ import { Matrix3 } from "./matrix3";
 import { Quaternion } from "./quaternion";
 import { Vector3 } from "./vector3";
 
+// Adapted from https://github.com/mrdoob/three.js/tree/dev/src/math
+
+/** A class representing a 4x4 matrix. Defaults to the identity matrix. */
 export class Matrix4 {
+	/** A column-major list of matrix values. */
 	elements: number[];
 
 	constructor() {
 		this.elements = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 	}
 
+	/** Set the elements of this matrix to the supplied row-major values `n11`, `n12`, ... `n44`. */
 	set(n11: number, n12: number, n13: number, n14: number, n21: number, n22: number, n23: number, n24: number, n31: number, n32: number, n33: number, n34: number, n41: number, n42: number, n43: number, n44: number) {
 		const te = this.elements;
 
@@ -33,16 +38,19 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Resets this matrix to the identity matrix. */
 	identity() {
 		this.set(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
 
 		return this;
 	}
 
+	/** Creates a new Matrix4 with identical elements to this one. */
 	clone() {
 		return new Matrix4().fromArray(this.elements);
 	}
 
+	/** Copies the elements of matrix m into this matrix. */
 	copy(m: Matrix4) {
 		const te = this.elements;
 		const me = m.elements;
@@ -67,6 +75,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Copies the translation component of the supplied matrix m into this matrix's translation component. */
 	copyPosition(m: Matrix4) {
 		const te = this.elements,
 			me = m.elements;
@@ -78,6 +87,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Set the upper 3x3 elements of this matrix to the values of the Matrix3 `m`. */
 	setFromMatrix3(m: Matrix3) {
 		const me = m.elements;
 
@@ -86,6 +96,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Extracts the basis of this matrix into the three axis vectors provided. */
 	extractBasis(xAxis: Vector3, yAxis: Vector3, zAxis: Vector3) {
 		xAxis.setFromMatrixColumn(this, 0);
 		yAxis.setFromMatrixColumn(this, 1);
@@ -94,12 +105,14 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Set this to the basis matrix consisting of the three provided basis vectors. */
 	makeBasis(xAxis: Vector3, yAxis: Vector3, zAxis: Vector3) {
 		this.set(xAxis.x, yAxis.x, zAxis.x, 0, xAxis.y, yAxis.y, zAxis.y, 0, xAxis.z, yAxis.z, zAxis.z, 0, 0, 0, 0, 1);
 
 		return this;
 	}
 
+	/** Extracts the rotation component of the supplied matrix m into this matrix's rotation component. */
 	extractRotation(m: Matrix4) {
 		// this method does not support reflection matrices
 
@@ -133,6 +146,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Sets the rotation component (the upper left 3x3 matrix) of this matrix to the rotation specified by the given Euler Angle. The rest of the matrix is set to the identity. Depending on the order of the euler, there are six possible outcomes. */
 	makeRotationFromEuler(euler: Euler) {
 		const te = this.elements;
 
@@ -264,10 +278,12 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Sets the rotation component of this matrix to the rotation specified by q, as outlined here (https://en.wikipedia.org/wiki/Rotation_matrix#Quaternion). The rest of the matrix is set to the identity */
 	makeRotationFromQuaternion(q: Quaternion) {
 		return this.compose(_zero, q, _one);
 	}
 
+	/** Constructs a rotation matrix, looking from `eye` towards `target` oriented by the `up` vector. */
 	lookAt(eye: Vector3, target: Vector3, up: Vector3) {
 		const te = this.elements;
 
@@ -311,14 +327,17 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Post-multiplies this matrix by m. */
 	multiply(m: Matrix4) {
 		return this.multiplyMatrices(this, m);
 	}
 
+	/** Pre-multiplies this matrix by m. */
 	premultiply(m: Matrix4) {
 		return this.multiplyMatrices(m, this);
 	}
 
+	/** Sets this matrix to a x b. */
 	multiplyMatrices(a: Matrix4, b: Matrix4) {
 		const ae = a.elements;
 		const be = b.elements;
@@ -381,6 +400,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Multiplies every component of the matrix by a scalar value s. */
 	multiplyScalar(s: number) {
 		const te = this.elements;
 
@@ -404,18 +424,21 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Adds `m` to this matrix, component-wise. */
 	add(m: Matrix4) {
 		for (let i = 0; i < 16; i++) this.elements[i] += m.elements[i];
 
 		return this;
 	}
 
+	/** Subtracts `m` from this matrix, component-wise. */
 	sub(m: Matrix4) {
 		for (let i = 0; i < 16; i++) this.elements[i] -= m.elements[i];
 
 		return this;
 	}
 
+	/** Computes and returns the determinant of this matrix. */
 	determinant() {
 		const te = this.elements;
 
@@ -450,6 +473,7 @@ export class Matrix4 {
 		);
 	}
 
+	/** Transposes this matrix. */
 	transpose() {
 		const te = this.elements;
 		let tmp;
@@ -477,6 +501,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Sets the position component for this matrix from vector v, without affecting the rest of the matrix. */
 	setPosition(x: Vector3) {
 		const te = this.elements;
 
@@ -487,6 +512,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Inverts this matrix, using the analytic method. You can not invert with a determinant of zero. If you attempt this, the method produces a zero matrix instead. */
 	invert() {
 		// based on http://www.euclideanspace.com/maths/algebra/matrix/functions/inverse/fourD/index.htm
 		const te = this.elements,
@@ -564,6 +590,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Multiplies the columns of this matrix by vector v. */
 	scale(v: Vector3) {
 		const te = this.elements;
 		const x = v.x,
@@ -586,6 +613,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Gets the maximum scale value of the 3 axes. */
 	getMaxScaleOnAxis() {
 		const te = this.elements;
 
@@ -596,12 +624,14 @@ export class Matrix4 {
 		return Math.sqrt(Math.max(scaleXSq, scaleYSq, scaleZSq));
 	}
 
+	/** Sets this matrix as a translation transform. */
 	makeTranslation(x: number, y: number, z: number) {
 		this.set(1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, 0, 0, 0, 1);
 
 		return this;
 	}
 
+	/** Sets this matrix as a rotational transformation around the X axis by theta (θ) radians. */
 	makeRotationX(theta: number) {
 		const c = Math.cos(theta),
 			s = Math.sin(theta);
@@ -611,6 +641,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Sets this matrix as a rotational transformation around the Y axis by theta (θ) radians. */
 	makeRotationY(theta: number) {
 		const c = Math.cos(theta),
 			s = Math.sin(theta);
@@ -620,6 +651,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Sets this matrix as a rotational transformation around the Z axis by theta (θ) radians. */
 	makeRotationZ(theta: number) {
 		const c = Math.cos(theta),
 			s = Math.sin(theta);
@@ -629,6 +661,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Sets this matrix as rotation transform around axis by theta radians. */
 	makeRotationAxis(axis: Vector3, angle: number) {
 		// Based on http://www.gamedev.net/reference/articles/article1199.asp
 
@@ -663,18 +696,21 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Sets this matrix as scale transform. */
 	makeScale(x: number, y: number, z: number) {
 		this.set(x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1);
 
 		return this;
 	}
 
+	/** Sets this matrix as a shear transform. */
 	makeShear(xy: number, xz: number, yx: number, yz: number, zx: number, zy: number) {
 		this.set(1, yx, zx, 0, xy, 1, zy, 0, xz, yz, 1, 0, 0, 0, 0, 1);
 
 		return this;
 	}
 
+	/** Sets this matrix to the transformation composed of position, quaternion and scale. */
 	compose(position: Vector3, quaternion: Quaternion, scale: Vector3) {
 		const te = this.elements;
 
@@ -722,6 +758,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Decomposes this matrix into its position, quaternion and scale components. Note: Not all matrices are decomposable in this way. For example, if an object has a non-uniformly scaled parent, then the object's world matrix may not be decomposable, and this method may not be appropriate. */
 	decompose(position: Vector3, quaternion: Quaternion, scale: Vector3) {
 		const te = this.elements;
 
@@ -765,6 +802,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Creates a perspective projection matrix. */
 	makePerspective(left: number, right: number, top: number, bottom: number, near: number, far: number) {
 		const te = this.elements;
 		const x = (2 * near) / (right - left);
@@ -795,6 +833,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Creates an orthographic projection matrix. */
 	makeOrthographic(left: number, right: number, top: number, bottom: number, near: number, far: number) {
 		const te = this.elements;
 		const w = 1.0 / (right - left);
@@ -825,6 +864,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Return true if this matrix and `matrix` are equal. */
 	equals(matrix: Matrix4) {
 		const te = this.elements;
 		const me = matrix.elements;
@@ -836,6 +876,7 @@ export class Matrix4 {
 		return true;
 	}
 
+	/** Sets the elements of this matrix based on an `array` in column-major format. */
 	fromArray(array: number[], offset = 0) {
 		for (let i = 0; i < 16; i++) {
 			this.elements[i] = array[i + offset];
@@ -844,6 +885,7 @@ export class Matrix4 {
 		return this;
 	}
 
+	/** Writes the elements of this matrix to an array in column-major format. */
 	toArray(array: number[] = [], offset = 0) {
 		const te = this.elements;
 
