@@ -51,7 +51,7 @@ export class Collision {
 	}
 
 	supplyCollisionPlane(plane: Plane) {
-		this.normal = plane.normal;
+		this.normal = plane.normal.clone(); // Make sure to clone it here so no funky stuff happens
 		this.depth = plane.constant;
 
 		this.point1 = this.s1.support(new Vector3(), v1.copy(this.normal).negate()); // Horribly wrong in the general case, but gives the correct result if s1 is a ball

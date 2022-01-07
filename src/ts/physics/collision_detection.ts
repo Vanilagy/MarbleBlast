@@ -1,7 +1,8 @@
 import { Plane } from "../math/plane";
 import { Vector3 } from "../math/vector3";
 import { Util } from "../util";
-import { BallCollisionShape, CollisionShape } from "./collision_shape";
+import { BallCollisionShape, CollisionShape, SingletonCollisionShape } from "./collision_shape";
+import { RigidBody } from "./rigid_body";
 
 const maxIterations = 64;
 const maxEpaFaces = 64;
@@ -42,6 +43,10 @@ let lastS1: CollisionShape = null;
 let lastS2: CollisionShape = null;
 let o = new Vector3(0, 0, 0);
 
+let singletonShape = new SingletonCollisionShape();
+let singletonBody = new RigidBody();
+singletonBody.addCollisionShape(singletonShape);
+
 // EPA state
 let faces: Vector3[][] = [];
 let looseEdges: Vector3[][] = [];
@@ -68,6 +73,9 @@ export abstract class CollisionDetection {
 		if (s1 instanceof BallCollisionShape && s2 instanceof BallCollisionShape) {
 			// Since this case is trivial, we have a special method for it to process it quickly
 			return this.checkBallBallIntersection(s1, s2);
+		} else if (s1 instanceof BallCollisionShape) {
+			// This case is less trivial and does require GJK but does *not* require EPA later on, so use a special method for this also
+			return this.checkBallConvexIntersection(s1, s2);
 		} else {
 			// Otherwise, do general GJK
 			return this.checkConvexConvexIntersection(s1, s2);
@@ -79,7 +87,17 @@ export abstract class CollisionDetection {
 		return s1.body.position.distanceTo(s2.body.position) <= s1.radius + s2.radius;
 	}
 
-	/** Check for intersection of two shapes using the Gilbert-Johnson-Keerthi (GJK) algorithm. */
+	static checkBallConvexIntersection(s1: BallCollisionShape, s2: CollisionShape) {
+		singletonBody.position.copy(s1.body.position);
+
+		// All we need to do is compute the closest point on s2 to s1's center. After that, a simple comparison with the radius will suffice.
+		let closestPoint = this.determineClosestPoint(new Vector3(), s2, singletonShape);
+		let distanceSq = closestPoint.lengthSq();
+
+		return distanceSq <= s1.radius**2;
+	}
+
+	/** Check for intersection of two shapes using the boolean Gilbert-Johnson-Keerthi (GJK) algorithm. */
 	static checkConvexConvexIntersection(s1: CollisionShape, s2: CollisionShape) {
 		direction.copy(s2.body.position).sub(s1.body.position).normalize(); // Can really be anything but this is a good start
 
@@ -111,6 +129,27 @@ export abstract class CollisionDetection {
 		return false;
 	}
 
+	/** Computes the closest point to the origin in the Minkowski difference of s1 and s2. */
+	static determineClosestPoint(dst: Vector3, s1: CollisionShape, s2: CollisionShape) {
+		direction.copy(s2.body.position).sub(s1.body.position);
+
+		numPoints = 0;
+
+		for (let i = 0; i < maxIterations; i++) {
+			this.support(support, s1, s2, direction);
+
+			if (direction.lengthSq() + direction.dot(support) <= 10 * Number.EPSILON) break;
+
+			this.addPointToSimplex(support);
+			this.updateSimplexAndClosestPoint(direction);
+			direction.negate();
+
+			if (numPoints === 4) break;
+		}
+
+		return dst.copy(direction).negate();
+	}
+
 	/** Determines the time of impact of two moving shapes by simply linearly translating the shapes between their last and current position. */
 	static determineTimeOfImpact(s1: CollisionShape, s2: CollisionShape, eps = 0.03) {
 		s1.body.getRelativeMotionVector(translation, s2.body); // We assume s2 is stationary and s1's movement is now relative to s2's frame
@@ -123,7 +162,7 @@ export abstract class CollisionDetection {
 		s2.body.position.copy(s2.body.prevPosition);
 
 		// A simple ray cast on the Minkowski difference will return the time of impact
-		let res = this.castRay(s1, s2, o, translation.negate(), 1);
+		let res = this.castRay(s2, s1, o, translation, 1);
 
 		// Reset the position
 		s1.body.position.copy(actualPosition1);
@@ -141,9 +180,6 @@ export abstract class CollisionDetection {
 
 	/** Performs a GJK ray cast on the Minkowski difference of two shapes. Uses the method described by Gino van den Bergen in http://dtecta.com/papers/jgt04raycast.pdf. */
 	static castRay(s1: CollisionShape, s2: CollisionShape, rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number) {
-		lastS1 = s1;
-		lastS2 = s2;
-
 		direction.copy(s2.body.position).sub(s1.body.position).normalize();
 
 		this.support(support, s1, s2, direction);
@@ -521,17 +557,37 @@ export abstract class CollisionDetection {
 		return used;
 	}
 
-	/** Given the last two intersecting shapes s1 and s2, returns the plane whose normal is the collision normal and whose offset represents the smallest amount s1 has to be moved along the collision normal such that s1 and s2 no longer intersect. Uses the Expanding Polytope Algorithm (EPA). */
+	/** Given the last two intersecting shapes s1 and s2, returns the plane whose normal is the collision normal and whose offset represents the smallest amount s1 has to be moved along the collision normal such that s1 and s2 no longer intersect. Note that this method has to be called right after calling `checkIntersection`! */
 	static determineCollisionPlane(dst: Plane) {
 		if (lastS1 instanceof BallCollisionShape && lastS2 instanceof BallCollisionShape) {
-			// Easy case
-			let len = lastS1.radius + lastS2.radius - lastS1.body.position.distanceTo(lastS2.body.position);
-			dst.normal.copy(lastS1.body.position).sub(lastS2.body.position).normalize();
-			dst.constant = len;
-
-			return dst;
+			return this.determineBallBallCollisionPlane(dst);
+		} else if (lastS1 instanceof BallCollisionShape) {
+			return this.determineBallConvexCollisionPlane(dst);
+		} else {
+			return this.determineConvexConvexCollisionPlane(dst);
 		}
+	}
 
+	static determineBallBallCollisionPlane(dst: Plane) {
+		let len = (lastS1 as BallCollisionShape).radius + (lastS2 as BallCollisionShape).radius - lastS1.body.position.distanceTo(lastS2.body.position);
+		dst.normal.copy(lastS1.body.position).sub(lastS2.body.position).normalize();
+		dst.constant = len;
+
+		return dst;
+	}
+
+	static determineBallConvexCollisionPlane(dst: Plane) {
+		let len = direction.length();
+		if (len === 0) return this.determineConvexConvexCollisionPlane(dst); // The ball's center is contained inside the convex hull; we'll need to do EPA
+
+		// The collision normal is simply given by the vector from the closest point in the CSO (configuration space obstacle) to the origin
+		dst.normal.copy(direction).normalize();
+		dst.constant = (lastS1 as BallCollisionShape).radius - len;
+
+		return dst;
+	}
+
+	static determineConvexConvexCollisionPlane(dst: Plane) {
 		// EPA code taken from https://github.com/kevinmoran/GJK/blob/master/GJK.h
 
 		let a = points[0];

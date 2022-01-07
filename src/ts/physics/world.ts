@@ -1,6 +1,6 @@
 import { Octree } from "./octree";
 import { Collision } from "./collision";
-import { CollisionShape, CombinedCollisionShape, ConvexHullCollisionShape } from "./collision_shape";
+import { CollisionShape, CombinedCollisionShape, SingletonCollisionShape } from "./collision_shape";
 import { CollisionDetection } from "./collision_detection";
 import { RigidBody, RigidBodyType } from "./rigid_body";
 import { CollisionResponse } from "./collision_response";
@@ -16,7 +16,7 @@ let v3 = new Vector3();
 let p1 = new Plane();
 let rayCastAabb = new Box3();
 
-let singletonShape = new ConvexHullCollisionShape([new Vector3()]);
+let singletonShape = new SingletonCollisionShape();
 let combinedCollisionShape = new CombinedCollisionShape(null, null);
 let utilBody = new RigidBody();
 utilBody.addCollisionShape(singletonShape);

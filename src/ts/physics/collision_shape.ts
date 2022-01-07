@@ -190,3 +190,16 @@ export class CombinedCollisionShape extends CollisionShape {
 		return this.s1.getCenter(dst).add(this.s2.getCenter(v4)).multiplyScalar(0.5);
 	}
 }
+
+/** Represents the shape that's just a single dot at the origin, so C = { (0, 0, 0)^T } */
+export class SingletonCollisionShape extends CollisionShape {
+	updateInertiaTensor() {}
+
+	support(dst: Vector3) {
+		return dst.copy(this.body.position);
+	}
+
+	getCenter(dst: Vector3) {
+		return dst.copy(this.body.position);
+	}
+}
