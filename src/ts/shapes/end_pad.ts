@@ -32,7 +32,7 @@ export class EndPad extends Shape {
 			// Create the finish area collision geometry
 			// Scaling note: The actual height of the cylinder (here: the y scaling) doesn't change, it's always the same.
 			let finishArea = Util.createCylinderConvexHull(radius, height/2, 64, new Vector3(scale.x, 1, scale.y));
-			finishArea.margin = 0.005 * 2; // OIMO had a margin of 0.005 on every shape. We somewhat try to correct for that by adding it back here, but twice, once for the shape itself and one for the would-be-marble margin.
+			finishArea.margin = 0.005; // OIMO had a margin of 0.005 on every shape. We somewhat try to correct for that by adding it back here.
 
 			return finishArea;
 		}, (t: number) => {
