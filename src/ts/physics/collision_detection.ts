@@ -353,7 +353,7 @@ export abstract class CollisionDetection {
 		// If we're here, the origin is enclosed!
 	}
 
-	/** Computes the closest point to the origin on the current simplex and reduces the simplex to the smallest feature that contains that point. Method somewhat taken from BulletPhysics. */
+	/** Computes the closest point to the origin on the current simplex and reduces the simplex to the smallest feature that contains that point. Method somewhat inspired by BulletPhysics. */
 	static updateSimplexAndClosestPoint(dst: Vector3) {
 		let used: number; // A 4-bit number where the i'th bit represents if the i'th point (order: A, B, C, D) is present in the reduced feature.
 		requireFlip = 0;
@@ -466,7 +466,6 @@ export abstract class CollisionDetection {
 
 		abc.copy(ab).cross(ac);
 		if (abc.dot(dst) > 0) {
-			dst.negate();
 			requireFlip ^= 1;
 		}
 
@@ -487,14 +486,19 @@ export abstract class CollisionDetection {
 		adb.copy(ad).cross(ab);
 		bdc.copy(bd).cross(bc);
 
+		// Figure out which faces we need to check
+		let outsideABC = abc.dot(ao) > 0;
+		let outsideACD = acd.dot(ao) > 0;
+		let outsideADB = adb.dot(ao) > 0;
+		let outsideBDC = bdc.dot(bo) > 0;
+
 		let minDist = Infinity;
 		let used: number;
-		let flip: number;
-		let ownFlip = 0;
+		let flip: number; // The face winding flip of the face with the min dist
 
 		// We simply do 4 triangle cases, one for each face of the tetrahedron, and the min wins.
 
-		if (abc.dot(ao) > 0) {
+		if (outsideABC) {
 			requireFlip = 0;
 			let res = this.closestPointTriangle(v1, a, b, c);
 			let len = v1.lengthSq();
@@ -505,7 +509,7 @@ export abstract class CollisionDetection {
 			flip = requireFlip;
 		}
 
-		if (acd.dot(ao) > 0) {
+		if (outsideACD) {
 			requireFlip = 0;
 			let res = this.closestPointTriangle(v1, a, c, d);
 			let len = v1.lengthSq();
@@ -518,7 +522,7 @@ export abstract class CollisionDetection {
 			}
 		}
 
-		if (adb.dot(ao) > 0) {
+		if (outsideADB) {
 			requireFlip = 0;
 			let res = this.closestPointTriangle(v1, a, d, b);
 			let len = v1.lengthSq();
@@ -527,12 +531,11 @@ export abstract class CollisionDetection {
 				dst.copy(v1);
 				minDist = len;
 				used = (res & 0b1) | ((res & 0b10) << 2) | ((res & 0b100) >> 1);
-				flip = requireFlip;
-				ownFlip = 1;
+				flip = requireFlip ^ 1; // Requires one additional flip
 			}
 		}
 
-		if (bdc.dot(bo) > 0) {
+		if (outsideBDC) {
 			requireFlip = 0;
 			let res = this.closestPointTriangle(v1, b, d, c);
 			let len = v1.lengthSq();
@@ -541,18 +544,18 @@ export abstract class CollisionDetection {
 				dst.copy(v1);
 				minDist = len;
 				used = ((res & 0b1) << 1) | ((res & 0b10) << 2) | ((res & 0b100));
-				flip = requireFlip;
-				ownFlip = 1;
+				flip = requireFlip ^ 1; // Also requires one additional flip
 			}
 		}
-
-		requireFlip = flip ^ ownFlip;
 
 		if (minDist === Infinity) {
 			// The origin is inside the tetrahedron!
 			dst.setScalar(0);
 			used = 0b1111;
+			flip = 0;
 		}
+
+		requireFlip = flip;
 
 		return used;
 	}

@@ -56,22 +56,22 @@ export class Trigger {
 		let ownShape = new ConvexHullCollisionShape(aabbVertices);
 		ownShape.collisionDetectionMask = 0b100; // Collide with the small aux marble
 
-		let ownBody = new RigidBody();
-		ownBody.type = RigidBodyType.Static;
-		ownBody.addCollisionShape(ownShape);
+		let body = new RigidBody();
+		body.type = RigidBodyType.Static;
+		body.addCollisionShape(ownShape);
 
-		this.body = ownBody;
+		this.body = body;
 
 		// Init collision handlers
 
-		ownBody.onBeforeIntegrate = () => {
-			if (this.isCurrentlyColliding && ownBody.collisions.length === 0) {
+		body.onBeforeIntegrate = () => {
+			if (this.isCurrentlyColliding && body.collisions.length === 0) {
 				this.isCurrentlyColliding = false;
 				this.onMarbleLeave();
 			}
 		};
 
-		ownBody.onBeforeCollisionResponse = () => {
+		body.onBeforeCollisionResponse = () => {
 			if (!this.isCurrentlyColliding) this.onMarbleEnter();
 			this.onMarbleInside();
 

@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.4
+- Fixed erroneous collision detection issues
+
 ## 2.4.3
 - (Hopefully) fixed incorrect collision normals and position correction
 
