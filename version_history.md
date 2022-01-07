@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.2
+- Fixed incorrect collision normals in some circumstances
+
 ## 2.4.1
 - Fixed some Firefox-related styling bugs
 

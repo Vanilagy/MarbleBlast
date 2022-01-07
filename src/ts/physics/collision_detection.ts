@@ -570,9 +570,16 @@ export abstract class CollisionDetection {
 			// search normal to face that's closest to origin
 			direction.copy(faces[closestFace][3]);
 			this.support(support, lastS1, lastS2, direction);
-			if (support.dot(direction) - minDist < epaTolerance) {
+
+			let dot = support.dot(direction);
+
+			if (dot !== 0) {
+				dst.copy(faces[closestFace][3]).multiplyScalar(dot).negate(); // dot vertex with normal to resolve collision along normal!
+			}
+
+			if (dot - minDist < epaTolerance) {
 				// Convergence (new point is not significantly further from origin)
-				return dst.copy(faces[closestFace][3]).multiplyScalar(support.dot(direction)).negate(); // dot vertex with normal to resolve collision along normal!
+				return dst;
 			}
 
 			let numLooseEdges = 0;
