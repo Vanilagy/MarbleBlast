@@ -1,3 +1,4 @@
+import { Plane } from "../math/plane";
 import { Quaternion } from "../math/quaternion";
 import { Vector3 } from "../math/vector3";
 import { CollisionShape } from "./collision_shape";
@@ -49,12 +50,12 @@ export class Collision {
 		this.s2Restitution = s2.restitution;
 	}
 
-	supplyMinimumSeparatingVector(minimumSeparatingVector: Vector3) {
-		this.normal = minimumSeparatingVector.clone().normalize();
-		this.depth = minimumSeparatingVector.length();
+	supplyCollisionPlane(plane: Plane) {
+		this.normal = plane.normal;
+		this.depth = plane.constant;
 
 		this.point1 = this.s1.support(new Vector3(), v1.copy(this.normal).negate()); // Horribly wrong in the general case, but gives the correct result if s1 is a ball
-		this.point2 = this.point1.clone().add(minimumSeparatingVector);
+		this.point2 = this.point1.clone().addScaledVector(this.normal, this.depth);
 		this.point = this.point1.clone().add(this.point2).multiplyScalar(0.5);
 	}
 

@@ -1,3 +1,4 @@
+import { Plane } from "../math/plane";
 import { Vector3 } from "../math/vector3";
 import { Util } from "../util";
 import { BallCollisionShape, CollisionShape } from "./collision_shape";
@@ -520,12 +521,15 @@ export abstract class CollisionDetection {
 		return used;
 	}
 
-	/** Given the last two intersecting shapes s1 and s2, returns the smallest vector v such that s1 + v and s2 don't intersect anymore. Uses the Expanding Polytope Algorithm (EPA). */
-	static determineMinimumSeparatingVector(dst: Vector3) {
+	/** Given the last two intersecting shapes s1 and s2, returns the plane whose normal is the collision normal and whose offset represents the smallest amount s1 has to be moved along the collision normal such that s1 and s2 no longer intersect. Uses the Expanding Polytope Algorithm (EPA). */
+	static determineCollisionPlane(dst: Plane) {
 		if (lastS1 instanceof BallCollisionShape && lastS2 instanceof BallCollisionShape) {
 			// Easy case
 			let len = lastS1.radius + lastS2.radius - lastS1.body.position.distanceTo(lastS2.body.position);
-			return dst.copy(lastS1.body.position).sub(lastS2.body.position).normalize().multiplyScalar(len);
+			dst.normal.copy(lastS1.body.position).sub(lastS2.body.position).normalize();
+			dst.constant = len;
+
+			return dst;
 		}
 
 		// EPA code taken from https://github.com/kevinmoran/GJK/blob/master/GJK.h
@@ -572,9 +576,10 @@ export abstract class CollisionDetection {
 			this.support(support, lastS1, lastS2, direction);
 
 			let dot = support.dot(direction);
+			dst.constant = Math.abs(dot);
 
-			if (dot !== 0) {
-				dst.copy(faces[closestFace][3]).multiplyScalar(dot).negate(); // dot vertex with normal to resolve collision along normal!
+			if (faces[closestFace][3].lengthSq() > 0) {
+				dst.normal.copy(faces[closestFace][3]).multiplyScalar(Math.sign(dot) || 1).negate();
 			}
 
 			if (dot - minDist < epaTolerance) {
@@ -644,11 +649,16 @@ export abstract class CollisionDetection {
 					let temp = faces[numFaces][0];
 					faces[numFaces][0].copy(faces[numFaces][1]);
 					faces[numFaces][1].copy(temp);
-					faces[numFaces][3].multiplyScalar(-1);
+					faces[numFaces][3].negate();
 				}
 				numFaces++;
 			}
 		}
-		return dst.copy(faces[closestFace][3]).multiplyScalar(faces[closestFace][0].dot(faces[closestFace][3])).negate();
+
+		let dot = faces[closestFace][0].dot(faces[closestFace][3]);
+		dst.constant = Math.abs(dot);
+		dst.normal.copy(faces[closestFace][3]).multiplyScalar(Math.sign(dot) || 1).negate();
+
+		return dst;
 	}
 }

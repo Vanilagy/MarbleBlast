@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.3
+- (Hopefully) fixed incorrect collision normals and position correction
+
 ## 2.4.2
 - Fixed incorrect collision normals in some circumstances
 

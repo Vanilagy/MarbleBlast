@@ -355,7 +355,7 @@ export class Interior {
 			}
 
 			let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
-			if (surface.planeIndex & 0x8000) faceNormal.multiplyScalar(-1); // Invert the plane if so specified
+			if (surface.planeIndex & 0x8000) faceNormal.negate(); // Invert the plane if so specified
 
 			for (let index of [i1, i2, i3]) {
 				let position = this.detailLevel.points[index];
@@ -451,7 +451,7 @@ export class Interior {
 				let planeData = this.detailLevel.planes[surface.planeIndex & ~0x8000];
 				let planeNormal = this.detailLevel.normals[planeData.normalIndex];
 				let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
-				if (surface.planeIndex & 0x8000) faceNormal.multiplyScalar(-1);
+				if (surface.planeIndex & 0x8000) faceNormal.negate();
 
 				let properties = this.getCollisionMaterialProperties(material);
 				shape.materialOverrides.set(faceNormal, properties);

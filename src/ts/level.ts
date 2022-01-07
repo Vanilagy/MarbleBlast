@@ -1035,7 +1035,7 @@ export class Level extends Scheduler {
 
 					// Construct a plane at the point of ray impact based on the normal
 					let plane = new Plane();
-					let normal = firstHit.normal;//.multiplyScalar(-1);
+					let normal = firstHit.normal;
 					let position = firstHit.point;
 					plane.setFromNormalAndCoplanarPoint(normal, position);
 

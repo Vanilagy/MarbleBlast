@@ -6,12 +6,14 @@ import { RigidBody, RigidBodyType } from "./rigid_body";
 import { CollisionResponse } from "./collision_response";
 import { Vector3 } from "../math/vector3";
 import { Box3 } from "../math/box3";
+import { Plane } from "../math/plane";
 
 const MAX_SUBSTEPS = 10;
 
 let v1 = new Vector3();
 let v2 = new Vector3();
 let v3 = new Vector3();
+let p1 = new Plane();
 let rayCastAabb = new Box3();
 
 let singletonShape = new ConvexHullCollisionShape([new Vector3()]);
@@ -206,9 +208,9 @@ export class World {
 					let isMainCollisionShape = !!(shape.collisionDetectionMask & 1); // Meaning, no aux stuff, no triggers, whatever
 
 					if (isMainCollisionShape) {
-						// Compute the minimum separating vector
-						let minimumSeparatingVector = CollisionDetection.determineMinimumSeparatingVector(v2);
-						collision.supplyMinimumSeparatingVector(minimumSeparatingVector);
+						// Compute the plane of collision
+						let collisionPlane = CollisionDetection.determineCollisionPlane(p1);
+						collision.supplyCollisionPlane(collisionPlane);
 					}
 
 					// Perform a collision correction step: Sometimes, shapes can collide with internal edges, i.e. edges that aren't visible to the outside, leading to incorrect results. We try to catch and correct these cases here.
@@ -222,10 +224,9 @@ export class World {
 						combinedCollisionShape.s2 = candidate;
 
 						// Perform an intersection test on this combined shape. Our hope is that this gives us a good idea of what the actual collision normal should be.
-						let combinedNormal = v3.setScalar(0);
 						CollisionDetection.checkIntersection(shape, combinedCollisionShape);
-						CollisionDetection.determineMinimumSeparatingVector(combinedNormal);
-						combinedNormal.normalize();
+						CollisionDetection.determineCollisionPlane(p1);
+						let combinedNormal = v3.copy(p1.normal);
 
 						if (collision.normal.dot(combinedNormal) <= 0 || c2.normal.dot(combinedNormal) <= 0) break; // Incase the result is totally out of wack
 
@@ -252,10 +253,10 @@ export class World {
 
 						// If we've hit the shapes, see if we should replace the collision normals of the collisions
 						if (hit1 && hit1.normal.dot(combinedNormal) >= collision.normal.dot(combinedNormal)) { // Only replace if the hit normal is an improvement over the old normal
-							collision.supplyMinimumSeparatingVector(hit1.normal.multiplyScalar(collision.depth));
+							collision.supplyCollisionPlane(p1.set(hit1.normal, collision.depth));
 						}
 						if (hit2 && hit2.normal.dot(combinedNormal) >= c2.normal.dot(combinedNormal)) {
-							c2.supplyMinimumSeparatingVector(hit2.normal.multiplyScalar(c2.depth));
+							c2.supplyCollisionPlane(p1.set(hit2.normal, c2.depth));
 						}
 
 						break;
