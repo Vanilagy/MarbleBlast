@@ -1,4 +1,5 @@
 import * as Database from 'better-sqlite3';
+import express from 'express';
 
 /** A custom levels archive entry. */
 interface CLAEntry {
@@ -55,3 +56,6 @@ export const shared: {
 	getNewerScoresStatement: Database.Statement,
 	getLatestTimestampStatement: Database.Statement
 } = {} as any;
+
+/** Array of init functions that should run upon Express app creation. */
+export const apiInits: ((app: express.Application) => void)[] = [];

@@ -47,7 +47,10 @@ export abstract class Leaderboard {
 			method: 'POST',
 			body: JSON.stringify({
 				missions: missionPaths
-			})
+			}),
+			headers: {
+				'Content-Type': 'application/json'
+			}
 		});
 		let data: Record<string, [string, number][]> = await ResourceManager.readBlobAsJson(blob);
 
@@ -104,7 +107,10 @@ export abstract class Leaderboard {
 
 		let blob = await ResourceManager.retryFetch('./api/submit', {
 			method: 'POST',
-			body: JSON.stringify(payload)
+			body: JSON.stringify(payload),
+			headers: {
+				'Content-Type': 'application/json'
+			}
 		});
 		let data: {
 			latestTimestamp: number,

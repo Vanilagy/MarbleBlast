@@ -1,19 +1,11 @@
-import * as http from 'http';
 import * as path from 'path';
-import * as url from 'url';
 import * as Database from 'better-sqlite3';
 import * as fs from 'fs-extra';
-import * as serveStatic_ from 'serve-static';
-import * as finalhandler_ from 'finalhandler';
-
-// Do some hackery to satisfy rollup
-const serveStatic = serveStatic_;
-const finalhandler = finalhandler_;
-
-import { shared } from './shared';
-import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity } from './misc';
-import { getLeaderboard, submitScores, getWorldRecordSheet } from './leaderboard';
-import { getCustomLevelResource } from './customs';
+import express from 'express';
+import { apiInits, shared } from './shared';
+import './misc';
+import './leaderboard';
+import './customs';
 
 let db: Database.Database = null;
 
@@ -58,63 +50,15 @@ const setupDb = () => {
 
 /** Starts the HTTP server. */
 const initServer = (port: number) => {
-	const serve = serveStatic(shared.directoryPath, {
-		index: ['index.html']
+	const app = express();
+
+	app.use(express.json());
+	for (let apiInit of apiInits) apiInit(app);
+	app.use(express.static(shared.directoryPath));
+
+	app.listen(port, () => {
+		console.log(`Started server on port ${port}.`);
 	});
-
-	http.createServer((req, res) => {
-		let urlObject = new url.URL(req.url, 'http://localhost/');
-		let pathComponents = urlObject.pathname.split('/').slice(1);
-		let body: string = null;
-		let bodyBuffer: Buffer = null;
-
-		const handleRequest = async () => {
-			try {
-				// Determine the type of request
-				outer:
-				if (pathComponents[0] === 'api') {
-					// We're handling a special API request
-					switch (pathComponents[1]) {
-						case 'directory_structure': await getDirectoryStructure(res); break;
-						case 'directory_structure_mbp': await getDirectoryStructure(res, true); break;
-						case 'scores': await getLeaderboard(res, body); break;
-						case 'submit': await submitScores(res, body); break;
-						case 'custom': await getCustomLevelResource(res, urlObject); break;
-						case 'sheet': await getWorldRecordSheet(res); break;
-						case 'error': await logUserError(res, body); break;
-						case 'version_history': await getVersionHistory(res); break;
-						case 'activity': await registerActivity(res, urlObject); break;
-						default: break outer; // Incorrect API function
-					}
-
-					return;
-				}
-
-				// Just serve the file normally
-				serve(req, res, finalhandler(req, res) as any);
-			} catch (e) {
-				// If we encounter any error, return a 500
-				console.error(e);
-				res.writeHead(500);
-				res.end();
-			}
-		};
-
-		if (req.method === 'POST') {
-			// Get the body
-			let chunks: Buffer[] = [];
-			req.on('data', chunk => chunks.push(chunk));
-			req.on('end', () => {
-				bodyBuffer = Buffer.concat(chunks);
-				body = bodyBuffer.toString();
-				handleRequest();
-			});
-		} else {
-			handleRequest();
-		}
-	}).listen(port);
-
-	console.log(`Started server on port ${port}.`);
 };
 
 /** Initializes the server. */
