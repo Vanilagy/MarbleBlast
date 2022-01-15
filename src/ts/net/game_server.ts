@@ -39,6 +39,7 @@ export class GameServer {
 	async connect() {
 		this.rtc = new RTCPeerConnection(peerConnectionConfig);
 		this.dataChannel = this.rtc.createDataChannel('main');
+		this.dataChannel.binaryType = 'arraybuffer';
 
 		this.rtc.onconnectionstatechange = () => {
 			let state = this.rtc.connectionState;

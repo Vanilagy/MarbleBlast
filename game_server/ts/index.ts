@@ -45,6 +45,7 @@ class Connection {
 
 		this.rtc.ondatachannel = (ev) => {
 			let channel = ev.channel;
+			channel.binaryType = 'arraybuffer';
 
 			channel.onmessage = (ev) => {
 				console.log(ev.data);
