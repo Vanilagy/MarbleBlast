@@ -35,3 +35,9 @@ export const leftPadZeroes = (str: string, amount: number) => {
 export const uppercaseFirstLetter = (str: string) => {
 	return str[0].toUpperCase() + str.slice(1);
 };
+
+/** Removes an item from an array, or does nothing if it isn't contained in it. */
+export const removeFromArray = <T>(arr: T[], item: T) => {
+	let index = arr.indexOf(item);
+	if (index !== -1) arr.splice(index, 1);
+};

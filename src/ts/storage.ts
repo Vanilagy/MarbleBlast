@@ -120,7 +120,7 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	},
 	bestTimes: {},
 	lastUsedName: '',
-	randomId: Util.getRandomId(),
+	randomId: Util.uuid(),
 	bestTimeSubmissionQueue: {},
 	lastSeenVersion: null,
 	collectedEggs: [],
@@ -278,7 +278,7 @@ export abstract class StorageManager {
 	 */
 	static insertNewTime(path: string, name: string, time: number) {
 		let stored = this.data.bestTimes[path] ?? [];
-		let scoreId = Util.getRandomId();
+		let scoreId = Util.uuid();
 		let toInsert: BestTimes[number] = [name, time, scoreId, Date.now()];
 
 		// Determine the correct index to insert the time at

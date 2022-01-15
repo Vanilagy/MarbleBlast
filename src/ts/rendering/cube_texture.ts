@@ -5,7 +5,7 @@ import { Scene } from "./scene";
 
 /** Stores a cube texture. */
 export class CubeTexture {
-	id = Util.getRandomId();
+	id = Util.uuid();
 	renderer: Renderer;
 	glTexture: WebGLTexture;
 	size: number;

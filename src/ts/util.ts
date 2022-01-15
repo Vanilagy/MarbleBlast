@@ -578,11 +578,20 @@ export abstract class Util {
 		return this.htmlEscapeElem.innerHTML;
 	}
 
-	/** Gets a unique id. */
-	static getRandomId() {
-		// This might seem cheap, but Math.random can return 2^52 different values, so the chance of collisions here is still ridiculously low.
-		// https://v8.dev/blog/math-random
-		return Math.random().toString();
+	static readonly base62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	static uuidBuffer = new Uint16Array(12);
+
+	/** Generates a (probably universally-unique) identifier. Uses its own format, not the standard cringe. */
+	static uuid() {
+		crypto.getRandomValues(this.uuidBuffer);
+
+		let res = '';
+		for (let i = 0; i < 12; i++) {
+			let char = this.base62[Math.floor(this.uuidBuffer[i] / 65536 * this.base62.length)];
+			res += char;
+		}
+
+		return res;
 	}
 
 	static roundToMultiple(val: number, fac: number) {

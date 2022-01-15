@@ -3,6 +3,7 @@ src/js/bundle.js
 server/storage
 server/bundle.js
 server/js
+game_server/bundle.js
 dist
 todo.txt
 .rpt2_cache

@@ -42,7 +42,7 @@ worker.onmessage = (e) => {
 
 /** Executes a command with a payload on the worker. Returns a promise that resolves with the result. */
 export const executeOnWorker = (command: string, payload: any) => {
-	let msgId = Util.getRandomId();
+	let msgId = Util.uuid();
 	worker.postMessage({
 		msgId: msgId,
 		command: command,

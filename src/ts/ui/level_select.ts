@@ -354,7 +354,7 @@ export abstract class LevelSelect {
 	abstract updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number): void;
 
 	displayBestTimes() {
-		let randomId = Util.getRandomId();
+		let randomId = Util.uuid();
 		this.lastDisplayBestTimesId = randomId;
 
 		let bestTimes = StorageManager.getBestTimesForMission(this.currentMission?.path, this.localScoresCount, this.scorePlaceholderName);

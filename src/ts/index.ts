@@ -8,6 +8,7 @@ import { MissionLibrary } from './mission_library';
 import { state } from './state';
 import { setMenu } from './ui/menu_setter';
 import { initMainRenderer } from './ui/misc';
+import { Connectivity } from './net/connectivity';
 
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
 const loadingDetail = document.querySelector('#loading-detail') as HTMLDivElement;
@@ -18,6 +19,8 @@ const init = async () => {
 	await StorageManager.init();
 	await ResourceManager.init();
 	initMainRenderer();
+
+	await Connectivity.init();
 
 	loadingDetail.textContent = 'Loading levels...';
 	await MissionLibrary.init();
@@ -160,7 +163,7 @@ const sendErrors = () => {
 	errorTimeout = setTimeout(sendErrors, 5000) as any as number;
 };
 
-const activityId = Util.getRandomId();
+const activityId = Util.uuid();
 setInterval(() => {
 	fetch('/api/activity?id=' + activityId);
 }, 30000);

@@ -2,7 +2,7 @@ import { Util } from "../util";
 import { Renderer } from "./renderer";
 
 export class Texture {
-	id = Util.getRandomId();
+	id = Util.uuid();
 	/** A single texture instance can be used by multiple renderering contexts, that's why we use a map here. */
 	glTextures = new Map<Renderer, WebGLTexture>();
 	image: HTMLImageElement;

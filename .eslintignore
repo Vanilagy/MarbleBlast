@@ -2,4 +2,4 @@ node_modules
 dist
 src/ts/declarations/**
 src/lib/**
-**/bundle.js
+**/*.js

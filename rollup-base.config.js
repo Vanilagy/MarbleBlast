@@ -48,4 +48,20 @@ export default (typescript) => [{
 		}
 		console.warn(message);
 	}
+}, {
+	input: './game_server/ts/index.ts',
+	plugins: [
+		externals(),
+		typescript()
+	],
+	output: {
+		format: 'cjs',
+		file: './game_server/bundle.js'
+	},
+	onwarn: function (message) {
+		if (message.code === 'CIRCULAR_DEPENDENCY' || message.code === "MISSING_GLOBAL_NAME" || message.code === "UNRESOLVED_IMPORT") {
+			return;
+		}
+		console.warn(message);
+	}
 }];

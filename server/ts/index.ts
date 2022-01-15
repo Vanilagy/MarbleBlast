@@ -2,10 +2,13 @@ import * as path from 'path';
 import * as Database from 'better-sqlite3';
 import * as fs from 'fs-extra';
 import express from 'express';
+import expressWs from 'express-ws';
 import { apiInits, shared } from './shared';
 import './misc';
 import './leaderboard';
 import './customs';
+import { handleNewWebSocketConnection } from './sockets';
+import { registerGameServer } from './game_server';
 
 let db: Database.Database = null;
 
@@ -50,14 +53,16 @@ const setupDb = () => {
 
 /** Starts the HTTP server. */
 const initServer = (port: number) => {
-	const app = express();
+	const app = expressWs(express()).app;
 
 	app.use(express.json());
 	for (let apiInit of apiInits) apiInit(app);
+	app.ws('/ws', handleNewWebSocketConnection);
+	app.ws('/register-gameserver', registerGameServer);
 	app.use(express.static(shared.directoryPath));
 
 	app.listen(port, () => {
-		console.log(`Started server on port ${port}.`);
+		console.log(`Started HTTP/WS server on port ${port}.`);
 	});
 };
 
