@@ -66,6 +66,10 @@ export class Octree {
 
 	/** Updates an object in the tree whose bounding box has changed. */
 	update(object: OctreeObject) {
+		// this.remove(object);
+		// this.insert(object);
+		// return;
+
 		let node = this.objectToNode.get(object);
 		if (!node) {
 			this.insert(object);
@@ -163,6 +167,33 @@ export class Octree {
 
 		return intersections;
 	}
+
+	// todo keep this?
+	intersectOctreeObject(object: OctreeObject): OctreeObject[] {
+		let node = this.objectToNode.get(object);
+		if (!node) return [];
+
+		let intersections: OctreeObject[] = [];
+
+		while (node.parent) {
+			let strictBoundingBox = b1;
+			strictBoundingBox.min.copy(node.min);
+			strictBoundingBox.max.copy(node.min).addScalar(node.size);
+
+			if (strictBoundingBox.containsBox(object.boundingBox)) break;
+
+			node = node.parent;
+		}
+
+		node.intersectAabb(object.boundingBox, intersections);
+
+		while (node.parent) {
+			node = node.parent;
+			node.intersectAabb(object.boundingBox, intersections, false);
+		}
+
+		return intersections;
+	}
 }
 
 class OctreeNode {
@@ -186,6 +217,8 @@ class OctreeNode {
 
 	insert(object: OctreeObject) {
 		this.count++;
+
+		//this.intersectAabb2(object);
 
 		if (this.octants) {
 			// First we check if the object can fit into any of the octants (they all have the same size, so checking only one suffices)
@@ -324,7 +357,7 @@ class OctreeNode {
 			this.min.z <= z && z < (this.min.z + this.size);
 	}
 
-	intersectAabb(aabb: Box3, intersections: OctreeObject[]) {
+	intersectAabb(aabb: Box3, intersections: OctreeObject[], recurse = false) {
 		let looseBoundingBox = b1;
 		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
 		looseBoundingBox.max.copy(this.min).addScalar(this.size * 3/2);
@@ -342,6 +375,32 @@ class OctreeNode {
 			if (octant.count === 0) continue;
 
 			octant.intersectAabb(aabb, intersections);
+		}
+	}
+
+	intersectAabb2(object: OctreeObject) {
+		let aabb = object.boundingBox;
+
+		let looseBoundingBox = b1;
+		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
+		looseBoundingBox.max.copy(this.min).addScalar(this.size * 3/2);
+
+		if (!aabb.intersectsBox(looseBoundingBox)) return;
+
+		// Test all objects for intersection
+		if (this.objects.size > 0) for (let otherObject of this.objects) {
+			if (aabb.intersectsBox(otherObject.boundingBox)) {
+				object.adjacent.add(otherObject);
+				otherObject.adjacent.add(object);
+			}
+		}
+
+		// Recurse into the octants
+		if (this.octants) for (let i = 0; i < 8; i++) {
+			let octant = this.octants[i];
+			if (octant.count === 0) continue;
+
+			octant.intersectAabb2(object);
 		}
 	}
 }

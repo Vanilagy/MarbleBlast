@@ -1,26 +1,26 @@
 enum Type {
 	False = 0,
 	True = 1,
-	Zero = 2,
-	One = 3,
-	F32 = 4,
-	F64 = 5,
-	P8 = 6,
-	N8 = 7,
-	P16 = 8,
-	N16 = 9,
-	P32 = 10,
-	N32 = 11,
-	String8 = 12,
-	String16 = 13,
-	String32 = 14,
-	Undefined = 15,
-	Null = 16,
-	KeyDictionary = 17,
-	Array8 = 18,
-	Array16 = 19,
-	Array32 = 20,
-	Object = 21,
+	PositiveZero = 2,
+	NegativeZero = 3,
+	One = 4,
+	F32 = 5,
+	F64 = 6,
+	P8 = 7,
+	N8 = 8,
+	P16 = 9,
+	N16 = 10,
+	P32 = 11,
+	N32 = 12,
+	String8 = 13,
+	String16 = 14,
+	String32 = 15,
+	Undefined = 16,
+	Null = 17,
+	Array = 18,
+	ArrayEnd = 19,
+	Object = 20,
+	ObjectEnd = 21,
 	Reference8 = 22,
 	Reference16 = 23,
 	Reference32 = 24
@@ -38,8 +38,8 @@ export abstract class BinarySerializer {
 	static index = 0;
 
 	// These two following variables are used for data reuse. Especially useful for strings.
-	static dataIndices = new Map<any, number>();
-	static indexData = new Map<number, any>();
+	static dataIndices = new Map<unknown, number>();
+	static indexData = new Map<number, unknown>();
 
 	static init() {
 		this.encodeBuffer = new ArrayBuffer(2**24); // Allocate a buffer large enough so we never need to enlarge
@@ -48,7 +48,7 @@ export abstract class BinarySerializer {
 	}
 
 	/** Encodes the given data into an ArrayBuffer. */
-	static encode(x: any) {
+	static encode(x: unknown) {
 		this.index = 0;
 		this.dataIndices.clear();
 
@@ -57,15 +57,15 @@ export abstract class BinarySerializer {
 		return this.encodeBuffer.slice(0, this.index);
 	}
 
-	static write(x: any) {
+	static write(x: unknown) {
 		let type = typeof x;
 
 		if (type === 'boolean') {
 			this.writeType(x? Type.True : Type.False);
 		} else if (type === 'number') {
-			this.writeNumber(x);
+			this.writeNumber(x as number);
 		} else if (type === 'string') {
-			this.writeString(x);
+			this.writeString(x as string);
 		} else if (type === 'undefined') {
 			this.writeType(Type.Undefined);
 		} else if (type === 'object') {
@@ -74,7 +74,7 @@ export abstract class BinarySerializer {
 			if (Array.isArray(x)) {
 				this.writeArray(x);
 			} else {
-				this.writeObject(x);
+				this.writeObject(x as Record<string, unknown>);
 			}
 		} else {
 			throw new Error(`Cannot encode data of type ${typeof x}.`);
@@ -86,7 +86,8 @@ export abstract class BinarySerializer {
 	}
 
 	static writeNumber(x: number) {
-		if (x === 0) return this.writeType(Type.Zero);
+		if (x === 0 && 1 / x === Infinity) return this.writeType(Type.PositiveZero);
+		if (x === 0) return this.writeType(Type.NegativeZero);
 		if (x === 1) return this.writeType(Type.One);
 
 		let isInteger = Number.isInteger(x);
@@ -164,33 +165,25 @@ export abstract class BinarySerializer {
 		}
 	}
 
-	static writeArray(x: any[]) {
-		if (x.length < (1 << 8)) {
-			this.writeType(Type.Array8);
-			this.encodeView.setUint8(this.index++, x.length);
-		} else if (x.length < (1 << 16)) {
-			this.writeType(Type.Array16);
-			this.encodeView.setUint16((this.index += 2) - 2, x.length, true);
-		} else {
-			this.writeType(Type.Array32);
-			this.encodeView.setUint32((this.index += 4) - 4, x.length, true);
-		}
+	static writeArray(x: unknown[]) {
+		this.writeType(Type.Array);
 
 		for (let i = 0; i < x.length; i++) {
 			this.write(x[i]);
 		}
+
+		this.writeType(Type.ArrayEnd);
 	}
 
-	static writeObject(x: Record<string, any>) {
+	static writeObject(x: Record<string, unknown>) {
 		this.writeType(Type.Object);
 
-		let keys = Object.keys(x);
-		this.encodeView.setUint8(this.index++, keys.length);
-
-		for (let key of keys) {
+		for (let key in x) {
 			this.writeString(key);
 			this.write(x[key]);
 		}
+
+		this.writeType(Type.ObjectEnd);
 	}
 
 	/** Converts a string into UTF-8 bytes. Done manually because it's significantly faster than TextEncoder. */
@@ -204,8 +197,8 @@ export abstract class BinarySerializer {
 				out[p++] = (c >> 6) | 192;
 				out[p++] = (c & 63) | 128;
 			} else if (
-				((c & 0xFC00) == 0xD800) && (i + 1) < str.length &&
-				((str.charCodeAt(i + 1) & 0xFC00) == 0xDC00)) {
+				((c & 0xFC00) === 0xD800) && (i + 1) < str.length &&
+				((str.charCodeAt(i + 1) & 0xFC00) === 0xDC00)) {
 				// Surrogate Pair
 				c = 0x10000 + ((c & 0x03FF) << 10) + (str.charCodeAt(++i) & 0x03FF);
 				out[p++] = (c >> 18) | 240;
@@ -236,20 +229,21 @@ export abstract class BinarySerializer {
 
 		if (type === Type.False) return false;
 		if (type === Type.True) return true;
-		if (type >= Type.Zero && type <= Type.N32) return this.readNumber(type);
+		if (type >= Type.PositiveZero && type <= Type.N32) return this.readNumber(type);
 		if (type >= Type.String8 && type <= Type.String32) return this.readString(type);
 		if (type >= Type.Reference8 && type <= Type.Reference32) return this.readReference(type);
 		if (type === Type.Undefined) return undefined;
 		if (type === Type.Null) return null;
-		if (type >= Type.Array8 && type <= Type.Array32) return this.readArray(type);
+		if (type === Type.Array) return this.readArray();
 		if (type === Type.Object) return this.readObject();
 
 		throw new Error(`Incorrect type ${type} at index ${this.index}.`);
 	}
 
 	static readNumber(type: Type) {
-		if (type === Type.Zero) return  0;
-		if (type === Type.One)  return  1;
+		if (type === Type.PositiveZero) return  0;
+		if (type === Type.NegativeZero) return -0;
+		if (type === Type.One) return 1;
 
 		if (type === Type.F32)  return  this.decodeView.getFloat32((this.index += 4) - 4, true);
 		if (type === Type.F64)  return  this.decodeView.getFloat64((this.index += 8) - 8, true);
@@ -292,20 +286,16 @@ export abstract class BinarySerializer {
 		}
 	}
 
-	static readArray(type: Type) {
-		let length: number;
+	static readArray() {
+		let arr: unknown[] = [];
 
-		if (type === Type.Array8) {
-			length = this.decodeView.getUint8(this.index++);
-		} else if (type === Type.Array16) {
-			length = this.decodeView.getUint16((this.index += 2) - 2, true);
-		} else {
-			length = this.decodeView.getUint32((this.index += 4) - 4, true);
-		}
+		while (true) {
+			let next: Type = this.decodeView.getUint8(this.index);
+			if (next === Type.ArrayEnd) {
+				this.index++;
+				break;
+			}
 
-		let arr: any[] = [];
-
-		for (let i = 0; i < length; i++) {
 			arr.push(this.read());
 		}
 
@@ -313,10 +303,15 @@ export abstract class BinarySerializer {
 	}
 
 	static readObject() {
-		let keyCount = this.decodeView.getUint8(this.index++);
-		let obj: Record<string, any> = {};
+		let obj: Record<string, unknown> = {};
 
-		for (let i = 0; i < keyCount; i++) {
+		while (true) {
+			let next: Type = this.decodeView.getUint8(this.index);
+			if (next === Type.ObjectEnd) {
+				this.index++;
+				break;
+			}
+
 			let key = this.read() as string;
 			obj[key] = this.read();
 		}
@@ -352,7 +347,7 @@ export abstract class BinarySerializer {
 	}
 
 	/** Encodes and immediately decodes the data. Can be used to clone objects or, realistically, to debug this class. */
-	static encodeDecode(x: any) {
+	static encodeDecode(x: unknown) {
 		let encoded = this.encode(x);
 		return this.decode(encoded);
 	}

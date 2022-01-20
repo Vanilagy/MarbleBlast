@@ -92,6 +92,7 @@ window.addEventListener('keyup', (e) => {
 window.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable right click context menu for good
 
 window.addEventListener('beforeunload', (e) => {
+	return; // fixme
 	// Ask the user if they're sure about closing the tab if they're currently in game
 	if (state.level) {
 		e.preventDefault();

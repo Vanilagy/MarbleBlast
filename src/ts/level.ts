@@ -71,6 +71,8 @@ import { Quaternion } from "./math/quaternion";
 import { Euler } from "./math/euler";
 import { OrthographicCamera, PerspectiveCamera } from "./rendering/camera";
 import { Plane } from "./math/plane";
+import { gameServers } from "./net/game_server";
+import { RTCCommands, RTCMessage } from "../../shared/rtc";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -157,6 +159,8 @@ export class Level extends Scheduler {
 	world: World;
 	particles: ParticleManager;
 	marble: Marble;
+	marbles: Marble[] = [];
+	marblePool: Marble[] = [];
 	interiors: Interior[] = [];
 	sharedInteriorData = new Map<DifFile["detailLevels"][number], any>();
 	triggers: Trigger[] = [];
@@ -308,6 +312,10 @@ export class Level extends Scheduler {
 
 		// Render them once
 		for (let shape of this.shapes) if (shape.isTSStatic) shape.render(this.timeState);
+
+		gameServers[0].connection.queueCommand('playMission', {
+			missionPath: this.mission.path
+		});
 	}
 
 	async initScene() {
@@ -426,10 +434,40 @@ export class Level extends Scheduler {
 
 	async initMarble() {
 		this.marble = new Marble(this);
+		this.marble.playerControlled = true;
 		await this.marble.init();
 
 		this.scene.add(this.marble.group);
 		this.world.add(this.marble.body);
+		this.marbles.push(this.marble);
+
+		for (let i = 0; i < 8; i++) {
+			let marble = new Marble(this);
+			await marble.init();
+
+			this.scene.add(marble.group);
+			marble.group.setOpacity(0);
+
+			this.marblePool.push(marble);
+		}
+
+		/*
+		for (let i = 0; i < 100; i++) {
+			let second = new Marble(this);
+			await second.init();
+
+			this.scene.add(second.group);
+			this.world.add(second.body);
+			this.marbles.push(second);
+
+			second.body.position.set(Math.random() * 5 - 2, Math.random() * 5 - 2 + 20, 510 + Math.random() * 20);
+			second.body.linearVelocity.randomDirection();
+			second.body.syncShapes();
+			second.group.position.copy(this.marble.body.position);
+			second.group.recomputeTransform();
+			second.reset();
+		}
+		*/
 	}
 
 	async initUi() {
@@ -893,7 +931,7 @@ export class Level extends Scheduler {
 			tickIndex: this.timeState.tickIndex + completion
 		};
 
-		this.marble.render(tempTimeState);
+		for (let marble of this.marbles) marble.render(tempTimeState);
 		for (let interior of this.interiors) interior.render(tempTimeState);
 		for (let shape of this.shapes) if (!shape.isTSStatic) shape.render(tempTimeState);
 		this.particles.render(tempTimeState.timeSinceLoad);
@@ -1077,7 +1115,7 @@ export class Level extends Scheduler {
 
 	tick(time?: number) {
 		if (this.stopped) return;
-		if (this.paused) return;
+		//if (this.paused) return; // fixme
 
 		if (time === undefined) time = performance.now();
 		let playReplay = this.replay.mode === 'playback';
@@ -1158,7 +1196,7 @@ export class Level extends Scheduler {
 			for (let interior of this.interiors) interior.tick(this.timeState);
 			for (let trigger of this.triggers) trigger.tick(this.timeState);
 			for (let shape of this.shapes) if (!shape.isTSStatic) shape.tick(this.timeState);
-			this.marble.tick(this.timeState);
+			for (let marble of this.marbles) marble.update();
 
 			if (!playReplay) {
 				let gravityBefore = this.world.gravity.clone();
@@ -1166,6 +1204,8 @@ export class Level extends Scheduler {
 				this.world.step(1 / PHYSICS_TICK_RATE);
 				this.world.gravity.copy(gravityBefore);
 			}
+
+			for (let marble of this.marbles) marble.postStep();
 
 			this.jumpQueued = false;
 			this.useQueued = false;
@@ -1219,11 +1259,13 @@ export class Level extends Scheduler {
 					return;
 				}
 			}
+
+			this.queueStateUpdates();
 		}
 
 		AudioManager.updatePositionalAudio(this.timeState, this.camera.position, this.yaw);
 		this.pitch = Math.max(-Math.PI/2 + Math.PI/4, Math.min(Math.PI/2 - 0.0001, this.pitch)); // The player can't look straight up
-		if (tickDone) this.marble.calculatePredictiveTransforms();
+		if (tickDone) for (let marble of this.marbles) marble.calculatePredictiveTransforms();
 
 		// Handle pressing of the restart button
 		if (!this.finishTime && isPressed('restart') && !this.pressingRestart) {
@@ -1653,5 +1695,37 @@ export class Level extends Scheduler {
 		this.scene.dispose();
 		this.marble.dispose();
 		mainRenderer.cleanUp();
+	}
+
+	queueStateUpdates() {
+		for (let marble of this.marbles) {
+			if (marble !== this.marble) continue;
+			if (marble.hasNewState) {
+				let lastState = Util.last(marble.stateHistory);
+
+				gameServers[0].connection.queueCommand('stateUpdate', {
+					gameObjectId: marble.id,
+					state: lastState.state
+				}, true, 'stateUpdate@' + marble.id);
+			}
+		}
+	}
+
+	onStateUpdate(data: RTCCommands['stateUpdate']) {
+		let marble = this.marbles.find(x => x.id === data.gameObjectId);
+		if (marble === this.marble) return;
+
+		if (!marble) {
+			marble = this.marblePool.pop();
+			marble.id = data.gameObjectId;
+
+			marble.group.setOpacity(1);
+			this.world.add(marble.body);
+			this.marbles.push(marble);
+
+			console.log("Created");
+		}
+
+		marble.loadState(data.state as any); // temp type for now
 	}
 }

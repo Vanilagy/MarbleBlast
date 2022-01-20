@@ -142,6 +142,12 @@ export class World {
 			let collision = collisions[i];
 			if ((collision.s1.collisionResponseMask & collision.s2.collisionResponseMask) === 0) continue; // The masks don't match, don't do collision response
 
+			if (collision.s1.body.type === RigidBodyType.Dynamic && collision.s2.body.type === RigidBodyType.Dynamic) {
+				// fixme
+				//debugger;
+				collision.restitution = 1;
+			}
+
 			CollisionResponse.solvePosition(collision);
 			CollisionResponse.solveVelocity(collision);
 		}

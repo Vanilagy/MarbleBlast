@@ -11,8 +11,10 @@
 		"build": "npm run lint && npm run compile && npm run bundle",
 		"start": "node server/bundle.js",
 		"start-gs": "node game_server/bundle.js",
-		"lint": "npx eslint src/ts/**/*.ts server/ts/**/*.ts",
-		"monitor": "node scripts/monitor.js"
+		"lint": "npx eslint src/ts/**/*.ts server/ts/**/*.ts game_server/ts/**/*.ts",
+		"monitor": "node scripts/monitor.js",
+		"ms": "npm run monitor server/bundle.js",
+		"mgs": "npm run monitor game_server/bundle.js"
 	},
 	"author": "Vanilagy",
 	"license": "ISC",

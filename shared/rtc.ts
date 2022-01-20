@@ -1,6 +1,25 @@
-export const peerConnectionConfig = {
-	'iceServers': [
-		{'urls': 'stun:stun.stunprotocol.org:3478'},
-		{'urls': 'stun:stun.l.google.com:19302'},
-	]
+import { GameObjectState } from "./game_object_state";
+
+export type RTCCommands = {
+	playMission: {
+		missionPath: string
+	},
+	stateUpdate: {
+		gameObjectId: number,
+		state: GameObjectState
+	},
+	timeState: {
+		serverTick: number,
+		clientTick: number
+	}
+};
+
+export type RTCMessage = {
+	packetId: number,
+	ack: number,
+	commands: {
+		command: keyof RTCCommands,
+		data: unknown,
+		ack?: number
+	}[]
 };

@@ -16,13 +16,15 @@ import { Mesh } from "./rendering/mesh";
 import { CubeTexture } from "./rendering/cube_texture";
 import { CubeCamera } from "./rendering/cube_camera";
 import { mainRenderer } from "./ui/misc";
-import { RigidBody } from "./physics/rigid_body";
+import { RigidBody, RigidBodyType } from "./physics/rigid_body";
 import { BallCollisionShape } from "./physics/collision_shape";
 import { Collision } from "./physics/collision";
 import { Vector3 } from "./math/vector3";
 import { Quaternion } from "./math/quaternion";
 import { Euler } from "./math/euler";
 import { BlendingType } from "./rendering/renderer";
+import { GameObject } from "./game_object";
+import { GameObjectState } from "../../shared/game_object_state";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -81,9 +83,14 @@ blastMaxParticleOptions.ejectionPeriod = 0.7;
 blastMaxParticleOptions.particleOptions.dragCoefficient = 0.3;
 blastMaxParticleOptions.particleOptions.colors = blastMaxParticleOptions.particleOptions.colors.map(x => { x.r = 255/255; x.g = 159/255; x.b = 25/255; return x; });
 
+interface MarbleState extends GameObjectState {
+	position: Vector3,
+	orientation: Quaternion
+}
+
 /** Controls marble behavior and responds to player input. */
-export class Marble {
-	level: Level;
+export class Marble extends GameObject<MarbleState> {
+	id = -Math.random();
 	group: Group;
 	innerGroup: Group;
 	sphere: Mesh;
@@ -92,6 +99,8 @@ export class Marble {
 	predictedPosition = new Vector3();
 	/** The predicted orientation of the marble in the next tick. */
 	predictedOrientation = new Quaternion();
+
+	playerControlled = false;
 
 	body: RigidBody;
 	/** Main collision shape of the marble. */
@@ -141,7 +150,7 @@ export class Marble {
 	cubeCamera: CubeCamera;
 
 	constructor(level: Level) {
-		this.level = level;
+		super(level);
 	}
 
 	async init() {
@@ -224,6 +233,11 @@ export class Marble {
 		this.shape = colShape;
 		this.body.addCollisionShape(colShape);
 
+		if (!this.playerControlled) {
+			this.body.type = RigidBodyType.Static;
+			colShape.collisionDetectionMask = 0; // temp for now
+		}
+
 		let largeAuxShape = new BallCollisionShape(0);
 		largeAuxShape.collisionDetectionMask = 0b10;
 		largeAuxShape.collisionResponseMask = 0;
@@ -294,6 +308,27 @@ export class Marble {
 		// On some iOS devices, the reflective marble is invisible. That implies a shader compilation error but I sadly cannot check the console on there so we're just disabling them for all iOS devices.
 	}
 
+	getCurrentState(): MarbleState {
+		return {
+			tick: this.level.timeState.tickIndex,
+			position: this.body.position.clone(),
+			orientation: this.body.orientation.clone()
+		};
+	}
+
+	getInitialState(): MarbleState {
+		return {
+			tick: 0,
+			position: new Vector3(),
+			orientation: new Quaternion()
+		};
+	}
+
+	loadState(state: MarbleState) {
+		this.body.position.copy(state.position);
+		this.body.orientation.copy(state.orientation);
+	}
+
 	findBestCollision(withRespectTo: (c: Collision) => number) {
 		let bestCollision: Collision;
 		let bestCollisionValue = -Infinity;
@@ -324,36 +359,40 @@ export class Marble {
 	}
 
 	onBeforeIntegrate(dt: number) {
-		let allowUserInput = !state.menu.finishScreen.showing;
+		let allowUserInput = !state.menu.finishScreen.showing && this.playerControlled;
 
 		// Construct the raw movement vector from inputs
 		let movementVec = new Vector3(0, 0, 0);
-		if (isPressed('up')) movementVec.add(new Vector3(1, 0, 0));
-		if (isPressed('down')) movementVec.add(new Vector3(-1, 0, 0));
-		if (isPressed('left')) movementVec.add(new Vector3(0, 1, 0));
-		if (isPressed('right')) movementVec.add(new Vector3(0, -1, 0));
+		let inputStrength = 0;
 
-		// Add gamepad input and restrict if necessary
-		movementVec.add(new Vector3(-gamepadAxes.marbleY, -gamepadAxes.marbleX));
-		if (normalizedJoystickHandlePosition) movementVec.add(new Vector3(
-			-Util.signedSquare(normalizedJoystickHandlePosition.y),
-			-Util.signedSquare(normalizedJoystickHandlePosition.x)
-		));
-		if (movementVec.x > 1.0)
-			movementVec.x = 1.0;
-		if (movementVec.x < -1.0)
-			movementVec.x = -1.0;
-		if (movementVec.y > 1.0)
-			movementVec.y = 1.0;
-		if (movementVec.y < -1.0)
-			movementVec.y = -1.0;
+		if (this.playerControlled) {
+			if (isPressed('up')) movementVec.add(new Vector3(1, 0, 0));
+			if (isPressed('down')) movementVec.add(new Vector3(-1, 0, 0));
+			if (isPressed('left')) movementVec.add(new Vector3(0, 1, 0));
+			if (isPressed('right')) movementVec.add(new Vector3(0, -1, 0));
 
-		if (!allowUserInput) movementVec.multiplyScalar(0);
-		let inputStrength = movementVec.length();
+			// Add gamepad input and restrict if necessary
+			movementVec.add(new Vector3(-gamepadAxes.marbleY, -gamepadAxes.marbleX));
+			if (normalizedJoystickHandlePosition) movementVec.add(new Vector3(
+				-Util.signedSquare(normalizedJoystickHandlePosition.y),
+				-Util.signedSquare(normalizedJoystickHandlePosition.x)
+			));
+			if (movementVec.x > 1.0)
+				movementVec.x = 1.0;
+			if (movementVec.x < -1.0)
+				movementVec.x = -1.0;
+			if (movementVec.y > 1.0)
+				movementVec.y = 1.0;
+			if (movementVec.y < -1.0)
+				movementVec.y = -1.0;
 
-		// Rotate the vector accordingly
-		movementVec.multiplyScalar(MARBLE_ROLL_FORCE * 5 * dt);
-		movementVec.applyAxisAngle(new Vector3(0, 0, 1), this.level.yaw);
+			if (!allowUserInput) movementVec.multiplyScalar(0);
+			inputStrength = movementVec.length();
+
+			// Rotate the vector accordingly
+			movementVec.multiplyScalar(MARBLE_ROLL_FORCE * 5 * dt);
+			movementVec.applyAxisAngle(new Vector3(0, 0, 1), this.level.yaw);
+		}
 
 		let quat = this.level.newOrientationQuat;
 		movementVec.applyQuaternion(quat);
@@ -446,6 +485,8 @@ export class Marble {
 		this.beforeVel.copy(this.body.linearVelocity);
 		this.beforeAngVel.copy(this.body.angularVelocity);
 
+		if (!this.playerControlled) return;
+
 		let time = this.level.timeState;
 		let playReplay = this.level.replay.mode === 'playback';
 
@@ -488,8 +529,8 @@ export class Marble {
 
 		// Implements sliding: If we hit the surface at an angle below 45°, and have movement keys pressed, we don't bounce.
 		let dot0 = -contactNormal.dot(lastSurfaceRelativeVelocity.clone().normalize());
-		let slidinigEligible = contactNormalUpDot > 0.1; // Kinda arbitrary rn, it's about 84°, definitely makes sure we don't slide on walls
-		if (slidinigEligible && this.slidingTimeout <= 0 && dot0 > 0.001 && dot0 <= maxDotSlide && this.lastMovementVec.length() > 0) {
+		let slidingEligible = contactNormalUpDot > 0.1; // Kinda arbitrary rn, it's about 84°, definitely makes sure we don't slide on walls
+		if (slidingEligible && this.slidingTimeout <= 0 && dot0 > 0.001 && dot0 <= maxDotSlide && this.lastMovementVec.length() > 0) {
 			let dot = contactNormal.dot(surfaceRelativeVelocity);
 			let linearVelocity = this.body.linearVelocity;
 			let originalLength = linearVelocity.length();
@@ -568,7 +609,9 @@ export class Marble {
 		}
 	}
 
-	tick(time: TimeState) {
+	update() {
+		let time = this.level.timeState;
+
 		if (time.currentAttemptTime - this.shockAbsorberEnableTime < 5000) {
 			// Show the shock absorber (takes precedence over super bounce)
 			this.forcefield.setOpacity(1);
@@ -633,6 +676,10 @@ export class Marble {
 			this.rollingSound.play();
 			this.rollingMegaMarbleSound?.stop();
 		}
+	}
+
+	postStep() {
+		this.storeState();
 	}
 
 	playJumpSound() {

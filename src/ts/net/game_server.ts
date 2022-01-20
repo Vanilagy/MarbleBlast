@@ -1,12 +1,41 @@
 import { Socket } from "../../../shared/socket";
-import { peerConnectionConfig } from "../../../shared/rtc";
+import { RTCConnection } from "../../../shared/rtc_connection";
+import { state } from "../state";
 
 export let gameServers: GameServer[] = [];
+const TICK_FREQUENCY = 60;
+
+class GameServerRTCConnection extends RTCConnection {
+	gameServerId: string;
+
+	constructor(gameServerId: string) {
+		super(RTCPeerConnection);
+
+		this.gameServerId = gameServerId;
+	}
+
+	gotIceCandidate(candidate: RTCIceCandidate) {
+		if (!candidate) return;
+
+		Socket.send('rtcIce', {
+			ice: candidate,
+			gameServerId: this.gameServerId
+		});
+	}
+
+	async createdDescription(description: RTCSessionDescriptionInit) {
+		await super.createdDescription(description);
+
+		Socket.send('rtcSdp', {
+			sdp: this.rtc.localDescription,
+			gameServerId: this.gameServerId
+		});
+	}
+}
 
 export class GameServer {
 	id: string;
-	rtc: RTCPeerConnection;
-	dataChannel: RTCDataChannel;
+	connection: GameServerRTCConnection;
 
 	static init() {
 		Socket.on('updateGameServerList', list => {
@@ -24,12 +53,16 @@ export class GameServer {
 		});
 
 		Socket.on('rtcIce', data => {
-			gameServers.find(x => x.id === data.gameServerId)?.gotIceFromServer(new RTCIceCandidate(data.ice));
+			gameServers.find(x => x.id === data.gameServerId)?.connection.gotIceFromServer(new RTCIceCandidate(data.ice));
 		});
 
 		Socket.on('rtcSdp', data => {
-			gameServers.find(x => x.id === data.gameServerId)?.gotSdpFromServer(new RTCSessionDescription(data.sdp));
+			gameServers.find(x => x.id === data.gameServerId)?.connection.gotSdpFromServer(new RTCSessionDescription(data.sdp));
 		});
+
+		setInterval(() => {
+			for (let gs of gameServers) gs.connection?.tick();
+		}, 1000 / TICK_FREQUENCY);
 	}
 
 	constructor(id: string) {
@@ -37,60 +70,14 @@ export class GameServer {
 	}
 
 	async connect() {
-		this.rtc = new RTCPeerConnection(peerConnectionConfig);
-		this.dataChannel = this.rtc.createDataChannel('main');
-		this.dataChannel.binaryType = 'arraybuffer';
+		this.connection = new GameServerRTCConnection(this.id);
+		this.connection.createOffer();
 
-		this.rtc.onconnectionstatechange = () => {
-			let state = this.rtc.connectionState;
-
-			if (state === 'disconnected' || state === 'failed') {
-				console.log("Attempting to reconnect RTC...");
-				this.connect(); // Attempt to reconnect TODO does this even work haha
-			} else if (state === 'connected') {
-				console.log("RTC connected! 🎉");
-			}
-		};
-
-		this.dataChannel.onopen = () => {
-			console.log("DC OPEN");
-		};
-
-		this.rtc.onicecandidate = (ev) => this.gotIceCandidate(ev.candidate);
-
-		let offer = await this.rtc.createOffer();
-		this.createdDescription(offer);
-	}
-
-	async gotIceCandidate(candidate: RTCIceCandidate) {
-		if (!candidate) return;
-
-		Socket.send('rtcIce', {
-			ice: candidate,
-			gameServerId: this.id
+		this.connection.on('stateUpdate', data => {
+			state.level?.onStateUpdate(data);
 		});
-	}
+		this.connection.on('timeState', data => {
 
-	async createdDescription(description: RTCSessionDescriptionInit) {
-		await this.rtc.setLocalDescription(description);
-
-		Socket.send('rtcSdp', {
-			sdp: this.rtc.localDescription,
-			gameServerId: this.id
 		});
-	}
-
-	async gotIceFromServer(candidate: RTCIceCandidate) {
-		this.rtc.addIceCandidate(candidate);
-	}
-
-	async gotSdpFromServer(description: RTCSessionDescription) {
-		await this.rtc.setRemoteDescription(description);
-
-		if (description.type === 'offer') {
-			// Actually not sure if this ever kicks since the server never initiates the thing
-			let answer = await this.rtc.createAnswer();
-			this.createdDescription(answer);
-		}
 	}
 }
