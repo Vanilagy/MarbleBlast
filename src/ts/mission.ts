@@ -384,4 +384,12 @@ export class Mission {
 
 		return alarmStart;
 	}
+
+	getDefaultGravity() {
+		if (this.misFile.marbleAttributes["gravity"] !== undefined) {
+			return MisParser.parseNumber(this.misFile.marbleAttributes["gravity"]);
+		}
+
+		return 20;
+	}
 }

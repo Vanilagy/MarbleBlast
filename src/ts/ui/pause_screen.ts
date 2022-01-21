@@ -25,39 +25,39 @@ export abstract class PauseScreen {
 		this.initProperties();
 
 		menu.setupButton(this.yesButton, this.yesSrc, () => {
-			if (!state.level) return;
-			state.level.stopAndExit();
+			if (!state.game) return;
+			state.game.stopAndExit();
 		});
-		menu.setupButton(this.noButton, this.noSrc, () => state.level.unpause());
+		menu.setupButton(this.noButton, this.noSrc, () => state.game.unpause());
 		menu.setupButton(this.restartButton, this.restartSrc, () => {
-			state.level.unpause();
-			state.level.restart(true);
+			state.game.unpause();
+			state.game.state.restart(true);
 		});
 
 		window.addEventListener('keydown', (e) => {
-			if (!state.level) return;
+			if (!state.game) return;
 			if (state.menu !== menu) return;
 
 			if (e.key === 'Escape') {
-				if (state.level.paused) {
+				if (state.game.paused) {
 					if (!this.preventClose) this.noButton.src = menu.uiAssetPath + this.noSrc + '_d.png';
 				} else {
-					state.level.pause();
+					state.game.pause();
 				}
-			} else if (e.code === StorageManager.data.settings.gameButtonMapping.restart && state.level.paused) {
+			} else if (e.code === StorageManager.data.settings.gameButtonMapping.restart && state.game.paused) {
 				// Restart the level if we press the restart button
 				this.restartButton.click();
-				state.level.pressingRestart = true; // Prevents the level from restarting again immediately (kinda hacky 😅)
+				//state.level.pressingRestart = true; // fixme Prevents the level from restarting again immediately (kinda hacky 😅)
 			}
 		});
 
 		window.addEventListener('keyup', (e) => {
-			if (!state.level) return;
+			if (!state.game) return;
 			if (state.menu !== menu) return;
 
-			if (state.level.paused && e.key === 'Escape' && this.noButton.src.endsWith('_d.png')) {
+			if (state.game.paused && e.key === 'Escape' && this.noButton.src.endsWith('_d.png')) {
 				this.noButton.src = menu.uiAssetPath + this.noSrc + '_n.png';
-				state.level.unpause();
+				state.game.unpause();
 			}
 		});
 	}

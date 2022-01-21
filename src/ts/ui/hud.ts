@@ -90,8 +90,8 @@ export abstract class Hud {
 			this.fpsMeter.classList.add('hidden');
 		}
 
-		this.setBlastMeterVisibility(state.level.mission.hasBlast);
-		if (state.level.mission.hasBlast) {
+		this.setBlastMeterVisibility(state.game.mission.hasBlast);
+		if (state.game.mission.hasBlast) {
 			await ResourceManager.loadImages(["blastbar.png", "blastbar_charged.png", "blastbar_bargreen.png", "blastbar_bargray.png"].map(x => "./assets/ui_mbp/game/" + x));
 		}
 
@@ -100,13 +100,13 @@ export abstract class Hud {
 
 	setupTouchControls() {
 		// Change the offset based on whether or not there's a gem counter
-		pauseButton.style.top = state.level.totalGems? '60px' : '';
-		restartButton.style.top = state.level.totalGems? '60px' : '';
-		freeLookButton.style.top = state.level.totalGems? '60px' : '';
+		pauseButton.style.top = state.game.totalGems? '60px' : '';
+		restartButton.style.top = state.game.totalGems? '60px' : '';
+		freeLookButton.style.top = state.game.totalGems? '60px' : '';
 
 		// Kinda hacky here, don't wanna clean up: (Yes there's a good reason we don't set display)
-		blastButton.style.visibility = state.level.mission.hasBlast? '' : 'hidden';
-		blastButton.style.pointerEvents = state.level.mission.hasBlast? '' : 'none';
+		blastButton.style.visibility = state.game.mission.hasBlast? '' : 'hidden';
+		blastButton.style.pointerEvents = state.game.mission.hasBlast? '' : 'none';
 		freeLookButton.style.visibility = StorageManager.data.settings.alwaysFreeLook? 'hidden' : '';
 		freeLookButton.style.pointerEvents = StorageManager.data.settings.alwaysFreeLook? 'none' : '';
 
@@ -245,14 +245,14 @@ export abstract class Hud {
 		if (message === 'MSG_RACETOTHEFINISH') message = "Race to the finish!";
 
 		this.helpElement.textContent = message;
-		state.level.helpTextTimeState = Util.jsonClone(state.level.timeState);
+		state.game.renderer.helpTextTimeState = state.game.state.time;
 		if (playSound) AudioManager.play('infotutorial.wav');
 	}
 
 	/** Displays an alert at the bottom of the screen. */
 	displayAlert(message: string) {
 		this.alertElement.textContent = message;
-		state.level.alertTextTimeState = Util.jsonClone(state.level.timeState);
+		state.game.renderer.alertTextTimeState = state.game.state.time;
 	}
 
 	setCenterText(type: 'none' | 'ready' | 'set' | 'go' | 'outofbounds') {
@@ -275,7 +275,7 @@ export abstract class Hud {
 		while (this.frameTimeStore.length && this.frameTimeStore[0] + 1000 <= now) this.frameTimeStore.shift();
 
 		let value = this.frameTimeStore.length;
-		value /= Math.min(1, state.level.timeState.timeSinceLoad / 1000 ?? 1); // Hack to make it reach the final frame rate faster
+		//value /= Math.min(1, state.game level.timeState.timeSinceLoad / 1000 ?? 1); // Hack to make it reach the final frame rate faster
 		value = Math.floor(value);
 		let settingsTarget = FRAME_RATE_OPTIONS[StorageManager.data.settings.frameRateCap];
 		if (value === 59 || value === 119 || value === 143 || value === 239 || value === settingsTarget-1) value++; // Snap to the most common frame rates

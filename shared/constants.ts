@@ -1,0 +1,1 @@
+export const GAME_UPDATE_RATE = 120;

@@ -34,7 +34,7 @@ export const resize = async (wait = true) => {
 	mainRenderer?.setSize(window.innerWidth, window.innerHeight);
 	mainRenderer?.setPixelRatio(Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]));
 
-	state.level?.onResize();
+	state.game?.renderer.onResize();
 };
 window.addEventListener('resize', resize as any);
 

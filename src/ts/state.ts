@@ -1,8 +1,8 @@
-import { Level } from "./level";
+import { Game } from "./game/game";
 import { Menu } from "./ui/menu";
 
 export const state = {
 	modification: null as 'gold' | 'platinum',
-	level: null as Level,
+	game: null as Game,
 	menu: null as Menu
 };

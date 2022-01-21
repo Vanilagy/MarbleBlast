@@ -1,4 +1,4 @@
-import { GameObjectState } from "./game_object_state";
+import { GameObjectState } from "./game_object_state_update";
 
 export type RTCCommands = {
 	playMission: {

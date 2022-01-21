@@ -1,4 +1,5 @@
 import { AudioManager, AudioSource } from "../audio";
+import { Game } from "../game/game";
 import { DEFAULT_PITCH, Level, TimeState } from "../level";
 import { Vector3 } from "../math/vector3";
 import { MisParser, MissionElementTrigger } from "../parsing/mis_parser";
@@ -16,8 +17,8 @@ export class TeleportTrigger extends Trigger {
 	sounds = ["teleport.wav"];
 	teleportingSound: AudioSource = null;
 
-	constructor(element: MissionElementTrigger, level: Level) {
-		super(element, level);
+	constructor(element: MissionElementTrigger, game: Game) {
+		super(element, game);
 
 		if (element.delay) this.delay = MisParser.parseNumber(element.delay);
 	}

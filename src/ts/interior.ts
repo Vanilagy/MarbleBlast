@@ -1,5 +1,5 @@
 import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
-import { TimeState, Level, PHYSICS_TICK_RATE } from "./level";
+import { TimeState } from "./level";
 import { Util } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
 import { StorageManager } from "./storage";
@@ -13,6 +13,8 @@ import { Vector3 } from "./math/vector3";
 import { Matrix4 } from "./math/matrix4";
 import { Plane } from "./math/plane";
 import { Quaternion } from "./math/quaternion";
+import { Game } from "./game/game";
+import { GameObject } from "./game/game_object";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -63,8 +65,8 @@ const specialMaterials = new Set([...Object.keys(specialFrictionFactor), ...Obje
 
 /** Creates a material with an additional normal map. */
 const createNormalMapMaterial = async (interior: Interior, baseTexture: string, normalTexture: string) => {
-	let diffuseMap = await interior.level.mission.getTexture(`interiors_mbu/${baseTexture}`);
-	let normalMap = await interior.level.mission.getTexture(`shaders/tex/${normalTexture}`);
+	let diffuseMap = await interior.game.mission.getTexture(`interiors_mbu/${baseTexture}`);
+	let normalMap = await interior.game.mission.getTexture(`shaders/tex/${normalTexture}`);
 
 	let mat = new Material();
 
@@ -78,9 +80,9 @@ const createNormalMapMaterial = async (interior: Interior, baseTexture: string, 
 
 /** Creates a material with an additional normal and specularity map. */
 const createPhongMaterial = async (interior: Interior, baseTexture: string, specTexture: string, normalTexture: string, shininess: number, specularIntensity: number, secondaryMapUvFactor = 1) => {
-	let specularMap = specTexture && await interior.level.mission.getTexture(`shaders/tex/${specTexture}`);
-	let normalMap = normalTexture && await interior.level.mission.getTexture(`shaders/tex/${normalTexture}`);
-	let texture = await interior.level.mission.getTexture(`interiors_mbu/${baseTexture}`);
+	let specularMap = specTexture && await interior.game.mission.getTexture(`shaders/tex/${specTexture}`);
+	let normalMap = normalTexture && await interior.game.mission.getTexture(`shaders/tex/${normalTexture}`);
+	let texture = await interior.game.mission.getTexture(`interiors_mbu/${baseTexture}`);
 
 	let mat = new Material();
 
@@ -98,10 +100,10 @@ const createPhongMaterial = async (interior: Interior, baseTexture: string, spec
 
 /** Creates a material for a tile texture using an overlaid noise pattern. */
 const createNoiseTileMaterial = async (interior: Interior, baseTexture: string, noiseSuffix: string) => {
-	let diffuseMap = await interior.level.mission.getTexture(`interiors_mbu/${baseTexture}`);
-	let specularMap = await interior.level.mission.getTexture('shaders/tex/tile_mbu.spec.jpg');
-	let noiseMap = await interior.level.mission.getTexture(`shaders/tex/noise${noiseSuffix}.jpg`);
-	let normalMap = await interior.level.mission.getTexture('shaders/tex/tile_mbu.normal.png');
+	let diffuseMap = await interior.game.mission.getTexture(`interiors_mbu/${baseTexture}`);
+	let specularMap = await interior.game.mission.getTexture('shaders/tex/tile_mbu.spec.jpg');
+	let noiseMap = await interior.game.mission.getTexture(`shaders/tex/noise${noiseSuffix}.jpg`);
+	let normalMap = await interior.game.mission.getTexture('shaders/tex/tile_mbu.normal.png');
 
 	let mat = new Material();
 
@@ -173,10 +175,9 @@ interface CollisionMaterialProperties {
 }
 
 /** Represents a Torque 3D Interior, used for the main surfaces and geometry of levels. */
-export class Interior {
+export class Interior extends GameObject {
 	/** The unique id of this interior. */
 	id: number;
-	level: Level;
 	dif: DifFile;
 	difPath: string;
 	mesh: Mesh;
@@ -195,10 +196,12 @@ export class Interior {
 	/** Avoids recomputation of the same interior. */
 	static initCache = new WeakMap<InteriorDetailLevel, Promise<InitCacheType>>();
 
-	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
+	constructor(file: DifFile, path: string, game: Game, subObjectIndex?: number) {
+		super(game);
+
 		this.dif = file;
 		this.difPath = path;
-		this.level = level;
+		this.game = game;
 		this.detailLevel = (subObjectIndex === undefined)? file.detailLevels[0] : file.subObjects[subObjectIndex];
 		this.materialNames = this.detailLevel.materialList.materials.map(x => x.split('/').pop().toLowerCase());
 
@@ -210,7 +213,7 @@ export class Interior {
 		};
 
 		// Combine the default special materials with the special ones specified in the .mis file
-		this.specialMaterials = new Set([...specialMaterials, ...Object.keys(this.level.mission.misFile.materialMappings)]);
+		this.specialMaterials = new Set([...specialMaterials, ...Object.keys(this.game.mission.misFile.materialMappings)]);
 	}
 
 	async init(id: number) {
@@ -236,7 +239,7 @@ export class Interior {
 				let texName = this.detailLevel.materialList.materials[i].toLowerCase();
 				let fileName = texName.split('/').pop();
 
-				if (StorageManager.data.settings.fancyShaders && this.level.mission.modification === 'ultra' && customMaterialFactories[fileName]) {
+				if (StorageManager.data.settings.fancyShaders && this.game.mission.modification === 'ultra' && customMaterialFactories[fileName]) {
 					// There's a special way to create this material, prefer this instead of the normal way
 					materials.push(await customMaterialFactories[fileName](this));
 					continue;
@@ -247,7 +250,7 @@ export class Interior {
 				materials.push(mat);
 
 				// Check for this special material which just makes the surface invisible (like a colmesh)
-				if (this.level.mission.modification === 'ultra' && fileName === 'tools_invisible') {
+				if (this.game.mission.modification === 'ultra' && fileName === 'tools_invisible') {
 					mat.opacity = 0;
 					continue;
 				}
@@ -265,13 +268,13 @@ export class Interior {
 						currentPath = currentPath.slice(0, Math.max(0, currentPath.lastIndexOf('/')));
 						if (!currentPath) break; // Nothing found
 
-						let fullNames = this.level.mission.getFullNamesOf(currentPath + '/' + fileName);
+						let fullNames = this.game.mission.getFullNamesOf(currentPath + '/' + fileName);
 						if (fullNames.length > 0) {
 							let name = fullNames.find(x => !x.endsWith('.dif'));
 							if (!name) break;
 
 							// We found the texture file; create the texture.
-							let texture = await this.level.mission.getTexture(currentPath + '/' + name);
+							let texture = await this.game.mission.getTexture(currentPath + '/' + name);
 							mat.diffuseMap = texture;
 
 							break;
@@ -326,7 +329,7 @@ export class Interior {
 		let mesh = new Mesh(cached.geometry, cached.materials);
 		this.mesh = mesh;
 
-		this.level.loadingState.loaded++;
+		this.game.initter.loadingState.loaded++;
 	}
 
 	/** Adds one surface worth of geometry. */
@@ -363,7 +366,7 @@ export class Interior {
 				// Figure out UV coordinates by getting the distances of the corresponding vertices to the plane.
 				let u = texPlaneX.distanceToPoint(new Vector3(position.x, position.y, position.z));
 				let v = texPlaneY.distanceToPoint(new Vector3(position.x, position.y, position.z));
-				if (this.level.mission.modification === 'ultra' && material === 'plate_1') u /= 2, v/= 2; // This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
+				if (this.game.mission.modification === 'ultra' && material === 'plate_1') u /= 2, v/= 2; // This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
 
 				geometry.positions.push(position.x, position.y, position.z);
 				geometry.normals.push(0, 0, 0); // Push a placeholder, we'll compute a proper normal later
@@ -469,7 +472,7 @@ export class Interior {
 
 		if (this.allowSpecialMaterials) {
 			// Check for a custom material property override in the mission file
-			let specialMatProperties = this.level.mission.misFile.materialProperties[this.level.mission.misFile.materialMappings[material]];
+			let specialMatProperties = this.game.mission.misFile.materialProperties[this.game.mission.misFile.materialMappings[material]];
 
 			let frictionFac = specialMatProperties?.['friction'] ?? specialFrictionFactor[material] ?? 1;
 			let restitutionFac = specialMatProperties?.['restitution'] ?? specialResistutionFactor[material] ?? 1;
@@ -499,6 +502,8 @@ export class Interior {
 	}
 
 	onMarbleContact(collision: Collision, dt: number) {
+		/*
+
 		let contactShape = collision.s2;
 		let marble = this.level.marble;
 		let materialProperties = (contactShape.userData || contactShape.materialOverrides.get(collision.s2MaterialOverride)) as CollisionMaterialProperties;
@@ -516,11 +521,16 @@ export class Interior {
 			marble.body.linearVelocity.addScaledVector(movementVec, -0.0015 * fac);
 			marble.body.angularVelocity.multiplyScalar(1 + (0.07 * marble.speedFac * fac));
 		}
+
+		*/
 	}
 
-	/* eslint-disable @typescript-eslint/no-unused-vars */
-	tick(time: TimeState) {}
-	render(time: TimeState) {}
+	getCurrentState() { return {}; }
+	loadState() {}
+
+	update() {}
+	render() {}
 	reset() {}
+	stop() {}
 	async onLevelStart() {}
 }

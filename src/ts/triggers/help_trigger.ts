@@ -7,6 +7,6 @@ export class HelpTrigger extends Trigger {
 
 	onMarbleEnter() {
 		state.menu.hud.displayHelp(this.element.text, true);
-		this.level.replay.recordMarbleEnter(this);
+		//this.level.replay.recordMarbleEnter(this);
 	}
 }

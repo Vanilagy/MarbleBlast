@@ -1,11 +1,11 @@
 import { RGBAColor, Util } from "./util";
-import { Level } from "./level";
 import { ResourceManager } from "./resources";
 import { VertexBuffer, VertexBufferGroup } from "./rendering/vertex_buffer";
 import { BlendingType, Renderer } from "./rendering/renderer";
 import { Texture } from "./rendering/texture";
 import { Vector3 } from "./math/vector3";
 import { Matrix4 } from "./math/matrix4";
+import { Game } from "./game/game";
 
 const PATHS = ['particles/bubble.png', 'particles/saturn.png', 'particles/smoke.png', 'particles/spark.png', 'particles/star.png', 'particles/twirl.png'];
 const MAX_PARTICLES_PER_GROUP = 2**14;
@@ -85,7 +85,7 @@ for (let i = 0; i < MAX_PARTICLES_PER_GROUP; i++) indices.push(
 /** Manages emitters and particles. */
 export class ParticleManager {
 	renderer: Renderer;
-	level: Level;
+	game: Game;
 	emitters: ParticleEmitter[] = [];
 	particleGroups = new Map<ParticleOptions, ParticleGroup>();
 	/** For non-instanced, legacy particles. */
@@ -97,8 +97,8 @@ export class ParticleManager {
 	bufferGroup: VertexBufferGroup;
 	indexBuffer: WebGLBuffer;
 
-	constructor(level: Level) {
-		this.level = level;
+	constructor(game: Game) {
+		this.game = game;
 	}
 
 	async init(renderer: Renderer) {
@@ -178,7 +178,7 @@ export class ParticleManager {
 	}
 
 	getTime() {
-		return this.level.timeState.timeSinceLoad;
+		return this.game.state.time * 1000; // ParticleManager uses milliseconds instead of seconds
 	}
 
 	createEmitter(options: ParticleEmitterOptions, initialPos: Vector3, getPos?: () => Vector3, spawnSphereSquish?: Vector3) {
@@ -195,19 +195,17 @@ export class ParticleManager {
 		Util.removeFromArray(this.emitters, emitter);
 	}
 
-	tick() {
-		let time = this.getTime();
+	render() {
+		let time = this.game.state.time * 1000;
+		this.currentRenderTime = time;
 
+		// Tick all emitters
 		for (let i = 0; i < this.emitters.length; i++) {
 			let emitter = this.emitters[i];
 			if (emitter.getPos) emitter.setPos(emitter.getPos(), time);
 			let alive = emitter.tick(time);
 			if (!alive) this.emitters.splice(i--, 1);
 		}
-	}
-
-	render(time: number) {
-		this.currentRenderTime = time;
 
 		// Update all the particle groups
 		for (let [, group] of this.particleGroups) {

@@ -11,7 +11,7 @@ export const currentMousePosition = {
 window.addEventListener('mousemove', (e) => {
 	currentMousePosition.x = e.clientX * SCALING_RATIO;
 	currentMousePosition.y = e.clientY * SCALING_RATIO;
-	state.level?.onMouseMove(e);
+	state.game?.onMouseMove(e);
 });
 window.addEventListener('touchstart', (e) => {
 	let touch = e.changedTouches[0];
@@ -27,7 +27,7 @@ window.addEventListener('touchmove', (e) => {
 window.addEventListener('mousedown', (e) => {
 	if (!StorageManager.data) return;
 	// Request pointer lock if we're currently in-game
-	if (state.level && !state.level.paused && !state.level.finishTime && !Util.isTouchDevice) Util.requestPointerLock();
+	if (state.game && !state.game.paused /*&& !state.level.finishTime*/ && !Util.isTouchDevice) Util.requestPointerLock(); // fixme
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName && document.pointerLockElement) {
@@ -37,12 +37,6 @@ window.addEventListener('mousedown', (e) => {
 			if (buttonName !== StorageManager.data.settings.gameButtonMapping[key]) continue;
 
 			setPressed(key, buttonName, true);
-
-			if (state.level) {
-				if (key === 'jump' && isPressedOnce(key)) state.level.jumpQueued = true;
-				if (key === 'use' && isPressedOnce(key)) state.level.useQueued = true;
-				if (key === 'blast' && isPressedOnce(key)) state.level.blastQueued = true;
-			}
 		}
 	}
 });
@@ -70,11 +64,6 @@ window.addEventListener('keydown', (e) => {
 		if (e.code !== StorageManager.data.settings.gameButtonMapping[key]) continue;
 
 		setPressed(key, e.code, true);
-
-		if (state.level) {
-			if (key === 'jump' && isPressedOnce(key)) state.level.jumpQueued = true;
-			if (key === 'use' && isPressedOnce(key)) state.level.useQueued = true;
-		}
 	}
 });
 
@@ -102,7 +91,7 @@ window.addEventListener('beforeunload', (e) => {
 
 document.addEventListener('pointerlockchange', () => {
 	// When pointer lock is left, we pause.
-	if (!document.pointerLockElement) state.level?.pause();
+	if (!document.pointerLockElement) state.game?.pause();
 });
 
 /** For each game button, a list of the keys/buttons corresponding to it that are currently pressed. */
@@ -142,14 +131,16 @@ const pressedSinceFlag = {
 };
 
 /** Set a button's state based on a presser. */
-const setPressed = (buttonName: keyof typeof gameButtons, presser: string, state: boolean) => {
+const setPressed = (buttonName: keyof typeof gameButtons, presser: string, buttonState: boolean) => {
 	let incl = gameButtons[buttonName].includes(presser);
-	if (!state && incl) {
+	if (!buttonState && incl) {
 		gameButtons[buttonName] = gameButtons[buttonName].filter(x => x !== presser);
-	} else if (state && !incl) {
+	} else if (buttonState && !incl) {
 		gameButtons[buttonName].push(presser);
 		pressedSinceFlag[buttonName] = true;
 	}
+
+	state.game?.onButtonChange();
 };
 
 /** Determine if a button is pressed. */

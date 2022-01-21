@@ -1,9 +1,9 @@
 import { state } from "../state";
-import { Level } from "../level";
 import { Util } from "../util";
 import { Replay } from "../replay";
 import { Mission } from "../mission";
 import { Menu } from "./menu";
+import { Game } from "../game/game";
 
 export abstract class LoadingScreen {
 	menu: Menu;
@@ -55,14 +55,15 @@ export abstract class LoadingScreen {
 
 			this.refresher = setInterval(() => {
 				// Constantly refresh the loading bar's width
-				let completion = level.getLoadingCompletion();
+				let completion = game.initter.getLoadingCompletion();
 				this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
 			}) as unknown as number;
 
-			let level = new Level(mission);
-			state.level = level;
-			await level.init();
+			let game = new Game(mission);
+			state.game = game;
+			await game.init();
 
+			/*
 			if (getReplay) {
 				let replay = getReplay();
 				// Load the replay
@@ -70,9 +71,10 @@ export abstract class LoadingScreen {
 				replay.level = level;
 				replay.mode = 'playback';
 			}
+			*/
 
 			if (this.loadingIndex !== indexAtStart) {
-				level.dispose();
+				game.dispose();
 				return;
 			}
 			clearInterval(this.refresher);
@@ -87,14 +89,14 @@ export abstract class LoadingScreen {
 			await Util.wait(150);
 
 			if (this.loadingIndex !== indexAtStart) {
-				level.dispose();
+				game.dispose();
 				return;
 			}
 			clearInterval(this.refresher);
 
 			// Loading has finished, hop into gameplay.
 
-			level.start();
+			game.start();
 
 			this.hide();
 			this.menu.hide();
@@ -102,7 +104,7 @@ export abstract class LoadingScreen {
 		} catch(e) {
 			console.error(e);
 			this.cancelButton.click();
-			state.level = null;
+			state.game = null;
 			state.menu.showAlertPopup('Error', "There was an error due to which the level couldn't be loaded.");
 		}
 	}

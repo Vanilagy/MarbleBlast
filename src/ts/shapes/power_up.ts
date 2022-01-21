@@ -57,13 +57,13 @@ export abstract class PowerUp extends Shape {
 		this.setCollisionEnabled(pickupable);
 	}
 
-	render(time: TimeState) {
-		super.render(time);
+	render() {
+		super.render();
 
 		let opacity = 1;
 		if (this.lastPickUpTime && this.cooldownDuration > 0) {
 			let availableTime = this.lastPickUpTime + this.cooldownDuration;
-			opacity = Util.clamp((time.currentAttemptTime - availableTime) / 1000, 0, 1);
+			opacity = Util.clamp((this.game.state.attemptTime - availableTime) / 1000, 0, 1);
 		}
 
 		this.setOpacity(opacity);

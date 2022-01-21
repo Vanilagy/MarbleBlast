@@ -1,5 +1,5 @@
 import { Interior } from "./interior";
-import { Marble, bounceParticleOptions } from "./marble";
+import { Marble } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
 import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
 import { StartPad } from "./shapes/start_pad";
@@ -102,31 +102,6 @@ const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg'
 const decoyCanvas = document.querySelector('#decoy-canvas') as HTMLCanvasElement;
 const decoyCtx = decoyCanvas.getContext('2d');
 
-/** The map used to get particle emitter options for a ParticleEmitterNode. */
-const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
-	MarbleBounceEmitter: bounceParticleOptions,
-	MarbleTrailEmitter: particleNodeEmittersEmitterOptions.MarbleTrailEmitter,
-	MarbleSuperJumpEmitter: Object.assign(ParticleEmitter.cloneOptions(superJumpParticleOptions), {
-		emitterLifetime: 5000,
-		ambientVelocity: new Vector3(-0.3, 0, -0.5)
-	}),
-	MarbleSuperSpeedEmitter: Object.assign(ParticleEmitter.cloneOptions(superSpeedParticleOptions), {
-		emitterLifetime: 5000,
-		ambientVelocity: new Vector3(-0.5, 0, -0.5)
-	}),
-	LandMineEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter,
-	LandMineSmokeEmitter: landMineSmokeParticle,
-	LandMineSparkEmitter: landMineSparksParticle,
-	NukeEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter, // It ain't any different
-	NukeSmokeEmitter: nukeSmokeParticle,
-	NukeSparkEmitter: nukeSparksParticle,
-	FireWorkSmokeEmitter: fireworkSmoke,
-	RedFireWorkSparkEmitter: redSpark,
-	RedFireWorkTrailEmitter: redTrail,
-	BlueFireWorkSparkEmitter: blueSpark,
-	BlueFireWorkTrailEmitter: blueTrail
-};
-
 export interface TimeState {
 	/** The time since the level was loaded, this ticks up continuously. */
 	timeSinceLoad: number,
@@ -150,7 +125,6 @@ interface LoadingState {
 /** The central control unit of gameplay. Handles loading, simulation and rendering. */
 export class Level extends Scheduler {
 	mission: Mission;
-	/** Whether or not this level has the classic additional features of MBU levels, such as a larger marble and the blast functionality. */
 	loadingState: LoadingState;
 
 	scene: Scene;

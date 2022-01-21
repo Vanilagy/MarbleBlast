@@ -56,9 +56,11 @@ export class Nuke extends Shape {
 		this.setCollisionEnabled(visible);
 	}
 
-	render(time: TimeState) {
-		let opacity = Util.clamp((time.timeSinceLoad - (this.disappearTime + 15000)) / 1000, 0, 1);
+	render() {
+		let opacity = Util.clamp((this.game.state.time - (this.disappearTime + 15000)) / 1000, 0, 1);
 		this.setOpacity(opacity);
+
+		super.render();
 	}
 }
 

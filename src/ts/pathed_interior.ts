@@ -1,12 +1,13 @@
 import { Interior } from "./interior";
 import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "./parsing/mis_parser";
 import { Util } from "./util";
-import { TimeState, PHYSICS_TICK_RATE, Level } from "./level";
+import { TimeState, PHYSICS_TICK_RATE } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
 import { AudioManager, AudioSource } from "./audio";
 import { Matrix4 } from "./math/matrix4";
 import { Vector3 } from "./math/vector3";
 import { Quaternion } from "./math/quaternion";
+import { Game } from "./game/game";
 
 let v1 = new Vector3();
 let m1 = new Matrix4();
@@ -48,16 +49,16 @@ export class PathedInterior extends Interior {
 	allowSpecialMaterials = false; // Frictions don't work on pathed interiors
 
 	/** Creates a PathedInterior from a sim group containing it and its path (and possible triggers). */
-	static async createFromSimGroup(simGroup: MissionElementSimGroup, level: Level) {
+	static async createFromSimGroup(simGroup: MissionElementSimGroup, game: Game) {
 		let interiorElement = simGroup.elements.find((element) => element._type === MissionElementType.PathedInterior) as MissionElementPathedInterior;
 
-		let { dif: difFile, path } = await level.mission.getDif(interiorElement.interiorresource);
+		let { dif: difFile, path } = await game.mission.getDif(interiorElement.interiorresource);
 		if (!difFile) return null;
-		let pathedInterior = new PathedInterior(difFile, path, level, MisParser.parseNumber(interiorElement.interiorindex));
+		let pathedInterior = new PathedInterior(difFile, path, game, MisParser.parseNumber(interiorElement.interiorindex));
 		pathedInterior.simGroup = simGroup;
 		pathedInterior.element = interiorElement;
 
-		level.interiors.push(pathedInterior);
+		game.interiors.push(pathedInterior);
 		await Util.wait(10); // See shapes for the meaning of this hack
 		await pathedInterior.init(interiorElement._id);
 
@@ -152,10 +153,10 @@ export class PathedInterior extends Interior {
 		}
 	}
 
-	tick(time: TimeState) {
+	update() {
 		this.body.position.copy(this.currentPosition); // Reset it back to where it should be (render loop might've moved it)
 
-		let transform = this.getTransformAtTime(m1, this.getInternalTime(time.currentAttemptTime));
+		let transform = this.getTransformAtTime(m1, this.getInternalTime(this.game.state.attemptTime));
 
 		this.prevPosition.copy(this.currentPosition);
 		this.currentPosition.setFromMatrixPosition(transform); // The orientation doesn't matter in that version of TGE, so we only need position
@@ -240,8 +241,8 @@ export class PathedInterior extends Interior {
 		return dst;
 	}
 
-	render(time: TimeState) {
-		let transform = this.getTransformAtTime(m1, this.getInternalTime(time.currentAttemptTime));
+	render() {
+		let transform = this.getTransformAtTime(m1, this.getInternalTime(this.game.state.attemptTime));
 
 		this.mesh.transform.copy(transform);
 		this.mesh.changedTransform();
@@ -276,5 +277,9 @@ export class PathedInterior extends Interior {
 		this.body.syncShapes();
 
 		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
+	}
+
+	stop() {
+		this.soundSource?.stop();
 	}
 }

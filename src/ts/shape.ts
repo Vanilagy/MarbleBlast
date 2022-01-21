@@ -2,7 +2,7 @@ import { DtsFile, MeshType, DtsParser } from "./parsing/dts_parser";
 import { ResourceManager } from "./resources";
 import { IflParser } from "./parsing/ifl_parser";
 import { Util } from "./util";
-import { TimeState, Level } from "./level";
+import { TimeState } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 import { AudioManager } from "./audio";
 import { MissionElement } from "./parsing/mis_parser";
@@ -19,6 +19,8 @@ import { Quaternion } from "./math/quaternion";
 import { Matrix4 } from "./math/matrix4";
 import { Box3 } from "./math/box3";
 import { BlendingType } from "./rendering/renderer";
+import { Game } from "./game/game";
+import { GameObject } from "./game/game_object";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
@@ -88,10 +90,9 @@ export interface GraphNode {
 }
 
 /** Represents an object created from a DTS file. This is either a static object like the start pad or a sign, or an item like gems or powerups. */
-export class Shape {
+export class Shape extends GameObject {
 	/** The unique id of this shape. */
 	id: number;
-	level: Level;
 	srcElement: MissionElement;
 	dtsPath: string;
 	colliderDtsPath: string;
@@ -166,13 +167,17 @@ export class Shape {
 		return this.dtsPath + ' ' + this.constructor.name + ' ' + this.shareId;
 	}
 
-	async init(level?: Level, srcElement: MissionElement = null) {
+	constructor() {
+		super(null);
+	}
+
+	async init(game?: Game, srcElement: MissionElement = null) {
 		this.id = srcElement?._id ?? 0;
-		this.level = level;
+		this.game = game;
 		this.srcElement = srcElement;
 		this.colliderDtsPath ??= this.dtsPath;
-		this.dts = await ((this.level)? this.level.mission.getDts(this.dtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.dtsPath));
-		this.colliderDts = (this.dtsPath === this.colliderDtsPath)? this.dts : await ((this.level)? this.level.mission.getDts(this.colliderDtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.colliderDtsPath));
+		this.dts = await ((this.game)? this.game.mission.getDts(this.dtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.dtsPath));
+		this.colliderDts = (this.dtsPath === this.colliderDtsPath)? this.dts : await ((this.game)? this.game.mission.getDts(this.colliderDtsPath) : DtsParser.loadFile(ResourceManager.mainDataPath + this.colliderDtsPath));
 		this.directoryPath = this.dtsPath.slice(0, this.dtsPath.lastIndexOf('/'));
 		this.group = new Group();
 		this.bodies = [];
@@ -180,7 +185,7 @@ export class Shape {
 		this.materialInfo = new WeakMap();
 
 		// Check if there's already shared data from another shape of the same type
-		let sharedDataPromise = this.level?.sharedShapeData.get(this.getShareHash());
+		let sharedDataPromise = this.game?.initter.sharedShapeData.get(this.getShareHash());
 		let sharedData: SharedShapeData;
 
 		if (sharedDataPromise) {
@@ -189,9 +194,9 @@ export class Shape {
 		} else {
 			// If we're here, we're the first shape of this type, so let's prepare the shared data
 			let resolveFunc: (data: SharedShapeData) => any;
-			if (this.level) {
+			if (this.game) {
 				sharedDataPromise = new Promise<SharedShapeData>((resolve) => resolveFunc = resolve);
-				this.level.sharedShapeData.set(this.getShareHash(), sharedDataPromise);
+				this.game.initter.sharedShapeData.set(this.getShareHash(), sharedDataPromise);
 			}
 
 			for (let i = 0; i < this.dts.nodes.length; i++) this.nodeTransforms.push(new Matrix4());
@@ -374,7 +379,7 @@ export class Shape {
 		// Preload all sounds
 		await AudioManager.loadBuffers(this.sounds);
 
-		if (this.level) this.level.loadingState.loaded++;
+		if (this.game) this.game.initter.loadingState.loaded++;
 	}
 
 	/** Creates the materials for this shape. */
@@ -444,7 +449,7 @@ export class Shape {
 			if (flags & MaterialFlags.Subtractive) material.blending = BlendingType.Subtractve;
 			if (this.isTSStatic && !(flags & MaterialFlags.NeverEnvMap)) {
 				material.reflectivity = this.dts.matNames.length === 1? 1 : environmentMaterial? 0.5 : 0.333;
-				material.envMap = this.level.envMap;
+				material.envMap = this.game.renderer.envMap;
 			}
 
 			this.materialPostprocessor?.(material);
@@ -454,7 +459,7 @@ export class Shape {
 		if (this.materials.length === 0) {
 			let mat = new Material();
 			mat.emissive = true;
-			mat.envMap = this.level.envMap;
+			mat.envMap = this.game.renderer.envMap;
 			mat.reflectivity = 1;
 			this.materials.push(mat);
 		}
@@ -688,7 +693,7 @@ export class Shape {
 		}
 	}
 
-	tick(time: TimeState, onlyVisual = false) {
+	update(onlyVisual = false) {
 		// If onlyVisual is set, collision bodies need not be updated.
 
 		let needsSequenceUpdate = true;
@@ -701,7 +706,7 @@ export class Shape {
 				let trans = sequence.translationMatters[0] ?? 0;
 				let scale = sequence.scaleMatters[0] ?? 0;
 				let affectedCount = 0;
-				let completion = time.timeSinceLoad / (sequence.duration * 1000);
+				let completion = this.game.state.time / (sequence.duration * 1000);
 				let quaternions: Quaternion[];
 				let translations: Vector3[];
 				let scales: Vector3[];
@@ -798,8 +803,9 @@ export class Shape {
 		}
 	}
 
-	render(time: TimeState) {
-		this.tick(time, true); // Execute an only-visual tick
+	render() {
+		let time = this.game.state.time;
+		this.update(true); // Execute an only-visual tick
 
 		if (this.skinMeshInfo && this.isMaster) {
 			// Update the skin mesh.
@@ -880,7 +886,7 @@ export class Shape {
 			let iflSequence = this.dts.sequences.find((seq) => seq.iflMatters[0] > 0);
 			if (!iflSequence || !this.showSequences) continue;
 
-			let completion = time.timeSinceLoad / (iflSequence.duration * 1000);
+			let completion = time / (iflSequence.duration * 1000);
 			let keyframe = Math.floor(completion * info.keyframes.length) % info.keyframes.length;
 			let currentFile = info.keyframes[keyframe];
 
@@ -893,7 +899,7 @@ export class Shape {
 		if (this.ambientRotate) {
 			let spinAnimation = new Quaternion();
 			let up = new Vector3(0, 0, 1);
-			spinAnimation.setFromAxisAngle(up, time.timeSinceLoad * this.ambientSpinFactor);
+			spinAnimation.setFromAxisAngle(up, time * this.ambientSpinFactor);
 
 			let orientation = this.worldOrientation.clone();
 			spinAnimation.multiplyQuaternions(orientation, spinAnimation);
@@ -975,6 +981,16 @@ export class Shape {
 
 	reset() {
 		this.isCurrentlyColliding = false;
+	}
+
+	stop() {}
+
+	getCurrentState(): Record<string, never> {
+		return {};
+	}
+
+	loadState(state: Record<string, never>): void {
+
 	}
 
 	/* eslint-disable  @typescript-eslint/no-unused-vars */

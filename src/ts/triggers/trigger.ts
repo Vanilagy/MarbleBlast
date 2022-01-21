@@ -7,21 +7,24 @@ import { RigidBody, RigidBodyType } from "../physics/rigid_body";
 import { Vector3 } from "../math/vector3";
 import { Box3 } from "../math/box3";
 import { Matrix4 } from "../math/matrix4";
+import { Game } from "../game/game";
+import { GameObject } from "../game/game_object";
 
 /** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
-export class Trigger {
+export abstract class Trigger extends GameObject {
 	id: number;
 	vertices: Vector3[];
 	body: RigidBody;
-	level: Level;
 	element: MissionElementTrigger;
 	sounds: string[] = [];
 	isCurrentlyColliding = false;
 
-	constructor(element: MissionElementTrigger, level: Level) {
+	constructor(element: MissionElementTrigger, game: Game) {
+		super(game);
+
 		this.id = element._id;
 		this.element = element;
-		this.level = level;
+		this.game = game;
 
 		// Parse the "polyhedron"
 		let coordinates = MisParser.parseNumberList(element.polyhedron);
@@ -92,9 +95,11 @@ export class Trigger {
 		this.isCurrentlyColliding = false;
 	}
 
-	/* eslint-disable  @typescript-eslint/no-unused-vars */
+	render() {}
+	stop() {}
+
 	onMarbleInside() {}
 	onMarbleEnter() {}
 	onMarbleLeave() {}
-	tick(time: TimeState) {}
+	update() {}
 }

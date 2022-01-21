@@ -30,12 +30,12 @@ export abstract class AbstractBumper extends Shape {
 		this.level.replay.recordMarbleContact(this);
 	}
 
-	render(time: TimeState) {
-		let currentCompletion = Util.clamp((time.timeSinceLoad - this.wiggleAnimationStart) / this.animationDuration, 0, 1);
+	render() {
+		let currentCompletion = Util.clamp((this.game.state.time - this.wiggleAnimationStart) / this.animationDuration, 0, 1);
 
 		// Override the keyframe for the "wiggle" effect
 		this.sequenceKeyframeOverride.set(this.dts.sequences[0], currentCompletion * (this.dts.sequences[0].numKeyframes - 1));
 
-		super.render(time);
+		super.render();
 	}
 }
