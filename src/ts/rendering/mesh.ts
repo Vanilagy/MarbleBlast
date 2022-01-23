@@ -12,6 +12,9 @@ export interface MaterialIndexData {
 
 /** A mesh, defined by geometry and materials, can be added to a scene graph and rendered. */
 export class Mesh extends Object3D {
+	/** Dynamic meshes can be added to scenes after compilation. Non-dynamic (static) meshes have to be added before compilation. */
+	dynamic = false;
+
 	geometry: Geometry;
 	materials: Material[];
 	/** Whether or not the mesh info buffer needs to be updated because this mesh's info changed. */
@@ -66,6 +69,8 @@ export class Mesh extends Object3D {
 	}
 
 	compileMaterialIndices() {
+		if (this.materialIndices.length > 0) return; // Mesh has already been compiled
+
 		let map = new Map<Material, MaterialIndexData>();
 
 		for (let i = 0; i < this.geometry.indices.length; i++) {

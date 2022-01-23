@@ -1,4 +1,4 @@
-import { MaterialGroup, Scene } from "./scene";
+import { MaterialGroup, MeshInfoTexture, Scene } from "./scene";
 import { Program } from './program';
 import shadowMapVert from './shaders/shadow_map_vert.glsl';
 import shadowMapFrag from './shaders/shadow_map_frag.glsl';
@@ -19,7 +19,7 @@ interface FramebufferInfo {
 export enum BlendingType {
 	Normal,
 	Additive,
-	Subtractve
+	Subtractive
 }
 
 const DEFAULT_CONTEXT_OPTIONS = {
@@ -178,22 +178,11 @@ export class Renderer {
 				program.getUniformLocation('eyePosition'),
 				uEyePosition
 			);
-			gl.uniform1i(
-				program.getUniformLocation('meshInfoTextureWidth'),
-				scene.meshInfoTextureWidth
-			);
-			gl.uniform1i(
-				program.getUniformLocation('meshInfoTextureHeight'),
-				scene.meshInfoTextureHeight
-			);
 
 			gl.uniform3fv(program.getUniformLocation('ambientLight'), scene.ambientLightBuffer);
 			gl.uniform3fv(program.getUniformLocation('directionalLightColor'), scene.directionalLightColorBuffer);
 			gl.uniform3fv(program.getUniformLocation('directionalLightDirection'), scene.directionalLightDirectionBuffer);
 			gl.uniformMatrix4fv(program.getUniformLocation('directionalLightTransform'), false, scene.directionalLightTransformBuffer);
-
-			gl.uniform1i(program.getUniformLocation('meshInfos'), 7);
-			this.bindTexture(scene.meshInfoTexture, 7, gl.TEXTURE_2D);
 
 			gl.uniform1i(program.getUniformLocation('diffuseMap'), 0);
 			gl.uniform1i(program.getUniformLocation('envMap'), 1);
@@ -201,24 +190,26 @@ export class Renderer {
 			gl.uniform1i(program.getUniformLocation('normalMap'), 3);
 			gl.uniform1i(program.getUniformLocation('specularMap'), 4);
 			gl.uniform1i(program.getUniformLocation('noiseMap'), 5);
+
+			gl.uniform1i(program.getUniformLocation('meshInfos'), 7);
 		}
 
 		// First, we draw all opaque objects
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.opaqueIndexBuffer);
 		gl.disable(gl.BLEND);
-		this.renderMaterialGroups(scene, scene.opaqueMaterialGroups, scene.opaqueIndexBuffer, true);
+		this.renderMaterialGroups(scene, scene.staticOpaqueMaterialGroups, true);
+		this.renderMaterialGroups(scene, scene.dynamicOpaqueMaterialGroups, true);
 
 		// Then, we draw all transparent objects
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.transparentIndexBuffer);
 		gl.enable(gl.BLEND);
-		this.renderMaterialGroups(scene, scene.transparentMaterialGroups, scene.transparentIndexBuffer, false);
+		this.renderMaterialGroups(scene, scene.transparentMaterialGroups, false);
 
 		// Lastly, we render particles
 		if (scene.particleManager) this.renderParticles(scene.particleManager, camera);
 	}
 
-	renderMaterialGroups(scene: Scene, groups: MaterialGroup[], indexBuffer: WebGLBuffer, skipTransparent: boolean) {
+	renderMaterialGroups(scene: Scene, groups: MaterialGroup[], skipTransparent: boolean) {
 		let { gl } = this;
+		let lastMeshInfoTexture: MeshInfoTexture = null;
 
 		for (let group of groups) {
 			if (group.indexGroups.length === 0 || group.indexGroups[0].indices.length === 0) continue; // No need to waste gl calls on an empty material group
@@ -228,7 +219,7 @@ export class Renderer {
 
 			let program = this.materialShaders.get(group.defineChunk);
 			program.use();
-			program.bindVertexBufferGroup(scene.bufferGroup); // Bind the VAO, this will automatically set up all vertex attribute pointers
+			program.bindVertexBufferGroup(group.vertexBufferGroup); // Bind the VAO, this will automatically set up all vertex attribute pointers
 
 			// Set uniforms related to the material
 			gl.uniform1i(program.getUniformLocation('skipTransparent'), Number(skipTransparent));
@@ -240,20 +231,24 @@ export class Renderer {
 
 			if (material.blending === BlendingType.Normal) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // Premultiplied alpha
 			else if (material.blending === BlendingType.Additive) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-			else if (material.blending === BlendingType.Subtractve) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // I actually dunno if this one's correct
+			else if (material.blending === BlendingType.Subtractive) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // I actually dunno if this one's correct
 
 			gl.depthMask(material.depthWrite);
 
 			// Bind all textures
-			if (material.receiveShadows || material.isShadow) scene.directionalLights[0]?.bindShadowMap(); // Will bind to texture unit 2
+			if (material.receiveShadows || material.isShadow)
+				scene.directionalLights[0]?.bindShadowMap(); // Will bind to texture unit 2
 			this.bindTexture(material.diffuseMap?.getGLTexture(this), 0, gl.TEXTURE_2D);
 			this.bindTexture(material.envMap?.glTexture, 1, gl.TEXTURE_CUBE_MAP);
 			this.bindTexture(material.normalMap?.getGLTexture(this), 3, gl.TEXTURE_2D);
 			this.bindTexture(material.specularMap?.getGLTexture(this), 4, gl.TEXTURE_2D);
 			this.bindTexture(material.noiseMap?.getGLTexture(this), 5, gl.TEXTURE_2D);
 
+			this.bindMeshInfoTexture(group.meshInfoTexture, program, group.meshInfoTexture !== lastMeshInfoTexture);
+			lastMeshInfoTexture = group.meshInfoTexture;
+
 			// And now, draw all objects with this material in a single draw call :)
-			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, group.indexBuffer);
 			gl.drawElements(gl.TRIANGLES, group.count, gl.UNSIGNED_INT, group.offset * Uint32Array.BYTES_PER_ELEMENT);
 			this.drawCalls++;
 		}
@@ -302,7 +297,7 @@ export class Renderer {
 
 			if (options.blending === BlendingType.Normal) gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // No premultiplied alpha
 			else if (options.blending === BlendingType.Additive) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-			else if (options.blending === BlendingType.Subtractve) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+			else if (options.blending === BlendingType.Subtractive) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
 			// Bind uniforms describing the particle simulation
 			gl.uniform1f(program.getUniformLocation('acceleration'), group.uniforms.acceleration);
@@ -316,6 +311,22 @@ export class Renderer {
 			gl.drawElements(gl.TRIANGLES, 6 * group.particles.length, gl.UNSIGNED_INT, 0);
 			this.drawCalls++;
 		}
+	}
+
+	/** Binds a mesh info data texture and sets up the corresponding uniforms. */
+	bindMeshInfoTexture(meshInfoTexture: MeshInfoTexture, program: Program, bindTexture = true) {
+		let { gl } = this;
+
+		if (bindTexture) this.bindTexture(meshInfoTexture.texture, 7, gl.TEXTURE_2D);
+
+		gl.uniform1i(
+			program.getUniformLocation('meshInfoTextureWidth'),
+			meshInfoTexture.width
+		);
+		gl.uniform1i(
+			program.getUniformLocation('meshInfoTextureHeight'),
+			meshInfoTexture.height
+		);
 	}
 
 	/** Binds a texture to a specific texture unit and texture target. If the texture doesn't exist, it unbinds the texture from the unit. */

@@ -42,4 +42,9 @@ export class Object3D {
 		this.transform.compose(this.position, this.orientation, this.scale);
 		this.changedTransform();
 	}
+
+	/** Traverses this Object3D and all its descendants and calls the callback on each Object3D. */
+	traverse(fn: (obj: Object3D) => any) {
+		fn(this);
+	}
 }

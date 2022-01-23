@@ -14,6 +14,8 @@ export class Geometry {
 	/** For each vertex index, this array defines the material that vertex uses. Only really makes sense if all vertices that make up a triangle have the same material. */
 	readonly materials: number[] = [];
 
+	validated = false;
+
 	/** Fills the normal and uv arrays so their lengths match with the vertex positions. */
 	fillRest() {
 		while (this.normals.length/3 < this.positions.length/3) this.normals.push(0, 0, 0);
@@ -22,6 +24,8 @@ export class Geometry {
 
 	/** Makes sure the geometry isn't ill-defined. */
 	validate() {
+		if (this.validated) return;
+
 		// Check if all arrays actually describe the same amount of vertices
 		if (new Set([this.positions.length/3, this.normals.length/3, this.uvs.length/2]).size !== 1) {
 			console.error(this);
@@ -45,6 +49,8 @@ Material Indices: ${this.materials.length/1}
 		let tris = this.indices.length;
 		if (tris % 3)
 			throw new Error("Geometry is invalid (triangle count isn't a whole number): " + tris/3);
+
+		this.validated = true;
 	}
 
 	/** Creates a UV sphere geometry. Largely taken from three.js source. */

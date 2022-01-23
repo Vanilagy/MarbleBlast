@@ -28,7 +28,7 @@ export class VertexBuffer {
 	}
 
 	/** Overrides a portion of this VBO's data. Will only be uploaded to the GPU with a call to `update()`. */
-	set(data: ArrayLike<number>, offset: number) {
+	set(data: ArrayLike<number>, offset = 0) {
 		this.data.set(data, offset);
 		this.updateRange.start = Math.min(this.updateRange.start, offset);
 		this.updateRange.end = Math.max(this.updateRange.end, offset + data.length);

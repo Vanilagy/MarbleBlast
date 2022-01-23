@@ -5,16 +5,22 @@ import { Object3D } from "./object_3d";
 /** A group represents a collection of 3D objects. */
 export class Group extends Object3D {
 	children: Object3D[] = [];
+	/** Gets called when there's a change in the amount of descendents of this node. */
+	onDescendantChange?: (changed: Object3D) => void = null;
 
 	add(child: Object3D) {
 		if (child.parent) child.parent.remove(child); // No weird double parent action
 		this.children.push(child);
 		child.parent = this;
+
+		this.signalChange(child);
 	}
 
 	remove(child: Object3D) {
 		Util.removeFromArray(this.children, child);
 		child.parent = null;
+
+		this.signalChange(child);
 	}
 
 	updateWorldTransform() {
@@ -33,14 +39,18 @@ export class Group extends Object3D {
 		for (let child of this.children) child.changedTransform();
 	}
 
-	/** Traverses this group and all its descendants and calls the callback on each non-group. */
 	traverse(fn: (obj: Object3D) => any) {
-		fn(this);
+		super.traverse(fn);
 
 		for (let child of this.children) {
-			if (child instanceof Group) child.traverse(fn);
-			else fn(child);
+			child.traverse(fn);
 		}
+	}
+
+	signalChange(changed: Object3D) {
+		// Signals a descendant count change to all ancestors
+		this.onDescendantChange?.(changed);
+		this.parent?.signalChange(changed);
 	}
 
 	/** Recursively sets the opacity of all objects in this group's subtree. */

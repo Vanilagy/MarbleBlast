@@ -87,7 +87,6 @@ export class DirectionalLight {
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 		shadowMapProgram.use();
-		shadowMapProgram.bindVertexBufferGroup(scene.bufferGroup);
 
 		gl.uniformMatrix4fv(
 			shadowMapProgram.getUniformLocation('viewMatrix'),
@@ -99,20 +98,20 @@ export class DirectionalLight {
 			false,
 			new Float32Array(this.camera.projectionMatrix.elements)
 		);
-		gl.uniform1i(
-			shadowMapProgram.getUniformLocation('meshInfoTextureWidth'),
-			scene.meshInfoTextureWidth
-		);
-		gl.uniform1i(
-			shadowMapProgram.getUniformLocation('meshInfoTextureHeight'),
-			scene.meshInfoTextureHeight
-		);
 
 		gl.uniform1i(shadowMapProgram.getUniformLocation('meshInfos'), 7);
-		this.renderer.bindTexture(scene.meshInfoTexture, 7, gl.TEXTURE_2D);
 
-		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.shadowCasterIndexBuffer);
-		gl.drawElements(gl.TRIANGLES, scene.shadowCasterIndices.length, gl.UNSIGNED_INT, 0); // A single draw call is enough
+		// Draw static meshes
+		shadowMapProgram.bindVertexBufferGroup(scene.staticBufferGroup);
+		this.renderer.bindMeshInfoTexture(scene.staticMeshInfoTexture, shadowMapProgram);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.staticShadowCasterIndexBuffer);
+		gl.drawElements(gl.TRIANGLES, scene.staticShadowCasterIndices.length, gl.UNSIGNED_INT, 0); // A single draw call is enough
+
+		// Draw dynamic meshes
+		shadowMapProgram.bindVertexBufferGroup(scene.dynamicBufferGroup);
+		this.renderer.bindMeshInfoTexture(scene.dynamicMeshInfoTexture, shadowMapProgram);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, scene.dynamicShadowCasterIndexBuffer);
+		gl.drawElements(gl.TRIANGLES, scene.dynamicShadowCasterIndices.length, gl.UNSIGNED_INT, 0);
 	}
 
 	/** Binds the shadow map to texture unit 2. */
