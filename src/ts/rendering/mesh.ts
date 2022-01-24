@@ -12,9 +12,6 @@ export interface MaterialIndexData {
 
 /** A mesh, defined by geometry and materials, can be added to a scene graph and rendered. */
 export class Mesh extends Object3D {
-	/** Dynamic meshes can be added to scenes after compilation. Non-dynamic (static) meshes have to be added before compilation. */
-	dynamic = false;
-
 	geometry: Geometry;
 	materials: Material[];
 	/** Whether or not the mesh info buffer needs to be updated because this mesh's info changed. */
@@ -32,8 +29,8 @@ export class Mesh extends Object3D {
 	distanceToCamera: number;
 	hasTransparentMaterials = false;
 
-	constructor(geometry: Geometry, materials: Material[]) {
-		super();
+	constructor(geometry: Geometry, materials: Material[], dynamic?: boolean) {
+		super(dynamic);
 
 		this.geometry = geometry;
 		this.materials = materials;

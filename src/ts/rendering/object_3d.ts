@@ -17,6 +17,24 @@ export class Object3D {
 	worldTransform = new Matrix4();
 	needsWorldTransformUpdate = true;
 
+	/** Stores if this object itself, without any parents influencing it, is dynamic. */
+	readonly selfDynamic: boolean;
+	/** Is true if the object itself or any of its ancestors are *dynamic*, i.e. have the ability to be added to and removed from scenes after scene compilation. Non-dynamic (static) objects have to be added before compilation. */
+	get dynamic() {
+		let node: Object3D = this;
+
+		while (node) {
+			if (node.selfDynamic) return true;
+			node = node.parent;
+		}
+
+		return false;
+	}
+
+	constructor(dynamic = false) {
+		this.selfDynamic = dynamic;
+	}
+
 	/** Updates this object's global transformation matrix. */
 	updateWorldTransform() {
 		// Multiply our parent's transform by our own local transform
