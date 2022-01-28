@@ -1,4 +1,5 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
+import { DefaultMap } from "../../../shared/default_map";
 import { GameObjectStateUpdate } from "../../../shared/game_object_state_update";
 import { AudioManager } from "../audio";
 import { DEFAULT_PITCH, PHYSICS_TICK_RATE } from "../level";
@@ -30,7 +31,7 @@ export class GameState {
 
 	subtickCompletion = 0;
 
-	stateHistory = new Map<number, GameObjectStateUpdate[]>();
+	stateHistory = new DefaultMap<number, GameObjectStateUpdate[]>(() => []);
 
 	collectedGems = 0;
 	currentTimeTravelBonus = 0;
@@ -104,21 +105,20 @@ export class GameState {
 			let object = this.game.objects[i];
 			if (object.hasChangedState) {
 				let arr = this.stateHistory.get(object.id);
-				if (!arr) {
-					arr = [];
-					this.stateHistory.set(object.id, arr);
-				}
+				if (Util.last(arr)?.tick === this.tick) arr.pop();
 
 				let stateUpdate: GameObjectStateUpdate = {
 					gameStateId: this.id,
+					gameObjectId: object.id,
 					tick: this.tick,
+					precedence: object.stateUpdatePrecedence,
 					state: object.getCurrentState()
 				};
 				arr.push(stateUpdate);
+
+				object.hasChangedState = false;
 			}
 		}
-
-		console.log(this.stateHistory);
 	}
 
 	/** Gets the position and orientation of the player spawn point. */
@@ -147,5 +147,31 @@ export class GameState {
 		}
 
 		return { position, euler };
+	}
+
+	rollBackToTick(target: number) {
+		if (target === this.tick) return;
+
+		for (let [objectId, updateHistory] of this.stateHistory) {
+			let changed = false;
+			while (Util.last(updateHistory) && Util.last(updateHistory).tick > target) {
+				updateHistory.pop();
+				changed = true;
+			}
+
+			if (!changed) continue;
+
+			let object = this.game.objects.find(x => x.id === objectId); // todo optimize
+
+			let state = Util.last(updateHistory)?.state;
+			if (!state) state = object.getInitialState();
+
+			object.loadState(state);
+		}
+
+		this.game.simulator.world.updateCollisions(); // Since positions might have changed, collisions probably have too
+
+		this.tick = target;
+		// todo: attemptTick
 	}
 }

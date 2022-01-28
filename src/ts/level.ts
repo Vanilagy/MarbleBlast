@@ -72,7 +72,7 @@ import { Euler } from "./math/euler";
 import { OrthographicCamera, PerspectiveCamera } from "./rendering/camera";
 import { Plane } from "./math/plane";
 import { gameServers } from "./net/game_server";
-import { RTCCommands, RTCMessage } from "../../shared/rtc";
+import { GameServerCommands, GameServerMessage } from "../../shared/rtc";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -1685,7 +1685,7 @@ export class Level extends Scheduler {
 		}
 	}
 
-	onStateUpdate(data: RTCCommands['stateUpdate']) {
+	onStateUpdate(data: GameServerCommands['stateUpdate']) {
 		let marble = this.marbles.find(x => x.id === data.gameObjectId);
 		if (marble === this.marble) return;
 

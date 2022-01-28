@@ -118,3 +118,17 @@
     width: 0px;
     height: 17px;
 }
+
+#network-stats {
+	position: absolute;
+	width: 300px;
+	pointer-events: none;
+	text-align: right;
+	font-family: monospace;
+	font-size: 10px;
+	color: white;
+	text-shadow: 1px 1px 0px #0000009e;
+	right: 10px;
+	bottom: 50px;
+	white-space: pre-line;
+}

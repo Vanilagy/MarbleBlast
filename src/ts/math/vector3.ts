@@ -594,6 +594,15 @@ export class Vector3 {
 		return this;
 	}
 
+	/** Turns each component's value into its absolute value. */
+	abs() {
+		this.x = Math.abs(this.x);
+		this.y = Math.abs(this.y);
+		this.z = Math.abs(this.z);
+
+		return this;
+	}
+
 	*[Symbol.iterator]() {
 		yield this.x;
 		yield this.y;

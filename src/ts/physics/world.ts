@@ -283,6 +283,23 @@ export class World {
 		return collisions;
 	}
 
+	updateCollisions() {
+		let dynamicShapes: CollisionShape[] = [];
+
+		for (let i = 0; i < this.bodies.length; i++) {
+			let body = this.bodies[i];
+			if (!body.enabled) continue;
+
+			body.collisions.length = 0;
+
+			if (body.type === RigidBodyType.Dynamic) {
+				dynamicShapes.push(...body.shapes);
+			}
+		}
+
+		this.computeCollisions(dynamicShapes, false); // This will update the collisions on rigid bodies
+	}
+
 	/** Casts a ray into the world and returns all intersections. */
 	castRay(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number, collisionDetectionMask = 0b1) {
 		// Build the AABB of the ray

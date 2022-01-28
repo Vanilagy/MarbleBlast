@@ -1,7 +1,8 @@
 export type SocketCommands = {
 	heartbeat: null,
 	updateGameServerList: {
-		id: string
+		id: string,
+		wsUrl?: string
 	}[],
 	rtcIce: {
 		ice: RTCIceCandidate,

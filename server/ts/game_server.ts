@@ -20,7 +20,7 @@ export const registerGameServer = (ws: WebSocketType, req: express.Request) => {
 	console.log("Registered game server: " + req.query.id);
 
 	let socket = new Socket(ws);
-	let gameServer = new GameServer(req.query.id as string, socket);
+	let gameServer = new GameServer(req.query.id as string, socket, req.query.ws as string);
 	gameServers.push(gameServer);
 
 	for (let socket of sockets) sendGameServerList(socket);
@@ -29,7 +29,8 @@ export const registerGameServer = (ws: WebSocketType, req: express.Request) => {
 export const sendGameServerList = (socket: Socket) => {
 	socket.send('updateGameServerList', gameServers.map(x => {
 		return {
-			id: x.id
+			id: x.id,
+			wsUrl: x.wsUrl ?? null
 		};
 	}));
 };
@@ -37,10 +38,12 @@ export const sendGameServerList = (socket: Socket) => {
 class GameServer {
 	id: string;
 	socket: Socket;
+	wsUrl?: string;
 
-	constructor(id: string, socket: Socket) {
+	constructor(id: string, socket: Socket, wsUrl?: string) {
 		this.id = id;
 		this.socket = socket;
+		this.wsUrl = wsUrl;
 
 		this.socket.onClose = () => {
 			console.log("Unregistered game server: " + this.id);

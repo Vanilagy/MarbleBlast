@@ -6,6 +6,7 @@ export abstract class Socket {
 	static ws: WebSocket;
 	static commandHandlers: Record<keyof SocketCommands, ((data: any) => void)[]> = {} as any;
 	static sendQueue: string[] = [];
+	static plannedReconnect = false;
 
 	static init(url: string, wsConstructor: typeof WebSocket) {
 		this.WebSocketConstructor = wsConstructor;
@@ -20,6 +21,7 @@ export abstract class Socket {
 
 	static establishWebSocketConnection() {
 		this.ws = new this.WebSocketConstructor(this.url);
+		this.plannedReconnect = false;
 
 		this.ws.onopen = () => {
 			for (let queued of this.sendQueue) {
@@ -38,12 +40,13 @@ export abstract class Socket {
 				for (let fn of arr) fn(data);
 			};
 		};
-		this.ws.onclose = () => {
+		this.ws.onclose = this.ws.onerror = () => {
+			if (this.plannedReconnect) return; // Don't request it more than once
+
+			this.plannedReconnect = true;
 			setTimeout(this.establishWebSocketConnection.bind(this), 2000);
 		};
-		this.ws.onerror = () => {
-			setTimeout(this.establishWebSocketConnection.bind(this), 2000);
-		};
+
 	}
 
 	static send<K extends keyof SocketCommands>(command: K, data: SocketCommands[K]) {

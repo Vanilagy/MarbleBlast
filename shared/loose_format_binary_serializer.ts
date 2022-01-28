@@ -27,7 +27,7 @@ enum Type {
 }
 
 /** Provides methods to convert JavaScript data into a compact binary format and back. */
-export abstract class BinarySerializer {
+export abstract class LooseFormatBinarySerializer {
 	static encodeBuffer: ArrayBuffer;
 	static encodeView: DataView;
 	static encodeBytes: Uint8Array;
@@ -352,4 +352,4 @@ export abstract class BinarySerializer {
 		return this.decode(encoded);
 	}
 }
-BinarySerializer.init();
+LooseFormatBinarySerializer.init();

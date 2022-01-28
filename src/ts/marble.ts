@@ -88,6 +88,7 @@ blastMaxParticleOptions.particleOptions.dragCoefficient = 0.3;
 blastMaxParticleOptions.particleOptions.colors = blastMaxParticleOptions.particleOptions.colors.map(x => { x.r = 255/255; x.g = 159/255; x.b = 25/255; return x; });
 
 interface MarbleState {
+	objectType: 'marble',
 	position: Vector3,
 	orientation: Quaternion,
 	linearVelocity: Vector3,
@@ -180,6 +181,8 @@ export class Marble extends GameObject<MarbleState> {
 	heldPowerUp: PowerUp = null;
 	blastAmount = 0;
 
+	takeInput = false; // temp
+
 	constructor(game: Game) {
 		super(game);
 
@@ -187,7 +190,7 @@ export class Marble extends GameObject<MarbleState> {
 	}
 
 	async init() {
-		this.group = new Group();
+		this.group = new Group(true);
 		this.innerGroup = new Group();
 		this.group.add(this.innerGroup);
 
@@ -297,7 +300,7 @@ export class Marble extends GameObject<MarbleState> {
 		await this.forcefield.init(this.game);
 		this.forcefield.setOpacity(0);
 		this.forcefield.showSequences = false; // Hide the weird default animation it does
-		this.innerGroup.add(this.forcefield.group);
+		//this.innerGroup.add(this.forcefield.group);
 
 		this.helicopter = new Shape();
 		// Easter egg: Due to an iconic bug where the helicopter would instead look like a glow bounce, this can now happen 0.1% of the time.
@@ -305,7 +308,7 @@ export class Marble extends GameObject<MarbleState> {
 		this.helicopter.castShadows = true;
 		await this.helicopter.init(this.game);
 		this.helicopter.setOpacity(0);
-		this.group.add(this.helicopter.group);
+		//this.group.add(this.helicopter.group);
 
 		// Load the necessary rolling sounds
 		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"];
@@ -340,6 +343,7 @@ export class Marble extends GameObject<MarbleState> {
 
 	getCurrentState(): MarbleState {
 		return {
+			objectType: 'marble',
 			position: this.body.position.clone(),
 			orientation: this.body.orientation.clone(),
 			linearVelocity: this.body.linearVelocity.clone(),
@@ -348,13 +352,29 @@ export class Marble extends GameObject<MarbleState> {
 		};
 	}
 
+	getInitialState(): MarbleState {
+		return {
+			objectType: 'marble',
+			position: this.body.position.clone(),
+			orientation: this.body.orientation.clone(),
+			linearVelocity: this.body.linearVelocity.clone(),
+			angularVelocity: this.body.angularVelocity.clone(),
+			controlState: MarbleController.getPassiveControlState()
+		};
+	}
+
 	loadState(state: MarbleState) {
 		this.body.position.copy(state.position);
 		this.body.orientation.copy(state.orientation);
+		this.body.linearVelocity.copy(state.linearVelocity);
+		this.body.angularVelocity.copy(state.angularVelocity);
+		this.currentControlState = state.controlState;
+		this.currentControlState.movement = new Vector2().copy(this.currentControlState.movement); // temp
 	}
 
 	update() {
-		this.currentControlState = this.controller.getControlState();
+		// temp
+		if (this.takeInput) this.currentControlState = this.controller.getControlState();
 
 		let attemptTime = this.game.state.attemptTime;
 
@@ -693,7 +713,7 @@ export class Marble extends GameObject<MarbleState> {
 
 	showBounceParticles() {
 		this.game.renderer.particles.createEmitter(bounceParticleOptions, this.body.position, null,
-			new Vector3(1, 1, 1).addScaledVector(Util.absVector(this.currentUp.clone()), -0.8));
+			new Vector3(1, 1, 1).addScaledVector(this.currentUp.clone().abs(), -0.8));
 	}
 
 	/** Sets linear velocity in a specific direction, but capped. Used for things like jumping and bumpers. */
@@ -808,7 +828,7 @@ export class Marble extends GameObject<MarbleState> {
 			(this.blastAmount > 1)? blastMaxParticleOptions : blastParticleOptions,
 			null,
 			() => this.body.position.clone().addScaledVector(this.currentUp, -this.radius * 0.4),
-			new Vector3(1, 1, 1).addScaledVector(Util.absVector(this.currentUp.clone()), -0.8)
+			new Vector3(1, 1, 1).addScaledVector(this.currentUp.clone().abs(), -0.8)
 		);
 
 		this.blastAmount = 0;

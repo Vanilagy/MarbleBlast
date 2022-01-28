@@ -18,6 +18,11 @@ export class MarbleController {
 
 	previousMouseMovementDistance = 0;
 
+	history: {
+		tick: number,
+		controlState: MarbleControlState
+	}[] = [];
+
 	constructor(marble: Marble) {
 		this.marble = marble;
 	}
@@ -52,6 +57,11 @@ export class MarbleController {
 	}
 
 	getControlState(): MarbleControlState {
+		let gameTick = this.marble.game.state.tick;
+		for (let i = this.history.length-1; i >= 0 && this.history[i].tick >= gameTick; i--) {
+			if (this.history[i].tick === gameTick) return this.history[i].controlState;
+		}
+
 		let allowUserInput = !state.menu.finishScreen.showing;
 
 		let movement = new Vector2();
@@ -90,6 +100,11 @@ export class MarbleController {
 		this.using = false;
 		this.blasting = false;
 
+		this.history.push({
+			tick: this.marble.game.state.tick,
+			controlState: res
+		});
+
 		return res;
 	}
 
@@ -99,5 +114,16 @@ export class MarbleController {
 		// Determine starting camera orientation based on the start pad
 		this.yaw = euler.z + Math.PI/2;
 		this.pitch = DEFAULT_PITCH;
+	}
+
+	static getPassiveControlState(): MarbleControlState {
+		return {
+			movement: new Vector2(),
+			yaw: 0,
+			pitch: DEFAULT_PITCH,
+			jumping: false,
+			using: false,
+			blasting: false
+		};
 	}
 }

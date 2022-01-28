@@ -563,7 +563,7 @@ export class Scene extends Group {
 			}
 		}
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.transparentIndexBuffer);
-		gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, this.transparentIndexBufferData, 0, offset);
+		gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, this.transparentIndexBufferData.subarray(0, offset)); // subarray *way* faster than using the WebGL2 signature
 
 		this.preparedForRender = true;
 	}

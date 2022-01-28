@@ -155,6 +155,9 @@ export class GameInitter {
 		simulator.world.add(game.marble.body);
 		game.marbles.push(game.marble);
 
+		game.marble.takeInput = true;
+		game.marble.stateUpdatePrecedence = 1;
+
 		/*
 		for (let i = 0; i < 8; i++) {
 			let marble = new Marble(this);

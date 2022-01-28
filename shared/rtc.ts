@@ -1,25 +1,39 @@
-import { GameObjectState } from "./game_object_state_update";
+/*
 
-export type RTCCommands = {
-	playMission: {
+import { GameObjectStateUpdate } from "./game_object_state_update";
+
+export type GameServerCommands = {
+	ping: {
+		timestamp: number
+	},
+	pong: {
+		timestamp: number,
+		subtract: number
+	},
+	joinMission: {
 		missionPath: string
 	},
 	stateUpdate: {
 		gameObjectId: number,
-		state: GameObjectState
+		stateUpdate: GameObjectStateUpdate
 	},
 	timeState: {
 		serverTick: number,
 		clientTick: number
+	},
+	reconciliationInfo: {
+		rewindTo: number
 	}
 };
 
-export type RTCMessage = {
+export type GameServerMessage = {
 	packetId: number,
 	ack: number,
 	commands: {
-		command: keyof RTCCommands,
+		command: keyof GameServerCommands,
 		data: unknown,
 		ack?: number
 	}[]
 };
+
+*/

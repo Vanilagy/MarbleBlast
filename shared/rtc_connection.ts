@@ -1,10 +1,4 @@
-import { BinarySerializer } from "./binary_serializer";
-import { RTCCommands, RTCMessage } from "./rtc";
-
-/** Returns a promise that resolves after `ms` milliseconds. */
-const wait = (ms: number) => {
-	return new Promise<void>((resolve) => setTimeout(resolve, ms));
-};
+import { GameServerSocket } from './game_server_connection';
 
 const peerConnectionConfig = {
 	'iceServers': [
@@ -13,22 +7,10 @@ const peerConnectionConfig = {
 	]
 };
 
-export abstract class RTCConnection {
+export abstract class RTCConnection implements GameServerSocket {
 	rtc: RTCPeerConnection;
 	dataChannel: RTCDataChannel;
-
-	queuedCommands: {
-		command: keyof RTCCommands,
-		data: any,
-		ack?: number,
-		id?: string
-	}[] = [];
-	localPacketId = 0;
-	remotePacketId = -1;
-
-	tickTimeout = 0;
-	addedOneWayLatency = 0;
-	commandHandlers: Record<keyof RTCCommands, ((data: any) => void)[]> = {} as any;
+	receive: (data: ArrayBuffer) => void = null;
 
 	constructor(RTCPeerConnectionConstructor: typeof RTCPeerConnection) {
 		this.rtc = new RTCPeerConnectionConstructor(peerConnectionConfig);
@@ -41,7 +23,10 @@ export abstract class RTCConnection {
 	}
 
 	async createOffer() {
-		let channel = this.rtc.createDataChannel('main');
+		let channel = this.rtc.createDataChannel('main', {
+			ordered: false,
+			maxRetransmits: 0
+		});
 		this.initDataChannel(channel);
 
 		let offer = await this.rtc.createOffer();
@@ -55,11 +40,13 @@ export abstract class RTCConnection {
 	}
 
 	async gotIceFromServer(candidate: RTCIceCandidate) {
-		if (!candidate.candidate) return; // "Expect line: candidate:<candidate-str>" bruh moment
+		if (!candidate.candidate) return; // "Expect line: candidate:<candidate-str>" bruh firefox moment
+		//if (this.rtc.signalingState === 'closed') return;
 		this.rtc.addIceCandidate(candidate);
 	}
 
 	async gotSdpFromServer(description: RTCSessionDescription) {
+		//if (this.rtc.signalingState === 'closed') return;
 		await this.rtc.setRemoteDescription(description);
 
 		if (description.type === 'offer') {
@@ -72,98 +59,19 @@ export abstract class RTCConnection {
 		this.dataChannel = channel;
 		this.dataChannel.binaryType = 'arraybuffer';
 
-		this.dataChannel.onmessage = (ev) => {
-			let decoded = BinarySerializer.decode(ev.data) as RTCMessage;
-			this.onMessage(decoded);
+		this.dataChannel.onmessage = async (ev) => {
+			this.receive?.(ev.data);
 		};
 		this.dataChannel.onopen = () => {
 			console.log("DC open! 🎉");
 		};
 	}
 
-	queueCommand<K extends keyof RTCCommands>(command: K, data: RTCCommands[K], reliable = true, uniqueCommandId?: string) {
-		let commandObject = {
-			command,
-			data,
-			ack: reliable? this.localPacketId : null,
-			id: uniqueCommandId
-		};
-
-		if (uniqueCommandId !== undefined) {
-			for (let i = 0; i < this.queuedCommands.length; i++) {
-				if (this.queuedCommands[i].id !== uniqueCommandId) continue;
-
-				this.queuedCommands[i] = commandObject;
-				return;
-			}
-		}
-
-		this.queuedCommands.push(commandObject);
+	send(data: ArrayBuffer) {
+		if (this.canSend()) this.dataChannel.send(data);
 	}
 
-	tick() {
-		if (this.dataChannel?.readyState !== 'open') return;
-		if (this.tickTimeout-- > 0 && this.queuedCommands.length === 0) return;
-
-		this.sendCommands();
-
-		if (this.queuedCommands.length === 0) this.tickTimeout = 2; // When we've got no more commands to send, our main function is simply to send over ACKs - we can do this at a reduced rate.
-	}
-
-	sendCommands() {
-		let message: RTCMessage = {
-			packetId: this.localPacketId++,
-			ack: this.remotePacketId,
-			commands: this.queuedCommands.map(x => ({
-				command: x.command,
-				data: x.data,
-				ack: x.ack
-			}))
-		};
-		this.send(message);
-
-		for (let i = 0; i < this.queuedCommands.length; i++) {
-			if (this.queuedCommands[i].ack === null)
-				this.queuedCommands.splice(i--, 1);
-		}
-	}
-
-	async send(message: RTCMessage) {
-		let encoded = BinarySerializer.encode(message);
-		if (this.addedOneWayLatency) await wait(this.addedOneWayLatency);
-
-		if (this.dataChannel?.readyState === 'open') {
-			this.dataChannel.send(encoded);
-		}
-	}
-
-	onMessage(message: RTCMessage) {
-		//console.log(message);
-
-		if (message.packetId <= this.remotePacketId) return; // Discard out-of-order messages
-		this.remotePacketId = message.packetId;
-
-		for (let i = 0; i < this.queuedCommands.length; i++) {
-			if (this.queuedCommands[i].ack !== null && this.queuedCommands[i].ack <= message.ack)
-				this.queuedCommands.splice(i--, 1);
-		}
-
-		for (let { command, data, ack } of message.commands) {
-			if (ack !== null && ack < this.remotePacketId) continue;
-
-			let arr = this.commandHandlers[command as keyof RTCCommands];
-			if (!arr) continue;
-
-			for (let fn of arr) fn(data);
-		}
-	}
-
-	on<K extends keyof RTCCommands>(command: K, callback: (data: RTCCommands[K]) => void) {
-		let arr = this.commandHandlers[command];
-		if (!arr) {
-			arr = this.commandHandlers[command] = [];
-		}
-
-		arr.push(callback);
+	canSend() {
+		return this.dataChannel?.readyState === 'open';
 	}
 }

@@ -18,15 +18,16 @@ import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { mainCanvas, resize } from "../ui/misc";
 import { hideTouchControls, maybeShowTouchControls, releaseAllButtons } from "../input";
 import { state } from "../state";
+import { workerClearTimeoutOrInterval, workerSetInterval } from "../worker";
 
 export class Game {
+	state: GameState;
 	initter: GameInitter;
 	simulator: GameSimulator;
 	renderer: GameRenderer;
 
 	mission: Mission;
 
-	state: GameState;
 	objects: GameObject[] = [];
 	marbles: Marble[] = [];
 	interiors: Interior[] = [];
@@ -53,12 +54,16 @@ export class Game {
 	constructor(mission: Mission) {
 		this.mission = mission;
 
-		this.initter = new GameInitter(this);
-		this.simulator = new GameSimulator(this);
-		this.renderer = new GameRenderer(this);
-
-		this.state = new GameState(this);
+		this.createState();
+		this.createInitter();
+		this.createSimulator();
+		this.createRenderer();
 	}
+
+	createState() { this.state = new GameState(this); }
+	createInitter() { this.initter = new GameInitter(this); }
+	createSimulator() { this.simulator = new GameSimulator(this); }
+	createRenderer() { this.renderer = new GameRenderer(this); }
 
 	async init() {
 		await this.initter.init();
@@ -79,7 +84,7 @@ export class Game {
 		maybeShowTouchControls();
 
 		this.onFrame();
-		this.tickInterval = setInterval(this.tick.bind(this));
+		this.tickInterval = workerSetInterval(this.tick.bind(this));
 	}
 
 	onFrame() {
@@ -90,15 +95,15 @@ export class Game {
 		this.renderer.render();
 	}
 
-	tick() {
+	tick(time?: number, gameUpdateRate = GAME_UPDATE_RATE) {
 		if (this.stopped) return;
 		//if (this.paused) return; // fixme
 
-		let time = performance.now();
+		if (time === undefined) time = performance.now();
 
 		if (this.lastGameUpdateTime === null) {
 			// If there hasn't been a physics tick yet, ensure there is one now
-			this.lastGameUpdateTime = time - 1000 / GAME_UPDATE_RATE * 1.1 / GAME_PLAYBACK_SPEED;
+			this.lastGameUpdateTime = time - 1000 / gameUpdateRate * 1.1 / GAME_PLAYBACK_SPEED;
 		}
 
 		/** Time in milliseconds since the last physics tick */
@@ -110,9 +115,9 @@ export class Game {
 			this.lastGameUpdateTime = time - 1000;
 		}
 
-		while (elapsed >= 1000 / GAME_UPDATE_RATE) {
-			elapsed -= 1000 / GAME_UPDATE_RATE;
-			this.lastGameUpdateTime += 1000 / GAME_UPDATE_RATE;
+		while (elapsed >= 1000 / gameUpdateRate) {
+			elapsed -= 1000 / gameUpdateRate;
+			this.lastGameUpdateTime += 1000 / gameUpdateRate;
 
 			this.simulator.update();
 		}
@@ -155,7 +160,7 @@ export class Game {
 	/** Ends the level irreversibly. */
 	stop() {
 		this.stopped = true;
-		clearInterval(this.tickInterval);
+		workerClearTimeoutOrInterval(this.tickInterval);
 		this.dispose();
 
 		this.music.stop();

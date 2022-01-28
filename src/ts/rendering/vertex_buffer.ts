@@ -42,12 +42,8 @@ export class VertexBuffer {
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
 
-		if (!(gl instanceof WebGLRenderingContext)) {
-			gl.bufferSubData(gl.ARRAY_BUFFER, this.updateRange.start * Float32Array.BYTES_PER_ELEMENT, this.data, this.updateRange.start, this.updateRange.end - this.updateRange.start);
-		} else {
-			let slice = this.data.subarray(this.updateRange.start, this.updateRange.end); // This simply creates another view onto the same array buffer, no data is copied here, yay
-			gl.bufferSubData(gl.ARRAY_BUFFER, this.updateRange.start * Float32Array.BYTES_PER_ELEMENT, slice);
-		}
+		let slice = this.data.subarray(this.updateRange.start, this.updateRange.end); // This simply creates another view onto the same array buffer, no data is copied here, yay
+		gl.bufferSubData(gl.ARRAY_BUFFER, this.updateRange.start * Float32Array.BYTES_PER_ELEMENT, slice); // Doing it like this appears to be faster than using the new WebGL2 signature
 
 		// Reset the range
 		this.updateRange.start = Infinity;

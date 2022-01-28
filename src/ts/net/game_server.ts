@@ -1,9 +1,10 @@
 import { Socket } from "../../../shared/socket";
 import { RTCConnection } from "../../../shared/rtc_connection";
-import { state } from "../state";
+import { workerSetInterval } from "../worker";
+import { GameServerConnection, GameServerSocket } from "../../../shared/game_server_connection";
 
 export let gameServers: GameServer[] = [];
-const TICK_FREQUENCY = 60;
+const TICK_FREQUENCY = 30;
 
 class GameServerRTCConnection extends RTCConnection {
 	gameServerId: string;
@@ -33,9 +34,37 @@ class GameServerRTCConnection extends RTCConnection {
 	}
 }
 
+class WebSocketGameServerSocket implements GameServerSocket {
+	ws: WebSocket;
+	receive: (data: ArrayBuffer) => void;
+
+	constructor(ws: WebSocket) {
+		this.ws = ws;
+		ws.binaryType = 'arraybuffer';
+
+		ws.onmessage = (ev) => {
+			this.receive(ev.data);
+		};
+
+		ws.onopen = () => {
+			console.log("opened");
+		};
+	}
+
+	send(data: ArrayBuffer) {
+		if (this.canSend()) this.ws.send(data);
+	}
+
+	canSend() {
+		return this.ws.readyState === this.ws.OPEN;
+	}
+}
+
 export class GameServer {
 	id: string;
-	connection: GameServerRTCConnection;
+	wsUrl: string;
+	rtcSocket: GameServerRTCConnection;
+	connection: GameServerConnection;
 
 	static init() {
 		Socket.on('updateGameServerList', list => {
@@ -43,41 +72,44 @@ export class GameServer {
 				let exists = gameServers.some(x => x.id === gs.id);
 				if (exists) continue;
 
-				let gameServer = new GameServer(gs.id);
+				let gameServer = new GameServer(gs.id, gs.wsUrl);
 				gameServers.push(gameServer);
 			}
 
 			console.log(gameServers);
 
-			gameServers[0]?.connect();
+			gameServers[0]?.connect('websocket');
 		});
 
 		Socket.on('rtcIce', data => {
-			gameServers.find(x => x.id === data.gameServerId)?.connection.gotIceFromServer(new RTCIceCandidate(data.ice));
+			gameServers.find(x => x.id === data.gameServerId)?.rtcSocket.gotIceFromServer(new RTCIceCandidate(data.ice));
 		});
 
 		Socket.on('rtcSdp', data => {
-			gameServers.find(x => x.id === data.gameServerId)?.connection.gotSdpFromServer(new RTCSessionDescription(data.sdp));
+			gameServers.find(x => x.id === data.gameServerId)?.rtcSocket.gotSdpFromServer(new RTCSessionDescription(data.sdp));
 		});
 
-		setInterval(() => {
+		workerSetInterval(() => {
 			for (let gs of gameServers) gs.connection?.tick();
 		}, 1000 / TICK_FREQUENCY);
 	}
 
-	constructor(id: string) {
+	constructor(id: string, wsUrl?: string) {
 		this.id = id;
+		this.wsUrl = wsUrl;
 	}
 
-	async connect() {
-		this.connection = new GameServerRTCConnection(this.id);
-		this.connection.createOffer();
+	async connect(type: 'rtc' | 'websocket') {
+		if (type === 'rtc') {
+			this.rtcSocket = new GameServerRTCConnection(this.id);
+			this.rtcSocket.createOffer();
 
-		this.connection.on('stateUpdate', data => {
-			state.level?.onStateUpdate(data);
-		});
-		this.connection.on('timeState', data => {
+			this.connection = new GameServerConnection(this.rtcSocket);
+		} else {
+			let ws = new WebSocket(this.wsUrl);
+			let socket = new WebSocketGameServerSocket(ws);
 
-		});
+			this.connection = new GameServerConnection(socket);
+		}
 	}
 }

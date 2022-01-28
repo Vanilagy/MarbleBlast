@@ -3,6 +3,7 @@ import * as Database from 'better-sqlite3';
 import * as fs from 'fs-extra';
 import express from 'express';
 import expressWs from 'express-ws';
+import 'express-async-errors'; // Magic.
 import { apiInits, shared } from './shared';
 import './misc';
 import './leaderboard';

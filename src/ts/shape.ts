@@ -446,7 +446,7 @@ export class Shape extends GameObject {
 				material.depthWrite = false;
 			}
 			if (flags & MaterialFlags.Additive) material.blending = BlendingType.Additive;
-			if (flags & MaterialFlags.Subtractive) material.blending = BlendingType.Subtractve;
+			if (flags & MaterialFlags.Subtractive) material.blending = BlendingType.Subtractive;
 			if (this.isTSStatic && !(flags & MaterialFlags.NeverEnvMap)) {
 				material.reflectivity = this.dts.matNames.length === 1? 1 : environmentMaterial? 0.5 : 0.333;
 				material.envMap = this.game.renderer.envMap;
@@ -706,7 +706,7 @@ export class Shape extends GameObject {
 				let trans = sequence.translationMatters[0] ?? 0;
 				let scale = sequence.scaleMatters[0] ?? 0;
 				let affectedCount = 0;
-				let completion = this.game.state.time / (sequence.duration * 1000);
+				let completion = this.game.state.time / sequence.duration;
 				let quaternions: Quaternion[];
 				let translations: Vector3[];
 				let scales: Vector3[];
@@ -886,7 +886,7 @@ export class Shape extends GameObject {
 			let iflSequence = this.dts.sequences.find((seq) => seq.iflMatters[0] > 0);
 			if (!iflSequence || !this.showSequences) continue;
 
-			let completion = time / (iflSequence.duration * 1000);
+			let completion = time / iflSequence.duration;
 			let keyframe = Math.floor(completion * info.keyframes.length) % info.keyframes.length;
 			let currentFile = info.keyframes[keyframe];
 

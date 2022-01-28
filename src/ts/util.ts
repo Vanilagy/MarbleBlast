@@ -401,13 +401,10 @@ export abstract class Util {
 
 	/** Finds the last element in an array that fulfills a predicate. */
 	static findLast<T>(arr: T[], predicate: (elem: T) => boolean) {
-		let candidate: T = undefined;
-
-		for (let item of arr) {
-			if (predicate(item)) candidate = item;
+		for (let i = arr.length-1; i >= 0; i--) {
+			let item = arr[i];
+			if (predicate(item)) return item;
 		}
-
-		return candidate;
 	}
 
 	/** Removes diacritics from a string. */
@@ -661,15 +658,6 @@ export abstract class Util {
 	/** Produces a funny easter egg once in a while based on a stupid pun. */
 	static isWeeb = Math.random() < 0.001; // Mazik <3
 
-	/** Turns each component's value into its absolute value. */
-	static absVector(vec: Vector3) {
-		vec.x = Math.abs(vec.x);
-		vec.y = Math.abs(vec.y);
-		vec.z = Math.abs(vec.z);
-
-		return vec;
-	}
-
 	/** Returns an array of permutations of the input array. */
 	static getPermutations<T>(arr: T[]): T[][] {
 		if (arr.length === 0) return [];
@@ -741,6 +729,14 @@ export abstract class Util {
 			box.min.clone().add(dy).add(dz),
 			box.max.clone()
 		];
+	}
+
+	static computeMedian(values: number[]) {
+		if (values.length === 0) return NaN;
+
+		let sorted = values.slice().sort((a, b) => a - b);
+		if (sorted.length % 2) return sorted[Math.floor(values.length / 2)];
+		else return Util.avg(sorted[Math.floor(values.length / 2) - 1], sorted[Math.floor(values.length / 2)]);
 	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
