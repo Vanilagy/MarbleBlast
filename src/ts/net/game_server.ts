@@ -78,7 +78,7 @@ export class GameServer {
 
 			console.log(gameServers);
 
-			gameServers[0]?.connect('websocket');
+			gameServers[0]?.connect('rtc' ?? 'websocket');
 		});
 
 		Socket.on('rtcIce', data => {

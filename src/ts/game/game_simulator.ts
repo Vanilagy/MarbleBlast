@@ -27,7 +27,10 @@ export class GameSimulator {
 
 		//if (this.mission.hasBlast && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
 
-		for (let object of game.objects) object.update();
+		for (let object of game.objects) {
+			object.updateCertainty();
+			object.update();
+		}
 
 		let playReplay = false;
 		if (!playReplay) {

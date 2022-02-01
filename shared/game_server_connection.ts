@@ -1,6 +1,6 @@
 import { DefaultMap } from "./default_map";
 import { FixedFormatBinarySerializer } from "./fixed_format_binary_serializer";
-import { GameServerCommands, GameServerMessage, gameServerMessageFormat } from "./game_server_format";
+import { CommandToData, GameServerCommands, GameServerMessage, gameServerMessageFormat } from "./game_server_format";
 
 /** Returns a promise that resolves after `ms` milliseconds. */
 const wait = (ms: number) => {
@@ -125,6 +125,3 @@ export class GameServerConnection {
 		this.commandHandlers.clear();
 	}
 }
-
-export type CommandToData<K extends GameServerCommands> = DistributeyThing<GameServerMessage['commands'][number], K>;
-type DistributeyThing<U, K> = U extends { command: K } ? U : never;

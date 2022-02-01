@@ -51,6 +51,7 @@ import { TeleportTrigger } from "../triggers/teleport_trigger";
 import { Trigger } from "../triggers/trigger";
 import { Util } from "../util";
 import { Game } from "./game";
+import { LocalMarbleController } from "./local_marble_controller";
 
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
@@ -156,7 +157,7 @@ export class GameInitter {
 		game.marbles.push(game.marble);
 
 		game.marble.takeInput = true;
-		game.marble.stateUpdatePrecedence = 1;
+		game.marble.controller = new LocalMarbleController(game.marble);
 
 		/*
 		for (let i = 0; i < 8; i++) {

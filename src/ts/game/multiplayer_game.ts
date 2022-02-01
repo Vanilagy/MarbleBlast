@@ -8,6 +8,7 @@ import { Util } from "../util";
 import { Game } from "./game";
 import { MultiplayerGameSimulator } from "./multiplayer_game_simulator";
 import { MultiplayerGameState } from "./multiplayer_game_state";
+import { RemoteMarbleController } from "./remote_marble_controller";
 
 const networkStatsElement = document.querySelector('#network-stats') as HTMLDivElement;
 
@@ -55,15 +56,18 @@ export class MultiplayerGame extends Game {
 			});
 		});
 
-		this.connection.on('timeState', data => {
-			let needsStart = this.state.serverTick === null;
+		this.connection.on('gameInfo', data => {
+			this.playerId = data.playerId;
 			this.state.supplyServerTimeState(data);
 
-			if (needsStart) super.start();
+			super.start();
+		});
+
+		this.connection.on('timeState', data => {
+			this.state.supplyServerTimeState(data);
 		});
 
 		this.connection.on('reconciliationInfo', data => {
-			this.simulator.needsReconciliation = true;
 			this.simulator.reconciliationInfo = data;
 		});
 
@@ -72,7 +76,7 @@ export class MultiplayerGame extends Game {
 
 			let marble = this.marbles.find(x => x.id === data.gameObjectId);
 			if (!marble) {
-				if(initting.has(data.gameObjectId)) return;
+				if (initting.has(data.gameObjectId)) return;
 
 				initting.add(data.gameObjectId);
 				marble = new Marble(this);
@@ -86,6 +90,7 @@ export class MultiplayerGame extends Game {
 				this.objects.push(marble);
 
 				marble.loadState(data.state as any); // temp
+				marble.controller = new RemoteMarbleController(marble);
 			}
 		});
 
@@ -146,19 +151,14 @@ export class MultiplayerGame extends Game {
 		});
 
 		for (let [objectId, history] of this.state.stateHistory) {
-			for (let i = history.length-1; i >= 0; i--) {
-				let update = history[i];
-				if (update.tick <= this.lastSentTick) break;
+			let update = Util.last(history);
+			if (!update) continue;
+			if (update.tick <= this.lastSentTick) continue;
 
-				this.connection.queueCommand({
-					command: 'stateUpdate',
-					gameStateId: update.gameStateId,
-					gameObjectId: objectId,
-					tick: update.tick,
-					precedence: update.precedence,
-					state: update.state
-				});
-			}
+			this.connection.queueCommand({
+				command: 'stateUpdate',
+				...update
+			});
 		}
 
 		this.lastSentTick = this.state.tick;

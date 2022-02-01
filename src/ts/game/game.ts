@@ -51,6 +51,8 @@ export class Game {
 	tickInterval: number;
 	lastGameUpdateTime: number = null;
 
+	playerId = 0;
+
 	constructor(mission: Mission) {
 		this.mission = mission;
 

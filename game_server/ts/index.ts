@@ -1,23 +1,27 @@
+import fs from 'fs-extra';
+import path from 'path';
 import NodeWebSocket, { WebSocketServer } from 'ws';
 import { setDriftlessInterval } from "driftless";
 import { Socket } from '../../shared/socket';
 import { RTCPeerConnection as WRTCPeerConnection, RTCIceCandidate, RTCSessionDescription } from 'wrtc';
 import { RTCConnection } from '../../shared/rtc_connection';
 import { performance} from 'perf_hooks';
-import { GameObjectStateUpdate } from '../../shared/game_object_state_update';
 import { GAME_UPDATE_RATE } from '../../shared/constants';
 import { DefaultMap } from '../../shared/default_map';
-import { CommandToData, GameServerConnection, GameServerSocket } from '../../shared/game_server_connection';
+import { GameServerConnection, GameServerSocket } from '../../shared/game_server_connection';
+import { CommandToData, GameObjectStateUpdate } from '../../shared/game_server_format';
 
 const wss = new WebSocketServer({
 	port: 6969
 });
 
+let localIp = '192.168.43.51' ?? '192.168.1.105'; // TEMP SHIT
+
 const ID = 'EU-1';
 const KEY = 'I love cocks';
-const URL = `ws://localhost:8080/register-gameserver?id=${encodeURIComponent(ID)}&key=${encodeURIComponent(KEY)}&ws=${encodeURIComponent('ws://192.168.1.105:' + wss.options.port)}`;
+const URL = `ws://localhost:8080/register-gameserver?id=${encodeURIComponent(ID)}&key=${encodeURIComponent(KEY)}&ws=${encodeURIComponent(`ws://${localIp}:` + wss.options.port)}`;
 const TICK_FREQUENCY = 30;
-const UPDATE_BUFFER_SIZE = 3; // In ticks
+const UPDATE_BUFFER_SIZE = 1; // In ticks
 
 console.log("Game server started with id: " + ID);
 
@@ -133,16 +137,25 @@ setDriftlessInterval(() => {
 	for (let game of games) game.tick();
 }, 1000 / TICK_FREQUENCY);
 
+let logfileName = 'omfg.tsv';
+
+fs.writeFileSync(path.join(__dirname, 'logs', logfileName), 'Tick\tBruh\n');
+
 class Game {
 	missionPath: string;
 	connections: GameServerConnection[] = [];
 	stateHistory = new DefaultMap<number, GameObjectStateUpdate[]>(() => []);
-	stateUpdateQueue = new DefaultMap<number, DefaultMap<number, GameObjectStateUpdate[]>>(() => new DefaultMap(() => [])); // Maps tick to map that maps object ID to update candidates
+	//updateToConnection = new WeakMap<GameObjectStateUpdate, GameServerConnection>();
+	//updateTimeouts = new DefaultMap<GameServerConnection, Map<number, number>>(() => new Map());
+	//stateUpdateQueue = new DefaultMap<number, DefaultMap<number, GameObjectStateUpdate[]>>(() => new DefaultMap(() => [])); // Maps tick to map that maps object ID to update candidates
 	tickIndex: number;
 	startTime: number;
 	lastAdvanceTime: number;
 	lastSentTick = -1;
 	pendingPings = new DefaultMap<GameServerConnection, Map<number, number>>(() => new Map());
+
+	logRow: any[] = [0];
+	objectIds: number[] = [];
 
 	constructor(missionPath: string) {
 		this.missionPath = missionPath;
@@ -167,33 +180,84 @@ class Game {
 	}
 
 	advanceGame() {
+		this.logRow = this.logRow.map(x => ('' + x).padEnd(22));
+
+		//fs.appendFileSync(path.join(__dirname, 'logs', logfileName), this.logRow.join('\t') + '\n');
+
 		this.tickIndex++;
 		this.lastAdvanceTime += 1000 / GAME_UPDATE_RATE;
 
-		let updateCandidates = this.stateUpdateQueue.get(this.tickIndex);
-		if (!updateCandidates) return;
+		this.logRow = ['', '', '', '', ''];
 
-		for (let [objectId, updates] of updateCandidates) {
-			let arr = this.stateHistory.get(objectId);
-
-			let bestUpdate = updates.slice().sort((a, b) => b.precedence - a.precedence)[0];
-			if (bestUpdate.precedence === 1) arr.push(bestUpdate);
-		}
-
-		this.stateUpdateQueue.delete(this.tickIndex);
+		this.logRow[0] = this.tickIndex;
 	}
 
 	onStateUpdate(update: CommandToData<'stateUpdate'>) {
-		let updatesForTick = this.stateUpdateQueue.get(update.tick);
-		let updatesForObject = updatesForTick.get(update.gameObjectId);
+		if (update.tick <= this.lastSentTick) {
+			return;
+		}
 
-		updatesForObject.push(update);
+		//console.log(this.connections.indexOf(connection), update.gameObjectId, update.certainty);
+
+		let history = this.stateHistory.get(update.gameObjectId);
+		if (!this.objectIds.includes(update.gameObjectId)) this.objectIds.push(update.gameObjectId);
+
+
+
+		//this.logRow[1 + playerIndex] += `${this.objectIds.indexOf(update.gameObjectId)}:${update.tick}:${update.certainty.toFixed(3)} `;
+
+		//update.whoSent = playerIndex;
+
+		let updateBefore = findLast(history, x => x.tick <= update.tick);
+		if (!updateBefore) {
+			history.push(update);
+		} else {
+			let tickDiff = update.tick - updateBefore.tick;
+			//tickDiff = Math.max(0, tickDiff - 5);
+			//tickDiff = tickDiff - 10;
+			let otherCertainty = updateBefore.certainty * updateBefore.certaintyRetention**tickDiff;
+			if (otherCertainty >= update.certainty) {
+				//console.log("what WHY", updateBefore.certainty, update.certainty);
+				return;
+			}
+
+			let index = history.indexOf(updateBefore);
+			if (updateBefore.tick === update.tick) history.splice(index, 1);
+			else index++;
+
+			history.splice(index, 0, update);
+
+			let certainty = update.certainty;
+			for (let i = index+1; i < history.length; i++) {
+				let otherUpdate = history[i];
+				certainty *= update.certaintyRetention;
+
+				if (otherUpdate.certainty < certainty) history.splice(i--, 1);
+				else break;
+			}
+
+			/*
+
+			let otherConnection = this.updateToConnection.get(updateBefore);
+			let different = otherConnection !== connection;
+			if (different) {
+				console.log("hit!");
+				this.updateTimeouts.get(otherConnection).set(update.gameObjectId, update.tick);
+			}
+			*/
+		}
+
+		//this.updateToConnection.set(update, connection);
 	}
 
 	tick() {
 		this.tryAdvanceGame();
 
 		let now = performance.now();
+
+		//console.log(this.firstTing, this.lastSentTick, this.firstTing < this.lastSentTick);
+
+		let thing = ['/', '/'];
 
 		for (let connection of this.connections) {
 			for (let [timestamp, receiveTime] of this.pendingPings.get(connection)) {
@@ -208,25 +272,38 @@ class Game {
 
 			connection.queueCommand({
 				command: 'reconciliationInfo',
-				rewindTo: this.lastSentTick + 1
-			}, false);
+				rewindTo: this.lastSentTick
+			});
 
-			for (let [objectId, stateUpdates] of this.stateHistory) {
-				for (let i = stateUpdates.length-1; i >= 0; i--) {
-					let update = stateUpdates[i];
+			for (let [, history] of this.stateHistory) {
+				for (let i = history.length-1; i >= 0; i--) {
+					let update = history[i];
+
+					if (update.tick > this.tickIndex) continue;
+					//if (update.tick <= this.lastSentTick) break;
 					if (update.tick <= this.lastSentTick) break;
+
+					//let idx = this.objectIds.indexOf(update.gameObjectId);
+					//thing[idx] = update.whoSent;
+
+					//delete update.whoSent;
+
+					let copy = { ...update };
+					//delete copy.whoSent;
 
 					connection.queueCommand({
 						command: 'stateUpdate',
-						...update as any
+						...(copy ?? update)
 					});
 
-					break;
+
 				}
 			}
 
 			connection.tick();
 		}
+
+		this.logRow[4] = `0:${thing[0]}, 1:${thing[1]}`;
 
 		this.lastSentTick = this.tickIndex;
 	}
@@ -237,7 +314,8 @@ class Game {
 		//connection.addedOneWayLatency = 50;
 
 		connection.queueCommand({
-			command: 'timeState',
+			command: 'gameInfo',
+			playerId: this.connections.indexOf(connection),
 			serverTick: this.tickIndex,
 			clientTick: this.tickIndex + UPDATE_BUFFER_SIZE // No better guess yet
 		});
@@ -260,6 +338,13 @@ class Game {
 				serverTick: this.tickIndex,
 				clientTick: this.tickIndex + rtt + UPDATE_BUFFER_SIZE
 			});
+
+			/*
+			let timeouts = this.updateTimeouts.get(connection);
+			for (let [objectId, expiration] of timeouts) {
+				if (data.serverTick >= expiration) timeouts.delete(objectId);
+			}
+			*/
 		});
 
 		connection.on('ping', ({ timestamp }) => {
@@ -268,3 +353,11 @@ class Game {
 		});
 	}
 }
+
+/** Finds the last element in an array that fulfills a predicate. */
+const findLast = <T>(arr: T[], predicate: (elem: T) => boolean) => {
+	for (let i = arr.length-1; i >= 0; i--) {
+		let item = arr[i];
+		if (predicate(item)) return item;
+	}
+};

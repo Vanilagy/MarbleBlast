@@ -24,6 +24,8 @@ export const gameObjectStateFormat = [union, 'objectType', {
 
 export type GameObjectState = FormatToType<typeof gameObjectStateFormat>;
 
+export type GameObjectStateUpdate = Omit<CommandToData<'stateUpdate'>, 'command'>;
+
 export const gameServerCommandFormat = [union, 'command', {
 	command: 'ping',
 	timestamp: 'f32'
@@ -36,10 +38,12 @@ export const gameServerCommandFormat = [union, 'command', {
 	missionPath: 'string'
 }, {
 	command: 'stateUpdate',
+	originator: 'varint', // the player id
 	gameStateId: 'varint',
 	gameObjectId: 'f64', // todo Make this varint
 	tick: 'varint',
-	precedence: 'f32',
+	certainty: 'f32',
+	certaintyRetention: 'f32',
 	state: gameObjectStateFormat
 }, {
 	command: 'timeState',
@@ -47,7 +51,12 @@ export const gameServerCommandFormat = [union, 'command', {
 	clientTick: 'varint'
 }, {
 	command: 'reconciliationInfo',
-	rewindTo: 'varint'
+	rewindTo: 's32'
+}, {
+	command: 'gameInfo',
+	playerId: 'varint',
+	serverTick: 'varint',
+	clientTick: 'varint'
 }] as const;
 
 export const gameServerMessageFormat = FixedFormatBinarySerializer.format({
@@ -58,3 +67,6 @@ export const gameServerMessageFormat = FixedFormatBinarySerializer.format({
 
 export type GameServerMessage = FormatToType<typeof gameServerMessageFormat>;
 export type GameServerCommands = GameServerMessage['commands'][number]['command'];
+
+export type CommandToData<K extends GameServerCommands> = DistributeyThing<GameServerMessage['commands'][number], K>;
+type DistributeyThing<U, K> = U extends { command: K } ? U : never;

@@ -1,6 +1,6 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { DefaultMap } from "../../../shared/default_map";
-import { GameObjectStateUpdate } from "../../../shared/game_object_state_update";
+import { GameObjectStateUpdate } from "../../../shared/game_server_format";
 import { AudioManager } from "../audio";
 import { DEFAULT_PITCH, PHYSICS_TICK_RATE } from "../level";
 import { Euler } from "../math/euler";
@@ -108,10 +108,12 @@ export class GameState {
 				if (Util.last(arr)?.tick === this.tick) arr.pop();
 
 				let stateUpdate: GameObjectStateUpdate = {
+					originator: this.game.playerId,
 					gameStateId: this.id,
 					gameObjectId: object.id,
 					tick: this.tick,
-					precedence: object.stateUpdatePrecedence,
+					certainty: object.certainty,
+					certaintyRetention: object.certaintyRetention,
 					state: object.getCurrentState()
 				};
 				arr.push(stateUpdate);
@@ -163,10 +165,19 @@ export class GameState {
 
 			let object = this.game.objects.find(x => x.id === objectId); // todo optimize
 
-			let state = Util.last(updateHistory)?.state;
-			if (!state) state = object.getInitialState();
+			let update = Util.last(updateHistory);
+			let updateTick = update?.tick;
+			let state = update?.state;
+			let certainty = update?.certainty;
+
+			if (!update) {
+				state = object.getInitialState();
+				certainty = 1;
+				updateTick = 0;
+			}
 
 			object.loadState(state);
+			object.certainty = certainty * object.certaintyRetention**(target - updateTick);
 		}
 
 		this.game.simulator.world.updateCollisions(); // Since positions might have changed, collisions probably have too

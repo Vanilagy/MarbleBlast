@@ -29,6 +29,8 @@ import { GAME_UPDATE_RATE } from "../../shared/constants";
 import { GO_TIME } from "./game/game_state";
 import { Vector2 } from "./math/vector2";
 import { MarbleController } from "./game/marble_controller";
+import { MultiplayerGameState } from "./game/multiplayer_game_state";
+import { RemoteMarbleController } from "./game/remote_marble_controller";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -133,7 +135,7 @@ export class Marble extends GameObject<MarbleState> {
 	bounceRestitution = 0.5;
 
 	controller: MarbleController;
-	currentControlState: MarbleControlState = null;
+	currentControlState: MarbleControlState = MarbleController.getPassiveControlState();
 
 	get speedFac() {
 		return DEFAULT_RADIUS / this.radius;
@@ -182,11 +184,29 @@ export class Marble extends GameObject<MarbleState> {
 	blastAmount = 0;
 
 	takeInput = false; // temp
+	certaintyRetention = 0.99;
+
+	reconciliationPosition = new Vector3();
+	reconciliationLinearVelocity = new Vector3(); // todo keep?
+
+	/*
+	interpolationStart = 0;
+	interpolationDuration = 0;
+	interpolationPosition = new Vector3();
+	interpolationLinearVelocity = new Vector3();
+	interpolationOrientation = new Quaternion();
+
+	pauseInterpolation = false;
+	*/
+
+	interpolatedPosition = new Vector3();
+	interpolatedOrientation = new Quaternion();
+	interpolationRemaining = 0;
+	interpolationStrength = 1;
+	pauseInterpolation = false;
 
 	constructor(game: Game) {
 		super(game);
-
-		this.controller = new MarbleController(this);
 	}
 
 	async init() {
@@ -265,6 +285,7 @@ export class Marble extends GameObject<MarbleState> {
 
 		// Create the physics stuff
 		this.body = new RigidBody();
+		this.body.userData = this;
 		this.body.evaluationOrder = 1000; // Make sure this body's handlers are called after all the other ones (interiors, shapes, etc)
 		let colShape = new BallCollisionShape(0); // We'll update the radius later
 		colShape.restitution = this.bounceRestitution;
@@ -368,13 +389,24 @@ export class Marble extends GameObject<MarbleState> {
 		this.body.orientation.copy(state.orientation);
 		this.body.linearVelocity.copy(state.linearVelocity);
 		this.body.angularVelocity.copy(state.angularVelocity);
+
 		this.currentControlState = state.controlState;
 		this.currentControlState.movement = new Vector2().copy(this.currentControlState.movement); // temp
+
+		state.controlState.movement = new Vector2().copy(state.controlState.movement); // temp?
+		if (this.controller instanceof RemoteMarbleController) this.controller.setRemoteControlState(state.controlState);
 	}
 
 	update() {
 		// temp
-		if (this.takeInput) this.currentControlState = this.controller.getControlState();
+		if (this.takeInput) {
+			//this.currentControlState = this.controller.getControlState();
+			this.certainty = this.prevCertainty;
+		}
+
+		this.controller.applyControlState();
+
+		//console.log(this.certainty);
 
 		let attemptTime = this.game.state.attemptTime;
 
@@ -448,6 +480,111 @@ export class Marble extends GameObject<MarbleState> {
 		}
 
 		this.hasChangedState = true; // Always
+
+		if (!this.pauseInterpolation) {
+			if (this.interpolationRemaining-- <= 0) {
+				this.interpolatedPosition.copy(this.body.position);
+				this.interpolatedOrientation.copy(this.body.orientation);
+			} else {
+				//this.interpolatedPosition.addScaledVector(this.interpolatedLinearVelocity, 1 / GAME_UPDATE_RATE);
+				//this.interpolatedLinearVelocity.lerp(this.body.linearVelocity, this.interpolationStrength);
+				//this.interpolatedPosition.lerp(this.body.position, this.interpolationStrength);
+
+				//let target = this.body.position.clone();/*.addScaledVector(this.body.linearVelocity, this.interpolationDuration / GAME_UPDATE_RATE);*/
+				//this.interpolatedPosition.lerp(target, this.interpolationStrength);
+				//this.interpolatedLinearVelocity.lerp(this.body.linearVelocity, strength);
+
+				/*
+				let direction = this.body.position.clone().sub(this.shatty ?? this.interpolatedPosition).normalize();
+				let dot1 = this.body.position.dot(direction);
+				let dot2 = this.interpolatedPosition.dot(direction);
+
+				let withoutDir1 = this.body.position.clone().addScaledVector(direction, -dot1);
+				let withoutDir2 = this.interpolatedPosition.clone().addScaledVector(direction, -dot2);
+
+				let withDir1 = direction.clone().multiplyScalar(dot1);
+				let withDir2 = direction.clone().multiplyScalar(dot2);
+
+				this.interpolatedPosition.copy(withoutDir1);
+				withDir2.lerp(withDir1, this.interpolationStrength);
+
+				this.interpolatedPosition.add(withDir2);*/
+
+				this.interpolatedPosition.addScaledVector(this.body.linearVelocity, 1 / GAME_UPDATE_RATE);
+				this.interpolatedPosition.lerp(this.body.position, this.interpolationStrength);
+
+				this.interpolatedOrientation.slerp(this.body.orientation, this.interpolationStrength);
+			}
+		}
+
+		/*
+
+		if (!this.pauseInterpolation) {
+			if (this.interpolationRemaining-- <= 0) this.interpolationStrength = 1;
+			this.interpolatedPosition.lerp(this.body.position,this.interpolationStrength);
+			this.interpolatedOrientation.slerp(this.body.orientation, this.interpolationStrength);
+		}
+
+		*/
+
+		/*
+
+		if (this.pauseInterpolation) return;
+
+		if (!this.interpolatedSet) {
+			this.interpolatedPosition.copy(this.body.position);
+			this.interpolatedLinearVelocity.copy(this.body.linearVelocity);
+
+			this.interpolatedSet = true;
+		} else {
+			let v = Util.avg(this.interpolatedLinearVelocity.length(), this.body.linearVelocity.length());
+			//v = this.interpolatedLinearVelocity.length();
+			v = this.body.linearVelocity.length();
+			v /= GAME_UPDATE_RATE;
+
+			let pointOnCurve = new Vector3();
+			let low = 0;
+			let high = 1;
+			let mid: number;
+
+			for (let i = 0; i < 16; i++) {
+				mid = (low + high) / 2;
+				pointOnCurve.cubicHermite(
+					this.interpolatedPosition,
+					this.interpolatedLinearVelocity.clone().multiplyScalar(1 / GAME_UPDATE_RATE),
+					this.body.position,
+					this.body.linearVelocity.clone().multiplyScalar(1 / GAME_UPDATE_RATE),
+					mid
+				);
+				let distance = this.interpolatedPosition.distanceTo(pointOnCurve);
+
+				if (distance < v) {
+					low = mid;
+				} else {
+					high = mid;
+				}
+			}
+
+
+			this.interpolatedLinearVelocity.cubicHermiteDerivative(
+				this.interpolatedPosition,
+				this.interpolatedLinearVelocity.clone().multiplyScalar(1 / GAME_UPDATE_RATE),
+				this.body.position,
+				this.body.linearVelocity.clone().multiplyScalar(1 / GAME_UPDATE_RATE),
+				mid
+			).multiplyScalar(GAME_UPDATE_RATE);
+
+			//this.interpolatedLinearVelocity.copy(pointOnCurve).sub(this.interpolatedPosition).multiplyScalar(GAME_UPDATE_RATE);
+			//this.interpolatedLinearVelocity.lerp(this.body.linearVelocity, 0.1);
+
+			this.interpolatedPosition.copy(pointOnCurve);
+
+			//this.interpolatedLinearVelocity.lerp(this.body.linearVelocity, 0.5);
+
+			//console.log(mid, this.interpolatedLinearVelocity.length(), this.body.linearVelocity.length());
+		}
+
+		*/
 	}
 
 	findBestCollision(withRespectTo: (c: Collision) => number) {
@@ -666,6 +803,17 @@ export class Marble extends GameObject<MarbleState> {
 			//if (this.level.replay.canStore) this.level.replay.bounceTimes.push({ tickIndex: this.level.replay.currentTickIndex, volume: volume, showParticles: impactVelocity > 6 });
 		}
 
+		// Check for marble-marble collisions
+		for (let collision of this.body.collisions) {
+			let shapes = [collision.s1, collision.s2];
+			if (!shapes.includes(this.shape)) continue;
+			if (shapes[0] !== this.shape) shapes.reverse();
+			if (!(shapes[1] instanceof BallCollisionShape)) continue;
+
+			let otherMarble = shapes[1].body.userData as Marble;
+			this.onMarbleMarbleCollision(otherMarble);
+		}
+
 		// Handle rolling and sliding sounds
 		if (contactNormal.dot(surfaceRelativeVelocity) < 0.01) {
 			let predictedMovement = this.body.angularVelocity.clone().cross(this.currentUp).multiplyScalar(1 / Math.PI / 2);
@@ -689,6 +837,11 @@ export class Marble extends GameObject<MarbleState> {
 			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 		}
+	}
+
+	onMarbleMarbleCollision(otherMarble: Marble) {
+		//this.certainty = Math.max(this.certainty, otherMarble.certainty);
+		this.certainty *= otherMarble.certainty;
 	}
 
 	/** Get the current interpolated orientation quaternion. */
@@ -760,8 +913,28 @@ export class Marble extends GameObject<MarbleState> {
 		let attemptTime = this.game.state.attemptTime;
 
 		// Position based on current and predicted position and orientation
-		this.group.position.copy(this.body.position).lerp(this.predictedPosition, this.game.state.subtickCompletion);
-		this.innerGroup.orientation.copy(this.body.orientation).slerp(this.predictedOrientation, this.game.state.subtickCompletion);
+		//this.group.position.copy(this.body.position).lerp(this.predictedPosition, this.game.state.subtickCompletion);
+		//this.innerGroup.orientation.copy(this.body.orientation).slerp(this.predictedOrientation, this.game.state.subtickCompletion);
+
+		//this.group.position.copy(this.interpolatedPosition);
+		//this.group.orientation.copy(this.interpolatedOrientation);
+
+		/*
+		this.group.position.cubicHermite(
+			this.interpolationPosition,
+			this.interpolationLinearVelocity.clone().multiplyScalar(0 ?? this.interpolationDuration / GAME_UPDATE_RATE),
+			this.body.position,
+			this.body.linearVelocity.clone().multiplyScalar(this.interpolationDuration / GAME_UPDATE_RATE),
+			Util.clamp((this.game.state.tick - this.interpolationStart) / this.interpolationDuration, 0, 1)
+		);
+		this.group.orientation.identity();
+
+		console.log(Util.clamp((this.game.state.tick - this.interpolationStart) / this.interpolationDuration, 0, 1));
+
+		if (this.interpolationDuration === 0) this.group.position.copy(this.body.position);*/
+
+		this.group.position.copy(this.interpolatedPosition);
+		this.innerGroup.orientation.copy(this.interpolatedOrientation);
 
 		this.group.recomputeTransform();
 		this.innerGroup.recomputeTransform();
@@ -871,6 +1044,7 @@ export class Marble extends GameObject<MarbleState> {
 		this.predictedPosition.copy(this.body.position);
 		this.predictedOrientation.copy(this.body.orientation);
 		this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
+
 		this.controller.reset();
 	}
 
@@ -884,5 +1058,26 @@ export class Marble extends GameObject<MarbleState> {
 
 	dispose() {
 		this.cubeMap?.dispose();
+	}
+
+	beforeReconciliation() {
+		this.reconciliationPosition.copy(this.body.position);
+		this.reconciliationLinearVelocity.copy(this.body.linearVelocity);
+
+		this.pauseInterpolation = true;
+	}
+
+	afterReconciliation(ticks: number) {
+		this.pauseInterpolation = false;
+
+		let newInterpolationDuration = Math.min(
+			this.reconciliationPosition.distanceTo(this.body.position) / (this.reconciliationLinearVelocity.length() / GAME_UPDATE_RATE),
+			ticks
+		) | 0;
+
+		if (this.interpolationRemaining > newInterpolationDuration) return;
+
+		this.interpolationRemaining = newInterpolationDuration;
+		this.interpolationStrength = 1 - Math.pow(1 - 0.99, 1 / newInterpolationDuration);
 	}
 }

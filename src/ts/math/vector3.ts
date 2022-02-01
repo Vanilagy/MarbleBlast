@@ -603,6 +603,36 @@ export class Vector3 {
 		return this;
 	}
 
+	cubicHermite(p0: Vector3, m0: Vector3, p1: Vector3, m1: Vector3, t: number) {
+		let b0 = 2*t**3 - 3*t**2 + 1;
+		let b1 = t**3 - 2*t**2 + t;
+		let b2 = -2*t**3 + 3*t**2;
+		let b3 = t**3 - t**2;
+
+		_vector.setScalar(0)
+			.addScaledVector(p0, b0)
+			.addScaledVector(m0, b1)
+			.addScaledVector(p1, b2)
+			.addScaledVector(m1, b3);
+
+		return this.copy(_vector);
+	}
+
+	cubicHermiteDerivative(p0: Vector3, m0: Vector3, p1: Vector3, m1: Vector3, t: number) {
+		let b0 = 6*t**2 - 6*t;
+		let b1 = 3*t**2 - 4*t + 1;
+		let b2 = -6*t**2 + 6*t;
+		let b3 = 3*t**2 - 2*t;
+
+		_vector.setScalar(0)
+			.addScaledVector(p0, b0)
+			.addScaledVector(m0, b1)
+			.addScaledVector(p1, b2)
+			.addScaledVector(m1, b3);
+
+		return this.copy(_vector);
+	}
+
 	*[Symbol.iterator]() {
 		yield this.x;
 		yield this.y;
