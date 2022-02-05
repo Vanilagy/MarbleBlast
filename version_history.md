@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.5
+- Fixed some leaderboard dupe bugs
+
 ## 2.4.4
 - Fixed erroneous collision detection issues
 
