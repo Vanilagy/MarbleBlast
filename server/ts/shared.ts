@@ -46,9 +46,10 @@ export const shared: {
 	/** Maps mission path to level name */
 	levelNameMap: Record<string, string>,
 
+	db: Database.Database,
 	getScoresForMissionStatement: Database.Statement,
 	getScoreByUserStatement: Database.Statement,
-	updateScoreStatement: Database.Statement,
+	deleteScoresStatement: Database.Statement,
 	insertScoreStatement: Database.Statement,
 	getTopScoreStatement: Database.Statement,
 	getMissionScoreCount: Database.Statement,

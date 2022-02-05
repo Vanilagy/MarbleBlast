@@ -4,11 +4,10 @@ import * as url from 'url';
 import * as Database from 'better-sqlite3';
 import * as fs from 'fs-extra';
 import * as serveStatic_ from 'serve-static';
-import * as finalhandler_ from 'finalhandler';
+import finalhandler from 'finalhandler';
 
 // Do some hackery to satisfy rollup
 const serveStatic = serveStatic_;
-const finalhandler = finalhandler_;
 
 import { shared } from './shared';
 import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity } from './misc';
@@ -20,6 +19,8 @@ let db: Database.Database = null;
 /** Sets up the database and creates tables, indices and prepared statements. */
 const setupDb = () => {
 	db = new Database(path.join(__dirname, 'storage', 'main.db'));
+	shared.db = db;
+
 	db.exec(`
 		CREATE TABLE IF NOT EXISTS score (
 			mission VARCHAR(255),
@@ -35,8 +36,8 @@ const setupDb = () => {
 
 	// Prepare the statements now for later use
 	shared.getScoresForMissionStatement = db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC;`);
-	shared.getScoreByUserStatement = db.prepare(`SELECT rowid, time FROM score WHERE mission=? AND (username=? OR user_random_id=?);`);
-	shared.updateScoreStatement = db.prepare(`UPDATE score SET time=?, username=?, user_random_id=?, timestamp=? WHERE rowid=?;`);
+	shared.getScoreByUserStatement = db.prepare(`SELECT rowid, time FROM score WHERE mission=? AND (username=? OR user_random_id=?) ORDER BY time ASC;`);
+	shared.deleteScoresStatement = db.prepare(`DELETE FROM score WHERE mission=? AND (username=? OR user_random_id=?);`);
 	shared.insertScoreStatement = db.prepare(`INSERT INTO score VALUES (?, ?, ?, ?, ?);`);
 	shared.getTopScoreStatement = db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC LIMIT 1;`);
 	shared.getMissionScoreCount = db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);

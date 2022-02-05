@@ -66,8 +66,14 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 
 		if (row) {
 			if (row.time > score[1]) {
-				// If the new score is faster, override the old one, otherwise do nothing
-				shared.updateScoreStatement.run(score[1], score[0], data.randomId, timestamp, row.rowid);
+				// If the new score is faster, delete all the old ones and then insert; otherwise do nothing
+
+				// Make sure this step is atomic
+				shared.db.transaction(() => {
+					shared.deleteScoresStatement.run(missionPath, score[0], data.randomId); // Could be multiple scores!
+					shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp);
+				})();
+
 				inserted = true;
 			}
 		} else {
