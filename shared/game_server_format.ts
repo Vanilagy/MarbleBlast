@@ -1,4 +1,4 @@
-import { FixedFormatBinarySerializer, FormatToType, union } from "./fixed_format_binary_serializer";
+import { FixedFormatBinarySerializer, FormatToType, nullable, union } from "./fixed_format_binary_serializer";
 
 const vector2Format = { x: 'f32', y: 'f32' } as const;
 const vector3Format = { x: 'f32', y: 'f32', z: 'f32' } as const;
@@ -24,7 +24,7 @@ export const gameObjectStateFormat = [union, 'objectType', {
 
 export type GameObjectState = FormatToType<typeof gameObjectStateFormat>;
 
-export type GameObjectStateUpdate = Omit<CommandToData<'stateUpdate'>, 'command'>;
+export type GameObjectUpdate = Omit<CommandToData<'gameObjectUpdate'>, 'command'>;
 
 export const gameServerCommandFormat = [union, 'command', {
 	command: 'ping',
@@ -37,13 +37,13 @@ export const gameServerCommandFormat = [union, 'command', {
 	command: 'joinMission',
 	missionPath: 'string'
 }, {
-	command: 'stateUpdate',
-	originator: 'varint', // the player id
+	command: 'gameObjectUpdate',
 	gameStateId: 'varint',
 	gameObjectId: 'f64', // todo Make this varint
 	tick: 'varint',
-	certainty: 'f32',
-	certaintyRetention: 'f32',
+	owner: [nullable, 'varint'],
+	originator: 'varint',
+	version: 'varint', // maybe rename this?
 	state: gameObjectStateFormat
 }, {
 	command: 'timeState',

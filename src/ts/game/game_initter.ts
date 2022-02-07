@@ -156,7 +156,6 @@ export class GameInitter {
 		simulator.world.add(game.marble.body);
 		game.marbles.push(game.marble);
 
-		game.marble.takeInput = true;
 		game.marble.controller = new LocalMarbleController(game.marble);
 
 		/*

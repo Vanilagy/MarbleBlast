@@ -1,6 +1,6 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { DefaultMap } from "../../../shared/default_map";
-import { GameObjectStateUpdate } from "../../../shared/game_server_format";
+import { GameObjectUpdate } from "../../../shared/game_server_format";
 import { AudioManager } from "../audio";
 import { DEFAULT_PITCH, PHYSICS_TICK_RATE } from "../level";
 import { Euler } from "../math/euler";
@@ -10,6 +10,7 @@ import { StartPad } from "../shapes/start_pad";
 import { state } from "../state";
 import { Util } from "../util";
 import { Game } from "./game";
+import { GameObject } from "./game_object";
 
 export const GO_TIME = 0 ?? 3.5; // fixme
 
@@ -31,10 +32,17 @@ export class GameState {
 
 	subtickCompletion = 0;
 
-	stateHistory = new DefaultMap<number, GameObjectStateUpdate[]>(() => []);
+	stateHistory = new DefaultMap<number, GameObjectUpdate[]>(() => []);
 
 	collectedGems = 0;
 	currentTimeTravelBonus = 0;
+
+	gameObjectGraphHistory = new DefaultMap<number, {
+		tick: number,
+		owner: number,
+		version: number,
+		adj: Set<GameObject>
+	}[]>(() => []);
 
 	constructor(game: Game) {
 		this.game = game;
@@ -107,13 +115,15 @@ export class GameState {
 				let arr = this.stateHistory.get(object.id);
 				if (Util.last(arr)?.tick === this.tick) arr.pop();
 
-				let stateUpdate: GameObjectStateUpdate = {
-					originator: this.game.playerId,
+				let node = this.getGameObjectGraphNode(object);
+
+				let stateUpdate: GameObjectUpdate = {
 					gameStateId: this.id,
 					gameObjectId: object.id,
 					tick: this.tick,
-					certainty: object.certainty,
-					certaintyRetention: object.certaintyRetention,
+					owner: node.owner,
+					originator: this.game.playerId,
+					version: node.version,
 					state: object.getCurrentState()
 				};
 				arr.push(stateUpdate);
@@ -154,6 +164,11 @@ export class GameState {
 	rollBackToTick(target: number) {
 		if (target === this.tick) return;
 
+		for (let [, graphHistory] of this.gameObjectGraphHistory) {
+			let last = Util.last(graphHistory);
+			while (last && last.tick > target) last = graphHistory.pop();
+		}
+
 		for (let [objectId, updateHistory] of this.stateHistory) {
 			let changed = false;
 			while (Util.last(updateHistory) && Util.last(updateHistory).tick > target) {
@@ -166,23 +181,83 @@ export class GameState {
 			let object = this.game.objects.find(x => x.id === objectId); // todo optimize
 
 			let update = Util.last(updateHistory);
-			let updateTick = update?.tick;
-			let state = update?.state;
-			let certainty = update?.certainty;
-
-			if (!update) {
-				state = object.getInitialState();
-				certainty = 1;
-				updateTick = 0;
-			}
+			let state = update?.state ?? object.getInitialState();
 
 			object.loadState(state);
-			object.certainty = certainty * object.certaintyRetention**(target - updateTick);
 		}
 
 		this.game.simulator.world.updateCollisions(); // Since positions might have changed, collisions probably have too
 
 		this.tick = target;
 		// todo: attemptTick
+	}
+
+	applyGameObjectUpdate(update: GameObjectUpdate): boolean {
+		let object = this.game.objects.find(x => x.id === update.gameObjectId); // todo optimize
+		if (!object) return false; // temp right?
+
+		let node = this.getGameObjectGraphNode(object);
+		let us = this.game.playerId;
+		let shouldLoadState = (node.owner !== us || update.version > node.version) && update.originator !== us;
+
+		node.version = update.version;
+
+		if (update.owner === update.originator) {
+			node.owner = null;
+			this.clearGameObjectConnections(object);
+		}
+
+		if (shouldLoadState) {
+			object.loadState(update.state);
+			object.hasChangedState = true;
+
+			return true; // Meaning the update has actually been applied
+		}
+
+		return false;
+	}
+
+	getGameObjectGraphNode(object: GameObject) {
+		let history = this.gameObjectGraphHistory.get(object.id);
+		let last = Util.last(history);
+		if (last?.tick !== this.tick) history.push(last = {
+			tick: this.tick,
+			owner: last?.owner ?? null,
+			version: last?.version ?? 0,
+			adj: new Set(last?.adj)
+		});
+
+		return last;
+	}
+
+	recordGameObjectInteraction(o1: GameObject, o2: GameObject) {
+		let node1 = this.getGameObjectGraphNode(o1);
+		let node2 = this.getGameObjectGraphNode(o2);
+
+		node1.adj.add(o2);
+		node2.adj.add(o1);
+
+		let us = this.game.playerId;
+
+		if (node1.owner === us) this.setOwnership(o2, us);
+		if (node2.owner === us) this.setOwnership(o1, us);
+	}
+
+	setOwnership(object: GameObject, owner: number) {
+		let node = this.getGameObjectGraphNode(object);
+		if (node.owner === owner) return;
+
+		node.owner = owner;
+		for (let neighbor of node.adj) this.setOwnership(neighbor, owner);
+	}
+
+	clearGameObjectConnections(object: GameObject) {
+		let node = this.getGameObjectGraphNode(object);
+
+		for (let neighbor of node.adj) {
+			let neighborNode = this.getGameObjectGraphNode(neighbor);
+			neighborNode.adj.delete(object);
+		}
+		node.adj.clear();
 	}
 }

@@ -7,17 +7,8 @@ export abstract class GameObject<T extends GameObjectState = GameObjectState> {
 	game: Game;
 	hasChangedState = false;
 
-	prevCertainty = 1;
-	certainty = 1;
-	certaintyRetention = 1;
-
 	constructor(game: Game) {
 		this.game = game;
-	}
-
-	updateCertainty() {
-		this.prevCertainty = this.certainty;
-		this.certainty *= this.certaintyRetention;
 	}
 
 	abstract update(): void;
@@ -30,5 +21,9 @@ export abstract class GameObject<T extends GameObjectState = GameObjectState> {
 	abstract loadState(state: T): void;
 
 	beforeReconciliation() {}
-	afterReconciliation(reconciliationTickLength: number) {}
+	afterReconciliation() {}
+
+	interactWith(otherObject: GameObject) {
+		this.game.state.recordGameObjectInteraction(this, otherObject);
+	}
 }

@@ -22,9 +22,9 @@ export class RemoteMarbleController extends MarbleController {
 	}
 
 	lerpMovement() {
-		let ticks = (this.marble.game as MultiplayerGame).simulator.lastReconciliationTickCount;
-		ticks *= 2; // Feels better
-		let completion = Util.clamp((this.marble.game.state.tick - this.remoteTick) / ticks, 0, 1);
+		let reconciliationTicks = (this.marble.game as MultiplayerGame).simulator.lastReconciliationTickCount;
+		reconciliationTicks *= 2; // Feels better
+		let completion = Util.clamp((this.marble.game.state.tick - this.remoteTick) / reconciliationTicks, 0, 1);
 
 		return this.lastMovement.clone().lerp(this.remoteState.movement, completion);
 	}
@@ -32,6 +32,12 @@ export class RemoteMarbleController extends MarbleController {
 	applyControlState() {
 		if (!this.remoteState) return;
 		if (this.remoteTick > this.marble.game.state.tick) return;
+
+		let reconciliationTicks = (this.marble.game as MultiplayerGame).simulator.lastReconciliationTickCount;
+		if (this.marble.game.state.tick > this.remoteTick + 2 * reconciliationTicks) {
+			// We're too far ahead of the last input update; from now on, assume no input at all.
+			return MarbleController.getPassiveControlState();
+		}
 
 		let movement = this.lerpMovement();
 

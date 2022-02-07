@@ -1,6 +1,5 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { GameServerConnection } from "../../../shared/game_server_connection";
-import { RTCConnection } from "../../../shared/rtc_connection";
 import { Marble } from "../marble";
 import { Mission } from "../mission";
 import { GameServer } from "../net/game_server";
@@ -15,6 +14,16 @@ const networkStatsElement = document.querySelector('#network-stats') as HTMLDivE
 const RTT_WINDOW = 2000;
 
 let initting = new Set<number>(); // fixme remove it
+
+let sendTimeout = 0;
+
+// todo make sure to remove this eventually
+window.addEventListener('keydown', e => {
+	if (e.code === 'KeyG') {
+		sendTimeout = 300;
+		console.log("activated timeout");
+	}
+});
 
 export class MultiplayerGame extends Game {
 	state: MultiplayerGameState;
@@ -71,7 +80,9 @@ export class MultiplayerGame extends Game {
 			this.simulator.reconciliationInfo = data;
 		});
 
-		this.connection.on('stateUpdate', async data => {
+		this.connection.on('gameObjectUpdate', async data => {
+			if (sendTimeout > 0) return;
+
 			this.simulator.reconciliationUpdates.get(data.gameObjectId).push(data);
 
 			let marble = this.marbles.find(x => x.id === data.gameObjectId);
@@ -150,15 +161,19 @@ export class MultiplayerGame extends Game {
 			//actualThing: this.state.tick
 		});
 
-		for (let [objectId, history] of this.state.stateHistory) {
+		for (let [, history] of this.state.stateHistory) {
 			let update = Util.last(history);
 			if (!update) continue;
 			if (update.tick <= this.lastSentTick) continue;
 
-			this.connection.queueCommand({
-				command: 'stateUpdate',
+			//console.log(update.owner, update.version);
+
+			if (sendTimeout-- <= 0) this.connection.queueCommand({
+				command: 'gameObjectUpdate',
 				...update
 			});
+
+			if (sendTimeout === 0) console.log("timeout over");
 		}
 
 		this.lastSentTick = this.state.tick;

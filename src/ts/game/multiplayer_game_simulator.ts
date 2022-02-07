@@ -1,5 +1,5 @@
 import { DefaultMap } from "../../../shared/default_map";
-import { CommandToData, GameObjectStateUpdate } from "../../../shared/game_server_format";
+import { CommandToData, GameObjectUpdate } from "../../../shared/game_server_format";
 import { GameSimulator } from "./game_simulator";
 import { MultiplayerGame } from "./multiplayer_game";
 
@@ -7,7 +7,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 	game: MultiplayerGame;
 
 	reconciliationInfo: CommandToData<'reconciliationInfo'> = null;
-	reconciliationUpdates = new DefaultMap<number, GameObjectStateUpdate[]>(() => []);
+	reconciliationUpdates = new DefaultMap<number, GameObjectUpdate[]>(() => []);
 
 	lastReconciliationTickCount = 0;
 
@@ -32,25 +32,19 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 		state.rollBackToTick(startTick);
 
+		//console.log(game.playerId, game.marble.id, startTick, endTick, [...this.reconciliationUpdates].map(x => x[1].map(x => x.gameObjectId + '-' + x.owner + '-' + x.tick)).flat());
+
 		//console.log(`Tryna go from ${startTick} to ${endTick}`);
 
 		while (state.tick < endTick) {
 			let anyStatesChanged = false;
 
-			for (let [objectId, updates] of this.reconciliationUpdates) {
+			for (let [, updates] of this.reconciliationUpdates) {
 				let updateForThisTick = updates.find(x => x.tick === state.tick);
 				if (!updateForThisTick) continue;
 
-				let object = game.objects.find(x => x.id === objectId); // todo optimize
-				if (!object) return; // todo should this stay? temp rn cuz marble init wack
-
-				if (updateForThisTick.originator !== game.playerId) {
-					object.loadState(updateForThisTick.state);
-					object.hasChangedState = true;
-					anyStatesChanged = true;
-				}
-
-				object.certainty = 1;
+				let appliedUpdate = state.applyGameObjectUpdate(updateForThisTick);
+				anyStatesChanged ||= appliedUpdate;
 			}
 
 			if (anyStatesChanged) {
@@ -62,7 +56,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		}
 
 		this.lastReconciliationTickCount = endTick - startTick;
-		for (let object of game.objects) object.afterReconciliation(this.lastReconciliationTickCount);
+		for (let object of game.objects) object.afterReconciliation();
 
 		this.reconciliationUpdates.clear();
 		this.reconciliationInfo = null;

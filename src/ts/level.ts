@@ -1677,7 +1677,7 @@ export class Level extends Scheduler {
 			if (marble.hasNewState) {
 				let lastState = Util.last(marble.stateHistory);
 
-				gameServers[0].connection.queueCommand('stateUpdate', {
+				gameServers[0].connection.queueCommand('gameObjectUpdate', {
 					gameObjectId: marble.id,
 					state: lastState.state
 				}, true, 'stateUpdate@' + marble.id);
@@ -1685,7 +1685,7 @@ export class Level extends Scheduler {
 		}
 	}
 
-	onStateUpdate(data: GameServerCommands['stateUpdate']) {
+	onStateUpdate(data: GameServerCommands['gameObjectUpdate']) {
 		let marble = this.marbles.find(x => x.id === data.gameObjectId);
 		if (marble === this.marble) return;
 
