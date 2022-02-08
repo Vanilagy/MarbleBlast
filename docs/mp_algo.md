@@ -66,13 +66,230 @@ Also, we need to address packet loss. If the client only ever sends a state upda
 
 30 times per second or so we now send this data to the server. What we send is the **latest** state update (so the one for frame 40 in this case), as well as the frame# of all state updates (in this case, [20, 30, 40]). The server will attempt to apply the latest state update but will take into consideration the earliest state update frame# to check if it would cause any merge conflicts.
 
-When we receive state updates from the server for this entity, we "trim off" our queue of updates. Assume it sends an update for frame 25 - we remove the first update. Now it sends one for frame 40 - we remove all of the remaining updates in the queue.
+We give each state update a unique, incremental ID. The server sends back the last ID it saw from the client and thus the client can discard all state updates with an ID equal to or less than what the server sent back. Conversely, when the server receives an update from the client, it will discard all state updates with an ID that it has already processed.
 
-Conversely, when the server receives an update from us, it will "trim off" all the frame# that it has already previously received from us / applied.
+Making sure that server state updates arrive at the client works very similarly: Whenever the server adds a state change to its internal state, it numbers them according to its own incremental ID. When an update for a given entity is intended to be sent to a player, that update will be sent with every packet until the client acknowledges it. If that entity receives a more recent update, the old update will not be sent by the server anymore.
 
 ### Avoiding feedback loops
 When receiving a state from the server, we apply that state to our local state if it wasn't originally sent by us (to avoid feedback loops). Additionally, if it wasn't sent by us, but we currently own the entity the update is concerned about, we also don't apply that update unless its version number is greater than ours. Why do we not apply some updates at all, one might ask? It's because in some cases, there's two different versions of the same entity living on the server and client. The server will send its version over, the client will send its version over, and then server and client simply swap their state - this will continue for often tens of seconds. We want to avoid this.
 
 ## Part 5: The algorithm
 
--- code here --
+Now that we've thought through how our state synchronization logic should work, let's pseudocode it.
+
+### Client
+
+First, let's describe how the clients store the data they send to the server:
+```ts
+type EntityUpdate = {
+	updateId: number, // An incremental ID, unique for this client
+	entityId: number, // The ID of the entity this update concerns
+	frame: number, // The frame# in which the state change happened
+	owner: number, // The ID the player who owns the entity
+	originator: number, // The ID of the player who sent this update
+	version: number, // Decided by the server. Will be used to check if we need to apply an update
+
+	state: EntityState // The actual state. Can be whatever, depends on the entity
+};
+
+type AffectionEdge = {
+	from: number,
+	to: number,
+	frame: number
+};
+
+let entityUpdates: EntityUpdate[];
+let affectionGraph: AffectionEdge[] = []; // *Directed* graph, Maps entity ID to entity ID
+```
+
+Then, let's look at what the client does to advance the game state.
+```ts
+let clientFrame = 0;
+
+function advance() {
+	// ...
+
+	simulate(); // During this step, we manually mark entity states as changed and manually add edges to the affection graph
+
+	for (let entity of entities) {
+		if (!entity.stateChanged) continue;
+
+		let entityUpdate = entity.getLastUpdate();
+		entityUpdates.push(entityUpdate);
+
+		if (entity.ownedByUs) {
+			// Flood the subgraph reachable from this node (= entity)
+			propagateOwnershipToAdjacentNodesRecursively(entity);
+		}
+	}
+
+	updateEntityHistory(); // This will create entity updates for all entities that changed state. This history is used for more than just networking; it's also used for generating replays and rewinding the simulation.
+
+	clientFrame++;
+
+	// ...
+}
+```
+
+We need to send an update bundle to the server:
+```ts
+type ClientStateBundle = {
+	currentClientFrame: number,
+	entityUpdates: EntityUpdate[],
+	affectionGraph: [number, number][]
+};
+
+// 30 Hz seems to be a good sweetspot
+function onNetworkConnectionTick() {
+	// ...
+
+	// Here, we shallowly duplicate the entity updates and set `state` to `null` on an update if there's a later update for the same entity. This way we still send the server all of the frame# information, but we don't completely nuke bandwidth by sending tons and tons of state.
+	let processedEntityUpdates = processEntityUpdates(entityUpdates);
+
+	// Here, we turn the AffectionEdges into tuples, remove the frame# information and then remove any duplicate edges.
+	let processedAffectionGraph = processAffectionGraph(affectionGraph);
+	
+	let bundle: ClientStateBundle = {
+		currentClientFrame: clientFrame,
+		entityUpdates: processedEntityUpdates,
+		affectionGraph: processedAffectionGraph
+	};
+
+	connection.send(bundle, { reliable: false }); // We disable any default reliability layer built into our networking stack because we have our own reliability protocol for state updates.
+
+	// ...
+}
+```
+
+Whenever the server sends the client a state update, we need to act upon it:
+```ts
+type ServerStateUpdateMessage = {
+	entityUpdates: EntityUpdate[],
+	lastReceivedClientUpdateId: number,
+	lastReceivedClientFrame: number,
+	rewindToFrame: number // The frame we should rewind to in the next simulation
+};
+
+let lastServerStateUpdate: ServerStateUpdateMessage = null;
+let queuedServerUpdates: EntityUpdate[] = [];
+let lastReceivedSeverUpdateId = -1;
+
+function onServerStateReceived(msg: ServerStateUpdateMessage) {
+	// Filter out updates received by the server
+	bundle.entityUpdates = bundle.entityUpdates.filter(update => {
+		return update.updateId > msg.lastReceivedClientUpdateId;
+	});
+
+	// Filter out updates received by the client
+	msg.entityUpdates = msg.entityUpdates.filter(update => {
+		return update.updateId > lastReceivedServerUpdateId;
+	});
+
+	// Update this
+	lastReceivedServerUpdateId = Math.max(
+		lastReceivedServerUpdateId,
+		...msg.entityUpdates.map(update => update.updateId)
+	);
+
+	// Add them to a queue
+	queuedServerUpdates.push(...msg.entityUpdates);
+
+	// Remove old edges from the affection graph
+	affectionGraph = affectionGraph.filter(edge => {
+		return edge.frame > msg.lastReceivedClientFrame;
+	});
+
+	lastServerStateUpdate.msg = msg; // Store it for later
+}
+```
+
+With this in place, we can now write the full update procedure for the client.
+```ts
+// Runs at about 120 Hz, or whatever rate necessary to be ahead of the server far enough
+function update() {
+	if (!lastServerStateUpdate) {
+		advance();
+		return;
+	}
+
+	let targetFrame = clientFrame;
+
+	// This function rolls back the entire game state for all entities, including state update history and changes to the affection graph. This means that a history for all these things has to be stored.
+	rollBack(lastServerStateUpdate.rewindToFrame);
+
+	// Advance as many frames as necessary to catch back up
+	while (clientFrame < targetFrame) {
+		// Apply all server state updates
+		for (let update of queuedServerUpdates) {
+			if (update.frame === clientFrame) {
+				applyServerUpdateToEntity(update);
+			}
+		}
+
+		advance();
+	}
+
+	advance(); // Advance one more time so we actually end up one frame ahead of where we were before
+}
+```
+
+How do we apply server updates to entities?
+```ts
+function applyServerUpdateToEntity(update) {
+	let entity = getEntityById(update.entityId);
+	let localUpdate = entity.getLastUpdate();
+
+	let us = getLocalPlayerId();
+	let shouldApplyState = update.originator !== us
+		&& (entity.owner !== us || update.version > localUpdate.version);
+
+	if (shouldApplyState) {
+		// We don't need to apply the state when certain conditions are met (to avoid feedback loops)
+		entity.applyState(update.state);
+	}
+}
+```
+
+Alright, that does it for the client. Now, let's take a look at the server.
+
+### Server
+For entities that connected in the affection graph in a certain way we want to ensure that their updates are applied together. We therefore introduce the concept of an "update group":
+```ts
+type UpdateGroup = {
+	entityIds: number[],
+	entityUpdates: EntityUpdate[]
+};
+
+let queuedUpdateGroups = new Map<Player, UpdateGroup[]>();
+```
+
+When we receive a state update bundle from the client, we create these groups:
+```ts
+function onClientStateReceived(player: Player, msg: ClientStateBundle) {
+	// Filter out updates received by the server
+	msg.entityUpdates = msg.entityUpdates.filter(update => {
+		return update.updateId > player.lastReceivedClientUpdateId;
+	});
+
+	for (let entity of getEntityIds(msg.entityUpdates)) {
+		// We recursively get all the nodes (= entities) that have an edge pointing towards any of the nodes already in the set, starting with the set containing only `entity`.
+		let affecting: number[] = getAffectingSubgraph(entity, msg.affectionGraph);
+
+		// Get all the updates regarding those entities
+		let updates = msg.entityUpdates.map(update => affecting.includes(update.entityId));
+
+		let newGroup: UpdateGroup = {
+			entityIds: affecting,
+			entityUpdates: updates
+		};
+
+		// Check if we've already queued an update group before with the **exact same** entities. If so, replace the old one with the new one!
+		let existingGroup = getUpdateGroupWithIdenticalEntities(affecting);
+		if (existingGroup) {
+			replaceUpdateGroup(existingGroup, newGroup);
+		} else {
+			queuedUpdateGroups.get(player).push(newGroup);
+		}
+	}
+}
+```
