@@ -1,3 +1,5 @@
+# Multiplayer state synchronization protocol
+
 ## Part 1: The client
 
 A game consists of a set of entities. Each player at all times holds what they think is the true state of each entity.
@@ -34,10 +36,11 @@ Now - if (from the POV of the server) all of the entities in **A** have no owner
 
 If some of the entities in **A** are owned by a player that is not P, applying the update would mean we change entities that are currently not owned by us, which we are not allowed to do. We therefore discard the update of all entities in **A**.
 
-## Part 4: The details
+## Part 4: The annoying details
 
 We have now found a way to merge the client updates into the server state while keeping the server's state consistent. Our approach, however, is not yet complete.
 
+### Multiple timelines and their problems
 First, we need to observe the following: Technically, what we call "the server state" is not technically a game state in the sense that it captures the state of the game in any given moment - since we receive update packets in an inconsistent manner, the entities in the server state all have varying frame times in which they were last updated. The actual game state with all entities synced up can be reached by starting at the initial state (frame 0), applying all server-stored *true state* for frame 0, then advancing the simulation, then applying all server-stored *true state* for frame 1, then advancing again, and so on, until reaching the current *server frame#*, which the server increases automatically at a steady rate of (in our case) 120 Hz.
 
 Each client maintains their own *client frame#*, always ahead of *server frame#* such that if each client were to send their current *client frame#* to the server, the received value is equal to or slightly ahead of *server frame#*. This effectively means that each client has to run ahead of the server by at least half the round-trip-time (RTT). We do this so that if two players P and Q update the same entity in the same frame, the updates will arrive at the server at roughly the same time. This means the server doesn't have to factor in any latency variations when merging in state.
@@ -46,10 +49,28 @@ Now: For any set of affecting entities **A** ready to be applied, if the maximum
 
 Conversely, we want to ensure that no updates that are way out of date are applied to the server state, as this would force all clients to rewind a very large distance to reconcile with the server's state. There are, however, some cases where applying "old" updates is fine - particularly on entities that rarely get updated, like PowerUps. If player P sends an update for a PowerUp that took place in frame 20, and the server is already in frame 50, but there haven't been any updates for said PowerUp, the update can be applied safely. The fact that *there haven't been any updates for the PowerUp sent by all of the other players* indicates that the PowerUp doesn't regularly change its state and therefore has no need for being simulated far into the future. Clients applying updates way in the past of their current frame will not rewind to that update, but simply apply it without simulating forward the consequences of said update. To best preserve consistency however, we require that the actual client sending the out-of-date update to the server is itself not in the past. We check this by making each client also send its *client frame#* whenever it sends an update packet. If this client frame is behind the server frame by a sufficiently large amount, we completely discard this update. An example for how this could play out: A client with a temporarily drop in internet connectivity picks up a PowerUp. It then comes back online and sends to the server a packet containing the update U. The server sees that the client frame# is not far behind the server's, so it applies the PowerUp's update even if it is old. We need to make an exception, though: If, for the given PowerUp, there has already been a newer state sent by somebody else, the update will be rejected if U's state for the PowerUp is too far behind the server state - and it will do this regardless of any ownership. Whenever an update gets rejected this way, the sending player will be notified to update their state of the entities on which the server update failed - only then will the server accept any updates from that player again.
 
+### Forcing clients to update
 Let's talk about how we can implement the behavior of rejecting updates from certain players regarding certain entities until they have applied the update we told them to apply. Each entity on the server is tagged with a mapping from player to an integer *version number*. For every player, this starts out as 0. Whenever something happens that revokes a player's "right" to update certain entities, we increment the version number for that player on that entity. The clients send their last-received version number alongside every update and if we detect that it's below the server's version number, we reject the update.
 
+### Ownership shenanigans
 We said earlier that any updates which would change an entity's ownership will automatically be rejected. This itself would be a super strict rule though, as it would mean any player who ever has ownership of anything will keep that ownership for the rest of the game. We therefore do two things: First of all, any player that is currently owning an entity can always revoke its ownership of it voluntarily. Additionally, the server automatically revokes ownership after a certain number of frames. A good number for this delay seems to be 8 frames, exactly double the expected delay between client packets. This means that as long as a client has a stable connection, they can perfectly retain their ownership of entities.
 
 Now, let's assume a second player P comes along with an update that would change ownership of an entity E, owned by player Q != P. If the update is behind in any version numbers, we reject it, no questions asked. If it isn't, however, we simply add P's state updates to the list of state updates for that entity, but while retaining its current owner Q. If Q now loses its ownership (maybe it stopped sending packets), the server automatically declares P to be the new owner of this entity. It then increments the version number for Q for the entity it used to own, as well as all entities of P that caused this ownership change.
 
-So, we can imagine an interaction like this as a *challenge*: Player P is challenging Q to defend its ownership ownership of E. If it fails, P will be crowned the new owner of this entity.
+So, we can imagine an interaction like this as a *challenge*: Player P is challenging Q to defend its ownership ownership of E. If it fails, P will be crowned the new owner of this entity. Note that this should (probably?) be opt-in behavior for entities. Call it "challengeable". If an entity is not challengeable, any attempt to dethrone its owner will reject without question. Examples of challengeable entities could be marbles - the gameplay clock could be an example of a non-challengeable entity.
+
+### UDP moment
+Also, we need to address packet loss. If the client only ever sends a state update once and that update gets lost, we could risk having a state desync that never gets corrected. So I suggest this: For each entity, we store the history of state updates to that entity. I mean we do this anyway, but do it somewhere separately for networking purposes. So, an example would be:
+
+> Update { frame: 20, state: ... }<br>Update { frame: 30, state: ... }<br>Update { frame: 40, state: ... }
+
+30 times per second or so we now send this data to the server. What we send is the **latest** state update (so the one for frame 40 in this case), as well as the frame# of the **earliest** state update (in this case, 20). The server will attempt to apply the latest state update but will take into consideration the earliest state update frame# to check if it would cause any merge conflicts.
+
+When we receive state updates from the server for this entity, we "trim off" our queue of updates. Assume it sends an update for frame 25 - we remove the first update. Now it sends one for frame 40 - we remove all of the remaining updates in the queue.
+
+### Avoiding feedback loops
+When receiving a state from the server, we apply that state to our local state if it wasn't originally sent by us (to avoid feedback loops). Additionally, if it wasn't sent by us, but we currently own the entity the update is concerned about, we also don't apply that update unless its version number is greater than ours. Why do we not apply some updates at all, one might ask? It's because in some cases, there's two different versions of the same entity living on the server and client. The server will send its version over, the client will send its version over, and then server and client simply swap their state - this will continue for often tens of seconds. We want to avoid this.
+
+## Part 5: The algorithm
+
+-- code here --
