@@ -64,9 +64,11 @@ Also, we need to address packet loss. If the client only ever sends a state upda
 
 > Update { frame: 20, state: ... }<br>Update { frame: 30, state: ... }<br>Update { frame: 40, state: ... }
 
-30 times per second or so we now send this data to the server. What we send is the **latest** state update (so the one for frame 40 in this case), as well as the frame# of the **earliest** state update (in this case, 20). The server will attempt to apply the latest state update but will take into consideration the earliest state update frame# to check if it would cause any merge conflicts.
+30 times per second or so we now send this data to the server. What we send is the **latest** state update (so the one for frame 40 in this case), as well as the frame# of all state updates (in this case, [20, 30, 40]). The server will attempt to apply the latest state update but will take into consideration the earliest state update frame# to check if it would cause any merge conflicts.
 
 When we receive state updates from the server for this entity, we "trim off" our queue of updates. Assume it sends an update for frame 25 - we remove the first update. Now it sends one for frame 40 - we remove all of the remaining updates in the queue.
+
+Conversely, when the server receives an update from us, it will "trim off" all the frame# that it has already previously received from us / applied.
 
 ### Avoiding feedback loops
 When receiving a state from the server, we apply that state to our local state if it wasn't originally sent by us (to avoid feedback loops). Additionally, if it wasn't sent by us, but we currently own the entity the update is concerned about, we also don't apply that update unless its version number is greater than ours. Why do we not apply some updates at all, one might ask? It's because in some cases, there's two different versions of the same entity living on the server and client. The server will send its version over, the client will send its version over, and then server and client simply swap their state - this will continue for often tens of seconds. We want to avoid this.
