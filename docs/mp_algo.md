@@ -85,7 +85,8 @@ type EntityUpdate = {
 	updateId: number, // An incremental ID, unique for this client
 	entityId: number, // The ID of the entity this update concerns
 	frame: number, // The frame# in which the state change happened
-	owner: number, // The ID the player who owns the entity
+	owner: number | null, // The ID the player who owns the entity
+	challengeable: boolean, // Whether the owner of this entity can be challenged
 	originator: number, // The ID of the player who sent this update
 	version: number, // Decided by the server. Will be used to check if we need to apply an update
 
@@ -104,7 +105,7 @@ let affectionGraph: AffectionEdge[] = []; // *Directed* graph, Maps entity ID to
 
 Then, let's look at what the client does to advance the game state.
 ```ts
-let clientFrame = 0;
+let clientFrame = -1; // -1 so that it's 0 after the first advancement
 
 function advance() {
 	// ...
@@ -253,14 +254,51 @@ function applyServerUpdateToEntity(update) {
 Alright, that does it for the client. Now, let's take a look at the server.
 
 ### Server
-For entities that connected in the affection graph in a certain way we want to ensure that their updates are applied together. We therefore introduce the concept of an "update group":
+Let's first talk about how the server stores game state. The server is stupid in the sense that it doesn't know about the game the players are playing at all, at least initially. It doesn't parse the .mis file, it doesn't create a scene graph, nothing like that. It relies on the clients for telling it both when entities change and, even more primitively, that they *exist*. To the server, an entity is nothing but a number (its ID) mapped to a bag of state updates and a bit of extra info.
+```ts
+type Entity = {
+	updates: EntityUpdate[], // This array contains updates from multiple different players. We make sure this array stays sorted by frame# for relatively fast lookups.
+	owner: number | null
+};
+
+let entities = new Map<number, Entity>();
+
+function getEntityById(id: number): Entity {
+	if (entities.has(id)) return entities.get(id);
+
+	// Create a new entity entry
+	let entity: Entity = {
+		updates: [],
+		owner: null
+	};
+	entities.set(id, entity);
+
+	return entity;
+}
+```
+
+For entities connected by the affection graph we want to ensure that their updates are applied together. We therefore introduce the concept of an "update group":
 ```ts
 type UpdateGroup = {
-	entityIds: number[],
+	player: Player, // The player who sent the updates of this group
+	entityIds: number[], // All of the entities that have an update in this group
 	entityUpdates: EntityUpdate[]
 };
 
-let queuedUpdateGroups = new Map<Player, UpdateGroup[]>();
+let queuedUpdateGroups: UpdateGroup[] = [];
+```
+
+Some utility functions for groups are needed:
+```ts
+function getEarliestUpdateForEntityId(group: UpdateGroup, entityId: number): EntityUpdate {
+	return group.entityUpdates.filter(update => update.entityId === entityId)
+		.sort((a, b) => a.frame - b.frame)[0];
+}
+
+function getLatestUpdateForEntityId(group: UpdateGroup, entityId: number): EntityUpdate {
+	return group.entityUpdates.filter(update => update.entityId === entityId)
+		.sort((a, b) => b.frame - a.frame)[0];
+}
 ```
 
 When we receive a state update bundle from the client, we create these groups:
@@ -279,6 +317,7 @@ function onClientStateReceived(player: Player, msg: ClientStateBundle) {
 		let updates = msg.entityUpdates.map(update => affecting.includes(update.entityId));
 
 		let newGroup: UpdateGroup = {
+			player: player,
 			entityIds: affecting,
 			entityUpdates: updates
 		};
@@ -288,8 +327,79 @@ function onClientStateReceived(player: Player, msg: ClientStateBundle) {
 		if (existingGroup) {
 			replaceUpdateGroup(existingGroup, newGroup);
 		} else {
-			queuedUpdateGroups.get(player).push(newGroup);
+			queuedUpdateGroups.push(newGroup);
 		}
 	}
+}
+```
+
+We also need a few utility functions for update groups:
+```ts
+/** For a given update group, returns the maximum of all the frame# of all of its updates. */
+declare function getMaxFrame(group: UpdateGroup): number;
+```
+
+Let's take a look at the main update loop of the server:
+```ts
+let serverFrame = -1;
+
+// Runs at a constant rate of 120 Hz.
+function update() {
+	serverFrame++;
+
+	for (let group of queuedUpdateGroups) {
+		if (getMaxFrame(group) > serverFrame) continue; // Lata bitch
+
+		if (isApplicationLegal(group)) {
+			applyUpdateGroup(group);
+		} else {
+			rejectUpdateGroup(group);
+			queuedUpdateGroups.delete(group);
+		}
+	}
+}
+```
+
+```ts
+const TWICE_CLIENT_UPDATE_PERIOD = 2 * 4;
+
+function isApplicationLegal(group: UpdateGroup): boolean {
+	for (let id of group.entityIds) {
+		let entity = getEntityById(id);
+		let lastStoredUpdate = entity.updates.at(-1);
+		let lastCandidateUpdate = getLatestUpdateForEntityId(group, id);
+
+		if (lastStoredUpdate) {
+			let earliestCandidateUpdate = getEarliestUpdateForEntityId(group, id);
+
+			if (lastUpdate.frame >= earliestCandidateUpdate.frame) {
+				if (serverFrame - earliestCandidateUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
+					return false;
+			}
+
+			if (lastStoredUpdate.version > lastCandidateUpdate.version)
+				return false;
+			
+			outer:
+			if (entity.owner !== null) {
+				let ownerUpdate = entity.updates.findLast(update => update.originator === entity.owner);
+
+				if (serverFrame - ownerUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
+					break outer;
+
+				let isChallengable = lastStoredUpdate.challengable;
+				if (!isChallengable && lastCandidateUpdate.owner !== entity.owner)
+					return false;
+			}
+		}
+	}
+
+	return true;
+}
+```
+
+```ts
+function applyUpdateGroup(group: UpdateGroup) {
+
 }
 ```
