@@ -139,7 +139,8 @@ We need to send an update bundle to the server:
 type ClientStateBundle = {
     currentClientFrame: number,
     entityUpdates: EntityUpdate[],
-    affectionGraph: [number, number][]
+    affectionGraph: [number, number][],
+    lastReceivedServerUpdateId: number
 };
 
 // 30 Hz seems to be a good sweetspot
@@ -155,7 +156,8 @@ function onNetworkConnectionTick() {
     let bundle: ClientStateBundle = {
         currentClientFrame: clientFrame,
         entityUpdates: processedEntityUpdates,
-        affectionGraph: processedAffectionGraph
+        affectionGraph: processedAffectionGraph,
+        lastReceivedServerUpdateId: lastReceivedServerUpdateId
     };
 
     connection.send(bundle, { reliable: false }); // We disable any default reliability layer built into our networking stack because we have our own reliability protocol for state updates.
@@ -170,12 +172,12 @@ type ServerStateUpdateMessage = {
     entityUpdates: EntityUpdate[],
     lastReceivedClientUpdateId: number,
     lastReceivedClientFrame: number,
-    rewindToFrame: number // The frame we should rewind to in the next simulation
+    rewindToFrameCap: number // The minimum frame we should rewind to in the next simulation
 };
 
 let lastServerStateUpdate: ServerStateUpdateMessage = null;
 let queuedServerUpdates: EntityUpdate[] = [];
-let lastReceivedSeverUpdateId = -1;
+let lastReceivedServerUpdateId = -1;
 
 function onServerStateReceived(msg: ServerStateUpdateMessage) {
     // Filter out updates received by the server
@@ -218,7 +220,13 @@ function update() {
     let targetFrame = clientFrame;
 
     // This function rolls back the entire game state for all entities, including state update history and changes to the affection graph. This means that a history for all these things has to be stored.
-    rollBack(lastServerStateUpdate.rewindToFrame);
+
+    let startFrame = Math.min(
+        ...queuedServerUpdates.map(update => update.frame)
+    );
+    startFrame = Math.max(startFrame, lastServerStateUpdate.rewindToFrameCap);
+
+    rollBack(startFrame);
 
     // Advance as many frames as necessary to catch back up
     while (clientFrame < targetFrame) {
@@ -260,7 +268,8 @@ Let's first talk about how the server stores game state. The server is stupid in
 ```ts
 type Entity = {
     updates: EntityUpdate[], // This array contains updates from multiple different players. We make sure this array stays sorted by frame# for relatively fast lookups.
-    owner: number | null
+    owner: number | null,
+    versions: Map<Player, number>
 };
 
 let entities = new Map<number, Entity>();
@@ -271,11 +280,25 @@ function getEntityById(id: number): Entity {
     // Create a new entity entry
     let entity: Entity = {
         updates: [],
-        owner: null
+        owner: null,
+        versions: new Map()
     };
     entities.set(id, entity);
 
     return entity;
+}
+
+function getTrueEntityUpdate(entity: Entity) {
+    if (entity.owner) {
+        let ownerUpdate = entity.updates.findLast(update => {
+            return update.owner === entity.owner;
+        });
+
+        if (serverFrame - ownerUpdate.frame <= TWICE_CLIENT_UPDATE_PERIOD)
+            return ownerUpdate;
+    }
+
+    return entity.updates.at(-1);
 }
 ```
 
@@ -310,6 +333,18 @@ function onClientStateReceived(player: Player, msg: ClientStateBundle) {
     msg.entityUpdates = msg.entityUpdates.filter(update => {
         return update.updateId > player.lastReceivedClientUpdateId;
     });
+
+    // Filter out updates received by the client
+    player.queuedEntityUpdates = player.queuedEntityUpdates.filter(update => {
+        return update.updateId > msg.lastReceivedServerUpdateId;
+    });
+
+    player.lastReceivedClientUpdateId = Math.max(
+        player.lastReceivedClientUpdateId,
+        ...msg.entityUpdates.map(update => update.updateId)
+    );
+
+    player.lastReceivedClientFrame = msg.currentClientFrame;
 
     for (let entity of getEntityIds(msg.entityUpdates)) {
         // We recursively get all the nodes (= entities) that have an edge pointing towards any of the nodes already in the set, starting with the set containing only `entity`.
@@ -349,6 +384,10 @@ let serverFrame = -1;
 function update() {
     serverFrame++;
 
+    for (let entity of entities) {
+        maybeUpdateOwnership(entity);
+    }
+
     for (let group of queuedUpdateGroups) {
         if (getMaxFrame(group) > serverFrame) continue; // Lata bitch
 
@@ -379,7 +418,7 @@ function isApplicationLegal(group: UpdateGroup): boolean {
                     return false;
             }
 
-            if (lastStoredUpdate.version > lastCandidateUpdate.version)
+            if (entity.versions.get(lastCandidateUpdate.originator) > lastCandidateUpdate.version)
                 return false;
             
             outer:
@@ -389,8 +428,8 @@ function isApplicationLegal(group: UpdateGroup): boolean {
                 if (serverFrame - ownerUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
                     break outer;
 
-                let isChallengable = lastStoredUpdate.challengable;
-                if (!isChallengable && lastCandidateUpdate.owner !== entity.owner)
+                let isChallengeable = lastStoredUpdate.challengeable;
+                if (!isChallengeable && lastCandidateUpdate.owner !== entity.owner)
                     return false;
             }
         }
@@ -402,6 +441,117 @@ function isApplicationLegal(group: UpdateGroup): boolean {
 
 ```ts
 function applyUpdateGroup(group: UpdateGroup) {
+    for (let update of group.entityUpdates) {
+        if (!update.state) continue; // It's one of the empty state updates
 
+        let entity = getEntityById(update.entityId);
+        insertOrdered(entity.updates, update);
+
+        if (update.owner !== null) {
+            if (entity.owner === null) {
+                // Easy, there was no ownership before
+                entity.owner = update.owner;
+            } else {
+                maybeUpdateOwnership(entity);
+            }
+        }
+
+        if (getTrueEntityUpdate(entity) === update)
+            queueEntityUpdate(update);
+    }
+}
+```
+
+```ts
+function maybeUpdateOwnership(entity: Entity) {
+    if (entity.owner === null) return;
+
+    let lastOwnerUpdate = entity.updates.findLast(update => {
+        return update.owner === entity.owner;
+    });
+
+    if (serverFrame - lastOwnerUpdate.frame <= TWICE_CLIENT_UPDATE_PERIOD) return; // The ownership is still valid
+
+    let newerOwnerUpdate = entity.updates.find(update => {
+        return serverFrame - update.frame <= TWICE_CLIENT_UPDATE_PERIOD
+            && update.owner !== entity.owner;
+    });
+
+    if (!newerOwnerUpdate) return;
+
+    increaseEntityVersion(lastOwnerUpdate);
+    entity.owner = newerOwnerUpdate.owner;
+
+    queueEntityUpdate(newerOwnerUpdate);
+}
+```
+
+```ts
+function increaseEntityVersion(update: EntityUpdate) {
+    let entity = getEntityById(update.entityId);
+    entity.versions.set(update.originator, update.version + 1);
+}
+```
+
+```ts
+function rejectUpdateGroup(group: UpdateGroup) {
+    for (let update of group.entityUpdates) {
+        if (!update.state) continue;
+
+        increaseEntityVersion(update);
+    }
+}
+```
+
+```ts
+let queuedEntityUpdates: EntityUpdate[] = [];
+let incrementalUpdateId = 0;
+
+function queueEntityUpdate(update: EntityUpdate) {
+    queuedEntityUpdates = queuedEntityUpdates.filter(x => {
+        x.entityId !== update.entityId;
+    });
+
+    update.updateId = incrementalUpdateId++;
+    queuedEntityUpdates.push(update);
+}
+```
+
+```ts
+declare let players: Player[]; // List of players playing this game
+
+// Also runs at 30 Hz
+function onNetworkConnectionTick() {
+    // ...
+
+    for (let update of queuedEntityUpdates) {
+        for (let player of players) {
+            player.queuedEntityUpdates = player.queuedEntityUpdates.filter(x => {
+                return x.entityId !== update.entityId;
+            });
+
+            let copiedUpdate = { ...update };
+            let entity = getEntityById(update.entityId);
+
+            copiedUpdate.version = entity.versions.get(player) ?? 0;
+
+            player.queuedEntityUpdates.push(copiedUpdate);
+        }
+    }
+
+    queuedEntityUpdates = [];
+
+    for (let player of players) {
+        let rewindToFrameCap = serverFrame - TWICE_CLIENT_UPDATE_PERIOD;
+
+        player.connection.send({
+            entityUpdates: player.queuedEntityUpdates,
+            lastReceivedClientUpdateId: player.lastReceivedClientUpdateId,
+            lastReceivedClientFrame: player.lastReceivedClientFrame,
+            rewindToFrameCap: rewindToFrameCap
+        }, { reliable: false });
+    }
+
+    // ...
 }
 ```
