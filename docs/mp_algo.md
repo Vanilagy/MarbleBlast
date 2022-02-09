@@ -75,6 +75,8 @@ When receiving a state from the server, we apply that state to our local state i
 
 ## Part 5: The algorithm
 
+<!-- Since I'm usually super religious about this: The code is indented with spaces on purpose. It renders better than tabs. -->
+
 Now that we've thought through how our state synchronization logic should work, let's pseudocode it.
 
 ### Client
@@ -82,21 +84,21 @@ Now that we've thought through how our state synchronization logic should work, 
 First, let's describe how the clients store the data they send to the server:
 ```ts
 type EntityUpdate = {
-	updateId: number, // An incremental ID, unique for this client
-	entityId: number, // The ID of the entity this update concerns
-	frame: number, // The frame# in which the state change happened
-	owner: number | null, // The ID the player who owns the entity
-	challengeable: boolean, // Whether the owner of this entity can be challenged
-	originator: number, // The ID of the player who sent this update
-	version: number, // Decided by the server. Will be used to check if we need to apply an update
+    updateId: number, // An incremental ID, unique for this client
+    entityId: number, // The ID of the entity this update concerns
+    frame: number, // The frame# in which the state change happened
+    owner: number | null, // The ID the player who owns the entity
+    challengeable: boolean, // Whether the owner of this entity can be challenged
+    originator: number, // The ID of the player who sent this update
+    version: number, // Decided by the server. Will be used to check if we need to apply an update
 
-	state: EntityState // The actual state. Can be whatever, depends on the entity
+    state: EntityState // The actual state. Can be whatever, depends on the entity
 };
 
 type AffectionEdge = {
-	from: number,
-	to: number,
-	frame: number
+    from: number,
+    to: number,
+    frame: number
 };
 
 let entityUpdates: EntityUpdate[];
@@ -108,67 +110,67 @@ Then, let's look at what the client does to advance the game state.
 let clientFrame = -1; // -1 so that it's 0 after the first advancement
 
 function advance() {
-	// ...
+    // ...
 
-	simulate(); // During this step, we manually mark entity states as changed and manually add edges to the affection graph
+    simulate(); // During this step, we manually mark entity states as changed and manually add edges to the affection graph
 
-	for (let entity of entities) {
-		if (!entity.stateChanged) continue;
+    for (let entity of entities) {
+        if (!entity.stateChanged) continue;
 
-		let entityUpdate = entity.getLastUpdate();
-		entityUpdates.push(entityUpdate);
+        let entityUpdate = entity.getLastUpdate();
+        entityUpdates.push(entityUpdate);
 
-		if (entity.ownedByUs) {
-			// Flood the subgraph reachable from this node (= entity)
-			propagateOwnershipToAdjacentNodesRecursively(entity);
-		}
-	}
+        if (entity.ownedByUs) {
+            // Flood the subgraph reachable from this node (= entity)
+            propagateOwnershipToAdjacentNodesRecursively(entity);
+        }
+    }
 
-	updateEntityHistory(); // This will create entity updates for all entities that changed state. This history is used for more than just networking; it's also used for generating replays and rewinding the simulation.
+    updateEntityHistory(); // This will create entity updates for all entities that changed state. This history is used for more than just networking; it's also used for generating replays and rewinding the simulation.
 
-	clientFrame++;
+    clientFrame++;
 
-	// ...
+    // ...
 }
 ```
 
 We need to send an update bundle to the server:
 ```ts
 type ClientStateBundle = {
-	currentClientFrame: number,
-	entityUpdates: EntityUpdate[],
-	affectionGraph: [number, number][]
+    currentClientFrame: number,
+    entityUpdates: EntityUpdate[],
+    affectionGraph: [number, number][]
 };
 
 // 30 Hz seems to be a good sweetspot
 function onNetworkConnectionTick() {
-	// ...
+    // ...
 
-	// Here, we shallowly duplicate the entity updates and set `state` to `null` on an update if there's a later update for the same entity. This way we still send the server all of the frame# information, but we don't completely nuke bandwidth by sending tons and tons of state.
-	let processedEntityUpdates = processEntityUpdates(entityUpdates);
+    // Here, we shallowly duplicate the entity updates and set `state` to `null` on an update if there's a later update for the same entity. This way we still send the server all of the frame# information, but we don't completely nuke bandwidth by sending tons and tons of state.
+    let processedEntityUpdates = processEntityUpdates(entityUpdates);
 
-	// Here, we turn the AffectionEdges into tuples, remove the frame# information and then remove any duplicate edges.
-	let processedAffectionGraph = processAffectionGraph(affectionGraph);
-	
-	let bundle: ClientStateBundle = {
-		currentClientFrame: clientFrame,
-		entityUpdates: processedEntityUpdates,
-		affectionGraph: processedAffectionGraph
-	};
+    // Here, we turn the AffectionEdges into tuples, remove the frame# information and then remove any duplicate edges.
+    let processedAffectionGraph = processAffectionGraph(affectionGraph);
+    
+    let bundle: ClientStateBundle = {
+        currentClientFrame: clientFrame,
+        entityUpdates: processedEntityUpdates,
+        affectionGraph: processedAffectionGraph
+    };
 
-	connection.send(bundle, { reliable: false }); // We disable any default reliability layer built into our networking stack because we have our own reliability protocol for state updates.
+    connection.send(bundle, { reliable: false }); // We disable any default reliability layer built into our networking stack because we have our own reliability protocol for state updates.
 
-	// ...
+    // ...
 }
 ```
 
 Whenever the server sends the client a state update, we need to act upon it:
 ```ts
 type ServerStateUpdateMessage = {
-	entityUpdates: EntityUpdate[],
-	lastReceivedClientUpdateId: number,
-	lastReceivedClientFrame: number,
-	rewindToFrame: number // The frame we should rewind to in the next simulation
+    entityUpdates: EntityUpdate[],
+    lastReceivedClientUpdateId: number,
+    lastReceivedClientFrame: number,
+    rewindToFrame: number // The frame we should rewind to in the next simulation
 };
 
 let lastServerStateUpdate: ServerStateUpdateMessage = null;
@@ -176,31 +178,31 @@ let queuedServerUpdates: EntityUpdate[] = [];
 let lastReceivedSeverUpdateId = -1;
 
 function onServerStateReceived(msg: ServerStateUpdateMessage) {
-	// Filter out updates received by the server
-	bundle.entityUpdates = bundle.entityUpdates.filter(update => {
-		return update.updateId > msg.lastReceivedClientUpdateId;
-	});
+    // Filter out updates received by the server
+    bundle.entityUpdates = bundle.entityUpdates.filter(update => {
+        return update.updateId > msg.lastReceivedClientUpdateId;
+    });
 
-	// Filter out updates received by the client
-	msg.entityUpdates = msg.entityUpdates.filter(update => {
-		return update.updateId > lastReceivedServerUpdateId;
-	});
+    // Filter out updates received by the client
+    msg.entityUpdates = msg.entityUpdates.filter(update => {
+        return update.updateId > lastReceivedServerUpdateId;
+    });
 
-	// Update this
-	lastReceivedServerUpdateId = Math.max(
-		lastReceivedServerUpdateId,
-		...msg.entityUpdates.map(update => update.updateId)
-	);
+    // Update this
+    lastReceivedServerUpdateId = Math.max(
+        lastReceivedServerUpdateId,
+        ...msg.entityUpdates.map(update => update.updateId)
+    );
 
-	// Add them to a queue
-	queuedServerUpdates.push(...msg.entityUpdates);
+    // Add them to a queue
+    queuedServerUpdates.push(...msg.entityUpdates);
 
-	// Remove old edges from the affection graph
-	affectionGraph = affectionGraph.filter(edge => {
-		return edge.frame > msg.lastReceivedClientFrame;
-	});
+    // Remove old edges from the affection graph
+    affectionGraph = affectionGraph.filter(edge => {
+        return edge.frame > msg.lastReceivedClientFrame;
+    });
 
-	lastServerStateUpdate.msg = msg; // Store it for later
+    lastServerStateUpdate.msg = msg; // Store it for later
 }
 ```
 
@@ -208,46 +210,46 @@ With this in place, we can now write the full update procedure for the client.
 ```ts
 // Runs at about 120 Hz, or whatever rate necessary to be ahead of the server far enough
 function update() {
-	if (!lastServerStateUpdate) {
-		advance();
-		return;
-	}
+    if (!lastServerStateUpdate) {
+        advance();
+        return;
+    }
 
-	let targetFrame = clientFrame;
+    let targetFrame = clientFrame;
 
-	// This function rolls back the entire game state for all entities, including state update history and changes to the affection graph. This means that a history for all these things has to be stored.
-	rollBack(lastServerStateUpdate.rewindToFrame);
+    // This function rolls back the entire game state for all entities, including state update history and changes to the affection graph. This means that a history for all these things has to be stored.
+    rollBack(lastServerStateUpdate.rewindToFrame);
 
-	// Advance as many frames as necessary to catch back up
-	while (clientFrame < targetFrame) {
-		// Apply all server state updates
-		for (let update of queuedServerUpdates) {
-			if (update.frame === clientFrame) {
-				applyServerUpdateToEntity(update);
-			}
-		}
+    // Advance as many frames as necessary to catch back up
+    while (clientFrame < targetFrame) {
+        // Apply all server state updates
+        for (let update of queuedServerUpdates) {
+            if (update.frame === clientFrame) {
+                applyServerUpdateToEntity(update);
+            }
+        }
 
-		advance();
-	}
+        advance();
+    }
 
-	advance(); // Advance one more time so we actually end up one frame ahead of where we were before
+    advance(); // Advance one more time so we actually end up one frame ahead of where we were before
 }
 ```
 
 How do we apply server updates to entities?
 ```ts
 function applyServerUpdateToEntity(update) {
-	let entity = getEntityById(update.entityId);
-	let localUpdate = entity.getLastUpdate();
+    let entity = getEntityById(update.entityId);
+    let localUpdate = entity.getLastUpdate();
 
-	let us = getLocalPlayerId();
-	let shouldApplyState = update.originator !== us
-		&& (entity.owner !== us || update.version > localUpdate.version);
+    let us = getLocalPlayerId();
+    let shouldApplyState = update.originator !== us
+        && (entity.owner !== us || update.version > localUpdate.version);
 
-	if (shouldApplyState) {
-		// We don't need to apply the state when certain conditions are met (to avoid feedback loops)
-		entity.applyState(update.state);
-	}
+    if (shouldApplyState) {
+        // We don't need to apply the state when certain conditions are met (to avoid feedback loops)
+        entity.applyState(update.state);
+    }
 }
 ```
 
@@ -257,32 +259,32 @@ Alright, that does it for the client. Now, let's take a look at the server.
 Let's first talk about how the server stores game state. The server is stupid in the sense that it doesn't know about the game the players are playing at all, at least initially. It doesn't parse the .mis file, it doesn't create a scene graph, nothing like that. It relies on the clients for telling it both when entities change and, even more primitively, that they *exist*. To the server, an entity is nothing but a number (its ID) mapped to a bag of state updates and a bit of extra info.
 ```ts
 type Entity = {
-	updates: EntityUpdate[], // This array contains updates from multiple different players. We make sure this array stays sorted by frame# for relatively fast lookups.
-	owner: number | null
+    updates: EntityUpdate[], // This array contains updates from multiple different players. We make sure this array stays sorted by frame# for relatively fast lookups.
+    owner: number | null
 };
 
 let entities = new Map<number, Entity>();
 
 function getEntityById(id: number): Entity {
-	if (entities.has(id)) return entities.get(id);
+    if (entities.has(id)) return entities.get(id);
 
-	// Create a new entity entry
-	let entity: Entity = {
-		updates: [],
-		owner: null
-	};
-	entities.set(id, entity);
+    // Create a new entity entry
+    let entity: Entity = {
+        updates: [],
+        owner: null
+    };
+    entities.set(id, entity);
 
-	return entity;
+    return entity;
 }
 ```
 
 For entities connected by the affection graph we want to ensure that their updates are applied together. We therefore introduce the concept of an "update group":
 ```ts
 type UpdateGroup = {
-	player: Player, // The player who sent the updates of this group
-	entityIds: number[], // All of the entities that have an update in this group
-	entityUpdates: EntityUpdate[]
+    player: Player, // The player who sent the updates of this group
+    entityIds: number[], // All of the entities that have an update in this group
+    entityUpdates: EntityUpdate[]
 };
 
 let queuedUpdateGroups: UpdateGroup[] = [];
@@ -291,45 +293,45 @@ let queuedUpdateGroups: UpdateGroup[] = [];
 Some utility functions for groups are needed:
 ```ts
 function getEarliestUpdateForEntityId(group: UpdateGroup, entityId: number): EntityUpdate {
-	return group.entityUpdates.filter(update => update.entityId === entityId)
-		.sort((a, b) => a.frame - b.frame)[0];
+    return group.entityUpdates.filter(update => update.entityId === entityId)
+        .sort((a, b) => a.frame - b.frame)[0];
 }
 
 function getLatestUpdateForEntityId(group: UpdateGroup, entityId: number): EntityUpdate {
-	return group.entityUpdates.filter(update => update.entityId === entityId)
-		.sort((a, b) => b.frame - a.frame)[0];
+    return group.entityUpdates.filter(update => update.entityId === entityId)
+        .sort((a, b) => b.frame - a.frame)[0];
 }
 ```
 
 When we receive a state update bundle from the client, we create these groups:
 ```ts
 function onClientStateReceived(player: Player, msg: ClientStateBundle) {
-	// Filter out updates received by the server
-	msg.entityUpdates = msg.entityUpdates.filter(update => {
-		return update.updateId > player.lastReceivedClientUpdateId;
-	});
+    // Filter out updates received by the server
+    msg.entityUpdates = msg.entityUpdates.filter(update => {
+        return update.updateId > player.lastReceivedClientUpdateId;
+    });
 
-	for (let entity of getEntityIds(msg.entityUpdates)) {
-		// We recursively get all the nodes (= entities) that have an edge pointing towards any of the nodes already in the set, starting with the set containing only `entity`.
-		let affecting: number[] = getAffectingSubgraph(entity, msg.affectionGraph);
+    for (let entity of getEntityIds(msg.entityUpdates)) {
+        // We recursively get all the nodes (= entities) that have an edge pointing towards any of the nodes already in the set, starting with the set containing only `entity`.
+        let affecting: number[] = getAffectingSubgraph(entity, msg.affectionGraph);
 
-		// Get all the updates regarding those entities
-		let updates = msg.entityUpdates.map(update => affecting.includes(update.entityId));
+        // Get all the updates regarding those entities
+        let updates = msg.entityUpdates.map(update => affecting.includes(update.entityId));
 
-		let newGroup: UpdateGroup = {
-			player: player,
-			entityIds: affecting,
-			entityUpdates: updates
-		};
+        let newGroup: UpdateGroup = {
+            player: player,
+            entityIds: affecting,
+            entityUpdates: updates
+        };
 
-		// Check if we've already queued an update group before with the **exact same** entities. If so, replace the old one with the new one!
-		let existingGroup = getUpdateGroupWithIdenticalEntities(affecting);
-		if (existingGroup) {
-			replaceUpdateGroup(existingGroup, newGroup);
-		} else {
-			queuedUpdateGroups.push(newGroup);
-		}
-	}
+        // Check if we've already queued an update group before with the **exact same** entities. If so, replace the old one with the new one!
+        let existingGroup = getUpdateGroupWithIdenticalEntities(affecting);
+        if (existingGroup) {
+            replaceUpdateGroup(existingGroup, newGroup);
+        } else {
+            queuedUpdateGroups.push(newGroup);
+        }
+    }
 }
 ```
 
@@ -345,18 +347,18 @@ let serverFrame = -1;
 
 // Runs at a constant rate of 120 Hz.
 function update() {
-	serverFrame++;
+    serverFrame++;
 
-	for (let group of queuedUpdateGroups) {
-		if (getMaxFrame(group) > serverFrame) continue; // Lata bitch
+    for (let group of queuedUpdateGroups) {
+        if (getMaxFrame(group) > serverFrame) continue; // Lata bitch
 
-		if (isApplicationLegal(group)) {
-			applyUpdateGroup(group);
-		} else {
-			rejectUpdateGroup(group);
-			queuedUpdateGroups.delete(group);
-		}
-	}
+        if (isApplicationLegal(group)) {
+            applyUpdateGroup(group);
+        } else {
+            rejectUpdateGroup(group);
+            queuedUpdateGroups.delete(group);
+        }
+    }
 }
 ```
 
@@ -364,37 +366,37 @@ function update() {
 const TWICE_CLIENT_UPDATE_PERIOD = 2 * 4;
 
 function isApplicationLegal(group: UpdateGroup): boolean {
-	for (let id of group.entityIds) {
-		let entity = getEntityById(id);
-		let lastStoredUpdate = entity.updates.at(-1);
-		let lastCandidateUpdate = getLatestUpdateForEntityId(group, id);
+    for (let id of group.entityIds) {
+        let entity = getEntityById(id);
+        let lastStoredUpdate = entity.updates.at(-1);
+        let lastCandidateUpdate = getLatestUpdateForEntityId(group, id);
 
-		if (lastStoredUpdate) {
-			let earliestCandidateUpdate = getEarliestUpdateForEntityId(group, id);
+        if (lastStoredUpdate) {
+            let earliestCandidateUpdate = getEarliestUpdateForEntityId(group, id);
 
-			if (lastUpdate.frame >= earliestCandidateUpdate.frame) {
-				if (serverFrame - earliestCandidateUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
-					return false;
-			}
+            if (lastUpdate.frame >= earliestCandidateUpdate.frame) {
+                if (serverFrame - earliestCandidateUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
+                    return false;
+            }
 
-			if (lastStoredUpdate.version > lastCandidateUpdate.version)
-				return false;
-			
-			outer:
-			if (entity.owner !== null) {
-				let ownerUpdate = entity.updates.findLast(update => update.originator === entity.owner);
+            if (lastStoredUpdate.version > lastCandidateUpdate.version)
+                return false;
+            
+            outer:
+            if (entity.owner !== null) {
+                let ownerUpdate = entity.updates.findLast(update => update.originator === entity.owner);
 
-				if (serverFrame - ownerUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
-					break outer;
+                if (serverFrame - ownerUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
+                    break outer;
 
-				let isChallengable = lastStoredUpdate.challengable;
-				if (!isChallengable && lastCandidateUpdate.owner !== entity.owner)
-					return false;
-			}
-		}
-	}
+                let isChallengable = lastStoredUpdate.challengable;
+                if (!isChallengable && lastCandidateUpdate.owner !== entity.owner)
+                    return false;
+            }
+        }
+    }
 
-	return true;
+    return true;
 }
 ```
 
