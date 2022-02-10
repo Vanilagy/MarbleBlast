@@ -87,7 +87,7 @@ type EntityUpdate = {
     updateId: number, // An incremental ID, unique for this client
     entityId: number, // The ID of the entity this update concerns
     frame: number, // The frame# in which the state change happened
-    owner: number | null, // The ID the player who owns the entity
+    owner: boolean, // If this entity is owned by the local player
     challengeable: boolean, // Whether the owner of this entity can be challenged
     originator: number, // The ID of the player who sent this update
     version: number, // Decided by the server. Will be used to check if we need to apply an update
@@ -249,8 +249,10 @@ How do we apply server updates to entities?
 function applyServerUpdateToEntity(update) {
     let entity = getEntityById(update.entityId);
     let localUpdate = entity.getLastUpdate();
-
     let us = getLocalPlayerId();
+
+    entity.owner = update.owner;
+
     let shouldApplyState = update.originator !== us
         && (entity.owner !== us || update.version > localUpdate.version);
 
@@ -268,10 +270,13 @@ Let's first talk about how the server stores game state. The server is stupid in
 ```ts
 type Entity = {
     updates: EntityUpdate[], // This array contains updates from multiple different players. We make sure this array stays sorted by frame# for relatively fast lookups.
-    owner: number | null,
+    owner: number | null, // The ID of the player who currently owns this entity
     versions: Map<Player, number>
 };
+```
 
+Let's create a helper function that gets us the entity with a given ID, or creates it if we encounter it for the first time:
+```ts
 let entities = new Map<number, Entity>();
 
 function getEntityById(id: number): Entity {
@@ -287,20 +292,91 @@ function getEntityById(id: number): Entity {
 
     return entity;
 }
+```
+
+Next, let's create a function that returns the authoritative state update for a given entity. This will *not* always be the most recent update when ownership is set.
+```ts
+const TWICE_CLIENT_UPDATE_PERIOD = 2 * 4; // We'll reuse this value.
 
 function getTrueEntityUpdate(entity: Entity) {
     if (entity.owner) {
+        // If there's an owner, search for the last update by the owner that isn't too far in the past.
         let ownerUpdate = entity.updates.findLast(update => {
-            return update.owner === entity.owner;
+            return update.originator === entity.owner;
         });
 
         if (serverFrame - ownerUpdate.frame <= TWICE_CLIENT_UPDATE_PERIOD)
             return ownerUpdate;
     }
 
+    // Otherwise, just return the last update
     return entity.updates.at(-1);
 }
 ```
+
+Next, let's write a procedure for queueing an entity update to be sent to **all** clients in the next network tick. We'll call this method any time an entity receives a state change.
+```ts
+let queuedEntityUpdates: EntityUpdate[] = [];
+let incrementalUpdateId = 0;
+
+function queueEntityUpdate(update: EntityUpdate) {
+    queuedEntityUpdates = queuedEntityUpdates.filter(x => {
+        x.entityId !== update.entityId;
+    });
+
+    update.updateId = incrementalUpdateId++;
+    queuedEntityUpdates.push(update);
+}
+```
+
+The actual network loop might look like this:
+```ts
+declare let players: Player[]; // List of players playing this game
+
+// Also runs at 30 Hz
+function onNetworkConnectionTick() {
+    // ...
+
+    // Loop over all queued updates and players
+    for (let update of queuedEntityUpdates) {
+        for (let player of players) {
+            // Because of the version numbers assigned to each update, we need to send slightly different updates to each player. Here, we generates these.
+
+            // First, filter out the updates for the entity so we start fresh
+            player.queuedEntityUpdates = player.queuedEntityUpdates.filter(x => {
+                return x.entityId !== update.entityId;
+            });
+
+            let copiedUpdate = { ...update }; // Create a shallow copy
+            let entity = getEntityById(update.entityId);
+
+            // Set the version
+            copiedUpdate.version = entity.versions.get(player) ?? 0;
+
+            // And add it into the personal queue for this player
+            player.queuedEntityUpdates.push(copiedUpdate);
+        }
+    }
+
+    queuedEntityUpdates = [];
+
+    // Send packets to all players
+    for (let player of players) {
+        let rewindToFrameCap = serverFrame - TWICE_CLIENT_UPDATE_PERIOD;
+
+        player.connection.send({
+            entityUpdates: player.queuedEntityUpdates,
+            lastReceivedClientUpdateId: player.lastReceivedClientUpdateId,
+            lastReceivedClientFrame: player.lastReceivedClientFrame,
+            rewindToFrameCap: rewindToFrameCap
+        }, { reliable: false });
+    }
+
+    // ...
+}
+```
+
+Now that we have some basic things set up, let's get into handling client-sent updates.
 
 For entities connected by the affection graph we want to ensure that their updates are applied together. We therefore introduce the concept of an "update group":
 ```ts
@@ -311,15 +387,20 @@ type UpdateGroup = {
 };
 
 let queuedUpdateGroups: UpdateGroup[] = [];
+
+/** Utility: For a given update group, returns the maximum of all the frame# of all of its updates. */
+declare function getMaxFrame(group: UpdateGroup): number;
 ```
 
 Some utility functions for groups are needed:
 ```ts
+// For a given entity ID, returns that entity's update with the lowest frame#.
 function getEarliestUpdateForEntityId(group: UpdateGroup, entityId: number): EntityUpdate {
     return group.entityUpdates.filter(update => update.entityId === entityId)
         .sort((a, b) => a.frame - b.frame)[0];
 }
 
+// For a given entity ID, returns that entity's update with the highest frame#.
 function getLatestUpdateForEntityId(group: UpdateGroup, entityId: number): EntityUpdate {
     return group.entityUpdates.filter(update => update.entityId === entityId)
         .sort((a, b) => b.frame - a.frame)[0];
@@ -339,6 +420,7 @@ function onClientStateReceived(player: Player, msg: ClientStateBundle) {
         return update.updateId > msg.lastReceivedServerUpdateId;
     });
 
+    // Update this
     player.lastReceivedClientUpdateId = Math.max(
         player.lastReceivedClientUpdateId,
         ...msg.entityUpdates.map(update => update.updateId)
@@ -370,12 +452,6 @@ function onClientStateReceived(player: Player, msg: ClientStateBundle) {
 }
 ```
 
-We also need a few utility functions for update groups:
-```ts
-/** For a given update group, returns the maximum of all the frame# of all of its updates. */
-declare function getMaxFrame(group: UpdateGroup): number;
-```
-
 Let's take a look at the main update loop of the server:
 ```ts
 let serverFrame = -1;
@@ -385,25 +461,30 @@ function update() {
     serverFrame++;
 
     for (let entity of entities) {
-        maybeUpdateOwnership(entity);
+        // Ownership might have expired and needs to be passed onto another player.
+        maybeUpdateOwnership(entity); // is defined later
     }
 
     for (let group of queuedUpdateGroups) {
         if (getMaxFrame(group) > serverFrame) continue; // Lata bitch
 
+        // Let's check if applying this group update is legal
         if (isApplicationLegal(group)) {
+            // If it is, apply it!
             applyUpdateGroup(group);
         } else {
+            // If it isn't, reject it.
             rejectUpdateGroup(group);
-            queuedUpdateGroups.delete(group);
         }
+
+        // Can remove it, we've processed it now
+        queuedUpdateGroups.delete(group);
     }
 }
 ```
 
+The function that checks if applying a group of updates is legal is where most of the decision magic that keeps that state consistent happens:
 ```ts
-const TWICE_CLIENT_UPDATE_PERIOD = 2 * 4;
-
 function isApplicationLegal(group: UpdateGroup): boolean {
     for (let id of group.entityIds) {
         let entity = getEntityById(id);
@@ -413,23 +494,28 @@ function isApplicationLegal(group: UpdateGroup): boolean {
         if (lastStoredUpdate) {
             let earliestCandidateUpdate = getEarliestUpdateForEntityId(group, id);
 
+            // Check if the new update is too far in the past
             if (lastUpdate.frame >= earliestCandidateUpdate.frame) {
                 if (serverFrame - earliestCandidateUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
                     return false;
             }
 
+            // If the new update has a lower version, we definitely don't want to merge
             if (entity.versions.get(lastCandidateUpdate.originator) > lastCandidateUpdate.version)
                 return false;
             
+            // Check if there are any ownership conficts
             outer:
-            if (entity.owner !== null) {
-                let ownerUpdate = entity.updates.findLast(update => update.originator === entity.owner);
+            if (lastCandidateUpdate.owner === lastCandidateUpdate.originator && entity.owner !== null) {
+                let ownerUpdate = entity.updates.findLast(update => {
+                    return update.originator === entity.owner;
+                });
 
                 if (serverFrame - ownerUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
-                    break outer;
+                    break outer; // The ownership has "expired" in the sense that it lost its power to prevent other updates.
 
                 let isChallengeable = lastStoredUpdate.challengeable;
-                if (!isChallengeable && lastCandidateUpdate.owner !== entity.owner)
+                if (!isChallengeable && lastCandidateUpdate.originator !== entity.owner)
                     return false;
             }
         }
@@ -439,6 +525,7 @@ function isApplicationLegal(group: UpdateGroup): boolean {
 }
 ```
 
+When we apply the group update, we insert the update into the entity's list and update ownership if needed.
 ```ts
 function applyUpdateGroup(group: UpdateGroup) {
     for (let update of group.entityUpdates) {
@@ -447,45 +534,56 @@ function applyUpdateGroup(group: UpdateGroup) {
         let entity = getEntityById(update.entityId);
         insertOrdered(entity.updates, update);
 
-        if (update.owner !== null) {
+        if (update.originator === entity.owner) {
+            // The owner has all say
+            entity.owner = update.owner;
+        } else if (update.owner === update.originator) {
+            // If we're here, the update is asking to give ownership to its player.
             if (entity.owner === null) {
                 // Easy, there was no ownership before
                 entity.owner = update.owner;
             } else {
+                // This is the "challenge" case
                 maybeUpdateOwnership(entity);
             }
         }
 
+        // Queue the update to be sent if it now is the authoritative entity update
         if (getTrueEntityUpdate(entity) === update)
             queueEntityUpdate(update);
     }
 }
 ```
 
+Here's the procedure for the ownership "challenge":
 ```ts
 function maybeUpdateOwnership(entity: Entity) {
     if (entity.owner === null) return;
 
     let lastOwnerUpdate = entity.updates.findLast(update => {
-        return update.owner === entity.owner;
+        return update.originator === entity.owner;
     });
 
     if (serverFrame - lastOwnerUpdate.frame <= TWICE_CLIENT_UPDATE_PERIOD) return; // The ownership is still valid
 
+    // See if there's a newer update
     let newerOwnerUpdate = entity.updates.find(update => {
         return serverFrame - update.frame <= TWICE_CLIENT_UPDATE_PERIOD
+            && update.owner === update.originator
             && update.owner !== entity.owner;
     });
 
     if (!newerOwnerUpdate) return;
 
-    increaseEntityVersion(lastOwnerUpdate);
-    entity.owner = newerOwnerUpdate.owner;
+    // We won the challenge! Pass the ownership to the other player.
+    increaseEntityVersion(lastOwnerUpdate); // Invalidate it for the other player
+    entity.owner = newerOwnerUpdate.originator;
 
     queueEntityUpdate(newerOwnerUpdate);
 }
 ```
 
+The function to invalidate any updates by a client until it acknowledges the server's update is very simple:
 ```ts
 function increaseEntityVersion(update: EntityUpdate) {
     let entity = getEntityById(update.entityId);
@@ -493,65 +591,27 @@ function increaseEntityVersion(update: EntityUpdate) {
 }
 ```
 
+Alright. Now let's see what we need to do if the group can't be applied and must be rejected. We need to increase the version numbers for the player and revoke ownership if needed.
 ```ts
 function rejectUpdateGroup(group: UpdateGroup) {
     for (let update of group.entityUpdates) {
         if (!update.state) continue;
 
         increaseEntityVersion(update);
-    }
-}
-```
 
-```ts
-let queuedEntityUpdates: EntityUpdate[] = [];
-let incrementalUpdateId = 0;
-
-function queueEntityUpdate(update: EntityUpdate) {
-    queuedEntityUpdates = queuedEntityUpdates.filter(x => {
-        x.entityId !== update.entityId;
-    });
-
-    update.updateId = incrementalUpdateId++;
-    queuedEntityUpdates.push(update);
-}
-```
-
-```ts
-declare let players: Player[]; // List of players playing this game
-
-// Also runs at 30 Hz
-function onNetworkConnectionTick() {
-    // ...
-
-    for (let update of queuedEntityUpdates) {
-        for (let player of players) {
-            player.queuedEntityUpdates = player.queuedEntityUpdates.filter(x => {
-                return x.entityId !== update.entityId;
-            });
-
-            let copiedUpdate = { ...update };
-            let entity = getEntityById(update.entityId);
-
-            copiedUpdate.version = entity.versions.get(player) ?? 0;
-
-            player.queuedEntityUpdates.push(copiedUpdate);
+        // Check if we own the entity. If so, revoke the ownership.
+        let entity = getEntityById(update.entityId);
+        if (update.owner === update.originator && entity.owner === update.originator) {
+            entity.owner = null;
         }
+
+        queueEntityUpdate(getTrueEntityUpdate(entity));
     }
-
-    queuedEntityUpdates = [];
-
-    for (let player of players) {
-        let rewindToFrameCap = serverFrame - TWICE_CLIENT_UPDATE_PERIOD;
-
-        player.connection.send({
-            entityUpdates: player.queuedEntityUpdates,
-            lastReceivedClientUpdateId: player.lastReceivedClientUpdateId,
-            lastReceivedClientFrame: player.lastReceivedClientFrame,
-            rewindToFrameCap: rewindToFrameCap
-        }, { reliable: false });
-    }
-
-    // ...
 }
 ```
+And that's it! I know, it's kind of a lot.
+
+## Part 6: Conclusion
+We've described an algorithm that can be used to reliably sync together multiple client states into a single consistent server state. This approach works especially well for games like Marble Blast where simultaneous updates to an entity by more than one player are a rarity. For games where this is not the case, like a high-speed shooter where many people might be shooting the same entity at the same time, the method described here might not be optimal as it is. Possible extensions to make it applicable to a wider variety of games could include the idea of "state modifiers", i.e. functions that modify existing state that can be run both on the client and the server. This would allow for better accumulation of updates to one state without requiring to wait for the clients to acknowledge each state change.
+
+💖
