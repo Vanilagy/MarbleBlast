@@ -41,7 +41,7 @@ const setupDb = () => {
 	shared.insertScoreStatement = db.prepare(`INSERT INTO score VALUES (?, ?, ?, ?, ?);`);
 	shared.getTopScoreStatement = db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC LIMIT 1;`);
 	shared.getMissionScoreCount = db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);
-	shared.getChangedMissionsStatement = db.prepare(`SELECT DISTINCT mission FROM score WHERE timestamp>?;`);
+	shared.getChangedMissionsStatement = db.prepare(`SELECT mission FROM score WHERE timestamp>?;`);
 	shared.getLatestTimestampStatement = db.prepare(`SELECT MAX(timestamp) FROM score;`);
 
 	const backupDb = () => {

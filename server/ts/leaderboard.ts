@@ -151,9 +151,13 @@ const sendNewScores = (res: http.ServerResponse, timestamp: number) => {
 
 	if (timestamp || timestamp === 0) {
 		let changedMissions: ScoreRow[] = shared.getChangedMissionsStatement.all(timestamp);
+		let seenMissions = new Set<string>();
 		let totalScores = 0;
 
 		for (let [index, row] of changedMissions.entries()) {
+			if (seenMissions.has(row.mission)) continue;
+			seenMissions.add(row.mission);
+
 			// Send over the entire leaderboard for a mission if one score in it changed
 			let rows: ScoreRow[] = shared.getScoresForMissionStatement.all(row.mission);
 			result[row.mission] = rows.map(x => [x.username.slice(0, 16), x.time]);
