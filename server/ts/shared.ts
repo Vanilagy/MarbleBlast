@@ -53,6 +53,6 @@ export const shared: {
 	insertScoreStatement: Database.Statement,
 	getTopScoreStatement: Database.Statement,
 	getMissionScoreCount: Database.Statement,
-	getNewerScoresStatement: Database.Statement,
+	getChangedMissionsStatement: Database.Statement,
 	getLatestTimestampStatement: Database.Statement
 } = {} as any;

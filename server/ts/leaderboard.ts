@@ -8,6 +8,8 @@ import fetch from 'node-fetch';
 import { shared } from './shared';
 import { escapeDiscord, secondsToTimeString, uppercaseFirstLetter } from './util';
 
+const MAX_CATCH_UP_SCORES = 25000;
+
 interface ScoreRow {
 	rowid?: number,
 	mission?: string,
@@ -148,15 +150,17 @@ const sendNewScores = (res: http.ServerResponse, timestamp: number) => {
 	let result: Record<string, [string, number][]> = {};
 
 	if (timestamp || timestamp === 0) {
-		let newScores: ScoreRow[] = shared.getNewerScoresStatement.all(timestamp);
-		let includedMissions = new Set<string>();
+		let changedMissions: ScoreRow[] = shared.getChangedMissionsStatement.all(timestamp);
+		let totalScores = 0;
 
-		for (let row of newScores) {
-			if (includedMissions.has(row.mission)) continue;
-
+		for (let [index, row] of changedMissions.entries()) {
 			// Send over the entire leaderboard for a mission if one score in it changed
 			let rows: ScoreRow[] = shared.getScoresForMissionStatement.all(row.mission);
 			result[row.mission] = rows.map(x => [x.username.slice(0, 16), x.time]);
+
+			// Put a bound on how many scores we send in total. We have to do this because if somebody waits a long time before requesting all the new scores, they're gonna get sent an enormous amount of scores.
+			totalScores += rows.length;
+			if (totalScores > MAX_CATCH_UP_SCORES && index > 5) break;
 		}
 	}
 
