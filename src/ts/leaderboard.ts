@@ -112,9 +112,19 @@ export abstract class Leaderboard {
 		} = await ResourceManager.readBlobAsJson(blob);
 
 		this.latestTimestamp = data.latestTimestamp;
+
+		// Update the leaderboard with the new scores
 		for (let missionPath in data.scores) {
-			// Update the leaderboard with the new scores
-			this.scores.set(missionPath, data.scores[missionPath]);
+			if (!this.scores.has(missionPath)) continue;
+
+			let storedScores = this.scores.get(missionPath);
+			let newScores = data.scores[missionPath];
+
+			storedScores = storedScores.filter(x => !newScores.some(y => y[0] === x[0])); // Remove old scores with same usernames
+			storedScores.push(...newScores);
+			storedScores.sort((a, b) => a[1] - b[1]); // Sort by time
+
+			this.scores.set(missionPath, storedScores);
 		}
 
 		this.registerLeaderboardChange(Object.keys(data.scores));
