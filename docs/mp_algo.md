@@ -47,7 +47,7 @@ Each client maintains their own *client frame#*, always ahead of *server frame#*
 
 Now: For any set of affecting entities **A** ready to be applied, if the maximum frame# of all state updates regarding entities in **A** is higher than *server frame#*, the set is entirely skipped and will be applied at a later server frame. This ensures that no state updates are ahead of the server time.
 
-Conversely, we want to ensure that no updates that are way out of date are applied to the server state, as this would force all clients to rewind a very large distance to reconcile with the server's state. There are, however, some cases where applying "old" updates is fine - particularly on entities that rarely get updated, like PowerUps. If player P sends an update for a PowerUp that took place in frame 20, and the server is already in frame 50, but there haven't been any updates for said PowerUp, the update can be applied safely. The fact that *there haven't been any updates for the PowerUp sent by all of the other players* indicates that the PowerUp doesn't regularly change its state and therefore has no need for being simulated far into the future. Clients applying updates way in the past of their current frame will not rewind to that update, but simply apply it without simulating forward the consequences of said update. To best preserve consistency however, we require that the actual client sending the out-of-date update to the server is itself not in the past. We check this by making each client also send its *client frame#* whenever it sends an update packet. If this client frame is behind the server frame by a sufficiently large amount, we completely discard this update. An example for how this could play out: A client with a temporarily drop in internet connectivity picks up a PowerUp. It then comes back online and sends to the server a packet containing the update U. The server sees that the client frame# is not far behind the server's, so it applies the PowerUp's update even if it is old. We need to make an exception, though: If, for the given PowerUp, there has already been a newer state sent by somebody else, the update will be rejected if U's state for the PowerUp is too far behind the server state - and it will do this regardless of any ownership. Whenever an update gets rejected this way, the sending player will be notified to update their state of the entities on which the server update failed - only then will the server accept any updates from that player again.
+Conversely, we want to ensure that no updates that are way out of date are applied to the server state, as this would force all clients to rewind a very large distance to reconcile with the server's state. There are, however, some cases where applying "old" updates is fine - particularly on entities that rarely get updated, like PowerUps. If player P sends an update for a PowerUp that took place in frame 20, and the server is already in frame 50, but there haven't been any updates for said PowerUp, the update can be applied safely. The fact that *there haven't been any updates for the PowerUp sent by all of the other players* indicates that the PowerUp doesn't regularly change its state and therefore has no need for being simulated far into the future. Clients applying updates way in the past of their current frame will not rewind to that update, but simply apply it without simulating forward the consequences of said update. To best preserve consistency however, we require that the actual client sending the out-of-date update to the server be itself not in the past. We check this by making each client also send its *client frame#* whenever it sends an update packet. If this client frame is behind the server frame by a sufficiently large amount, we completely discard this update. An example for how this could play out: A client with a temporarily drop in internet connectivity picks up a PowerUp. It then comes back online and sends to the server a packet containing the update U. The server sees that the client frame# is not far behind the server's, so it applies the PowerUp's update even if it is old. We need to make an exception, though: If, for the given PowerUp, there has already been a newer state sent by somebody else, the update will be rejected if U's state for the PowerUp is too far behind the server state - and it will do this regardless of any ownership. Whenever an update gets rejected this way, the sending player will be notified to update their state of the entities on which the server update failed - only then will the server accept any updates from that player again.
 
 ### Forcing clients to update
 Let's talk about how we can implement the behavior of rejecting updates from certain players regarding certain entities until they have applied the update we told them to apply. Each entity on the server is tagged with a mapping from player to an integer *version number*. For every player, this starts out as 0. Whenever something happens that revokes a player's "right" to update certain entities, we increment the version number for that player on that entity. The clients send their last-received version number alongside every update and if we detect that it's below the server's version number, we reject the update.
@@ -58,6 +58,8 @@ We said earlier that any updates which would change an entity's ownership will a
 Now, let's assume a second player P comes along with an update that would change ownership of an entity E, owned by player Q != P. If the update is behind in any version numbers, we reject it, no questions asked. If it isn't, however, we simply add P's state updates to the list of state updates for that entity, but while retaining its current owner Q. If Q now loses its ownership (maybe it stopped sending packets), the server automatically declares P to be the new owner of this entity. It then increments the version number for Q for the entity it used to own, as well as all entities of P that caused this ownership change.
 
 So, we can imagine an interaction like this as a *challenge*: Player P is challenging Q to defend its ownership ownership of E. If it fails, P will be crowned the new owner of this entity. Note that this should (probably?) be opt-in behavior for entities. Call it "challengeable". If an entity is not challengeable, any attempt to dethrone its owner will reject without question. Examples of challengeable entities could be marbles - the gameplay clock could be an example of a non-challengeable entity.
+
+Additionally, we want to make sure that ownership on the clients isn't kept indefinitely if it isn't being constantly re-set. If a player interacts with a power-up, they should "own" that power-up just when they interact with it and not keep said ownership later. We can do this by revoking ownership of an entity each time a server update for that entity is applied. Entities that should be owned all the time (like the player input entity) will keep being owned because the client keeps setting ownership of it manually each tick.
 
 ### UDP moment
 Also, we need to address packet loss. If the client only ever sends a state update once and that update gets lost, we could risk having a state desync that never gets corrected. So I suggest this: For each entity, we store the history of state updates to that entity. I mean we do this anyway, but do it somewhere separately for networking purposes. So, an example would be:
@@ -71,7 +73,7 @@ We give each state update a unique, incremental ID. The server sends back the la
 Making sure that server state updates arrive at the client works very similarly: Whenever the server adds a state change to its internal state, it numbers them according to its own incremental ID. When an update for a given entity is intended to be sent to a player, that update will be sent with every packet until the client acknowledges it. If that entity receives a more recent update, the old update will not be sent by the server anymore.
 
 ### Avoiding feedback loops
-When receiving a state from the server, we apply that state to our local state if it wasn't originally sent by us (to avoid feedback loops). Additionally, if it wasn't sent by us, but we currently own the entity the update is concerned about, we also don't apply that update unless its version number is greater than ours. Why do we not apply some updates at all, one might ask? It's because in some cases, there's two different versions of the same entity living on the server and client. The server will send its version over, the client will send its version over, and then server and client simply swap their state - this will continue for often tens of seconds. We want to avoid this.
+When receiving a state from the server, we apply that state to our local state only if it wasn't originally sent by us (to avoid feedback loops) or if that update's version number is greater than ours. Why do we not apply some updates at all, one might ask? It's because in some cases, there's two different versions of the same entity living on the server and client. The server will send its version over, the client will send its version over, and then server and client simply swap their state - this will continue for often tens of seconds. We want to avoid this.
 
 ## Part 5: The algorithm
 
@@ -87,7 +89,7 @@ type EntityUpdate = {
     updateId: number, // An incremental ID, unique for this client
     entityId: number, // The ID of the entity this update concerns
     frame: number, // The frame# in which the state change happened
-    owner: boolean, // If this entity is owned by the local player
+    owned: boolean, // If this entity is owned by the local player
     challengeable: boolean, // Whether the owner of this entity can be challenged
     originator: number, // The ID of the player who sent this update
     version: number, // Decided by the server. Will be used to check if we need to apply an update
@@ -251,10 +253,9 @@ function applyServerUpdateToEntity(update) {
     let localUpdate = entity.getLastUpdate();
     let us = getLocalPlayerId();
 
-    entity.owner = update.owner;
+    entity.owned = false; // Since ownership can only be set locally, whenever we apply a server update (remote!) we reset ownership of an entity. This ensures that ownership is automatically revoked client-side unless the client keeps intentionally reclaiming it.
 
-    let shouldApplyState = update.originator !== us
-        && (entity.owner !== us || update.version > localUpdate.version);
+    let shouldApplyState = update.originator !== us || update.version > localUpdate.version;
 
     if (shouldApplyState) {
         // We don't need to apply the state when certain conditions are met (to avoid feedback loops)
@@ -506,7 +507,7 @@ function isApplicationLegal(group: UpdateGroup): boolean {
             
             // Check if there are any ownership conficts
             outer:
-            if (lastCandidateUpdate.owner === lastCandidateUpdate.originator && entity.owner !== null) {
+            if (lastCandidateUpdate.owned && entity.owner !== null) {
                 let ownerUpdate = entity.updates.findLast(update => {
                     return update.originator === entity.owner;
                 });
@@ -536,12 +537,12 @@ function applyUpdateGroup(group: UpdateGroup) {
 
         if (update.originator === entity.owner) {
             // The owner has all say
-            entity.owner = update.owner;
-        } else if (update.owner === update.originator) {
+            if (!update.owned) entity.owner = null;
+        } else if (update.owned) {
             // If we're here, the update is asking to give ownership to its player.
             if (entity.owner === null) {
                 // Easy, there was no ownership before
-                entity.owner = update.owner;
+                entity.owner = update.originator;
             } else {
                 // This is the "challenge" case
                 maybeUpdateOwnership(entity);
@@ -569,8 +570,8 @@ function maybeUpdateOwnership(entity: Entity) {
     // See if there's a newer update
     let newerOwnerUpdate = entity.updates.find(update => {
         return serverFrame - update.frame <= TWICE_CLIENT_UPDATE_PERIOD
-            && update.owner === update.originator
-            && update.owner !== entity.owner;
+            && update.owned
+            && update.originator !== entity.owner;
     });
 
     if (!newerOwnerUpdate) return;
@@ -601,7 +602,7 @@ function rejectUpdateGroup(group: UpdateGroup) {
 
         // Check if we own the entity. If so, revoke the ownership.
         let entity = getEntityById(update.entityId);
-        if (update.owner === update.originator && entity.owner === update.originator) {
+        if (update.owned && entity.owner === update.originator) {
             entity.owner = null;
         }
 
