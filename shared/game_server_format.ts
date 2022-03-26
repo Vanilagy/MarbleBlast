@@ -22,9 +22,18 @@ export const gameObjectStateFormat = [union, 'objectType', {
 	controlState: marbleControlStateFormat
 }] as const;
 
-export type GameObjectState = FormatToType<typeof gameObjectStateFormat>;
+export const entityUpdateFormat = {
+	updateId: 'varint',
+	entityId: 'f64', // todo make this varint
+	frame: 'varint',
+	owned: 'boolean',
+	challengeable: 'boolean',
+	originator: 'varint',
+	version: 'varint',
+	state: [nullable, gameObjectStateFormat]
+} as const;
 
-export type GameObjectUpdate = Omit<CommandToData<'gameObjectUpdate'>, 'command'>;
+export type GameObjectState = FormatToType<typeof gameObjectStateFormat>;
 
 export const gameServerCommandFormat = [union, 'command', {
 	command: 'ping',
@@ -37,26 +46,26 @@ export const gameServerCommandFormat = [union, 'command', {
 	command: 'joinMission',
 	missionPath: 'string'
 }, {
-	command: 'gameObjectUpdate',
-	gameStateId: 'varint',
-	gameObjectId: 'f64', // todo Make this varint
-	tick: 'varint',
-	owner: [nullable, 'varint'],
-	originator: 'varint',
-	version: 'varint', // maybe rename this?
-	state: gameObjectStateFormat
+	command: 'clientStateBundle',
+	currentClientFrame: 's32',
+	entityUpdates: [entityUpdateFormat],
+	affectionGraph: [{ from: 'f64', to: 'f64' }], // todo make this varint
+	lastReceivedServerUpdateId: 's32'
+}, {
+	command: 'serverStateBundle',
+	entityUpdates: [entityUpdateFormat],
+	lastReceivedClientUpdateId: 's32',
+	lastReceivedClientFrame: 's32',
+	rewindToFrameCap: 's32'
 }, {
 	command: 'timeState',
-	serverTick: 'varint',
-	clientTick: 'varint'
-}, {
-	command: 'reconciliationInfo',
-	rewindTo: 's32'
+	serverTick: 's32',
+	clientTick: 's32'
 }, {
 	command: 'gameInfo',
 	playerId: 'varint',
-	serverTick: 'varint',
-	clientTick: 'varint'
+	serverTick: 's32',
+	clientTick: 's32'
 }] as const;
 
 export const gameServerMessageFormat = FixedFormatBinarySerializer.format({
@@ -70,3 +79,5 @@ export type GameServerCommands = GameServerMessage['commands'][number]['command'
 
 export type CommandToData<K extends GameServerCommands> = DistributeyThing<GameServerMessage['commands'][number], K>;
 type DistributeyThing<U, K> = U extends { command: K } ? U : never;
+
+export type EntityUpdate = Omit<FormatToType<typeof entityUpdateFormat>, 'command'>;

@@ -6,6 +6,9 @@ export abstract class GameObject<T extends GameObjectState = GameObjectState> {
 
 	game: Game;
 	hasChangedState = false;
+	owned = false;
+	version = 0;
+	challengeable = false;
 
 	constructor(game: Game) {
 		this.game = game;
@@ -18,7 +21,7 @@ export abstract class GameObject<T extends GameObjectState = GameObjectState> {
 
 	abstract getCurrentState(): T;
 	abstract getInitialState(): T;
-	abstract loadState(state: T): void;
+	abstract loadState(state: T, frame: number): void;
 
 	beforeReconciliation() {}
 	afterReconciliation() {}

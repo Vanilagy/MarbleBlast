@@ -1,6 +1,6 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { DefaultMap } from "../../../shared/default_map";
-import { GameObjectUpdate } from "../../../shared/game_server_format";
+import { EntityUpdate } from "../../../shared/game_server_format";
 import { AudioManager } from "../audio";
 import { DEFAULT_PITCH, PHYSICS_TICK_RATE } from "../level";
 import { Euler } from "../math/euler";
@@ -11,6 +11,12 @@ import { state } from "../state";
 import { Util } from "../util";
 import { Game } from "./game";
 import { GameObject } from "./game_object";
+
+interface AffectionEdge {
+	from: GameObject,
+	to: GameObject,
+	frame: number
+}
 
 export const GO_TIME = 0 ?? 3.5; // fixme
 
@@ -32,17 +38,14 @@ export class GameState {
 
 	subtickCompletion = 0;
 
-	stateHistory = new DefaultMap<number, GameObjectUpdate[]>(() => []);
+	stateHistory = new DefaultMap<number, EntityUpdate[]>(() => []);
 
 	collectedGems = 0;
 	currentTimeTravelBonus = 0;
 
-	gameObjectGraphHistory = new DefaultMap<number, {
-		tick: number,
-		owner: number,
-		version: number,
-		adj: Set<GameObject>
-	}[]>(() => []);
+	affectionGraph: AffectionEdge[] = [];
+
+	nextUpdateId = 0;
 
 	constructor(game: Game) {
 		this.game = game;
@@ -111,25 +114,24 @@ export class GameState {
 	saveStates() {
 		for (let i = 0; i < this.game.objects.length; i++) {
 			let object = this.game.objects[i];
-			if (object.hasChangedState) {
-				let arr = this.stateHistory.get(object.id);
-				if (Util.last(arr)?.tick === this.tick) arr.pop();
+			if (!object.hasChangedState) continue;
 
-				let node = this.getGameObjectGraphNode(object);
+			let arr = this.stateHistory.get(object.id);
+			if (Util.last(arr)?.frame === this.tick) arr.pop();
 
-				let stateUpdate: GameObjectUpdate = {
-					gameStateId: this.id,
-					gameObjectId: object.id,
-					tick: this.tick,
-					owner: node.owner,
-					originator: this.game.playerId,
-					version: node.version,
-					state: object.getCurrentState()
-				};
-				arr.push(stateUpdate);
+			let stateUpdate: EntityUpdate = {
+				updateId: this.nextUpdateId++,
+				entityId: object.id,
+				frame: this.tick,
+				owned: object.owned,
+				challengeable: object.challengeable,
+				originator: this.game.playerId,
+				version: object.version,
+				state: object.getCurrentState()
+			};
+			arr.push(stateUpdate);
 
-				object.hasChangedState = false;
-			}
+			object.hasChangedState = false;
 		}
 	}
 
@@ -161,17 +163,15 @@ export class GameState {
 		return { position, euler };
 	}
 
-	rollBackToTick(target: number) {
+	rollBackToFrame(target: number) {
 		if (target === this.tick) return;
 
-		for (let [, graphHistory] of this.gameObjectGraphHistory) {
-			let last = Util.last(graphHistory);
-			while (last && last.tick > target) last = graphHistory.pop();
-		}
+		while (this.affectionGraph.length > 0 && Util.last(this.affectionGraph).frame > target)
+			this.affectionGraph.pop();
 
 		for (let [objectId, updateHistory] of this.stateHistory) {
 			let changed = false;
-			while (Util.last(updateHistory) && Util.last(updateHistory).tick > target) {
+			while (Util.last(updateHistory) && Util.last(updateHistory).frame > target) {
 				updateHistory.pop();
 				changed = true;
 			}
@@ -183,7 +183,7 @@ export class GameState {
 			let update = Util.last(updateHistory);
 			let state = update?.state ?? object.getInitialState();
 
-			object.loadState(state);
+			object.loadState(state, target);
 		}
 
 		this.game.simulator.world.updateCollisions(); // Since positions might have changed, collisions probably have too
@@ -192,23 +192,18 @@ export class GameState {
 		// todo: attemptTick
 	}
 
-	applyGameObjectUpdate(update: GameObjectUpdate): boolean {
-		let object = this.game.objects.find(x => x.id === update.gameObjectId); // todo optimize
+	applyGameObjectUpdate(update: EntityUpdate): boolean {
+		let object = this.game.objects.find(x => x.id === update.entityId); // todo optimize
 		if (!object) return false; // temp right?
 
-		let node = this.getGameObjectGraphNode(object);
 		let us = this.game.playerId;
-		let shouldLoadState = (node.owner !== us || update.version > node.version) && update.originator !== us;
+		let shouldApplyState = (update.originator !== us && !object.owned) || update.version > object.version;
 
-		node.version = update.version;
+		if (shouldApplyState) {
+			//console.log(us, update.originator, update.version, object.version);
+			object.loadState(update.state, update.frame);
+			object.version = update.version;
 
-		if (update.owner === update.originator) {
-			node.owner = null;
-			this.clearGameObjectConnections(object);
-		}
-
-		if (shouldLoadState) {
-			object.loadState(update.state);
 			object.hasChangedState = true;
 
 			return true; // Meaning the update has actually been applied
@@ -217,47 +212,22 @@ export class GameState {
 		return false;
 	}
 
-	getGameObjectGraphNode(object: GameObject) {
-		let history = this.gameObjectGraphHistory.get(object.id);
-		let last = Util.last(history);
-		if (last?.tick !== this.tick) history.push(last = {
-			tick: this.tick,
-			owner: last?.owner ?? null,
-			version: last?.version ?? 0,
-			adj: new Set(last?.adj)
+	recordGameObjectInteraction(o1: GameObject, o2: GameObject) {
+		this.affectionGraph.push({
+			from: o1,
+			to: o2,
+			frame: this.tick
 		});
 
-		return last;
+		if (o1.owned) this.setOwned(o2);
 	}
 
-	recordGameObjectInteraction(o1: GameObject, o2: GameObject) {
-		let node1 = this.getGameObjectGraphNode(o1);
-		let node2 = this.getGameObjectGraphNode(o2);
+	setOwned(o: GameObject) {
+		if (o.owned) return;
 
-		node1.adj.add(o2);
-		node2.adj.add(o1);
-
-		let us = this.game.playerId;
-
-		if (node1.owner === us) this.setOwnership(o2, us);
-		if (node2.owner === us) this.setOwnership(o1, us);
-	}
-
-	setOwnership(object: GameObject, owner: number) {
-		let node = this.getGameObjectGraphNode(object);
-		if (node.owner === owner) return;
-
-		node.owner = owner;
-		for (let neighbor of node.adj) this.setOwnership(neighbor, owner);
-	}
-
-	clearGameObjectConnections(object: GameObject) {
-		let node = this.getGameObjectGraphNode(object);
-
-		for (let neighbor of node.adj) {
-			let neighborNode = this.getGameObjectGraphNode(neighbor);
-			neighborNode.adj.delete(object);
+		o.owned = true;
+		for (let edge of this.affectionGraph) {
+			if (edge.from === o) this.setOwned(edge.to);
 		}
-		node.adj.clear();
 	}
 }

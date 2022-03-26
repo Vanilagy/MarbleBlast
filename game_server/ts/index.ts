@@ -1,15 +1,10 @@
-import fs from 'fs-extra';
-import path from 'path';
 import NodeWebSocket, { WebSocketServer } from 'ws';
 import { setDriftlessInterval } from "driftless";
 import { Socket } from '../../shared/socket';
 import { RTCPeerConnection as WRTCPeerConnection, RTCIceCandidate, RTCSessionDescription } from 'wrtc';
 import { RTCConnection } from '../../shared/rtc_connection';
-import { performance} from 'perf_hooks';
-import { GAME_UPDATE_RATE } from '../../shared/constants';
-import { DefaultMap } from '../../shared/default_map';
 import { GameServerConnection, GameServerSocket } from '../../shared/game_server_connection';
-import { CommandToData, GameObjectUpdate } from '../../shared/game_server_format';
+import { Game } from './game';
 
 const wss = new WebSocketServer({
 	port: 6969
@@ -21,9 +16,6 @@ const ID = 'EU-1';
 const KEY = 'I love cocks';
 const URL = `ws://localhost:8080/register-gameserver?id=${encodeURIComponent(ID)}&key=${encodeURIComponent(KEY)}&ws=${encodeURIComponent(`ws://${localIp}:` + wss.options.port)}`;
 const TICK_FREQUENCY = 30;
-const CLIENT_TICK_FREQUENCY = 30; // todo this should be a shared thing?
-const UPDATE_BUFFER_SIZE = 1; // In ticks
-const UPDATE_AGE_THRESHOLD = 5;
 
 console.log("Game server started with id: " + ID);
 
@@ -59,7 +51,7 @@ wss.on('connection', ws => {
 			games.push(game);
 		}
 
-		game.addConnection(connection);
+		game.addPlayer(connection);
 	});
 
 	console.log("New WS connection!");
@@ -79,7 +71,7 @@ const createRTCSocket = (sessionId: string) => {
 			games.push(game);
 		}
 
-		game.addConnection(connection);
+		game.addPlayer(connection);
 	});
 
 	rtcSockets.push(rtcSocket);
@@ -139,10 +131,11 @@ setDriftlessInterval(() => {
 	for (let game of games) game.tick();
 }, 1000 / TICK_FREQUENCY);
 
+/*
 class Game {
 	missionPath: string;
 	connections: GameServerConnection[] = [];
-	stateHistory = new DefaultMap<number, GameObjectUpdate[]>(() => []);
+	stateHistory = new DefaultMap<number, EntityUpdate[]>(() => []);
 	//updateToConnection = new WeakMap<GameObjectStateUpdate, GameServerConnection>();
 	//updateTimeouts = new DefaultMap<GameServerConnection, Map<number, number>>(() => new Map());
 	//stateUpdateQueue = new DefaultMap<number, DefaultMap<number, GameObjectStateUpdate[]>>(() => new DefaultMap(() => [])); // Maps tick to map that maps object ID to update candidates
@@ -151,7 +144,7 @@ class Game {
 	lastAdvanceTime: number;
 	lastSentTick = -1;
 	pendingPings = new DefaultMap<GameServerConnection, Map<number, number>>(() => new Map());
-	queuedUpdates = new Set<GameObjectUpdate>();
+	queuedUpdates = new Set<EntityUpdate>();
 
 	constructor(missionPath: string) {
 		this.missionPath = missionPath;
@@ -180,7 +173,7 @@ class Game {
 		this.lastAdvanceTime += 1000 / GAME_UPDATE_RATE;
 	}
 
-	static earlierUpdateHasPrecedenceOverLaterUpdate(earlierUpdate: GameObjectUpdate, laterUpdate: GameObjectUpdate) {
+	static earlierUpdateHasPrecedenceOverLaterUpdate(earlierUpdate: EntityUpdate, laterUpdate: EntityUpdate) {
 		if (earlierUpdate.version > laterUpdate.version) {
 			if (earlierUpdate.originator === laterUpdate.originator) {
 				laterUpdate.version = earlierUpdate.version;
@@ -197,7 +190,7 @@ class Game {
 		return false;
 	}
 
-	cleanUpHistory(history: GameObjectUpdate[], index: number) {
+	cleanUpHistory(history: EntityUpdate[], index: number) {
 		for (let i = index; i < history.length; i++) {
 			let update = history[i];
 			let nextUpdate = history[i+1];
@@ -223,7 +216,7 @@ class Game {
 			}
 
 			if (update.owner === update.originator) {
-				let lastAuthoritativeUpdate: GameObjectUpdate = null;
+				let lastAuthoritativeUpdate: EntityUpdate = null;
 
 				for (let j = i - 1; j >= 0; j--) {
 					let prevUpdate = history[j];
@@ -240,7 +233,7 @@ class Game {
 		}
 	}
 
-	onStateUpdate(update: GameObjectUpdate) {
+	onStateUpdate(update: EntityUpdate) {
 		if (update.tick < this.tickIndex - UPDATE_AGE_THRESHOLD) return;
 
 		let history = this.stateHistory.get(update.gameObjectId);
@@ -282,7 +275,7 @@ class Game {
 
 			if (shouldDelete) this.queuedUpdates.delete(updateBefore);
 
-			*/
+
 		}
 
 		/*
@@ -341,7 +334,7 @@ class Game {
 
 		//this.updateToConnection.set(update, connection);
 
-		*/
+
 	}
 
 	tick() {
@@ -351,7 +344,7 @@ class Game {
 
 		//console.log(this.firstTing, this.lastSentTick, this.firstTing < this.lastSentTick);
 
-		let sentUpdates = new Set<GameObjectUpdate>();
+		let sentUpdates = new Set<EntityUpdate>();
 
 		for (let connection of this.connections) {
 			for (let [timestamp, receiveTime] of this.pendingPings.get(connection)) {
@@ -416,7 +409,7 @@ class Game {
 
 				}
 			}
-			*/
+
 
 			connection.tick();
 		}
@@ -462,7 +455,7 @@ class Game {
 			for (let [objectId, expiration] of timeouts) {
 				if (data.serverTick >= expiration) timeouts.delete(objectId);
 			}
-			*/
+
 		});
 
 		connection.on('ping', ({ timestamp }) => {
@@ -471,11 +464,4 @@ class Game {
 		});
 	}
 }
-
-/** Finds the last element in an array that fulfills a predicate. */
-const findLast = <T>(arr: T[], predicate: (elem: T) => boolean) => {
-	for (let i = arr.length-1; i >= 0; i--) {
-		let item = arr[i];
-		if (predicate(item)) return item;
-	}
-};
+*/

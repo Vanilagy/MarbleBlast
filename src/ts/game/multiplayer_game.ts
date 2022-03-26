@@ -1,5 +1,6 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { GameServerConnection } from "../../../shared/game_server_connection";
+import { CommandToData, EntityUpdate } from "../../../shared/game_server_format";
 import { Marble } from "../marble";
 import { Mission } from "../mission";
 import { GameServer } from "../net/game_server";
@@ -32,6 +33,8 @@ export class MultiplayerGame extends Game {
 	gameServer: GameServer;
 	connection: GameServerConnection;
 	lastServerTickUpdate: number = null;
+	lastServerStateBundle: CommandToData<"serverStateBundle"> = null;
+	lastReceivedServerUpdateId = -1;
 
 	lastUpdateRate: number;
 
@@ -76,10 +79,50 @@ export class MultiplayerGame extends Game {
 			this.state.supplyServerTimeState(data);
 		});
 
-		this.connection.on('reconciliationInfo', data => {
-			this.simulator.reconciliationInfo = data;
+		this.connection.on('serverStateBundle', async data => {
+			if (sendTimeout > 0) return;
+
+			this.lastServerStateBundle = data;
+
+			data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
+
+			this.lastReceivedServerUpdateId = Math.max(
+				this.lastReceivedServerUpdateId,
+				...data.entityUpdates.map(x => x.updateId)
+			);
+
+			// Add them to a queue
+			this.simulator.reconciliationUpdates.push(...data.entityUpdates);
+
+			// Remove old edges from the affection graph
+			this.state.affectionGraph = this.state.affectionGraph.filter(edge => {
+				return edge.frame > data.lastReceivedClientFrame;
+			});
+
+			// Temp stuff: create a new marble if it isn't here yet
+			for (let update of data.entityUpdates) {
+				let entityExists = this.objects.some(x => x.id === update.entityId);
+				if (entityExists) continue;
+
+				if (initting.has(update.entityId)) return;
+
+				initting.add(update.entityId);
+				let marble = new Marble(this);
+				marble.id = update.entityId;
+
+				await marble.init();
+
+				this.renderer.scene.add(marble.group);
+				this.simulator.world.add(marble.body);
+				this.marbles.push(marble);
+				this.objects.push(marble);
+
+				marble.loadState(update.state as any); // temp
+				marble.controller = new RemoteMarbleController(marble);
+			}
 		});
 
+		/*
 		this.connection.on('gameObjectUpdate', async data => {
 			if (sendTimeout > 0) return;
 
@@ -103,7 +146,7 @@ export class MultiplayerGame extends Game {
 				marble.loadState(data.state as any); // temp
 				marble.controller = new RemoteMarbleController(marble);
 			}
-		});
+		});*/
 
 		setInterval(() => {
 			this.displayNetworkStats();
@@ -161,6 +204,46 @@ export class MultiplayerGame extends Game {
 			//actualThing: this.state.tick
 		});
 
+		if (sendTimeout-- > 0) return;
+
+		let processedEntityUpdates: EntityUpdate[] = [];
+		for (let [, history] of this.state.stateHistory) {
+			for (let i = history.length - 1; i >= 0; i--) {
+				let update = history[i];
+				if (this.lastServerStateBundle && update.updateId <= this.lastServerStateBundle.lastReceivedClientUpdateId)
+					break;
+
+				if (i < history.length - 1) {
+					update = { ...update }; // Shallow clone it
+					update.state = null;
+				}
+
+				processedEntityUpdates.push(update);
+			}
+		}
+
+		let processedAffectionGraph: { from: number, to: number }[] = [];
+		outer:
+		for (let edge of this.state.affectionGraph) {
+			for (let includedEdge of processedAffectionGraph) {
+				if (edge.from.id === includedEdge.from && edge.to.id === includedEdge.to)
+					continue outer;
+			}
+
+			processedAffectionGraph.push({ from: edge.from.id, to: edge.to.id });
+		}
+
+		let bundle: CommandToData<'clientStateBundle'> = {
+			command: 'clientStateBundle',
+			currentClientFrame: this.state.tick,
+			entityUpdates: processedEntityUpdates,
+			affectionGraph: processedAffectionGraph,
+			lastReceivedServerUpdateId: this.lastReceivedServerUpdateId
+		};
+		this.connection.queueCommand(bundle, false);
+
+		/*
+
 		for (let [, history] of this.state.stateHistory) {
 			let update = Util.last(history);
 			if (!update) continue;
@@ -177,6 +260,7 @@ export class MultiplayerGame extends Game {
 		}
 
 		this.lastSentTick = this.state.tick;
+		*/
 	}
 
 	displayNetworkStats() {

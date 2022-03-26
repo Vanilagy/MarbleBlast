@@ -206,7 +206,7 @@ function onServerStateReceived(msg: ServerStateUpdateMessage) {
         return edge.frame > msg.lastReceivedClientFrame;
     });
 
-    lastServerStateUpdate.msg = msg; // Store it for later
+    lastServerStateUpdate = msg; // Store it for later
 }
 ```
 
@@ -232,14 +232,14 @@ function update() {
 
     // Advance as many frames as necessary to catch back up
     while (clientFrame < targetFrame) {
+        advance();
+
         // Apply all server state updates
         for (let update of queuedServerUpdates) {
             if (update.frame === clientFrame) {
                 applyServerUpdateToEntity(update);
             }
         }
-
-        advance();
     }
 
     advance(); // Advance one more time so we actually end up one frame ahead of where we were before
@@ -434,7 +434,7 @@ function onClientStateReceived(player: Player, msg: ClientStateBundle) {
         let affecting: number[] = getAffectingSubgraph(entity, msg.affectionGraph);
 
         // Get all the updates regarding those entities
-        let updates = msg.entityUpdates.map(update => affecting.includes(update.entityId));
+        let updates = msg.entityUpdates.filter(update => affecting.includes(update.entityId));
 
         let newGroup: UpdateGroup = {
             player: player,
@@ -496,7 +496,7 @@ function isApplicationLegal(group: UpdateGroup): boolean {
             let earliestCandidateUpdate = getEarliestUpdateForEntityId(group, id);
 
             // Check if the new update is too far in the past
-            if (lastUpdate.frame >= earliestCandidateUpdate.frame) {
+            if (lastStoredUpdate.frame >= earliestCandidateUpdate.frame) {
                 if (serverFrame - earliestCandidateUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD)
                     return false;
             }

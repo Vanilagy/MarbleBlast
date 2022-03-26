@@ -398,7 +398,7 @@ export class Marble extends GameObject<MarbleState> {
 	update() {
 		this.controller.applyControlState();
 
-		if (this === this.game.marble) this.game.state.setOwnership(this, this.game.playerId);
+		if (this === this.game.marble) this.game.state.setOwned(this);
 
 		let attemptTime = this.game.state.attemptTime;
 
