@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.6
+- Fixed incorrect centerDistPoint behavior in teleport triggers
+
 ## 2.4.5
 - Fixed some leaderboard dupe bugs
 

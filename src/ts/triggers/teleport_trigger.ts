@@ -71,8 +71,8 @@ export class TeleportTrigger extends Trigger {
 
 		// Determine where to place the marble
 		let position: Vector3;
-		if (this.element.centerdestpoint || destination.element.centerdestpoint) {
-			position = destination.body.position;
+		if (MisParser.parseBoolean(this.element.centerdestpoint || destination.element.centerdestpoint)) {
+			position = destination.vertices[0].clone().lerp(destination.vertices[7], 0.5); // Put the marble in the middle of the thing
 		} else {
 			position = destination.vertices[0].clone().add(new Vector3(0, 0, 3));
 		}
