@@ -90,6 +90,8 @@ export class TeleportTrigger extends Trigger {
 			else if (destination.element.camerayaw) yaw = Util.degToRad(MisParser.parseNumber(destination.element.camerayaw));
 			else yaw = 0;
 
+			yaw = -yaw; // Need to flip it for some reason
+
 			this.level.yaw = yaw + Math.PI/2;
 			this.level.pitch = DEFAULT_PITCH;
 		}
