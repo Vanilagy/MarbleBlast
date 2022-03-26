@@ -148,15 +148,11 @@ const sendNewScores = (res: http.ServerResponse, timestamp: number) => {
 	let result: Record<string, [string, number][]> = {};
 
 	if (timestamp || timestamp === 0) {
+		// Send all new scores since that that last timestamp; let the client insert them at the right spot
 		let newScores: ScoreRow[] = shared.getNewerScoresStatement.all(timestamp);
-		let includedMissions = new Set<string>();
-
-		for (let row of newScores) {
-			if (includedMissions.has(row.mission)) continue;
-
-			// Send over the entire leaderboard for a mission if one score in it changed
-			let rows: ScoreRow[] = shared.getScoresForMissionStatement.all(row.mission);
-			result[row.mission] = rows.map(x => [x.username.slice(0, 16), x.time]);
+		for (let score of newScores) {
+			if (!result[score.mission]) result[score.mission] = [];
+			result[score.mission].push([score.username.slice(0, 16), score.time]);
 		}
 	}
 
