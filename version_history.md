@@ -1,5 +1,9 @@
 # Version History
 
+## 2.4.7
+- Fixed large level elements breaking collision in some cases
+- Adjusted level select search behavior
+
 ## 2.4.6
 - Fixed incorrect centerDistPoint behavior in teleport triggers
 

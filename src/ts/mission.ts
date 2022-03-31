@@ -367,7 +367,8 @@ export class Mission {
 
 	/** Returns true iff the mission matches the given query. */
 	matchesSearch(queryWords: string[], query: string) {
-		if (Util.isSubsequenceOf(query, this.searchString)) return true;
+		// Disabled because it honestly creates garbage results in many cases
+		//if (Util.isSubsequenceOf(query, this.searchString)) return true;
 
 		for (let i = 0; i < queryWords.length; i++) {
 			if (!this.searchString.includes(queryWords[i])) return false;

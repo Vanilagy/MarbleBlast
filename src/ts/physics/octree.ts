@@ -2,7 +2,7 @@ import { Box3 } from "../math/box3";
 import { Vector3 } from "../math/vector3";
 
 const DEFAULT_ROOT_NODE_SIZE = 1;
-const MIN_DEPTH = -32;
+const MIN_DEPTH = -52; // Huge
 const MAX_DEPTH = 8;
 
 let v1 = new Vector3();
@@ -45,6 +45,8 @@ export class Octree {
 			if (this.root.depth === MIN_DEPTH) {
 				console.log(object);
 				console.warn(`Can't insert ${this.root.largerThan(object)? 'distant' : 'large'} object into octree; the octree has already expanded to its maximum size.`);
+
+				this.shrink(); // Since the growing was unsuccessful, let's try to shrink down again
 				return;
 			}
 			this.grow(object);
@@ -124,19 +126,50 @@ export class Octree {
 		this.root = newRoot;
 	}
 
-	/** Tries to shrink the octree if large parts of the octree are empty. */
+	/** Tries to shrink the octree if large parts of it are empty. */
 	shrink() {
-		if (this.root.size < DEFAULT_ROOT_NODE_SIZE || this.root.objects.size > 0) return;
+		if (this.root.size <= DEFAULT_ROOT_NODE_SIZE) return;
 
 		if (this.root.count === 0) {
 			// Reset to default empty octree
 			this.root.min.set(0, 0, 0);
 			this.root.size = DEFAULT_ROOT_NODE_SIZE;
 			this.root.depth = 0;
+
 			return;
 		}
 
-		if (!this.root.octants) return;
+		if (!this.root.octants) {
+			// We don't have any octants, but are still holding objects. Therefore, create temporary utility octants to see if we can still shrink in case all the root's objects fit inside one hypothetical octant.
+			this.root.createOctants();
+
+			let fittingOctant: OctreeNode = null;
+			for (let object of this.root.objects) {
+				if (this.root.octants[0].largerThan(object)) {
+					for (let j = 0; j < 8; j++) {
+						let octant = this.root.octants[j];
+						if (octant.containsCenter(object)) {
+							if (fittingOctant && fittingOctant !== octant) {
+								return;
+							}
+							fittingOctant = octant;
+						}
+					}
+				} else {
+					// An object doesn't fit into an octant, so we definitely can't shrink
+					return;
+				}
+			}
+
+			// All objects fit into an octant, therefore shrink
+			this.root.size /= 2;
+			this.root.min.copy(fittingOctant.min);
+			this.root.depth++;
+			this.root.octants = null; // Don't need these anymore
+
+			this.shrink(); // And again
+			return;
+		}
 
 		// Find the only non-empty octant
 		let nonEmptyOctant: OctreeNode;
@@ -152,7 +185,7 @@ export class Octree {
 		this.root = nonEmptyOctant;
 		nonEmptyOctant.parent = null;
 
-		this.shrink();
+		this.shrink(); // I'll fuckin do it again
 	}
 
 	intersectAabb(aabb: Box3) {
