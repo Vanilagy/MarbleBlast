@@ -366,6 +366,7 @@ export class Mission {
 	}
 
 	/** Returns true iff the mission matches the given query. */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	matchesSearch(queryWords: string[], query: string) {
 		// Disabled because it honestly creates garbage results in many cases
 		//if (Util.isSubsequenceOf(query, this.searchString)) return true;
