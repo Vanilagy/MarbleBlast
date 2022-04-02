@@ -111,6 +111,8 @@ export interface MarbleControlState {
 /** Controls marble behavior and responds to player input. */
 export class Marble extends GameObject<MarbleState> {
 	id = -Math.random();
+	challengeable = true;
+
 	group: Group;
 	innerGroup: Group;
 	sphere: Mesh;

@@ -26,6 +26,20 @@ window.addEventListener('keydown', e => {
 	}
 });
 
+interface Period {
+	id: number,
+	start: number,
+	end: number,
+	entityUpdates: EntityUpdate[],
+	affectionGraph: { from: number, to: number }[],
+	entityInfo: {
+		entityId: number,
+		earliestUpdateFrame: number,
+		ownedAtSomePoint: boolean
+	}[],
+	size: number
+}
+
 export class MultiplayerGame extends Game {
 	state: MultiplayerGameState;
 	simulator: MultiplayerGameSimulator;
@@ -47,6 +61,10 @@ export class MultiplayerGame extends Game {
 	outgoingTimes: [number, number][] = [];
 
 	lastSentTick = -1;
+	periods: Period[] = [];
+	nextPeriodId = 0;
+	lastPeriodUpdateId = 0;
+	lastPeriodAffectionEdgeId = 0;
 
 	constructor(mission: Mission, gameServer: GameServer) {
 		super(mission);
@@ -79,47 +97,8 @@ export class MultiplayerGame extends Game {
 			this.state.supplyServerTimeState(data);
 		});
 
-		this.connection.on('serverStateBundle', async data => {
-			if (sendTimeout > 0) return;
-
-			this.lastServerStateBundle = data;
-
-			data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
-
-			this.lastReceivedServerUpdateId = Math.max(
-				this.lastReceivedServerUpdateId,
-				...data.entityUpdates.map(x => x.updateId)
-			);
-
-			// Add them to a queue
-			this.simulator.reconciliationUpdates.push(...data.entityUpdates);
-
-			// Remove old edges from the affection graph
-			this.state.affectionGraph = this.state.affectionGraph.filter(edge => {
-				return edge.frame > data.lastReceivedClientFrame;
-			});
-
-			// Temp stuff: create a new marble if it isn't here yet
-			for (let update of data.entityUpdates) {
-				let entityExists = this.objects.some(x => x.id === update.entityId);
-				if (entityExists) continue;
-
-				if (initting.has(update.entityId)) return;
-
-				initting.add(update.entityId);
-				let marble = new Marble(this);
-				marble.id = update.entityId;
-
-				await marble.init();
-
-				this.renderer.scene.add(marble.group);
-				this.simulator.world.add(marble.body);
-				this.marbles.push(marble);
-				this.objects.push(marble);
-
-				marble.loadState(update.state as any); // temp
-				marble.controller = new RemoteMarbleController(marble);
-			}
+		this.connection.on('serverStateBundle', data => {
+			this.onServerStateBundle(data);
 		});
 
 		/*
@@ -191,6 +170,49 @@ export class MultiplayerGame extends Game {
 		super.tick(time, gameUpdateRate);
 	}
 
+	async onServerStateBundle(data: CommandToData<'serverStateBundle'>) {
+		if (sendTimeout > 0) return;
+
+		this.lastServerStateBundle = data;
+
+		data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
+
+		this.lastReceivedServerUpdateId = Math.max(
+			this.lastReceivedServerUpdateId,
+			...data.entityUpdates.map(x => x.updateId)
+		);
+
+		// Add them to a queue
+		this.simulator.reconciliationUpdates.push(...data.entityUpdates);
+
+		// Remove arrived periods
+		while (this.periods.length > 0 && this.periods[0].id <= data.lastReceivedPeriodId) {
+			this.periods.shift();
+		}
+
+		// Temp stuff: create a new marble if it isn't here yet
+		for (let update of data.entityUpdates) {
+			let entityExists = this.objects.some(x => x.id === update.entityId);
+			if (entityExists) continue;
+
+			if (initting.has(update.entityId)) return;
+
+			initting.add(update.entityId);
+			let marble = new Marble(this);
+			marble.id = update.entityId;
+
+			await marble.init();
+
+			this.renderer.scene.add(marble.group);
+			this.simulator.world.add(marble.body);
+			this.marbles.push(marble);
+			this.objects.push(marble);
+
+			marble.loadState(update.state as any); // temp
+			marble.controller = new RemoteMarbleController(marble);
+		}
+	}
+
 	tickConnection() {
 		if (!this.started) return;
 
@@ -204,63 +226,116 @@ export class MultiplayerGame extends Game {
 			//actualThing: this.state.tick
 		});
 
-		if (sendTimeout-- > 0) return;
+		let lastPeriod = Util.last(this.periods);
 
-		let processedEntityUpdates: EntityUpdate[] = [];
+		let periodStart = lastPeriod? lastPeriod.end + 1 : 0;
+		let periodEnd = this.state.tick;
+
+		let entityUpdates: EntityUpdate[] = [];
+		let entityInfo: Period["entityInfo"] = [];
+		let includedEntityIds = new Set<number>();
+		let affectionGraph: Period["affectionGraph"] = [];
+
 		for (let [, history] of this.state.stateHistory) {
 			for (let i = history.length - 1; i >= 0; i--) {
 				let update = history[i];
-				if (this.lastServerStateBundle && update.updateId <= this.lastServerStateBundle.lastReceivedClientUpdateId)
-					break;
+				if (update.updateId < this.lastPeriodUpdateId) break;
 
-				if (i < history.length - 1) {
-					update = { ...update }; // Shallow clone it
-					update.state = null;
+				let info = entityInfo.find(x => x.entityId === update.entityId);
+				if (!info) {
+					info = {
+						entityId: update.entityId,
+						earliestUpdateFrame: update.frame,
+						ownedAtSomePoint: update.owned
+					};
+
+					entityInfo.push(info);
+					entityUpdates.push(update);
+					includedEntityIds.add(update.entityId);
+				} else {
+					info.earliestUpdateFrame = update.frame;
+					info.ownedAtSomePoint ||= update.owned;
 				}
-
-				processedEntityUpdates.push(update);
 			}
 		}
 
-		let processedAffectionGraph: { from: number, to: number }[] = [];
 		outer:
-		for (let edge of this.state.affectionGraph) {
-			for (let includedEdge of processedAffectionGraph) {
+		for (let i = this.state.affectionGraph.length - 1; i >= 0; i--) {
+			let edge = this.state.affectionGraph[i];
+			if (edge.id < this.lastPeriodAffectionEdgeId) break;
+
+			for (let includedEdge of affectionGraph) {
 				if (edge.from.id === includedEdge.from && edge.to.id === includedEdge.to)
 					continue outer;
 			}
 
-			processedAffectionGraph.push({ from: edge.from.id, to: edge.to.id });
+			affectionGraph.push({ from: edge.from.id, to: edge.to.id });
 		}
+
+		for (let period of this.periods) {
+			Util.filterInPlace(period.entityUpdates, x => !includedEntityIds.has(x.entityId));
+			Util.filterInPlace(period.affectionGraph, x => {
+				return !affectionGraph.some(y => x.from === y.from && x.to === y.to);
+			});
+		}
+
+		let newPeriod: Period = {
+			id: this.nextPeriodId++,
+			start: periodStart,
+			end: periodEnd,
+			entityUpdates,
+			entityInfo,
+			affectionGraph,
+			size: 0
+		};
+
+		this.periods.push(newPeriod);
+
+		// Merge old periods together into larger and larger combined periods to cause logarithmic increase of periods instead of linear with respect to time
+		let count = 0;
+		for (let i = this.periods.length - 1; i >= 0; i--) {
+			if (this.periods[i].size !== this.periods[i+1]?.size) {
+				count = 0;
+			}
+			count++;
+
+			// If we encounter 4 periods in a row of same size (size = how many times this period has been merged before), we merge the last two neighboring periods.
+			if (count === 4) {
+				let a = this.periods[i];
+				let b = this.periods[i+1];
+
+				b.size++;
+				b.start = a.start;
+
+				// For both of these, we need not worry about duplicates (they can't happen):
+				b.entityUpdates.push(...a.entityUpdates);
+				b.affectionGraph.push(...a.affectionGraph);
+
+				// Merge the entity info
+				for (let info of b.entityInfo) {
+					let prevInfo = a.entityInfo.find(x => x.entityId === info.entityId);
+					if (!prevInfo) continue;
+
+					info.earliestUpdateFrame = Math.min(info.earliestUpdateFrame, prevInfo.earliestUpdateFrame);
+					info.ownedAtSomePoint ||= prevInfo.ownedAtSomePoint;
+				}
+				b.entityInfo.push(...a.entityInfo.filter(x => !b.entityInfo.some(y => x.entityId === y.entityId)));
+
+				this.periods.splice(i++, 1);
+			}
+		}
+
+		this.lastPeriodUpdateId = this.state.nextUpdateId;
+		this.lastPeriodAffectionEdgeId = this.state.nextAffectionEdgeId;
+
+		if (sendTimeout-- > 0) return;
 
 		let bundle: CommandToData<'clientStateBundle'> = {
 			command: 'clientStateBundle',
-			currentClientFrame: this.state.tick,
-			entityUpdates: processedEntityUpdates,
-			affectionGraph: processedAffectionGraph,
+			periods: this.periods,
 			lastReceivedServerUpdateId: this.lastReceivedServerUpdateId
 		};
 		this.connection.queueCommand(bundle, false);
-
-		/*
-
-		for (let [, history] of this.state.stateHistory) {
-			let update = Util.last(history);
-			if (!update) continue;
-			if (update.tick <= this.lastSentTick) continue;
-
-			//console.log(update.owner, update.version);
-
-			if (sendTimeout-- <= 0) this.connection.queueCommand({
-				command: 'gameObjectUpdate',
-				...update
-			});
-
-			if (sendTimeout === 0) console.log("timeout over");
-		}
-
-		this.lastSentTick = this.state.tick;
-		*/
 	}
 
 	displayNetworkStats() {

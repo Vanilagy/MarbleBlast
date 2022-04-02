@@ -1,12 +1,14 @@
 import { DefaultMap } from "../../shared/default_map";
 import { GameServerConnection } from "../../shared/game_server_connection";
-import { CommandToData, EntityUpdate } from "../../shared/game_server_format";
+import { CommandToData, EntityUpdate, entityUpdateFormat } from "../../shared/game_server_format";
 import { Util } from "./util";
 import { GAME_UPDATE_RATE } from '../../shared/constants';
 import { performance } from 'perf_hooks';
 
 const TWICE_CLIENT_UPDATE_PERIOD = 4 * 2; // todo remove hardcode?
 const UPDATE_BUFFER_SIZE = 1; // In ticks
+
+type EntityInfo = CommandToData<'clientStateBundle'>["periods"][number]["entityInfo"][number];
 
 class Entity {
 	id: number;
@@ -68,14 +70,10 @@ class Entity {
 		if (!newerOwnerUpdate) return;
 
 		// We won the challenge! Pass the ownership to the other player.
-		this.increaseVersion(lastOwnerUpdate); // Invalidate it for the other player
+		this.versions.set(this.owner, lastOwnerUpdate.version + 1); // Invalidate it for the other player
 		this.owner = newerOwnerUpdate.originator;
 
 		this.game.queueEntityUpdate(newerOwnerUpdate);
-	}
-
-	increaseVersion(update: EntityUpdate) {
-		this.versions.set(update.originator, update.version + 1);
 	}
 }
 
@@ -84,10 +82,7 @@ class Player {
 	id: number;
 
 	queuedEntityUpdates: EntityUpdate[] = [];
-	lastReceivedClientUpdateId = -1;
-	lastReceivedClientFrame = -1;
-
-	maxEntityFrames = new DefaultMap<number, number>(() => -1);
+	lastReceivedPeriodId = -1;
 
 	constructor(connection: GameServerConnection, id: number) {
 		this.connection = connection;
@@ -98,41 +93,9 @@ class Player {
 interface UpdateGroup {
 	player: Player,
 	entityIds: number[],
-	entityUpdates: EntityUpdate[]
+	entityUpdates: EntityUpdate[],
+	entityInfo: EntityInfo[]
 }
-
-const getMaxFrame = (group: UpdateGroup) => {
-	return Math.max(...group.entityUpdates.map(x => x.frame));
-};
-
-const getEarliestUpdateForEntityId = (group: UpdateGroup, entityId: number) => {
-	return group.entityUpdates.filter(x => x.entityId === entityId)
-		.sort((a, b) => a.frame - b.frame)[0];
-};
-
-const getLatestUpdateForEntityId = (group: UpdateGroup, entityId: number) => {
-	return group.entityUpdates.filter(x => x.entityId === entityId)
-		.sort((a, b) => b.frame - a.frame)[0];
-};
-
-const getAffectingSubgraph = (start: number, graph: { from: number, to: number }[]) => {
-	let nodes = [start];
-
-	while (true) {
-		let added = false;
-
-		for (let edge of graph) {
-			if (nodes.includes(edge.to) && !nodes.includes(edge.from)) {
-				nodes.push(edge.from);
-				added = true;
-			}
-		}
-
-		if (!added) break;
-	}
-
-	return nodes;
-};
 
 export class Game {
 	missionPath: string;
@@ -244,7 +207,7 @@ export class Game {
 		// Loop over all queued updates and players
 		for (let update of this.queuedEntityUpdates) {
 			for (let player of this.players) {
-				// Because of the version numbers assigned to each update, we need to send slightly different updates to each player. Here, we generates these.
+				// Because of the version numbers assigned to each update, we need to send slightly different updates to each player. Here, we generate these.
 
 				// First, filter out the updates for the entity so we start fresh
 				player.queuedEntityUpdates = player.queuedEntityUpdates.filter(x => {
@@ -271,8 +234,7 @@ export class Game {
 			player.connection.queueCommand({
 				command: 'serverStateBundle',
 				entityUpdates: player.queuedEntityUpdates,
-				lastReceivedClientUpdateId: player.lastReceivedClientUpdateId,
-				lastReceivedClientFrame: player.lastReceivedClientFrame,
+				lastReceivedPeriodId: player.lastReceivedPeriodId,
 				rewindToFrameCap: rewindToFrameCap
 			}, false);
 
@@ -282,34 +244,48 @@ export class Game {
 
 	onClientStateReceived(player: Player, msg: CommandToData<'clientStateBundle'>) {
 		// Filter out updates received by the server
-		msg.entityUpdates = msg.entityUpdates.filter(update => {
-			return update.updateId > player.lastReceivedClientUpdateId
-				&& update.frame > player.maxEntityFrames.get(update.entityId);
+		let periods = msg.periods.filter(period => {
+			return period.id > player.lastReceivedPeriodId;
 		});
+		player.lastReceivedPeriodId = msg.periods[msg.periods.length - 1].id;
 
 		// Filter out updates received by the client
 		player.queuedEntityUpdates = player.queuedEntityUpdates.filter(update => {
 			return update.updateId > msg.lastReceivedServerUpdateId;
 		});
 
-		// Update this
-		player.lastReceivedClientUpdateId = Math.max(
-			player.lastReceivedClientUpdateId,
-			...msg.entityUpdates.map(update => update.updateId)
-		);
+		let entityUpdates: EntityUpdate[] = periods.map(x => x.entityUpdates).flat();
+		let entityIds = new Set(entityUpdates.map(x => x.entityId));
+		let affectionGraph = periods.map(x => x.affectionGraph).flat();
+		let entityInfo = periods.map(x => x.entityInfo).flat().reduce((curr, next) => {
+			let index = curr.findIndex(y => y.entityId === next.entityId);
 
-		player.lastReceivedClientFrame = msg.currentClientFrame;
+			if (index === -1) {
+				curr.push(next);
+			} else {
+				curr[index].earliestUpdateFrame = Math.min(curr[index].earliestUpdateFrame, next.earliestUpdateFrame);
+				curr[index].ownedAtSomePoint ||= next.ownedAtSomePoint;
+			}
 
-		let entityIds = new Set(msg.entityUpdates.map(x => x.entityId));
+			return curr;
+		}, [] as EntityInfo[]);
+
+		let map = new Map<number, EntityUpdate>();
+		for (let update of entityUpdates) map.set(update.entityId, update);
+
+		propagateOwnership(entityInfo, affectionGraph);
+		for (let info of entityInfo) if (info.ownedAtSomePoint) map.get(info.entityId).owned = true;
 
 		for (let entityId of entityIds) {
-			let affecting = getAffectingSubgraph(entityId, msg.affectionGraph);
-			let updates = msg.entityUpdates.filter(x => affecting.includes(x.entityId));
+			let affecting = getAffectingSubgraph(entityId, affectionGraph);
+			let updates = entityUpdates.filter(x => affecting.includes(x.entityId));
+			let infos = entityInfo.filter(x => affecting.includes(x.entityId));
 
 			let newGroup: UpdateGroup = {
 				player,
 				entityIds: affecting,
-				entityUpdates: updates
+				entityUpdates: updates,
+				entityInfo: infos
 			};
 
 			let i: number;
@@ -325,11 +301,6 @@ export class Game {
 
 			if (i === this.queuedUpdateGroups.length)
 				this.queuedUpdateGroups.push(newGroup);
-
-			player.maxEntityFrames.set(
-				entityId,
-				Math.max(...msg.entityUpdates.filter(x => x.entityId === entityId).map(x => x.frame))
-			);
 		}
 	}
 
@@ -367,33 +338,35 @@ export class Game {
 
 			if (!lastStoredUpdate) continue;
 
-			let earliestCandidateUpdate = getEarliestUpdateForEntityId(group, id);
-			let lastCandidateUpdate = getLatestUpdateForEntityId(group, id);
+			let updateCandidate = group.entityUpdates.find(x => x.entityId === id);
 
 			// If the new update has a lower version, we definitely don't want to merge
-			if (entity.versions.get(lastCandidateUpdate.originator) > lastCandidateUpdate.version) {
+			if (entity.versions.get(updateCandidate.originator) > updateCandidate.version) {
+				console.log(entity.versions.get(updateCandidate.originator), updateCandidate.version, "this");
 				return false;
 			}
 
-			let anyOwned = group.entityUpdates.some(x => x.entityId === id && x.owned);
-			if (!anyOwned) continue;
+			if (!updateCandidate.owned) continue;
+
+			let entityInfo = group.entityInfo.find(x => x.entityId === id);
 
 			// Check if the new update is too far in the past
-			if (entity.owner !== group.player.id && lastStoredUpdate.frame >= earliestCandidateUpdate.frame) {
-				if (this.frame - earliestCandidateUpdate.frame > TWICE_CLIENT_UPDATE_PERIOD) {
+			if (lastStoredUpdate.frame >= entityInfo.earliestUpdateFrame && entity.owner !== updateCandidate.originator) {
+				if (this.frame - entityInfo.earliestUpdateFrame > TWICE_CLIENT_UPDATE_PERIOD) {
 					console.log("THESE");
+					console.log(entity.id, entity.owner, updateCandidate.originator, lastStoredUpdate.frame, entityInfo.earliestUpdateFrame, this.frame);
 					return false;
 				}
 			}
 
 			// Check if there are any ownership conficts
-			outer:
-			if (entity.owner !== null) {
+			if (entity.owner !== null && updateCandidate.originator !== entity.owner) {
 				let trueUpdate = entity.getTrueUpdate();
-				if (trueUpdate.originator !== entity.owner) break outer; // The ownership has "expired" in the sense that it lost its power to prevent other updates.
+				if (trueUpdate.originator !== entity.owner) continue; // The ownership has "expired" in the sense that it lost its power to prevent other updates.
 
 				let entityIsChallengeable = lastStoredUpdate.challengeable;
-				if (!entityIsChallengeable && lastCandidateUpdate.originator !== entity.owner) {
+				if (!entityIsChallengeable) {
+					console.log(updateCandidate.originator, updateCandidate.entityId, "that");
 					return false;
 				}
 			}
@@ -404,8 +377,6 @@ export class Game {
 
 	applyUpdateGroup(group: UpdateGroup) {
 		for (let update of group.entityUpdates) {
-			if (!update.state) continue; // It's one of the empty state updates
-
 			let entity = this.getEntityById(update.entityId);
 			entity.insertUpdate(update);
 
@@ -417,6 +388,12 @@ export class Game {
 				if (entity.owner === null) {
 					// Easy, there was no ownership before
 					entity.owner = update.originator;
+
+					for (let player of this.players) {
+						if (player.id !== update.originator) {
+							entity.versions.set(player.id, entity.versions.get(player.id) + 1);
+						}
+					}
 				} else {
 					// This is the "challenge" case
 					entity.maybeUpdateOwnership();
@@ -435,10 +412,10 @@ export class Game {
 
 			let entity = this.getEntityById(update.entityId);
 
-			entity.increaseVersion(update);
+			entity.versions.set(update.originator, update.version + 1);
 
 			// Check if we own the entity. If so, revoke the ownership.
-			if (update.owned && entity.owner === update.originator) {
+			if (entity.owner === update.originator) {
 				entity.owner = null;
 			}
 
@@ -446,3 +423,49 @@ export class Game {
 		}
 	}
 }
+
+const getMaxFrame = (group: UpdateGroup) => {
+	return Math.max(...group.entityUpdates.map(x => x.frame));
+};
+
+const getAffectingSubgraph = (start: number, graph: { from: number, to: number }[]) => {
+	let nodes = [start];
+
+	while (true) {
+		let added = false;
+
+		for (let edge of graph) {
+			if (nodes.includes(edge.to) && !nodes.includes(edge.from)) {
+				nodes.push(edge.from);
+				added = true;
+			}
+		}
+
+		if (!added) break;
+	}
+
+	return nodes;
+};
+
+const propagateOwnership = (entityInfo: EntityInfo[], affectionGraph: { from: number, to: number }[]) => {
+	let map = new Map<number, EntityInfo>();
+
+	for (let info of entityInfo) {
+		map.set(info.entityId, info);
+	}
+
+	while (true) {
+		let changeMade = false;
+
+		for (let edge of affectionGraph) {
+			let source = map.get(edge.from);
+			let target = map.get(edge.to);
+
+			if (source.ownedAtSomePoint && !target.ownedAtSomePoint) {
+				target.ownedAtSomePoint = true;
+			}
+		}
+
+		if (!changeMade) break;
+	}
+};

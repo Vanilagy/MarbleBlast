@@ -30,7 +30,7 @@ export const entityUpdateFormat = {
 	challengeable: 'boolean',
 	originator: 'varint',
 	version: 'varint',
-	state: [nullable, gameObjectStateFormat]
+	state: gameObjectStateFormat
 } as const;
 
 export type GameObjectState = FormatToType<typeof gameObjectStateFormat>;
@@ -47,15 +47,23 @@ export const gameServerCommandFormat = [union, 'command', {
 	missionPath: 'string'
 }, {
 	command: 'clientStateBundle',
-	currentClientFrame: 's32',
-	entityUpdates: [entityUpdateFormat],
-	affectionGraph: [{ from: 'f64', to: 'f64' }], // todo make this varint
+	periods: [{
+		id: 'varint',
+		start: 'varint',
+		end: 'varint',
+		entityUpdates: [entityUpdateFormat],
+		affectionGraph: [{ from: 'f64', to: 'f64' }], // todo make this some int
+		entityInfo: [{
+			entityId: 'f64',
+			earliestUpdateFrame: 'varint',
+			ownedAtSomePoint: 'boolean'
+		}]
+	}],
 	lastReceivedServerUpdateId: 's32'
 }, {
 	command: 'serverStateBundle',
 	entityUpdates: [entityUpdateFormat],
-	lastReceivedClientUpdateId: 's32',
-	lastReceivedClientFrame: 's32',
+	lastReceivedPeriodId: 's32',
 	rewindToFrameCap: 's32'
 }, {
 	command: 'timeState',

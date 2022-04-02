@@ -738,6 +738,14 @@ export abstract class Util {
 		if (sorted.length % 2) return sorted[Math.floor(values.length / 2)];
 		else return Util.avg(sorted[Math.floor(values.length / 2) - 1], sorted[Math.floor(values.length / 2)]);
 	}
+
+	static filterInPlace<T>(arr: T[], pred: (elem: T) => boolean) {
+		for (let i = 0; i < arr.length; i++) {
+			if (!pred(arr[i])) arr.splice(i--, 1);
+		}
+
+		return arr;
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 

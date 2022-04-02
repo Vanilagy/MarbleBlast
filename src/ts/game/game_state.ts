@@ -13,6 +13,7 @@ import { Game } from "./game";
 import { GameObject } from "./game_object";
 
 interface AffectionEdge {
+	id: number,
 	from: GameObject,
 	to: GameObject,
 	frame: number
@@ -46,6 +47,7 @@ export class GameState {
 	affectionGraph: AffectionEdge[] = [];
 
 	nextUpdateId = 0;
+	nextAffectionEdgeId = 0;
 
 	constructor(game: Game) {
 		this.game = game;
@@ -214,20 +216,15 @@ export class GameState {
 
 	recordGameObjectInteraction(o1: GameObject, o2: GameObject) {
 		this.affectionGraph.push({
+			id: this.nextAffectionEdgeId++,
 			from: o1,
 			to: o2,
 			frame: this.tick
 		});
-
-		if (o1.owned) this.setOwned(o2);
 	}
 
 	setOwned(o: GameObject) {
 		if (o.owned) return;
-
 		o.owned = true;
-		for (let edge of this.affectionGraph) {
-			if (edge.from === o) this.setOwned(edge.to);
-		}
 	}
 }

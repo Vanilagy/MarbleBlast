@@ -96,7 +96,7 @@ export abstract class FixedFormatBinarySerializer {
 			this.writePrimitive(data.length, 'varint');
 			for (let elem of data) this.write(elem, format[0]);
 		} else if (typeof format === 'object') {
-			for (let key in data) {
+			for (let key in format) {
 				if (key === discriminator) continue;
 				this.write(data[key], format[key]);
 			}
@@ -188,7 +188,7 @@ export abstract class FixedFormatBinarySerializer {
 			let arrayLength = this.read('varint');
 			let arr: any[] = [];
 			for (let i = 0; i < arrayLength; i++) {
-				if (this.index >= this.decodeByteLength) throw new Error("Out of bounds!"); // Gotta do this check so the decoder can't get cheesed by artifically manipulated data where the index is like a huge number
+				if (this.index >= this.decodeByteLength) {console.log(i, arrayLength); throw new Error("Out of bounds!");} // Gotta do this check so the decoder can't get cheesed by artifically manipulated data where the index is like a huge number
 				arr.push(this.read(format[0]));
 			}
 
