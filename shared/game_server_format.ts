@@ -13,8 +13,8 @@ export const marbleControlStateFormat = {
 	blasting: 'boolean'
 } as const;
 
-export const gameObjectStateFormat = [union, 'objectType', {
-	objectType: 'marble',
+export const entityStateFormat = [union, 'entityType', {
+	entityType: 'marble',
 	position: vector3Format,
 	orientation: quaternionFormat,
 	linearVelocity: vector3Format,
@@ -30,10 +30,10 @@ export const entityUpdateFormat = {
 	challengeable: 'boolean',
 	originator: 'varint',
 	version: 'varint',
-	state: gameObjectStateFormat
+	state: entityStateFormat
 } as const;
 
-export type GameObjectState = FormatToType<typeof gameObjectStateFormat>;
+export type EntityState = FormatToType<typeof entityStateFormat>;
 
 export const gameServerCommandFormat = [union, 'command', {
 	command: 'ping',

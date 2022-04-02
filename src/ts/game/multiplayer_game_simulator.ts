@@ -18,7 +18,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 		if (this.reconciliationUpdates.length === 0) return; // Acts like a singleplayer game
 
-		for (let object of game.objects) object.beforeReconciliation();
+		for (let entity of game.entities) entity.beforeReconciliation();
 
 
 		//console.time("updat");
@@ -45,7 +45,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		}
 
 		this.lastReconciliationTickCount = endFrame - startFrame;
-		for (let object of game.objects) object.afterReconciliation();
+		for (let entity of game.entities) entity.afterReconciliation();
 
 		this.reconciliationUpdates.length = 0;
 	}
@@ -58,7 +58,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		for (let update of this.reconciliationUpdates) {
 			if (applyOlder? update.frame > currentFrame : update.frame !== currentFrame) continue;
 
-			let appliedUpdate = state.applyGameObjectUpdate(update);
+			let appliedUpdate = state.applyEntityUpdate(update);
 			anyStatesChanged ||= appliedUpdate;
 		}
 

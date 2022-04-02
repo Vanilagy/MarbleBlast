@@ -304,7 +304,7 @@ export class GameRenderer {
 		let completion = Util.clamp((time - game.lastGameUpdateTime) / gameTickLength * GAME_PLAYBACK_SPEED, 0, 1);
 		game.state.subtickCompletion = completion;
 
-		for (let object of game.objects) object.render();
+		for (let entity of game.entities) entity.render();
 		this.particles.render();
 
 		this.updateCamera();

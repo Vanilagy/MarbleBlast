@@ -1,7 +1,7 @@
-import { GameObjectState } from "../../../shared/game_server_format";
+import { EntityState } from "../../../shared/game_server_format";
 import { Game } from "./game";
 
-export abstract class GameObject<T extends GameObjectState = GameObjectState> {
+export abstract class Entity<T extends EntityState = EntityState> {
 	abstract id: number;
 
 	game: Game;
@@ -26,7 +26,7 @@ export abstract class GameObject<T extends GameObjectState = GameObjectState> {
 	beforeReconciliation() {}
 	afterReconciliation() {}
 
-	interactWith(otherObject: GameObject) {
-		this.game.state.recordGameObjectInteraction(this, otherObject);
+	interactWith(otherObject: Entity) {
+		this.game.state.recordEntityInteraction(this, otherObject);
 	}
 }

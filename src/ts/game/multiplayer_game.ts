@@ -192,7 +192,7 @@ export class MultiplayerGame extends Game {
 
 		// Temp stuff: create a new marble if it isn't here yet
 		for (let update of data.entityUpdates) {
-			let entityExists = this.objects.some(x => x.id === update.entityId);
+			let entityExists = this.entities.some(x => x.id === update.entityId);
 			if (entityExists) continue;
 
 			if (initting.has(update.entityId)) return;
@@ -206,7 +206,7 @@ export class MultiplayerGame extends Game {
 			this.renderer.scene.add(marble.group);
 			this.simulator.world.add(marble.body);
 			this.marbles.push(marble);
-			this.objects.push(marble);
+			this.entities.push(marble);
 
 			marble.loadState(update.state as any); // temp
 			marble.controller = new RemoteMarbleController(marble);

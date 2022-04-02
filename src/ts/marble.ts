@@ -22,7 +22,7 @@ import { Vector3 } from "./math/vector3";
 import { Quaternion } from "./math/quaternion";
 import { Euler } from "./math/euler";
 import { BlendingType } from "./rendering/renderer";
-import { GameObject } from "./game/game_object";
+import { Entity } from "./game/entity";
 import { Game } from "./game/game";
 import { PowerUp } from "./shapes/power_up";
 import { GAME_UPDATE_RATE } from "../../shared/constants";
@@ -91,7 +91,7 @@ blastMaxParticleOptions.particleOptions.dragCoefficient = 0.3;
 blastMaxParticleOptions.particleOptions.colors = blastMaxParticleOptions.particleOptions.colors.map(x => { x.r = 255/255; x.g = 159/255; x.b = 25/255; return x; });
 
 interface MarbleState {
-	objectType: 'marble',
+	entityType: 'marble',
 	position: Vector3,
 	orientation: Quaternion,
 	linearVelocity: Vector3,
@@ -109,7 +109,7 @@ export interface MarbleControlState {
 }
 
 /** Controls marble behavior and responds to player input. */
-export class Marble extends GameObject<MarbleState> {
+export class Marble extends Entity<MarbleState> {
 	id = -Math.random();
 	challengeable = true;
 
@@ -364,7 +364,7 @@ export class Marble extends GameObject<MarbleState> {
 
 	getCurrentState(): MarbleState {
 		return {
-			objectType: 'marble',
+			entityType: 'marble',
 			position: this.body.position.clone(),
 			orientation: this.body.orientation.clone(),
 			linearVelocity: this.body.linearVelocity.clone(),
@@ -375,7 +375,7 @@ export class Marble extends GameObject<MarbleState> {
 
 	getInitialState(): MarbleState {
 		return {
-			objectType: 'marble',
+			entityType: 'marble',
 			position: this.body.position.clone(),
 			orientation: this.body.orientation.clone(),
 			linearVelocity: this.body.linearVelocity.clone(),

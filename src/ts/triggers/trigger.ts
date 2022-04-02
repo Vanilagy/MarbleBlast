@@ -8,10 +8,10 @@ import { Vector3 } from "../math/vector3";
 import { Box3 } from "../math/box3";
 import { Matrix4 } from "../math/matrix4";
 import { Game } from "../game/game";
-import { GameObject } from "../game/game_object";
+import { Entity } from "../game/entity";
 
 /** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
-export abstract class Trigger extends GameObject {
+export abstract class Trigger extends Entity {
 	id: number;
 	vertices: Vector3[];
 	body: RigidBody;

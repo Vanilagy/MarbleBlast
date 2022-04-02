@@ -20,7 +20,7 @@ import { Matrix4 } from "./math/matrix4";
 import { Box3 } from "./math/box3";
 import { BlendingType } from "./rendering/renderer";
 import { Game } from "./game/game";
-import { GameObject } from "./game/game_object";
+import { Entity } from "./game/entity";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
@@ -90,7 +90,7 @@ export interface GraphNode {
 }
 
 /** Represents an object created from a DTS file. This is either a static object like the start pad or a sign, or an item like gems or powerups. */
-export class Shape extends GameObject {
+export class Shape extends Entity {
 	/** The unique id of this shape. */
 	id: number;
 	srcElement: MissionElement;

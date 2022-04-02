@@ -130,10 +130,10 @@ export class GameInitter {
 		let soundPromise = this.initSounds();
 
 		await this.addSimGroup(game.mission.root);
-		for (let marble of game.marbles) game.objects.push(marble);
-		for (let interior of game.interiors) game.objects.push(interior);
-		for (let shape of game.shapes) game.objects.push(shape);
-		for (let trigger of game.triggers) game.objects.push(trigger);
+		for (let marble of game.marbles) game.entities.push(marble);
+		for (let interior of game.interiors) game.entities.push(interior);
+		for (let shape of game.shapes) game.entities.push(shape);
+		for (let trigger of game.triggers) game.entities.push(trigger);
 
 		await renderer.initUi();
 		this.loadingState.loaded += 3;

@@ -1,5 +1,5 @@
 import { AudioManager, AudioSource } from "../audio";
-import { GameObject } from "./game_object";
+import { Entity } from "./entity";
 import { Interior } from "../interior";
 import { Marble } from "../marble";
 import { Euler } from "../math/euler";
@@ -28,7 +28,7 @@ export class Game {
 
 	mission: Mission;
 
-	objects: GameObject[] = [];
+	entities: Entity[] = [];
 	marbles: Marble[] = [];
 	interiors: Interior[] = [];
 	shapes: Shape[] = [];
@@ -166,7 +166,7 @@ export class Game {
 		this.dispose();
 
 		this.music.stop();
-		for (let object of this.objects) object.stop();
+		for (let entity of this.entities) entity.stop();
 
 		AudioManager.stopAllAudio();
 	}

@@ -14,7 +14,7 @@ import { Matrix4 } from "./math/matrix4";
 import { Plane } from "./math/plane";
 import { Quaternion } from "./math/quaternion";
 import { Game } from "./game/game";
-import { GameObject } from "./game/game_object";
+import { Entity } from "./game/entity";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -175,7 +175,7 @@ interface CollisionMaterialProperties {
 }
 
 /** Represents a Torque 3D Interior, used for the main surfaces and geometry of levels. */
-export class Interior extends GameObject {
+export class Interior extends Entity {
 	/** The unique id of this interior. */
 	id: number;
 	dif: DifFile;

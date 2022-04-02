@@ -10,12 +10,12 @@ import { StartPad } from "../shapes/start_pad";
 import { state } from "../state";
 import { Util } from "../util";
 import { Game } from "./game";
-import { GameObject } from "./game_object";
+import { Entity } from "./entity";
 
 interface AffectionEdge {
 	id: number,
-	from: GameObject,
-	to: GameObject,
+	from: Entity,
+	to: Entity,
 	frame: number
 }
 
@@ -103,7 +103,7 @@ export class GameState {
 		if (missionInfo.starthelptext)
 			hud.displayHelp(missionInfo.starthelptext); // Show the start help text
 
-		for (let object of game.objects) object.reset();
+		for (let entity of game.entities) entity.reset();
 
 		game.timeTravelSound?.stop();
 		game.timeTravelSound = null;
@@ -114,26 +114,26 @@ export class GameState {
 	}
 
 	saveStates() {
-		for (let i = 0; i < this.game.objects.length; i++) {
-			let object = this.game.objects[i];
-			if (!object.hasChangedState) continue;
+		for (let i = 0; i < this.game.entities.length; i++) {
+			let entity = this.game.entities[i];
+			if (!entity.hasChangedState) continue;
 
-			let arr = this.stateHistory.get(object.id);
+			let arr = this.stateHistory.get(entity.id);
 			if (Util.last(arr)?.frame === this.tick) arr.pop();
 
 			let stateUpdate: EntityUpdate = {
 				updateId: this.nextUpdateId++,
-				entityId: object.id,
+				entityId: entity.id,
 				frame: this.tick,
-				owned: object.owned,
-				challengeable: object.challengeable,
+				owned: entity.owned,
+				challengeable: entity.challengeable,
 				originator: this.game.playerId,
-				version: object.version,
-				state: object.getCurrentState()
+				version: entity.version,
+				state: entity.getCurrentState()
 			};
 			arr.push(stateUpdate);
 
-			object.hasChangedState = false;
+			entity.hasChangedState = false;
 		}
 	}
 
@@ -171,7 +171,7 @@ export class GameState {
 		while (this.affectionGraph.length > 0 && Util.last(this.affectionGraph).frame > target)
 			this.affectionGraph.pop();
 
-		for (let [objectId, updateHistory] of this.stateHistory) {
+		for (let [entityId, updateHistory] of this.stateHistory) {
 			let changed = false;
 			while (Util.last(updateHistory) && Util.last(updateHistory).frame > target) {
 				updateHistory.pop();
@@ -180,12 +180,12 @@ export class GameState {
 
 			if (!changed) continue;
 
-			let object = this.game.objects.find(x => x.id === objectId); // todo optimize
+			let entity = this.game.entities.find(x => x.id === entityId); // todo optimize
 
 			let update = Util.last(updateHistory);
-			let state = update?.state ?? object.getInitialState();
+			let state = update?.state ?? entity.getInitialState();
 
-			object.loadState(state, target);
+			entity.loadState(state, target);
 		}
 
 		this.game.simulator.world.updateCollisions(); // Since positions might have changed, collisions probably have too
@@ -194,19 +194,19 @@ export class GameState {
 		// todo: attemptTick
 	}
 
-	applyGameObjectUpdate(update: EntityUpdate): boolean {
-		let object = this.game.objects.find(x => x.id === update.entityId); // todo optimize
-		if (!object) return false; // temp right?
+	applyEntityUpdate(update: EntityUpdate): boolean {
+		let entity = this.game.entities.find(x => x.id === update.entityId); // todo optimize
+		if (!entity) return false; // temp right?
 
 		let us = this.game.playerId;
-		let shouldApplyState = (update.originator !== us && !object.owned) || update.version > object.version;
+		let shouldApplyState = (update.originator !== us && !entity.owned) || update.version > entity.version;
 
 		if (shouldApplyState) {
-			//console.log(us, update.originator, update.version, object.version);
-			object.loadState(update.state, update.frame);
-			object.version = update.version;
+			//console.log(us, update.originator, update.version, entity.version);
+			entity.loadState(update.state, update.frame);
+			entity.version = update.version;
 
-			object.hasChangedState = true;
+			entity.hasChangedState = true;
 
 			return true; // Meaning the update has actually been applied
 		}
@@ -214,7 +214,7 @@ export class GameState {
 		return false;
 	}
 
-	recordGameObjectInteraction(o1: GameObject, o2: GameObject) {
+	recordEntityInteraction(o1: Entity, o2: Entity) {
 		this.affectionGraph.push({
 			id: this.nextAffectionEdgeId++,
 			from: o1,
@@ -223,7 +223,7 @@ export class GameState {
 		});
 	}
 
-	setOwned(o: GameObject) {
+	setOwned(o: Entity) {
 		if (o.owned) return;
 		o.owned = true;
 	}
