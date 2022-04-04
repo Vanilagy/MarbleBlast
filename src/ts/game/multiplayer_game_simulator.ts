@@ -1,5 +1,6 @@
 import { DefaultMap } from "../../../shared/default_map";
 import { CommandToData, EntityUpdate } from "../../../shared/game_server_format";
+import { Util } from "../util";
 import { GameSimulator } from "./game_simulator";
 import { MultiplayerGame } from "./multiplayer_game";
 
@@ -14,9 +15,11 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		let { game } = this;
 		let { state } = game;
 
-		super.update();
-
-		if (this.reconciliationUpdates.length === 0) return; // Acts like a singleplayer game
+		if (this.reconciliationUpdates.length === 0) {
+			// Acts like a singleplayer game
+			super.update();
+			return;
+		}
 
 		for (let entity of game.entities) entity.beforeReconciliation();
 
@@ -33,7 +36,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		let endFrame = state.tick;
 
 		state.rollBackToFrame(startFrame);
-		this.applyServerState(true);
+		this.applyReconciliationUpdates(true);
 
 		//console.log(game.playerId, game.marble.id, startTick, endTick, [...this.reconciliationUpdates].map(x => x[1].map(x => x.gameObjectId + '-' + x.owner + '-' + x.tick)).flat());
 
@@ -41,30 +44,26 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 		while (state.tick < endFrame) {
 			this.advance();
-			this.applyServerState();
+			this.applyReconciliationUpdates();
 		}
 
 		this.lastReconciliationTickCount = endFrame - startFrame;
 		for (let entity of game.entities) entity.afterReconciliation();
 
 		this.reconciliationUpdates.length = 0;
+
+		this.advance();
 	}
 
-	applyServerState(applyOlder = false) {
+	applyReconciliationUpdates(applyOlder = false) {
 		let state = this.game.state;
 		let currentFrame = state.tick;
-		let anyStatesChanged = false;
 
 		for (let update of this.reconciliationUpdates) {
 			if (applyOlder? update.frame > currentFrame : update.frame !== currentFrame) continue;
-
-			let appliedUpdate = state.applyEntityUpdate(update);
-			anyStatesChanged ||= appliedUpdate;
+			this.game.applyRemoteEntityUpdate(update);
 		}
 
-		if (anyStatesChanged) {
-			this.world.updateCollisions();
-			state.saveStates();
-		}
+		state.saveStates();
 	}
 }

@@ -310,12 +310,14 @@ export class GameRenderer {
 		this.updateCamera();
 		this.camera.updateMatrixWorld();
 
+		let marble = game.localPlayer.controlledMarble;
+
 		// Update the shadow camera
-		this.scene.directionalLights[0]?.updateCamera(game.marble.group.position.clone(), -1);
+		this.scene.directionalLights[0]?.updateCamera(marble.group.position.clone(), -1);
 
 		// Render the scene
 		this.scene.prepareForRender(this.camera);
-		game.marble.renderReflection();
+		marble.renderReflection();
 		mainRenderer.render(this.scene, this.camera);
 
 		// Update the overlay
@@ -377,14 +379,16 @@ export class GameRenderer {
 		let { game } = this;
 		let { simulator } = game;
 
-		let marblePosition = game.marble.group.position;
-		let orientationQuat = game.marble.getOrientationQuat();
+		let marble = game.localPlayer.controlledMarble;
+
+		let marblePosition = marble.group.position;
+		let orientationQuat = marble.getOrientationQuat();
 		let up = new Vector3(0, 0, 1).applyQuaternion(orientationQuat);
 		let directionVector = new Vector3(1, 0, 0);
 		// The camera is translated up a bit so it looks "over" the marble
 		let cameraVerticalTranslation = new Vector3(0, 0, 0.3);
 
-		let { pitch, yaw } = game.marble.currentControlState;
+		let { pitch, yaw } = marble.currentControlState;
 
 		/*
 		if (game.replay.mode === 'playback') {
@@ -406,7 +410,7 @@ export class GameRenderer {
 		}
 		*/
 
-		if (!game.marble.outOfBounds) {
+		if (!marble.outOfBounds) {
 			directionVector.applyAxisAngle(new Vector3(0, 1, 0), pitch);
 			directionVector.applyAxisAngle(new Vector3(0, 0, 1), yaw);
 			directionVector.applyQuaternion(orientationQuat);
@@ -433,7 +437,7 @@ export class GameRenderer {
 
 				let length = rayCastDirection.length();
 				let hits = simulator.world.castRay(rayCastOrigin, rayCastDirection.normalize(), length);
-				let firstHit = hits.find(x => x.shape !== game.marble.shape);
+				let firstHit = hits.find(x => x.shape !== marble.shape);
 
 				if (firstHit) {
 					processedShapes.add(firstHit.shape);

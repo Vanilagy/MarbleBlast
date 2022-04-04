@@ -4,27 +4,25 @@ const vector2Format = { x: 'f32', y: 'f32' } as const;
 const vector3Format = { x: 'f32', y: 'f32', z: 'f32' } as const;
 const quaternionFormat = { x: 'f32', y: 'f32', z: 'f32', w: 'f32' } as const;
 
-export const marbleControlStateFormat = {
+export const entityStateFormat = [union, 'entityType', {
+	entityType: 'marble',
+	position: vector3Format,
+	orientation: quaternionFormat,
+	linearVelocity: vector3Format,
+	angularVelocity: vector3Format
+}, {
+	entityType: 'player',
 	movement: vector2Format,
 	yaw: 'f32',
 	pitch: 'f32',
 	jumping: 'boolean',
 	using: 'boolean',
 	blasting: 'boolean'
-} as const;
-
-export const entityStateFormat = [union, 'entityType', {
-	entityType: 'marble',
-	position: vector3Format,
-	orientation: quaternionFormat,
-	linearVelocity: vector3Format,
-	angularVelocity: vector3Format,
-	controlState: marbleControlStateFormat
 }] as const;
 
 export const entityUpdateFormat = {
 	updateId: 'varint',
-	entityId: 'f64', // todo make this varint
+	entityId: 'varint',
 	frame: 'varint',
 	owned: 'boolean',
 	challengeable: 'boolean',
@@ -47,33 +45,42 @@ export const gameServerCommandFormat = [union, 'command', {
 	missionPath: 'string'
 }, {
 	command: 'clientStateBundle',
+	serverTick: 'varint',
+	clientTick: 'varint',
 	periods: [{
 		id: 'varint',
 		start: 'varint',
 		end: 'varint',
 		entityUpdates: [entityUpdateFormat],
-		affectionGraph: [{ from: 'f64', to: 'f64' }], // todo make this some int
+		affectionGraph: [{ from: 'varint', to: 'varint' }],
 		entityInfo: [{
-			entityId: 'f64',
+			entityId: 'varint',
 			earliestUpdateFrame: 'varint',
 			ownedAtSomePoint: 'boolean'
 		}]
 	}],
-	lastReceivedServerUpdateId: 's32'
+	lastReceivedServerUpdateId: 'varint'
 }, {
 	command: 'serverStateBundle',
+	serverTick: 'varint',
+	clientTick: 'varint',
 	entityUpdates: [entityUpdateFormat],
-	lastReceivedPeriodId: 's32',
-	rewindToFrameCap: 's32'
+	lastReceivedPeriodId: 'varint',
+	rewindToFrameCap: 'varint'
 }, {
-	command: 'timeState',
-	serverTick: 's32',
-	clientTick: 's32'
+	command: 'gameJoinInfo',
+	serverTick: 'varint',
+	clientTick: 'varint',
+	players: [{
+		id: 'varint',
+		marbleId: 'varint'
+	}],
+	localPlayerId: 'varint',
+	entityStates: [entityUpdateFormat]
 }, {
-	command: 'gameInfo',
-	playerId: 'varint',
-	serverTick: 's32',
-	clientTick: 's32'
+	command: 'playerJoin',
+	id: 'varint',
+	marbleId: 'varint'
 }] as const;
 
 export const gameServerMessageFormat = FixedFormatBinarySerializer.format({

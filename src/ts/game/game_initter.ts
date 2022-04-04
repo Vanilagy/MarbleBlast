@@ -51,7 +51,6 @@ import { TeleportTrigger } from "../triggers/teleport_trigger";
 import { Trigger } from "../triggers/trigger";
 import { Util } from "../util";
 import { Game } from "./game";
-import { LocalMarbleController } from "./local_marble_controller";
 
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
@@ -120,20 +119,21 @@ export class GameInitter {
 					this.endPadElement = element;
 			}
 		}
-		this.loadingState.total += 6 + 1 + 3 + 6 + 1; // For the scene, marble, UI, sounds (includes music!), and scene compile
+		this.loadingState.total += 6 /*+ 1*/ + 3 + 6 + 1; // For the scene, marble, UI, sounds (includes music!), and scene compile
 
 		await renderer.init();
 
-		await this.initMarble();
+		/*
+		await this.initMarbles();
 		this.loadingState.loaded += 1;
+		*/
 
 		let soundPromise = this.initSounds();
 
 		await this.addSimGroup(game.mission.root);
-		for (let marble of game.marbles) game.entities.push(marble);
-		for (let interior of game.interiors) game.entities.push(interior);
-		for (let shape of game.shapes) game.entities.push(shape);
-		for (let trigger of game.triggers) game.entities.push(trigger);
+		for (let interior of game.interiors) game.addEntity(interior);
+		for (let shape of game.shapes) game.addEntity(shape);
+		for (let trigger of game.triggers) game.addEntity(trigger);
 
 		await renderer.initUi();
 		this.loadingState.loaded += 3;
@@ -143,50 +143,6 @@ export class GameInitter {
 
 		renderer.scene.compile();
 		this.loadingState.loaded += 1;
-	}
-
-	async initMarble() {
-		let { game } = this;
-		let { simulator, renderer } = game;
-
-		game.marble = new Marble(game);
-		await game.marble.init();
-
-		renderer.scene.add(game.marble.group);
-		simulator.world.add(game.marble.body);
-		game.marbles.push(game.marble);
-
-		game.marble.controller = new LocalMarbleController(game.marble);
-
-		/*
-		for (let i = 0; i < 8; i++) {
-			let marble = new Marble(this);
-			await marble.init();
-
-			this.scene.add(marble.group);
-			marble.group.setOpacity(0);
-
-			this.marblePool.push(marble);
-		}
-		*/
-
-		/*
-		for (let i = 0; i < 100; i++) {
-			let second = new Marble(this);
-			await second.init();
-
-			this.scene.add(second.group);
-			this.world.add(second.body);
-			this.marbles.push(second);
-
-			second.body.position.set(Math.random() * 5 - 2, Math.random() * 5 - 2 + 20, 510 + Math.random() * 20);
-			second.body.linearVelocity.randomDirection();
-			second.body.syncShapes();
-			second.group.position.copy(this.marble.body.position);
-			second.group.recomputeTransform();
-			second.reset();
-		}
-		*/
 	}
 
 	async initSounds() {

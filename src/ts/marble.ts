@@ -28,16 +28,17 @@ import { PowerUp } from "./shapes/power_up";
 import { GAME_UPDATE_RATE } from "../../shared/constants";
 import { GO_TIME } from "./game/game_state";
 import { Vector2 } from "./math/vector2";
-import { MarbleController } from "./game/marble_controller";
-import { MultiplayerGameState } from "./game/multiplayer_game_state";
-import { RemoteMarbleController } from "./game/remote_marble_controller";
 import { MultiplayerGame } from "./game/multiplayer_game";
+import { EntityState } from "../../shared/game_server_format";
+import { Player } from "./game/player";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
 const MEGA_MARBLE_RADIUS = 0.6666;
 export const MARBLE_ROLL_FORCE = 40 || 40;
 const TELEPORT_FADE_DURATION = 0.5;
+export const DEFAULT_PITCH = 0.45;
+export const DEFAULT_YAW = Math.PI / 2;
 
 export const bounceParticleOptions: ParticleEmitterOptions = {
 	ejectionPeriod: 1,
@@ -90,13 +91,11 @@ blastMaxParticleOptions.ejectionPeriod = 0.7;
 blastMaxParticleOptions.particleOptions.dragCoefficient = 0.3;
 blastMaxParticleOptions.particleOptions.colors = blastMaxParticleOptions.particleOptions.colors.map(x => { x.r = 255/255; x.g = 159/255; x.b = 25/255; return x; });
 
-interface MarbleState {
-	entityType: 'marble',
-	position: Vector3,
-	orientation: Quaternion,
-	linearVelocity: Vector3,
-	angularVelocity: Vector3,
-	controlState: MarbleControlState
+type MarbleState = EntityState & { entityType: 'marble' };
+
+interface InternalMarbleState {
+	collisions: Collision[],
+	lastContactNormal: Vector3
 }
 
 export interface MarbleControlState {
@@ -109,8 +108,8 @@ export interface MarbleControlState {
 }
 
 /** Controls marble behavior and responds to player input. */
-export class Marble extends Entity<MarbleState> {
-	id = -Math.random();
+export class Marble extends Entity<MarbleState, InternalMarbleState> {
+	id: number;
 	challengeable = true;
 
 	group: Group;
@@ -121,6 +120,7 @@ export class Marble extends Entity<MarbleState> {
 	predictedPosition = new Vector3();
 	/** The predicted orientation of the marble in the next tick. */
 	predictedOrientation = new Quaternion();
+	addedToGame = false;
 
 	body: RigidBody;
 	/** Main collision shape of the marble. */
@@ -137,8 +137,8 @@ export class Marble extends Entity<MarbleState> {
 	/** The default restitution of the marble. */
 	bounceRestitution = 0.5;
 
-	controller: MarbleController;
-	currentControlState: MarbleControlState = MarbleController.getPassiveControlState();
+	controllingPlayer: Player;
+	currentControlState: MarbleControlState = Marble.getPassiveControlState();
 
 	get speedFac() {
 		return DEFAULT_RADIUS / this.radius;
@@ -162,7 +162,6 @@ export class Marble extends Entity<MarbleState> {
 	beforeAngVel = new Vector3();
 	/** Necessary for super speed. */
 	lastContactNormal = new Vector3();
-	slidingTimeout = 0;
 
 	rollingSound: AudioSource;
 	rollingMegaMarbleSound: AudioSource;
@@ -205,8 +204,10 @@ export class Marble extends Entity<MarbleState> {
 	interpolationStrength = 1;
 	pauseInterpolation = false;
 
-	constructor(game: Game) {
+	constructor(game: Game, id: number) {
 		super(game);
+
+		this.id = id;
 	}
 
 	async init() {
@@ -362,14 +363,22 @@ export class Marble extends Entity<MarbleState> {
 		// On some iOS devices, the reflective marble is invisible. That implies a shader compilation error but I sadly cannot check the console on there so we're just disabling them for all iOS devices.
 	}
 
+	addToGame() {
+		let { game } = this;
+		let { simulator, renderer } = game;
+
+		renderer.scene.add(this.group);
+		simulator.world.add(this.body);
+		this.addedToGame = true;
+	}
+
 	getCurrentState(): MarbleState {
 		return {
 			entityType: 'marble',
 			position: this.body.position.clone(),
 			orientation: this.body.orientation.clone(),
 			linearVelocity: this.body.linearVelocity.clone(),
-			angularVelocity: this.body.angularVelocity.clone(),
-			controlState: this.currentControlState
+			angularVelocity: this.body.angularVelocity.clone()
 		};
 	}
 
@@ -379,28 +388,46 @@ export class Marble extends Entity<MarbleState> {
 			position: this.body.position.clone(),
 			orientation: this.body.orientation.clone(),
 			linearVelocity: this.body.linearVelocity.clone(),
-			angularVelocity: this.body.angularVelocity.clone(),
-			controlState: MarbleController.getPassiveControlState()
+			angularVelocity: this.body.angularVelocity.clone()
 		};
 	}
 
-	loadState(state: MarbleState) {
-		this.body.position.copy(state.position);
-		this.body.orientation.copy(state.orientation);
-		this.body.linearVelocity.copy(state.linearVelocity);
-		this.body.angularVelocity.copy(state.angularVelocity);
+	loadState(state: MarbleState, { remote }: { remote: boolean }) {
+		if (!this.addedToGame) this.addToGame();
 
-		this.currentControlState = state.controlState;
-		this.currentControlState.movement = new Vector2().copy(this.currentControlState.movement); // temp
+		this.body.position.copy(state.position as Vector3);
+		this.body.orientation.copy(state.orientation as Quaternion);
+		this.body.linearVelocity.copy(state.linearVelocity as Vector3);
+		this.body.angularVelocity.copy(state.angularVelocity as Vector3);
 
-		state.controlState.movement = new Vector2().copy(state.controlState.movement); // temp?
-		if (this.controller instanceof RemoteMarbleController) this.controller.setRemoteControlState(state.controlState);
+		this.body.syncShapes();
+
+		if (remote) {
+			this.body.updateCollisions();
+			this.internalStateNeedsStore = true;
+		}
+	}
+
+	getInternalState(): InternalMarbleState {
+		return {
+			collisions: this.body.collisions.slice(),
+			lastContactNormal: this.lastContactNormal.clone()
+		};
+	}
+
+	loadInternalState(state: InternalMarbleState) {
+		this.body.updateCollisions(state.collisions);
+		this.lastContactNormal.copy(state.lastContactNormal);
 	}
 
 	update() {
-		this.controller.applyControlState();
+		if (!this.addedToGame) return;
 
-		if (this === this.game.marble) this.game.state.setOwned(this);
+		// Always:
+		this.stateNeedsStore = true;
+		this.internalStateNeedsStore = true;
+
+		this.controllingPlayer?.applyControlState();
 
 		let attemptTime = this.game.state.attemptTime;
 
@@ -472,8 +499,6 @@ export class Marble extends Entity<MarbleState> {
 			this.rollingSound.play();
 			this.rollingMegaMarbleSound?.stop();
 		}
-
-		this.hasChangedState = true; // Always
 
 		if (!this.pauseInterpolation) {
 			if (this.interpolationRemaining-- <= 0) {
@@ -599,8 +624,6 @@ export class Marble extends Entity<MarbleState> {
 
 		if (controlState.using) this.heldPowerUp?.use(0);
 		if (controlState.blasting) this.useBlast();
-
-		this.slidingTimeout--;
 	}
 
 	onAfterIntegrate() {
@@ -651,7 +674,7 @@ export class Marble extends Entity<MarbleState> {
 		// Implements sliding: If we hit the surface at an angle below 45°, and have movement keys pressed, we don't bounce.
 		let dot0 = -contactNormal.dot(lastSurfaceRelativeVelocity.clone().normalize());
 		let slidingEligible = contactNormalUpDot > 0.1; // Kinda arbitrary rn, it's about 84°, definitely makes sure we don't slide on walls
-		if (slidingEligible && this.slidingTimeout <= 0 && dot0 > 0.001 && dot0 <= maxDotSlide && this.currentControlState.movement.length() > 0) {
+		if (slidingEligible && dot0 > 0.001 && dot0 <= maxDotSlide && this.currentControlState.movement.length() > 0) {
 			let dot = contactNormal.dot(surfaceRelativeVelocity);
 			let linearVelocity = this.body.linearVelocity;
 			let originalLength = linearVelocity.length();
@@ -922,12 +945,9 @@ export class Marble extends Entity<MarbleState> {
 		this.lastContactNormal.set(0, 0, 0);
 		this.beforeVel.set(0, 0, 0);
 		this.beforeAngVel.set(0, 0, 0);
-		this.slidingTimeout = 0;
 		this.predictedPosition.copy(this.body.position);
 		this.predictedOrientation.copy(this.body.orientation);
 		this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
-
-		this.controller.reset();
 	}
 
 	stop() {
@@ -953,6 +973,18 @@ export class Marble extends Entity<MarbleState> {
 		this.pauseInterpolation = false;
 
 		let ticks = (this.game as MultiplayerGame).simulator.lastReconciliationTickCount;
+		if (this.interpolationRemaining > ticks) return;
+
+		if (this.reconciliationPosition.distanceTo(this.body.position) === 0) return;
+
+		this.interpolationRemaining = ticks;
+		this.interpolationStrength = 1 - Math.pow(1 - 0.99, 1 / this.interpolationRemaining);
+
+		return;
+
+		/*
+
+		let ticks = (this.game as MultiplayerGame).simulator.lastReconciliationTickCount;
 		let newInterpolationDuration = Math.min(
 			this.reconciliationPosition.distanceTo(this.body.position) / (this.reconciliationLinearVelocity.length() / GAME_UPDATE_RATE),
 			ticks
@@ -962,5 +994,17 @@ export class Marble extends Entity<MarbleState> {
 
 		this.interpolationRemaining = newInterpolationDuration;
 		this.interpolationStrength = 1 - Math.pow(1 - 0.99, 1 / newInterpolationDuration);
+		*/
+	}
+
+	static getPassiveControlState(): MarbleControlState {
+		return {
+			movement: new Vector2(),
+			yaw: DEFAULT_YAW,
+			pitch: DEFAULT_PITCH,
+			jumping: false,
+			using: false,
+			blasting: false
+		};
 	}
 }

@@ -98,7 +98,7 @@ export abstract class LoadingScreen {
 
 			// Loading has finished, hop into gameplay.
 
-			game.start();
+			await game.start();
 
 			this.hide();
 			this.menu.hide();

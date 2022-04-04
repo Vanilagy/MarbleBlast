@@ -137,12 +137,14 @@ export abstract class FixedFormatBinarySerializer {
 				this.view.setFloat64((this.index += 8) - 8, data, true);
 				break;
 			case 'varint':
-				if (data < 0 || !Number.isInteger(data)) throw new Error("Varint passed incorect data: " + data);
+				if (!Number.isInteger(data)) throw new Error("Varint passed incorrect data: " + data);
+
+				data = (Math.abs(data) << 1) | Number(data < 0);
 
 				do {
 					let value = data & 127;
 					if (data >= 128) value |= 128;
-					data >>>= 7;
+					data >>= 7;
 					this.view.setUint8(this.index++, value);
 				} while (data > 0);
 
@@ -187,8 +189,9 @@ export abstract class FixedFormatBinarySerializer {
 		} else if (Array.isArray(format)) {
 			let arrayLength = this.read('varint');
 			let arr: any[] = [];
+
 			for (let i = 0; i < arrayLength; i++) {
-				if (this.index >= this.decodeByteLength) {console.log(i, arrayLength); throw new Error("Out of bounds!");} // Gotta do this check so the decoder can't get cheesed by artifically manipulated data where the index is like a huge number
+				if (this.index >= this.decodeByteLength) throw new Error("Out of bounds!"); // Gotta do this check so the decoder can't get cheesed by artifically manipulated data where the index is like a huge number
 				arr.push(this.read(format[0]));
 			}
 
@@ -237,6 +240,7 @@ export abstract class FixedFormatBinarySerializer {
 					if (!(nextByte & 128)) break;
 				}
 
+				res = (res >> 1) * (1 - 2 * (res & 1));
 				return res;
 			case 'string':
 				byteLength = this.readPrimitive('varint') as number;

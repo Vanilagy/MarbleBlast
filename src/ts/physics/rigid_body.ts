@@ -10,7 +10,6 @@ export enum RigidBodyType {
 	Static // Has infinite mass and doesn't get affected by external forces such as gravity
 }
 
-let dq = new Quaternion();
 let v1 = new Vector3();
 let q1 = new Quaternion();
 
@@ -73,8 +72,8 @@ export class RigidBody {
 	}
 
 	applyRotation(rotation: Vector3) {
-		dq.setFromAxisAngle(v1.copy(rotation).normalize(), rotation.length());
-		this.orientation.multiplyQuaternions(dq, this.orientation).normalize();
+		q1.setFromAxisAngle(v1.copy(rotation).normalize(), rotation.length());
+		this.orientation.multiplyQuaternions(q1, this.orientation).normalize();
 	}
 
 	storePrevious() {
@@ -123,7 +122,7 @@ export class RigidBody {
 		shape.body = null;
 	}
 
-	/** Updates this body's collision shapes' bounding boxes and position in the octree. */
+	/** Updates this body's collision shapes' bounding boxes and positions in the octree. */
 	syncShapes() {
 		for (let i = 0; i < this.shapes.length; i++) {
 			let shape = this.shapes[i];
@@ -134,6 +133,32 @@ export class RigidBody {
 	/** Gets the relative motion vector of this body and `b2`. */
 	getRelativeMotionVector(dst: Vector3, b2: RigidBody) {
 		return dst.copy(this.position).sub(this.prevPosition).sub(b2.position).add(b2.prevPosition);
+	}
+
+	updateCollisions(to?: Collision[]) {
+		if (!this.enabled) return;
+		if (this.type !== RigidBodyType.Dynamic) {
+			throw new Error("Can only manually recompute collisions for dynamic rigid bodies.");
+		}
+
+		// Remove our collisions for the other bodies and for ourselves
+		for (let collision of this.collisions) {
+			let otherBody = (collision.s1.body === this)? collision.s2.body : collision.s1.body;
+			otherBody.collisions.splice(otherBody.collisions.indexOf(collision), 1);
+		}
+		this.collisions.length = 0;
+
+		if (to) {
+			this.collisions.push(...to);
+
+			for (let collision of this.collisions) {
+				let otherBody = (collision.s1.body === this)? collision.s2.body : collision.s1.body;
+				otherBody.collisions.push(collision);
+			}
+		} else {
+			this.world.cachedBroadphaseResults.clear();
+			this.world.computeCollisions(this.shapes, false);
+		}
 	}
 
 	/* eslint-disable  @typescript-eslint/no-unused-vars */

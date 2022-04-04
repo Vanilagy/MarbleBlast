@@ -35,13 +35,6 @@ export class World {
 	gravity = new Vector3();
 	octree = new Octree();
 
-	/** List of shapes that are currently in contact according to the CCD (Continuous Collision Detection) pass. */
-	inContactCcd = new Set<CollisionShape>();
-	newInContactCcd = new Set<CollisionShape>();
-	/** List of shapes that are currently in contact. */
-	inContact = new Set<CollisionShape>();
-	newInContact = new Set<CollisionShape>();
-
 	/** This cache can speed up broadphase lookups by reusing results. */
 	cachedBroadphaseResults = new Map<CollisionShape, CollisionShape[]>();
 
@@ -67,6 +60,7 @@ export class World {
 
 		let dynamicBodies: RigidBody[] = [];
 		let dynamicShapes: CollisionShape[] = [];
+		let ccdImmune = new Set<CollisionShape>();
 
 		// Integrate all the bodies
 		for (let i = 0; i < this.bodies.length; i++) {
@@ -78,6 +72,7 @@ export class World {
 			body.integrate(dt);
 			body.onAfterIntegrate(dt);
 
+			for (let j = 0; j < body.collisions.length; j++) ccdImmune.add(body.collisions[j].s2);
 			body.collisions.length = 0;
 
 			if (body.type === RigidBodyType.Dynamic) {
@@ -96,7 +91,7 @@ export class World {
 		for (let i = 0; i < ccdCollisions.length; i++) {
 			let collision = ccdCollisions[i];
 
-			if (!this.inContactCcd.has(collision.s2)) {
+			if (!ccdImmune.has(collision.s2)) {
 				t = Math.min(collision.timeOfImpact, t);
 			}
 		}
@@ -154,11 +149,6 @@ export class World {
 
 		for (let i = 0; i < collidingBodies.length; i++) collidingBodies[i].onAfterCollisionResponse(cumT, dt * t);
 
-		this.inContactCcd = this.newInContactCcd;
-		this.newInContactCcd = new Set();
-		this.inContact = this.newInContact;
-		this.newInContact = new Set();
-
 		this.substep(dt * (1 - t), cumT, depth + 1);
 	}
 
@@ -203,7 +193,6 @@ export class World {
 
 					let collision = new Collision(shape, candidate);
 					collision.timeOfImpact = timeOfImpact;
-					this.newInContactCcd.add(candidate);
 					collisions.push(collision);
 				} else {
 					// First, let's check if the two shapes actually intersect
@@ -272,7 +261,6 @@ export class World {
 					shapeCollisions.push(collision);
 					shape.body.collisions.push(collision);
 					collision.s2.body.collisions.push(collision);
-					this.newInContact.add(candidate);
 				}
 			}
 		}
@@ -281,23 +269,6 @@ export class World {
 		for (let i = 0; i < collisions.length; i++) collisions[i].updateMaterialProperties();
 
 		return collisions;
-	}
-
-	updateCollisions() {
-		let dynamicShapes: CollisionShape[] = [];
-
-		for (let i = 0; i < this.bodies.length; i++) {
-			let body = this.bodies[i];
-			if (!body.enabled) continue;
-
-			body.collisions.length = 0;
-
-			if (body.type === RigidBodyType.Dynamic) {
-				dynamicShapes.push(...body.shapes);
-			}
-		}
-
-		this.computeCollisions(dynamicShapes, false); // This will update the collisions on rigid bodies
 	}
 
 	/** Casts a ray into the world and returns all intersections. */

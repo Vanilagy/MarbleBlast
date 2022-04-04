@@ -43,7 +43,8 @@ export class GameServerConnection {
 		};
 	}
 
-	queueCommand(command: GameServerMessage['commands'][number], reliable = false ?? true, uniqueCommandId?: string) {
+	queueCommand(command: GameServerMessage['commands'][number], reliable: boolean, uniqueCommandId?: string) {
+		reliable = false; // TODO implement reliability
 		let commandObject = {
 			command,
 			ack: reliable? this.localPacketId : null,
@@ -107,7 +108,7 @@ export class GameServerConnection {
 		}
 
 		for (let command of message.commands) {
-			//if (ack !== null && ack <= this.remotePacketId) continue;
+			//if (command. !== null && ack <= this.remotePacketId) continue;
 
 			let arr = this.commandHandlers.get(command.command);
 			for (let fn of arr) fn(command);
@@ -119,6 +120,11 @@ export class GameServerConnection {
 	on<K extends GameServerCommands>(command: K, callback: (data: CommandToData<K>) => void) {
 		let arr = this.commandHandlers.get(command);
 		arr.push(callback);
+	}
+
+	off<K extends GameServerCommands>(command: K, callback: (data: CommandToData<K>) => void) {
+		let arr = this.commandHandlers.get(command);
+		if (arr.includes(callback)) arr.splice(arr.indexOf(callback));
 	}
 
 	clearAllHandlers() {

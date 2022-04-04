@@ -80,13 +80,16 @@ class Entity {
 class Player {
 	connection: GameServerConnection;
 	id: number;
+	marbleId: number;
 
 	queuedEntityUpdates: EntityUpdate[] = [];
 	lastReceivedPeriodId = -1;
+	lastEstimatedRtt = 0;
 
-	constructor(connection: GameServerConnection, id: number) {
+	constructor(connection: GameServerConnection, id: number, marbleId: number) {
 		this.connection = connection;
 		this.id = id;
+		this.marbleId = marbleId;
 	}
 }
 
@@ -94,7 +97,8 @@ interface UpdateGroup {
 	player: Player,
 	entityIds: number[],
 	entityUpdates: EntityUpdate[],
-	entityInfo: EntityInfo[]
+	entityInfo: EntityInfo[],
+	periodStart: number
 }
 
 export class Game {
@@ -112,7 +116,7 @@ export class Game {
 
 	queuedUpdateGroups: UpdateGroup[] = [];
 
-	pendingPings = new DefaultMap<GameServerConnection, Map<number, number>>(() => new Map());
+	pendingPings = new DefaultMap<Player, Map<number, number>>(() => new Map());
 
 	constructor(missionPath: string) {
 		this.missionPath = missionPath;
@@ -127,50 +131,44 @@ export class Game {
 	}
 
 	addPlayer(connection: GameServerConnection) {
-		let player = new Player(connection, this.players.length);
+		let playerId = -(1 + this.players.length * 2);
+		let marbleId = -(1 + this.players.length * 2 + 1);
 
+		let player = new Player(connection, playerId, marbleId);
 		this.players.push(player);
 
 		//connection.addedOneWayLatency = 50;
 
 		connection.queueCommand({
-			command: 'gameInfo',
-			playerId: player.id,
+			command: 'gameJoinInfo',
 			serverTick: this.frame,
-			clientTick: this.frame + UPDATE_BUFFER_SIZE // No better guess yet
-		});
+			clientTick: this.frame + UPDATE_BUFFER_SIZE, // No better guess yet
+			players: this.players.map(x => ({
+				id: x.id,
+				marbleId: x.marbleId
+			})),
+			localPlayerId: player.id,
+			entityStates: [...this.entities].map(([, entity]) => entity.getTrueUpdate())
+		}, true);
 
 		connection.on('clientStateBundle', data => {
 			this.onClientStateReceived(player, data);
 		});
 
-		connection.on('timeState', data => {
-			this.tryAdvanceGame();
-
-			let rtt = Math.max(this.frame - data.serverTick, 0);
-			//let oneWayThing = Math.max(this.tickIndex - data.serverTick, 0);
-
-			//console.log(data, rtt);
-			//console.log(connection.sessionId, data.actualThing - this.tickIndex);
-
-			connection.queueCommand({
-				command: 'timeState',
-				serverTick: this.frame,
-				clientTick: this.frame + rtt + UPDATE_BUFFER_SIZE
-			});
-
-			/*
-			let timeouts = this.updateTimeouts.get(connection);
-			for (let [objectId, expiration] of timeouts) {
-				if (data.serverTick >= expiration) timeouts.delete(objectId);
-			}
-			*/
-		});
-
 		connection.on('ping', ({ timestamp }) => {
 			let now = performance.now();
-			this.pendingPings.get(connection).set(timestamp, now);
+			this.pendingPings.get(player).set(timestamp, now);
 		});
+
+		for (let otherPlayer of this.players) {
+			if (otherPlayer === player) continue;
+
+			otherPlayer.connection.queueCommand({
+				command: 'playerJoin',
+				id: player.id,
+				marbleId: player.marbleId
+			}, true);
+		}
 	}
 
 	getEntityById(id: number) {
@@ -184,6 +182,8 @@ export class Game {
 	}
 
 	queueEntityUpdate(update: EntityUpdate) {
+		if (!update) return;
+
 		for (let i = 0; i < this.queuedEntityUpdates.length; i++) {
 			if (this.queuedEntityUpdates[i].entityId === update.entityId)
 				this.queuedEntityUpdates.splice(i--, 1);
@@ -202,6 +202,8 @@ export class Game {
 	}
 
 	tick() {
+		let now = performance.now();
+
 		this.tryAdvanceGame();
 
 		// Loop over all queued updates and players
@@ -220,6 +222,8 @@ export class Game {
 				// Set the version
 				copiedUpdate.version = entity.versions.get(player.id);
 
+				copiedUpdate.owned = player.id === entity.owner;
+
 				// And add it into the personal queue for this player
 				player.queuedEntityUpdates.push(copiedUpdate);
 			}
@@ -233,21 +237,39 @@ export class Game {
 
 			player.connection.queueCommand({
 				command: 'serverStateBundle',
+				serverTick: this.frame,
+				clientTick: this.frame + player.lastEstimatedRtt + UPDATE_BUFFER_SIZE,
 				entityUpdates: player.queuedEntityUpdates,
 				lastReceivedPeriodId: player.lastReceivedPeriodId,
 				rewindToFrameCap: rewindToFrameCap
 			}, false);
+
+			for (let [timestamp, receiveTime] of this.pendingPings.get(player)) {
+				let elapsed = now - receiveTime;
+				player.connection.queueCommand({
+					command: 'pong',
+					timestamp,
+					subtract: elapsed
+				}, false);
+			}
+			this.pendingPings.get(player).clear();
 
 			player.connection.tick();
 		}
 	}
 
 	onClientStateReceived(player: Player, msg: CommandToData<'clientStateBundle'>) {
+		this.tryAdvanceGame(); // First, advance the game as much as we can
+
+		player.lastEstimatedRtt = Math.max(this.frame - msg.serverTick, 0);
+
 		// Filter out updates received by the server
 		let periods = msg.periods.filter(period => {
 			return period.id > player.lastReceivedPeriodId;
 		});
 		player.lastReceivedPeriodId = msg.periods[msg.periods.length - 1].id;
+
+		if (periods.length > 1) console.log(periods.length);
 
 		// Filter out updates received by the client
 		player.queuedEntityUpdates = player.queuedEntityUpdates.filter(update => {
@@ -280,12 +302,14 @@ export class Game {
 			let affecting = getAffectingSubgraph(entityId, affectionGraph);
 			let updates = entityUpdates.filter(x => affecting.includes(x.entityId));
 			let infos = entityInfo.filter(x => affecting.includes(x.entityId));
+			let entityIds = updates.map(x => x.entityId); // The subgraph might contain entities for which no update was sent
 
 			let newGroup: UpdateGroup = {
 				player,
-				entityIds: affecting,
+				entityIds: entityIds,
 				entityUpdates: updates,
-				entityInfo: infos
+				entityInfo: infos,
+				periodStart: periods[0].start
 			};
 
 			let i: number;
@@ -342,19 +366,20 @@ export class Game {
 
 			// If the new update has a lower version, we definitely don't want to merge
 			if (entity.versions.get(updateCandidate.originator) > updateCandidate.version) {
-				console.log(entity.versions.get(updateCandidate.originator), updateCandidate.version, "this");
+				//console.log(entity.versions.get(updateCandidate.originator), updateCandidate.version, "this");
 				return false;
 			}
 
 			if (!updateCandidate.owned) continue;
 
 			let entityInfo = group.entityInfo.find(x => x.entityId === id);
+			let earliestUpdateFrame = Math.max(entityInfo.earliestUpdateFrame, group.periodStart);
 
 			// Check if the new update is too far in the past
-			if (lastStoredUpdate.frame >= entityInfo.earliestUpdateFrame && entity.owner !== updateCandidate.originator) {
-				if (this.frame - entityInfo.earliestUpdateFrame > TWICE_CLIENT_UPDATE_PERIOD) {
+			if (lastStoredUpdate.frame >= earliestUpdateFrame && entity.owner !== updateCandidate.originator) {
+				if (this.frame - earliestUpdateFrame > TWICE_CLIENT_UPDATE_PERIOD) {
 					console.log("THESE");
-					console.log(entity.id, entity.owner, updateCandidate.originator, lastStoredUpdate.frame, entityInfo.earliestUpdateFrame, this.frame);
+					console.log(entity.id, entity.owner, updateCandidate.originator, lastStoredUpdate.frame, entityInfo.earliestUpdateFrame, updateCandidate.frame, this.frame, group.periodStart);
 					return false;
 				}
 			}
@@ -448,24 +473,26 @@ const getAffectingSubgraph = (start: number, graph: { from: number, to: number }
 };
 
 const propagateOwnership = (entityInfo: EntityInfo[], affectionGraph: { from: number, to: number }[]) => {
-	let map = new Map<number, EntityInfo>();
+	let owned = new Set<number>();
 
 	for (let info of entityInfo) {
-		map.set(info.entityId, info);
+		if (info.ownedAtSomePoint) owned.add(info.entityId);
 	}
 
 	while (true) {
 		let changeMade = false;
 
 		for (let edge of affectionGraph) {
-			let source = map.get(edge.from);
-			let target = map.get(edge.to);
-
-			if (source.ownedAtSomePoint && !target.ownedAtSomePoint) {
-				target.ownedAtSomePoint = true;
+			if (owned.has(edge.from) && !owned.has(edge.to)) {
+				owned.add(edge.to);
+				changeMade = true;
 			}
 		}
 
 		if (!changeMade) break;
+	}
+
+	for (let info of entityInfo) {
+		info.ownedAtSomePoint = owned.has(info.entityId);
 	}
 };

@@ -40,6 +40,7 @@ export class GameState {
 	subtickCompletion = 0;
 
 	stateHistory = new DefaultMap<number, EntityUpdate[]>(() => []);
+	internalStateHistory = new DefaultMap<number, { frame: number, state: any }[]>(() => []);
 
 	collectedGems = 0;
 	currentTimeTravelBonus = 0;
@@ -87,7 +88,7 @@ export class GameState {
 			hud.displayGemCount(this.collectedGems, game.totalGems);
 		}
 
-		let marble = game.marble;
+		let marble = game.localPlayer.controlledMarble;
 		let { position: startPosition, euler } = this.getStartPositionAndOrientation();
 
 		// Todo put all this shit into marble bro! what the fuck are you thinking
@@ -116,24 +117,37 @@ export class GameState {
 	saveStates() {
 		for (let i = 0; i < this.game.entities.length; i++) {
 			let entity = this.game.entities[i];
-			if (!entity.hasChangedState) continue;
 
-			let arr = this.stateHistory.get(entity.id);
-			if (Util.last(arr)?.frame === this.tick) arr.pop();
+			if (entity.stateNeedsStore) {
+				let arr = this.stateHistory.get(entity.id);
+				if (Util.last(arr)?.frame === this.tick) arr.pop();
 
-			let stateUpdate: EntityUpdate = {
-				updateId: this.nextUpdateId++,
-				entityId: entity.id,
-				frame: this.tick,
-				owned: entity.owned,
-				challengeable: entity.challengeable,
-				originator: this.game.playerId,
-				version: entity.version,
-				state: entity.getCurrentState()
-			};
-			arr.push(stateUpdate);
+				let stateUpdate: EntityUpdate = {
+					updateId: this.nextUpdateId++,
+					entityId: entity.id,
+					frame: this.tick,
+					owned: entity.owned,
+					challengeable: entity.challengeable,
+					originator: this.game.localPlayer.id,
+					version: entity.version,
+					state: entity.getCurrentState()
+				};
+				arr.push(stateUpdate);
 
-			entity.hasChangedState = false;
+				entity.stateNeedsStore = false;
+			}
+
+			if (entity.internalStateNeedsStore) {
+				let arr = this.internalStateHistory.get(entity.id);
+				if (Util.last(arr)?.frame === this.tick) arr.pop();
+
+				arr.push({
+					frame: (arr.length === 0)? -1 : this.tick,
+					state: entity.getInternalState()
+				});
+
+				entity.internalStateNeedsStore = false;
+			}
 		}
 	}
 
@@ -171,6 +185,14 @@ export class GameState {
 		while (this.affectionGraph.length > 0 && Util.last(this.affectionGraph).frame > target)
 			this.affectionGraph.pop();
 
+		for (let [entityId, history] of this.internalStateHistory) {
+			while (history.length > 0 && Util.last(history).frame > target) history.pop();
+
+			let entity = this.game.getEntityById(entityId);
+			let last = Util.last(history);
+			entity.loadInternalState(last.state, last.frame);
+		}
+
 		for (let [entityId, updateHistory] of this.stateHistory) {
 			let changed = false;
 			while (Util.last(updateHistory) && Util.last(updateHistory).frame > target) {
@@ -180,38 +202,22 @@ export class GameState {
 
 			if (!changed) continue;
 
-			let entity = this.game.entities.find(x => x.id === entityId); // todo optimize
+			let entity = this.game.getEntityById(entityId);
 
 			let update = Util.last(updateHistory);
 			let state = update?.state ?? entity.getInitialState();
 
-			entity.loadState(state, target);
+			entity.loadState(state, {
+				frame: update?.frame ?? 0,
+				remote: false
+			});
+			entity.version = update?.version ?? 0;
 		}
 
-		this.game.simulator.world.updateCollisions(); // Since positions might have changed, collisions probably have too
+		this.saveStates();
 
 		this.tick = target;
 		// todo: attemptTick
-	}
-
-	applyEntityUpdate(update: EntityUpdate): boolean {
-		let entity = this.game.entities.find(x => x.id === update.entityId); // todo optimize
-		if (!entity) return false; // temp right?
-
-		let us = this.game.playerId;
-		let shouldApplyState = (update.originator !== us && !entity.owned) || update.version > entity.version;
-
-		if (shouldApplyState) {
-			//console.log(us, update.originator, update.version, entity.version);
-			entity.loadState(update.state, update.frame);
-			entity.version = update.version;
-
-			entity.hasChangedState = true;
-
-			return true; // Meaning the update has actually been applied
-		}
-
-		return false;
 	}
 
 	recordEntityInteraction(o1: Entity, o2: Entity) {
@@ -221,10 +227,5 @@ export class GameState {
 			to: o2,
 			frame: this.tick
 		});
-	}
-
-	setOwned(o: Entity) {
-		if (o.owned) return;
-		o.owned = true;
 	}
 }

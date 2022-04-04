@@ -8,7 +8,7 @@ import { Util } from "../util";
 import { Game } from "./game";
 import { MultiplayerGameSimulator } from "./multiplayer_game_simulator";
 import { MultiplayerGameState } from "./multiplayer_game_state";
-import { RemoteMarbleController } from "./remote_marble_controller";
+import { Player } from "./player";
 
 const networkStatsElement = document.querySelector('#network-stats') as HTMLDivElement;
 
@@ -65,6 +65,7 @@ export class MultiplayerGame extends Game {
 	nextPeriodId = 0;
 	lastPeriodUpdateId = 0;
 	lastPeriodAffectionEdgeId = 0;
+	lastPeriodEnd = -1;
 
 	constructor(mission: Mission, gameServer: GameServer) {
 		super(mission);
@@ -86,19 +87,12 @@ export class MultiplayerGame extends Game {
 			});
 		});
 
-		this.connection.on('gameInfo', data => {
-			this.playerId = data.playerId;
-			this.state.supplyServerTimeState(data);
-
-			super.start();
-		});
-
-		this.connection.on('timeState', data => {
-			this.state.supplyServerTimeState(data);
-		});
-
 		this.connection.on('serverStateBundle', data => {
 			this.onServerStateBundle(data);
+		});
+
+		this.connection.on('playerJoin', data => {
+			this.addPlayer(data.id, data.marbleId);
 		});
 
 		/*
@@ -139,7 +133,45 @@ export class MultiplayerGame extends Game {
 		this.connection.queueCommand({
 			command: 'joinMission',
 			missionPath: this.mission.path
+		}, true);
+
+		let response = await new Promise<CommandToData<'gameJoinInfo'>>(resolve => {
+			const callback = (data: CommandToData<'gameJoinInfo'>) => {
+				this.connection.off('gameJoinInfo', callback);
+				resolve(data);
+			};
+			this.connection.on('gameJoinInfo', callback);
 		});
+
+		this.state.supplyServerTimeState(response.serverTick, response.clientTick);
+
+		for (let playerData of response.players) {
+			await this.addPlayer(playerData.id, playerData.marbleId);
+		}
+
+		this.localPlayer = this.players.find(x => x.id === response.localPlayerId);
+		this.localPlayer.controlledMarble.addToGame();
+
+		for (let update of response.entityStates) {
+			this.applyRemoteEntityUpdate(update);
+		}
+
+		super.start();
+	}
+
+	async addPlayer(playerId: number, marbleId: number) {
+		let player = new Player(this, playerId);
+		let marble = new Marble(this, marbleId);
+
+		this.players.push(player);
+		this.addEntity(player);
+
+		await marble.init();
+		this.marbles.push(marble);
+		this.addEntity(marble);
+
+		player.controlledMarble = marble;
+		marble.controllingPlayer = player;
 	}
 
 	tick() {
@@ -175,6 +207,8 @@ export class MultiplayerGame extends Game {
 
 		this.lastServerStateBundle = data;
 
+		this.state.supplyServerTimeState(data.serverTick, data.clientTick);
+
 		data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
 
 		this.lastReceivedServerUpdateId = Math.max(
@@ -190,6 +224,7 @@ export class MultiplayerGame extends Game {
 			this.periods.shift();
 		}
 
+		/*
 		// Temp stuff: create a new marble if it isn't here yet
 		for (let update of data.entityUpdates) {
 			let entityExists = this.entities.some(x => x.id === update.entityId);
@@ -211,6 +246,7 @@ export class MultiplayerGame extends Game {
 			marble.loadState(update.state as any); // temp
 			marble.controller = new RemoteMarbleController(marble);
 		}
+		*/
 	}
 
 	tickConnection() {
@@ -219,16 +255,7 @@ export class MultiplayerGame extends Game {
 		let timestamp = performance.now();
 		this.connection.queueCommand({ command: 'ping', timestamp }, false);
 
-		this.connection.queueCommand({
-			command: 'timeState',
-			serverTick: this.state.serverTick,
-			clientTick: this.state.targetClientTick,
-			//actualThing: this.state.tick
-		});
-
-		let lastPeriod = Util.last(this.periods);
-
-		let periodStart = lastPeriod? lastPeriod.end + 1 : 0;
+		let periodStart = this.lastPeriodEnd + 1;
 		let periodEnd = this.state.tick;
 
 		let entityUpdates: EntityUpdate[] = [];
@@ -239,6 +266,7 @@ export class MultiplayerGame extends Game {
 		for (let [, history] of this.state.stateHistory) {
 			for (let i = history.length - 1; i >= 0; i--) {
 				let update = history[i];
+				if (update.originator !== this.localPlayer.id) continue;
 				if (update.updateId < this.lastPeriodUpdateId) break;
 
 				let info = entityInfo.find(x => x.entityId === update.entityId);
@@ -327,15 +355,39 @@ export class MultiplayerGame extends Game {
 
 		this.lastPeriodUpdateId = this.state.nextUpdateId;
 		this.lastPeriodAffectionEdgeId = this.state.nextAffectionEdgeId;
+		this.lastPeriodEnd = newPeriod.end;
 
 		if (sendTimeout-- > 0) return;
 
 		let bundle: CommandToData<'clientStateBundle'> = {
 			command: 'clientStateBundle',
+			serverTick: this.state.serverTick,
+			clientTick: this.state.targetClientTick,
 			periods: this.periods,
 			lastReceivedServerUpdateId: this.lastReceivedServerUpdateId
 		};
 		this.connection.queueCommand(bundle, false);
+	}
+
+	applyRemoteEntityUpdate(update: EntityUpdate) {
+		let entity = this.getEntityById(update.entityId);
+		if (!entity) return;
+
+		let us = this.localPlayer.id;
+		let shouldApplyUpdate = (update.originator !== us && !update.owned) || update.version > entity.version;
+		if (shouldApplyUpdate && entity === this.localPlayer.controlledMarble) console.log("hi my name is ARH");
+		if (!shouldApplyUpdate) return;
+
+		let history = this.state.stateHistory.get(entity.id);
+		while (history.length > 0 && Util.last(history).frame >= update.frame) {
+			history.pop();
+		}
+
+		entity.loadState(update.state, { frame: update.frame, remote: true });
+		entity.version = update.version;
+
+		update.updateId = -1; // We set the update ID to something negative so that the update NEVER gets sent back to the server
+		history.push(update);
 	}
 
 	displayNetworkStats() {

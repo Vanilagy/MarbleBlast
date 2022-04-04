@@ -19,6 +19,7 @@ import { mainCanvas, resize } from "../ui/misc";
 import { hideTouchControls, maybeShowTouchControls, releaseAllButtons } from "../input";
 import { state } from "../state";
 import { workerClearTimeoutOrInterval, workerSetInterval } from "../worker";
+import { Player } from "./player";
 
 export class Game {
 	state: GameState;
@@ -29,12 +30,14 @@ export class Game {
 	mission: Mission;
 
 	entities: Entity[] = [];
+	entityMap = new Map<number, Entity>();
 	marbles: Marble[] = [];
 	interiors: Interior[] = [];
 	shapes: Shape[] = [];
 	triggers: Trigger[] = [];
 
-	marble: Marble = null;
+	players: Player[] = [];
+	localPlayer: Player = null;
 
 	totalGems = 0;
 
@@ -51,8 +54,6 @@ export class Game {
 	tickInterval: number;
 	lastGameUpdateTime: number = null;
 
-	playerId = 0;
-
 	constructor(mission: Mission) {
 		this.mission = mission;
 
@@ -66,6 +67,15 @@ export class Game {
 	createInitter() { this.initter = new GameInitter(this); }
 	createSimulator() { this.simulator = new GameSimulator(this); }
 	createRenderer() { this.renderer = new GameRenderer(this); }
+
+	addEntity(entity: Entity) {
+		this.entities.push(entity);
+		this.entityMap.set(entity.id, entity);
+	}
+
+	getEntityById(id: number) {
+		return this.entityMap.get(id) ?? null;
+	}
 
 	async init() {
 		await this.initter.init();
@@ -128,13 +138,13 @@ export class Game {
 	onButtonChange() {
 		if (!this.started || !document.pointerLockElement || this.paused) return;
 
-		this.marble.controller.onButtonsChange();
+		this.localPlayer?.onButtonsChange();
 	}
 
 	onMouseMove(e: MouseEvent) {
 		if (!this.started || !document.pointerLockElement || this.paused) return;
 
-		this.marble.controller.onMouseMove(e);
+		this.localPlayer?.onMouseMove(e);
 	}
 
 	/** Pauses the game. */

@@ -476,6 +476,17 @@ export abstract class Util {
 		return clone;
 	}
 
+	static deepClone<T>(data: T): T {
+		if (!data) {
+			return data;
+		} else if (typeof data === 'object') {
+			if (Array.isArray(data)) return data.map(x => this.deepClone(x)) as any;
+			return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, this.deepClone(value)])) as any;
+		} else {
+			return data;
+		}
+	}
+
 	static isMac() {
 		return window.navigator.platform.toLowerCase().includes('mac');
 	}

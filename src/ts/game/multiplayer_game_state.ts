@@ -8,14 +8,13 @@ export class MultiplayerGameState extends GameState {
 	serverTick: number = null;
 	targetClientTick: number = null;
 
-	supplyServerTimeState(data: Omit<CommandToData<'timeState'>, 'command'>) {
+	supplyServerTimeState(serverTick: number, clientTick: number) {
 		if (this.serverTick === null) {
 			// This is the first time state we get from the server
-
-			this.tick = data.clientTick - 1;
+			this.tick = clientTick - 1;
 		}
 
-		this.serverTick = data.serverTick;
-		this.targetClientTick = data.clientTick;
+		this.serverTick = serverTick;
+		this.targetClientTick = clientTick;
 	}
 }
