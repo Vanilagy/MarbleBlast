@@ -20,6 +20,7 @@ import { hideTouchControls, maybeShowTouchControls, releaseAllButtons } from "..
 import { state } from "../state";
 import { workerClearTimeoutOrInterval, workerSetInterval } from "../worker";
 import { Player } from "./player";
+import { Clock } from "./clock";
 
 export class Game {
 	state: GameState;
@@ -38,6 +39,8 @@ export class Game {
 
 	players: Player[] = [];
 	localPlayer: Player = null;
+
+	clock: Clock;
 
 	totalGems = 0;
 

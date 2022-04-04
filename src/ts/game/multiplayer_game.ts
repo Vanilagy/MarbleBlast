@@ -373,8 +373,8 @@ export class MultiplayerGame extends Game {
 		if (!entity) return;
 
 		let us = this.localPlayer.id;
+		// todo for tomorrow: local owner propagation thing too because janky otherwise
 		let shouldApplyUpdate = (update.originator !== us && !update.owned) || update.version > entity.version;
-		if (shouldApplyUpdate && entity === this.localPlayer.controlledMarble) console.log("hi my name is ARH");
 		if (!shouldApplyUpdate) return;
 
 		let history = this.state.stateHistory.get(entity.id);

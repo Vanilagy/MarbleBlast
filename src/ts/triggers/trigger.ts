@@ -9,10 +9,10 @@ import { Box3 } from "../math/box3";
 import { Matrix4 } from "../math/matrix4";
 import { Game } from "../game/game";
 import { Entity } from "../game/entity";
+import { EntityState } from "../../../shared/game_server_format";
 
 /** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
 export abstract class Trigger extends Entity {
-	id: number;
 	vertices: Vector3[];
 	body: RigidBody;
 	element: MissionElementTrigger;
@@ -97,6 +97,10 @@ export abstract class Trigger extends Entity {
 
 	render() {}
 	stop() {}
+
+	getCurrentState(): EntityState { return null; }
+	getInitialState(): EntityState { return null; }
+	loadState() {}
 
 	onMarbleInside() {}
 	onMarbleEnter() {}

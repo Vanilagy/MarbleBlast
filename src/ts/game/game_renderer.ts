@@ -27,7 +27,7 @@ import { FRAME_RATE_OPTIONS } from "../ui/options_mbp";
 import { MbpPauseScreen } from "../ui/pause_screen_mbp";
 import { Util } from "../util";
 import { Game } from "./game";
-import { GAME_PLAYBACK_SPEED, MAX_TIME } from "./game_simulator";
+import { GAME_PLAYBACK_SPEED } from "./game_simulator";
 
 // Used for frame rate limiting working correctly
 const decoyCanvas = document.querySelector('#decoy-canvas') as HTMLCanvasElement;
@@ -352,11 +352,7 @@ export class GameRenderer {
 		if (simulator.currentTimeTravelBonus === 0 && !simulator.finishTime) timeToDisplay = this.maxDisplayedTime;
 		*/
 
-		let timeToDisplay = game.state.clock; // fixme not smooth
-		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
-
 		let hud = state.menu.hud;
-		hud.displayTime(timeToDisplay, this.determineClockColor(timeToDisplay));
 		//hud.displayBlastMeterFullness(simulator.blastAmount);
 		hud.displayFps();
 
@@ -482,30 +478,6 @@ export class GameRenderer {
 			this.camera.lookAt(marblePosition);
 			this.camera.position.add(this.lastVerticalTranslation);
 		}
-	}
-
-	determineClockColor(timeToDisplay: number): 'red' | 'green' {
-		let { game } = this;
-		let { simulator } = game;
-
-		return; // fixme
-		/*
-		if (state.modification === 'gold') return;
-
-		if (simulator.finishTime) return 'green'; // Even if not qualified
-		if (simulator.timeState.currentAttemptTime < GO_TIME || simulator.currentTimeTravelBonus > 0) return 'green';
-		if (timeToDisplay >= game.mission.qualifyTime) return 'red';
-
-		if (simulator.timeState.currentAttemptTime >= GO_TIME && isFinite(game.mission.qualifyTime) && state.modification === 'platinum') {
-			// Create the flashing effect
-			let alarmStart = game.mission.computeAlarmStartTime();
-			let elapsed = timeToDisplay - alarmStart;
-			if (elapsed < 0) return;
-			if (Math.floor(elapsed / 1000) % 2 === 0) return 'red';
-		}
-
-		return; // Default yellow
-		*/
 	}
 
 	onResize() {

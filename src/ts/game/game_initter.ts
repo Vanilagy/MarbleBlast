@@ -50,6 +50,7 @@ import { OutOfBoundsTrigger } from "../triggers/out_of_bounds_trigger";
 import { TeleportTrigger } from "../triggers/teleport_trigger";
 import { Trigger } from "../triggers/trigger";
 import { Util } from "../util";
+import { Clock } from "./clock";
 import { Game } from "./game";
 
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
@@ -95,6 +96,8 @@ export class GameInitter {
 	/** Holds data shared between multiple shapes with the same constructor and .dts path. */
 	sharedShapeData = new Map<string, Promise<SharedShapeData>>();
 
+	auxEntityIdStart: number;
+
 	constructor(game: Game) {
 		this.game = game;
 		this.loadingState = { loaded: 0, total: 0 };
@@ -134,6 +137,12 @@ export class GameInitter {
 		for (let interior of game.interiors) game.addEntity(interior);
 		for (let shape of game.shapes) game.addEntity(shape);
 		for (let trigger of game.triggers) game.addEntity(trigger);
+
+		let maxEntityId = Math.max(...game.entities.map(x => x.id));
+		this.auxEntityIdStart = maxEntityId + 1;
+
+		game.clock = new Clock(game, this.auxEntityIdStart);
+		game.addEntity(game.clock);
 
 		await renderer.initUi();
 		this.loadingState.loaded += 3;

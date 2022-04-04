@@ -109,7 +109,6 @@ export interface MarbleControlState {
 
 /** Controls marble behavior and responds to player input. */
 export class Marble extends Entity<MarbleState, InternalMarbleState> {
-	id: number;
 	challengeable = true;
 
 	group: Group;
@@ -393,7 +392,7 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 	}
 
 	loadState(state: MarbleState, { remote }: { remote: boolean }) {
-		if (!this.addedToGame) this.addToGame();
+		if (!this.addedToGame && remote) this.addToGame();
 
 		this.body.position.copy(state.position as Vector3);
 		this.body.orientation.copy(state.orientation as Quaternion);

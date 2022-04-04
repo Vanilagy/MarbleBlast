@@ -18,6 +18,9 @@ export const entityStateFormat = [union, 'entityType', {
 	jumping: 'boolean',
 	using: 'boolean',
 	blasting: 'boolean'
+}, {
+	entityType: 'clock',
+	time: 'f64'
 }] as const;
 
 export const entityUpdateFormat = {

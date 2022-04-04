@@ -18,8 +18,6 @@ interface PlayerInternalState {
 }
 
 export class Player extends Entity<PlayerState, PlayerInternalState> {
-	id: number;
-
 	controlledMarble: Marble;
 
 	pitch = DEFAULT_PITCH;

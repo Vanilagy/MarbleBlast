@@ -2,7 +2,7 @@ import { EntityState } from "../../../shared/game_server_format";
 import { Game } from "./game";
 
 export abstract class Entity<T extends EntityState = EntityState, U = any> {
-	abstract id: number;
+	id: number;
 
 	game: Game;
 	owned = false;

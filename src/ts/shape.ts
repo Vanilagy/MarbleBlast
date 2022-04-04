@@ -21,6 +21,7 @@ import { Box3 } from "./math/box3";
 import { BlendingType } from "./rendering/renderer";
 import { Game } from "./game/game";
 import { Entity } from "./game/entity";
+import { EntityState } from "../../shared/game_server_format";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
@@ -91,8 +92,6 @@ export interface GraphNode {
 
 /** Represents an object created from a DTS file. This is either a static object like the start pad or a sign, or an item like gems or powerups. */
 export class Shape extends Entity {
-	/** The unique id of this shape. */
-	id: number;
 	srcElement: MissionElement;
 	dtsPath: string;
 	colliderDtsPath: string;
@@ -985,13 +984,9 @@ export class Shape extends Entity {
 
 	stop() {}
 
-	getCurrentState(): Record<string, never> {
-		return {};
-	}
-
-	loadState(state: Record<string, never>): void {
-
-	}
+	getCurrentState(): EntityState { return null; }
+	getInitialState(): EntityState { return null; }
+	loadState() {}
 
 	/* eslint-disable  @typescript-eslint/no-unused-vars */
 	onMarbleContact(collision: Collision) {}

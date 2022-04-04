@@ -2,7 +2,6 @@ import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { DefaultMap } from "../../../shared/default_map";
 import { EntityUpdate } from "../../../shared/game_server_format";
 import { AudioManager } from "../audio";
-import { DEFAULT_PITCH, PHYSICS_TICK_RATE } from "../level";
 import { Euler } from "../math/euler";
 import { Vector3 } from "../math/vector3";
 import { MissionElementSimGroup, MissionElementTrigger, MisParser } from "../parsing/mis_parser";
@@ -27,7 +26,6 @@ export class GameState {
 
 	frame = -1;
 	attemptFrame = -1;
-	clock = 0;
 
 	get time() {
 		return (this.frame + this.subframeCompletion) / GAME_UPDATE_RATE;
@@ -61,12 +59,12 @@ export class GameState {
 				this.currentTimeTravelBonus -= 1 / GAME_UPDATE_RATE;
 			} else {
 				// Increase the gameplay time
-				this.clock += 1 / PHYSICS_TICK_RATE;
+				//this.clock += 1 / GAME_UPDATE_RATE;
 			}
 
 			if (this.currentTimeTravelBonus < 0) {
 				// If we slightly undershot the zero mark of the remaining time travel bonus, add the "lost time" back onto the gameplay clock:
-				this.clock += -this.currentTimeTravelBonus;
+				//this.clock += -this.currentTimeTravelBonus;
 				this.currentTimeTravelBonus = 0;
 			}
 		}
@@ -79,7 +77,6 @@ export class GameState {
 		let { game } = this;
 		let hud = state.menu.hud;
 
-		this.clock = 0;
 		this.attemptFrame = -1;
 		this.currentTimeTravelBonus = 0;
 
@@ -193,19 +190,17 @@ export class GameState {
 			entity.loadInternalState(last.state, last.frame);
 		}
 
-		for (let [entityId, updateHistory] of this.stateHistory) {
-			let changed = false;
-			while (Util.last(updateHistory) && Util.last(updateHistory).frame > target) {
-				updateHistory.pop();
-				changed = true;
+		for (let entity of this.game.entities) {
+			let history = this.stateHistory.get(entity.id) ?? [];
+
+			while (Util.last(history) && Util.last(history).frame > target) {
+				history.pop();
 			}
 
-			if (!changed) continue;
-
-			let entity = this.game.getEntityById(entityId);
-
-			let update = Util.last(updateHistory);
+			let update = Util.last(history);
 			let state = update?.state ?? entity.getInitialState();
+
+			if (!state) continue;
 
 			entity.loadState(state, {
 				frame: update?.frame ?? 0,
