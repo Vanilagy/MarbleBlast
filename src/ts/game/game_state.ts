@@ -25,19 +25,19 @@ export class GameState {
 	game: Game;
 	id = 0;
 
-	tick = -1;
-	attemptTick = -1;
+	frame = -1;
+	attemptFrame = -1;
 	clock = 0;
 
 	get time() {
-		return (this.tick + this.subtickCompletion) / GAME_UPDATE_RATE;
+		return (this.frame + this.subframeCompletion) / GAME_UPDATE_RATE;
 	}
 
 	get attemptTime() {
-		return (this.attemptTick + this.subtickCompletion) / GAME_UPDATE_RATE;
+		return (this.attemptFrame + this.subframeCompletion) / GAME_UPDATE_RATE;
 	}
 
-	subtickCompletion = 0;
+	subframeCompletion = 0;
 
 	stateHistory = new DefaultMap<number, EntityUpdate[]>(() => []);
 	internalStateHistory = new DefaultMap<number, { frame: number, state: any }[]>(() => []);
@@ -71,8 +71,8 @@ export class GameState {
 			}
 		}
 
-		this.tick++;
-		this.attemptTick++;
+		this.frame++;
+		this.attemptFrame++;
 	}
 
 	restart() {
@@ -80,7 +80,7 @@ export class GameState {
 		let hud = state.menu.hud;
 
 		this.clock = 0;
-		this.attemptTick = -1;
+		this.attemptFrame = -1;
 		this.currentTimeTravelBonus = 0;
 
 		if (game.totalGems > 0) {
@@ -120,12 +120,12 @@ export class GameState {
 
 			if (entity.stateNeedsStore) {
 				let arr = this.stateHistory.get(entity.id);
-				if (Util.last(arr)?.frame === this.tick) arr.pop();
+				if (Util.last(arr)?.frame === this.frame) arr.pop();
 
 				let stateUpdate: EntityUpdate = {
 					updateId: this.nextUpdateId++,
 					entityId: entity.id,
-					frame: this.tick,
+					frame: this.frame,
 					owned: entity.owned,
 					challengeable: entity.challengeable,
 					originator: this.game.localPlayer.id,
@@ -139,10 +139,10 @@ export class GameState {
 
 			if (entity.internalStateNeedsStore) {
 				let arr = this.internalStateHistory.get(entity.id);
-				if (Util.last(arr)?.frame === this.tick) arr.pop();
+				if (Util.last(arr)?.frame === this.frame) arr.pop();
 
 				arr.push({
-					frame: (arr.length === 0)? -1 : this.tick,
+					frame: (arr.length === 0)? -1 : this.frame,
 					state: entity.getInternalState()
 				});
 
@@ -180,7 +180,7 @@ export class GameState {
 	}
 
 	rollBackToFrame(target: number) {
-		if (target === this.tick) return;
+		if (target === this.frame) return;
 
 		while (this.affectionGraph.length > 0 && Util.last(this.affectionGraph).frame > target)
 			this.affectionGraph.pop();
@@ -216,7 +216,7 @@ export class GameState {
 
 		this.saveStates();
 
-		this.tick = target;
+		this.frame = target;
 		// todo: attemptTick
 	}
 
@@ -225,7 +225,7 @@ export class GameState {
 			id: this.nextAffectionEdgeId++,
 			from: o1,
 			to: o2,
-			frame: this.tick
+			frame: this.frame
 		});
 	}
 }

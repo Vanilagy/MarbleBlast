@@ -75,8 +75,8 @@ export class Player extends Entity<PlayerState, PlayerInternalState> {
 		//return {...Marble.getPassiveControlState(), jumping: true, movement: new Vector2(0.01)};
 		if (this !== this.game.localPlayer) return this.getRemoteControlState();
 
-		if (this.inputHistory.has(this.game.state.tick)) {
-			return this.inputHistory.get(this.game.state.tick);
+		if (this.inputHistory.has(this.game.state.frame)) {
+			return this.inputHistory.get(this.game.state.frame);
 		}
 
 		let allowUserInput = !state.menu.finishScreen.showing;
@@ -114,7 +114,7 @@ export class Player extends Entity<PlayerState, PlayerInternalState> {
 		};
 
 		this.lastControlState = res;
-		this.inputHistory.set(this.game.state.tick, res);
+		this.inputHistory.set(this.game.state.frame, res);
 
 		this.jumping = false;
 		this.using = false;
@@ -126,7 +126,7 @@ export class Player extends Entity<PlayerState, PlayerInternalState> {
 	getRemoteControlState(): MarbleControlState {
 		if (!this.lastRemoteState) return Marble.getPassiveControlState();
 
-		let completion = (this.game.state.tick - this.lastRemoteStateFrame) / (this.game as MultiplayerGame).simulator.lastReconciliationTickCount;
+		let completion = (this.game.state.frame - this.lastRemoteStateFrame) / (this.game as MultiplayerGame).simulator.lastReconciliationFrameCount;
 
 		if (completion > 2) return Marble.getPassiveControlState();
 

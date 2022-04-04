@@ -972,29 +972,13 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 	afterReconciliation() {
 		this.pauseInterpolation = false;
 
-		let ticks = (this.game as MultiplayerGame).simulator.lastReconciliationTickCount;
-		if (this.interpolationRemaining > ticks) return;
+		let frames = (this.game as MultiplayerGame).simulator.lastReconciliationFrameCount;
+		if (this.interpolationRemaining > frames) return;
 
 		if (this.reconciliationPosition.distanceTo(this.body.position) === 0) return;
 
-		this.interpolationRemaining = ticks;
+		this.interpolationRemaining = frames;
 		this.interpolationStrength = 1 - Math.pow(1 - 0.99, 1 / this.interpolationRemaining);
-
-		return;
-
-		/*
-
-		let ticks = (this.game as MultiplayerGame).simulator.lastReconciliationTickCount;
-		let newInterpolationDuration = Math.min(
-			this.reconciliationPosition.distanceTo(this.body.position) / (this.reconciliationLinearVelocity.length() / GAME_UPDATE_RATE),
-			ticks
-		) | 0;
-
-		if (this.interpolationRemaining > newInterpolationDuration) return;
-
-		this.interpolationRemaining = newInterpolationDuration;
-		this.interpolationStrength = 1 - Math.pow(1 - 0.99, 1 / newInterpolationDuration);
-		*/
 	}
 
 	static getPassiveControlState(): MarbleControlState {

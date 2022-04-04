@@ -5,16 +5,16 @@ import { MultiplayerGame } from "./multiplayer_game";
 export class MultiplayerGameState extends GameState {
 	game: MultiplayerGame;
 
-	serverTick: number = null;
-	targetClientTick: number = null;
+	serverFrame: number = null;
+	targetClientFrame: number = null;
 
-	supplyServerTimeState(serverTick: number, clientTick: number) {
-		if (this.serverTick === null) {
+	supplyServerTimeState(serverFrame: number, clientFrame: number) {
+		if (this.serverFrame === null) {
 			// This is the first time state we get from the server
-			this.tick = clientTick - 1;
+			this.frame = clientFrame - 1;
 		}
 
-		this.serverTick = serverTick;
-		this.targetClientTick = clientTick;
+		this.serverFrame = serverFrame;
+		this.targetClientFrame = clientFrame;
 	}
 }

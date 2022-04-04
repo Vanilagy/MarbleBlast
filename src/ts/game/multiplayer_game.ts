@@ -46,7 +46,7 @@ export class MultiplayerGame extends Game {
 
 	gameServer: GameServer;
 	connection: GameServerConnection;
-	lastServerTickUpdate: number = null;
+	lastServerTickTime: number = null;
 	lastServerStateBundle: CommandToData<"serverStateBundle"> = null;
 	lastReceivedServerUpdateId = -1;
 
@@ -60,7 +60,6 @@ export class MultiplayerGame extends Game {
 	incomingTimes: [number, number][] = [];
 	outgoingTimes: [number, number][] = [];
 
-	lastSentTick = -1;
 	periods: Period[] = [];
 	nextPeriodId = 0;
 	lastPeriodUpdateId = 0;
@@ -143,7 +142,7 @@ export class MultiplayerGame extends Game {
 			this.connection.on('gameJoinInfo', callback);
 		});
 
-		this.state.supplyServerTimeState(response.serverTick, response.clientTick);
+		this.state.supplyServerTimeState(response.serverFrame, response.clientFrame);
 
 		for (let playerData of response.players) {
 			await this.addPlayer(playerData.id, playerData.marbleId);
@@ -181,20 +180,20 @@ export class MultiplayerGame extends Game {
 
 		let time = performance.now();
 
-		if (this.lastServerTickUpdate === null) {
-			this.lastServerTickUpdate = time;
+		if (this.lastServerTickTime === null) {
+			this.lastServerTickTime = time;
 		}
 
-		let serverElapsed = time - this.lastServerTickUpdate;
+		let serverElapsed = time - this.lastServerTickTime;
 		while (serverElapsed >= 1000 / GAME_UPDATE_RATE) {
 			serverElapsed -= 1000 / GAME_UPDATE_RATE;
-			this.lastServerTickUpdate += 1000 / GAME_UPDATE_RATE;
+			this.lastServerTickTime += 1000 / GAME_UPDATE_RATE;
 
-			this.state.serverTick++;
-			this.state.targetClientTick++;
+			this.state.serverFrame++;
+			this.state.targetClientFrame++;
 		}
 
-		let updateRateDelta = Util.signedSquare((this.state.targetClientTick - this.state.tick) / 2) * 2;
+		let updateRateDelta = Util.signedSquare((this.state.targetClientFrame - this.state.frame) / 2) * 2;
 		updateRateDelta = Util.clamp(updateRateDelta, -60, 60);
 		let gameUpdateRate = GAME_UPDATE_RATE + updateRateDelta;
 		this.lastUpdateRate = gameUpdateRate;
@@ -207,7 +206,7 @@ export class MultiplayerGame extends Game {
 
 		this.lastServerStateBundle = data;
 
-		this.state.supplyServerTimeState(data.serverTick, data.clientTick);
+		this.state.supplyServerTimeState(data.serverFrame, data.clientFrame);
 
 		data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
 
@@ -256,7 +255,7 @@ export class MultiplayerGame extends Game {
 		this.connection.queueCommand({ command: 'ping', timestamp }, false);
 
 		let periodStart = this.lastPeriodEnd + 1;
-		let periodEnd = this.state.tick;
+		let periodEnd = this.state.frame;
 
 		let entityUpdates: EntityUpdate[] = [];
 		let entityInfo: Period["entityInfo"] = [];
@@ -361,8 +360,8 @@ export class MultiplayerGame extends Game {
 
 		let bundle: CommandToData<'clientStateBundle'> = {
 			command: 'clientStateBundle',
-			serverTick: this.state.serverTick,
-			clientTick: this.state.targetClientTick,
+			serverFrame: this.state.serverFrame,
+			clientFrame: this.state.targetClientFrame,
 			periods: this.periods,
 			lastReceivedServerUpdateId: this.lastReceivedServerUpdateId
 		};
@@ -409,11 +408,11 @@ export class MultiplayerGame extends Game {
 			Outgoing pps: ${this.outgoingTimes.length}
 			Downstream: ${(this.incomingTimes.map(x => x[1]).reduce((a, b) => a + b, 0) / 1000).toFixed(1)} kB/s
 			Upstream: ${(this.outgoingTimes.map(x => x[1]).reduce((a, b) => a + b, 0) / 1000).toFixed(1)} kB/s
-			Server tick: ${this.state.serverTick}
-			Client tick: ${this.state.tick}
-			Target tick: ${this.state.targetClientTick}
-			Ticks ahead server: ${this.state.tick - this.state.serverTick}
-			Ticks ahead target: ${this.state.tick - this.state.targetClientTick}
+			Server frame: ${this.state.serverFrame}
+			Client frame: ${this.state.frame}
+			Target frame: ${this.state.targetClientFrame}
+			Frames ahead server: ${this.state.frame - this.state.serverFrame}
+			Frames ahead target: ${this.state.frame - this.state.targetClientFrame}
 			Server update rate: ${GAME_UPDATE_RATE} Hz
 			Client update rate: ${this.lastUpdateRate | 0} Hz
 		`;

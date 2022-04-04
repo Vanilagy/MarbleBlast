@@ -45,8 +45,8 @@ export const gameServerCommandFormat = [union, 'command', {
 	missionPath: 'string'
 }, {
 	command: 'clientStateBundle',
-	serverTick: 'varint',
-	clientTick: 'varint',
+	serverFrame: 'varint',
+	clientFrame: 'varint',
 	periods: [{
 		id: 'varint',
 		start: 'varint',
@@ -62,15 +62,15 @@ export const gameServerCommandFormat = [union, 'command', {
 	lastReceivedServerUpdateId: 'varint'
 }, {
 	command: 'serverStateBundle',
-	serverTick: 'varint',
-	clientTick: 'varint',
+	serverFrame: 'varint',
+	clientFrame: 'varint',
 	entityUpdates: [entityUpdateFormat],
 	lastReceivedPeriodId: 'varint',
 	rewindToFrameCap: 'varint'
 }, {
 	command: 'gameJoinInfo',
-	serverTick: 'varint',
-	clientTick: 'varint',
+	serverFrame: 'varint',
+	clientFrame: 'varint',
 	players: [{
 		id: 'varint',
 		marbleId: 'varint'

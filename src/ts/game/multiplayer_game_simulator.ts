@@ -9,7 +9,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 	reconciliationUpdates: EntityUpdate[] = [];
 
-	lastReconciliationTickCount = 0;
+	lastReconciliationFrameCount = 0;
 
 	update() {
 		let { game } = this;
@@ -33,7 +33,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 			...this.reconciliationUpdates.map(x => x.frame)
 		);
 		startFrame = Math.max(startFrame, game.lastServerStateBundle.rewindToFrameCap);
-		let endFrame = state.tick;
+		let endFrame = state.frame;
 
 		state.rollBackToFrame(startFrame);
 		this.applyReconciliationUpdates(true);
@@ -42,12 +42,12 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 		//console.log(`Tryna go from ${startFrame} to ${endFrame}`);
 
-		while (state.tick < endFrame) {
+		while (state.frame < endFrame) {
 			this.advance();
 			this.applyReconciliationUpdates();
 		}
 
-		this.lastReconciliationTickCount = endFrame - startFrame;
+		this.lastReconciliationFrameCount = endFrame - startFrame;
 		for (let entity of game.entities) entity.afterReconciliation();
 
 		this.reconciliationUpdates.length = 0;
@@ -57,7 +57,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 	applyReconciliationUpdates(applyOlder = false) {
 		let state = this.game.state;
-		let currentFrame = state.tick;
+		let currentFrame = state.frame;
 
 		for (let update of this.reconciliationUpdates) {
 			if (applyOlder? update.frame > currentFrame : update.frame !== currentFrame) continue;

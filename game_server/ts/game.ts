@@ -6,7 +6,7 @@ import { GAME_UPDATE_RATE } from '../../shared/constants';
 import { performance } from 'perf_hooks';
 
 const TWICE_CLIENT_UPDATE_PERIOD = 4 * 2; // todo remove hardcode?
-const UPDATE_BUFFER_SIZE = 1; // In ticks
+const UPDATE_BUFFER_SIZE = 1; // In frames
 
 type EntityInfo = CommandToData<'clientStateBundle'>["periods"][number]["entityInfo"][number];
 
@@ -141,8 +141,8 @@ export class Game {
 
 		connection.queueCommand({
 			command: 'gameJoinInfo',
-			serverTick: this.frame,
-			clientTick: this.frame + UPDATE_BUFFER_SIZE, // No better guess yet
+			serverFrame: this.frame,
+			clientFrame: this.frame + UPDATE_BUFFER_SIZE, // No better guess yet
 			players: this.players.map(x => ({
 				id: x.id,
 				marbleId: x.marbleId
@@ -237,8 +237,8 @@ export class Game {
 
 			player.connection.queueCommand({
 				command: 'serverStateBundle',
-				serverTick: this.frame,
-				clientTick: this.frame + player.lastEstimatedRtt + UPDATE_BUFFER_SIZE,
+				serverFrame: this.frame,
+				clientFrame: this.frame + player.lastEstimatedRtt + UPDATE_BUFFER_SIZE,
 				entityUpdates: player.queuedEntityUpdates,
 				lastReceivedPeriodId: player.lastReceivedPeriodId,
 				rewindToFrameCap: rewindToFrameCap
@@ -261,7 +261,7 @@ export class Game {
 	onClientStateReceived(player: Player, msg: CommandToData<'clientStateBundle'>) {
 		this.tryAdvanceGame(); // First, advance the game as much as we can
 
-		player.lastEstimatedRtt = Math.max(this.frame - msg.serverTick, 0);
+		player.lastEstimatedRtt = Math.max(this.frame - msg.serverFrame, 0);
 
 		// Filter out updates received by the server
 		let periods = msg.periods.filter(period => {

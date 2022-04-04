@@ -300,9 +300,9 @@ export class GameRenderer {
 			this.lastFrameTime = Math.max(this.lastFrameTime, time - 2 * required); // To avoid the last frame time from lagging behind
 		}
 
-		let gameTickLength = 1000 / GAME_UPDATE_RATE;
-		let completion = Util.clamp((time - game.lastGameUpdateTime) / gameTickLength * GAME_PLAYBACK_SPEED, 0, 1);
-		game.state.subtickCompletion = completion;
+		let gameFrameLength = 1000 / GAME_UPDATE_RATE;
+		let completion = Util.clamp((time - game.lastGameUpdateTime) / gameFrameLength * GAME_PLAYBACK_SPEED, 0, 1);
+		game.state.subframeCompletion = completion;
 
 		for (let entity of game.entities) entity.render();
 		this.particles.render();
@@ -371,7 +371,7 @@ export class GameRenderer {
 		hud.alertElement.style.opacity = (1 - alertTextCompletion).toString();
 		hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
 
-		game.state.subtickCompletion = 0;
+		game.state.subframeCompletion = 0;
 	}
 
 	/** Updates the position of the camera based on marble position and orientation. */
