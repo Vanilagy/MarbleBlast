@@ -7,7 +7,7 @@ import { MAX_TIME } from "./game_simulator";
 
 type ClockState = EntityState & { entityType: 'clock' };
 
-export class Clock extends Entity<ClockState> {
+export class Clock extends Entity {
 	time = 0;
 
 	constructor(game: Game, id: number) {

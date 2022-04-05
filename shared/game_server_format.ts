@@ -21,6 +21,11 @@ export const entityStateFormat = [union, 'entityType', {
 }, {
 	entityType: 'clock',
 	time: 'f64'
+}, {
+	entityType: 'pathedInterior',
+	currentTime: 'f64',
+	targetTime: 'f64',
+	changeTime: 'f64'
 }] as const;
 
 export const entityUpdateFormat = {

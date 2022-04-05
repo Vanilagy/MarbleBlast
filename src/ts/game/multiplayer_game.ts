@@ -14,8 +14,6 @@ const networkStatsElement = document.querySelector('#network-stats') as HTMLDivE
 
 const RTT_WINDOW = 2000;
 
-let initting = new Set<number>(); // fixme remove it
-
 let sendTimeout = 0;
 
 // todo make sure to remove this eventually
@@ -404,8 +402,8 @@ export class MultiplayerGame extends Game {
 		networkStatsElement.textContent = `
 			Ping: ${isNaN(averageRtt)? 'N/A' : averageRtt.toFixed(1) + ' ms'}
 			Jitter: ${isNaN(jitter)? 'N/A' : jitter.toFixed(1) + ' ms'}
-			Incoming pps: ${this.incomingTimes.length}
-			Outgoing pps: ${this.outgoingTimes.length}
+			Incoming packets/s: ${this.incomingTimes.length}
+			Outgoing packets/s: ${this.outgoingTimes.length}
 			Downstream: ${(this.incomingTimes.map(x => x[1]).reduce((a, b) => a + b, 0) / 1000).toFixed(1)} kB/s
 			Upstream: ${(this.outgoingTimes.map(x => x[1]).reduce((a, b) => a + b, 0) / 1000).toFixed(1)} kB/s
 			Server frame: ${this.state.serverFrame}

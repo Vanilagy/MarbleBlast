@@ -17,7 +17,7 @@ interface PlayerInternalState {
 	movementLerpStart: Vector2
 }
 
-export class Player extends Entity<PlayerState, PlayerInternalState> {
+export class Player extends Entity {
 	controlledMarble: Marble;
 
 	pitch = DEFAULT_PITCH;
@@ -70,7 +70,6 @@ export class Player extends Entity<PlayerState, PlayerInternalState> {
 	}
 
 	getControlState(): MarbleControlState {
-		//return {...Marble.getPassiveControlState(), jumping: true, movement: new Vector2(0.01)};
 		if (this !== this.game.localPlayer) return this.getRemoteControlState();
 
 		if (this.inputHistory.has(this.game.state.frame)) {
@@ -155,11 +154,7 @@ export class Player extends Entity<PlayerState, PlayerInternalState> {
 	}
 
 	reset() {
-		let { euler } = this.controlledMarble.game.state.getStartPositionAndOrientation();
 
-		// Determine starting camera orientation based on the start pad
-		this.pitch = DEFAULT_PITCH;
-		this.yaw = DEFAULT_YAW + euler.z;
 	}
 
 	getInitialState(): PlayerState {
@@ -186,7 +181,7 @@ export class Player extends Entity<PlayerState, PlayerInternalState> {
 		this.internalStateNeedsStore = true;
 	}
 
-	getInternalState() {
+	getInternalState(): PlayerInternalState {
 		return {
 			lastRemoteState: this.lastRemoteState,
 			lastRemoteStateFrame: this.lastRemoteStateFrame,

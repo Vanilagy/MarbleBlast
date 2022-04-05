@@ -90,6 +90,9 @@ export abstract class FixedFormatBinarySerializer {
 				}
 			}
 
+			if (index === undefined)
+				throw new Error(`${data[discriminator]} is not a valid discriminator for this union type.`);
+
 			this.writePrimitive(index, 'varint');
 			this.write(data, format[index + 2], discriminator);
 		} else if (Array.isArray(format)) {

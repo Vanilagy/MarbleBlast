@@ -1,5 +1,4 @@
 import { MissionElementTrigger, MisParser } from "../parsing/mis_parser";
-import { TimeState, Level } from "../level";
 import { Util } from "../util";
 import { AudioManager } from "../audio";
 import { ConvexHullCollisionShape } from "../physics/collision_shape";
@@ -10,6 +9,11 @@ import { Matrix4 } from "../math/matrix4";
 import { Game } from "../game/game";
 import { Entity } from "../game/entity";
 import { EntityState } from "../../../shared/game_server_format";
+import { Marble } from "../marble";
+
+interface InternalTriggerState {
+	currentlyColliding: Set<RigidBody>
+}
 
 /** A trigger is a cuboid-shaped area whose overlap with the marble causes certain events to happen. */
 export abstract class Trigger extends Entity {
@@ -17,7 +21,7 @@ export abstract class Trigger extends Entity {
 	body: RigidBody;
 	element: MissionElementTrigger;
 	sounds: string[] = [];
-	isCurrentlyColliding = false;
+	currentlyColliding = new Set<RigidBody>();
 
 	constructor(element: MissionElementTrigger, game: Game) {
 		super(game);
@@ -68,17 +72,27 @@ export abstract class Trigger extends Entity {
 		// Init collision handlers
 
 		body.onBeforeIntegrate = () => {
-			if (this.isCurrentlyColliding && body.collisions.length === 0) {
-				this.isCurrentlyColliding = false;
-				this.onMarbleLeave();
+			for (let body of this.currentlyColliding) {
+				if (!this.body.collisions.some(x => x.s1.body === body)) {
+					this.currentlyColliding.delete(body);
+					this.internalStateNeedsStore = true;
+
+					let marble = body.userData as Marble;
+					this.onMarbleLeave(marble);
+				}
 			}
 		};
 
 		body.onBeforeCollisionResponse = () => {
-			if (!this.isCurrentlyColliding) this.onMarbleEnter();
-			this.onMarbleInside();
+			for (let collision of this.body.collisions) {
+				let marble = collision.s1.body.userData as Marble;
 
-			this.isCurrentlyColliding = true;
+				if (!this.currentlyColliding.has(collision.s1.body)) this.onMarbleEnter(marble);
+				this.onMarbleInside(marble);
+
+				this.currentlyColliding.add(collision.s1.body);
+				this.internalStateNeedsStore = true;
+			}
 		};
 
 		this.reset();
@@ -92,7 +106,7 @@ export abstract class Trigger extends Entity {
 	}
 
 	reset() {
-		this.isCurrentlyColliding = false;
+		this.currentlyColliding.clear();
 	}
 
 	render() {}
@@ -102,8 +116,18 @@ export abstract class Trigger extends Entity {
 	getInitialState(): EntityState { return null; }
 	loadState() {}
 
-	onMarbleInside() {}
-	onMarbleEnter() {}
-	onMarbleLeave() {}
+	getInternalState(): InternalTriggerState {
+		return {
+			currentlyColliding: new Set(this.currentlyColliding)
+		};
+	}
+
+	loadInternalState(state: InternalTriggerState) {
+		this.currentlyColliding = new Set(state.currentlyColliding);
+	}
+
+	onMarbleInside(marble: Marble) {}
+	onMarbleEnter(marble: Marble) {}
+	onMarbleLeave(marble: Marble) {}
 	update() {}
 }

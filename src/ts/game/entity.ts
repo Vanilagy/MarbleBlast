@@ -1,7 +1,7 @@
 import { EntityState } from "../../../shared/game_server_format";
 import { Game } from "./game";
 
-export abstract class Entity<T extends EntityState = EntityState, U = any> {
+export abstract class Entity {
 	id: number;
 
 	game: Game;
@@ -21,9 +21,9 @@ export abstract class Entity<T extends EntityState = EntityState, U = any> {
 	abstract reset(): void;
 	abstract stop(): void;
 
-	abstract getCurrentState(): T;
-	abstract getInitialState(): T;
-	abstract loadState(state: T, meta: { frame: number, remote: boolean }): void;
+	abstract getCurrentState(): EntityState;
+	abstract getInitialState(): EntityState;
+	abstract loadState(state: EntityState, meta: { frame: number, remote: boolean }): void;
 
 	beforeReconciliation() {}
 	afterReconciliation() {}
@@ -32,6 +32,6 @@ export abstract class Entity<T extends EntityState = EntityState, U = any> {
 		this.game.state.recordEntityInteraction(this, otherObject);
 	}
 
-	getInternalState(): U { return null; }
-	loadInternalState(state: U, frame: number) {}
+	getInternalState(): any { return null; }
+	loadInternalState(state: any, frame: number) {}
 }

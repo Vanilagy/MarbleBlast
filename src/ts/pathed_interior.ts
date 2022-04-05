@@ -1,13 +1,14 @@
 import { Interior } from "./interior";
 import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "./parsing/mis_parser";
 import { Util } from "./util";
-import { TimeState, PHYSICS_TICK_RATE } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
 import { AudioManager, AudioSource } from "./audio";
 import { Matrix4 } from "./math/matrix4";
 import { Vector3 } from "./math/vector3";
 import { Quaternion } from "./math/quaternion";
 import { Game } from "./game/game";
+import { GAME_UPDATE_RATE } from "../../shared/constants";
+import { EntityState } from "../../shared/game_server_format";
 
 let v1 = new Vector3();
 let m1 = new Matrix4();
@@ -17,6 +18,13 @@ interface MarkerData {
 	smoothingType: string,
 	position: Vector3,
 	rotation: Quaternion
+}
+
+type PathedInteriorState = EntityState & { entityType: 'pathedInterior' };
+
+interface InternalPathedInteriorState {
+	prevPosition: Vector3,
+	currentPosition: Vector3
 }
 
 /** Represents a Torque 3D Pathed Interior moving along a set path. */
@@ -134,15 +142,19 @@ export class PathedInterior extends Interior {
 		this.duration = total;
 	}
 
-	setTargetTime(now: TimeState, target: number) {
-		let currentInternalTime = this.getInternalTime(now.currentAttemptTime);
+	setTargetTime(time: number, target: number) {
+		let currentInternalTime = this.getInternalTime(time);
 		this.currentTime = currentInternalTime; // Start where the interior currently is
 		this.targetTime = target;
-		this.changeTime = now.currentAttemptTime;
+		this.changeTime = 1000 * time;
+
+		this.stateNeedsStore = true;
 	}
 
 	/** Gets the internal time along the path. Is guaranteed to be in [0, duration]. */
 	getInternalTime(externalTime: number) {
+		externalTime *= 1000;
+
 		if (this.targetTime < 0) {
 			let direction = (this.targetTime === -1)? 1 : (this.targetTime === -2)? -1 : 0;
 			return Util.adjustedMod(this.currentTime + (externalTime - this.changeTime) * direction, this.duration);
@@ -156,13 +168,14 @@ export class PathedInterior extends Interior {
 	update() {
 		this.body.position.copy(this.currentPosition); // Reset it back to where it should be (render loop might've moved it)
 
-		let transform = this.getTransformAtTime(m1, this.getInternalTime(this.game.state.attemptTime));
+		let transform = this.getTransformAtTime(m1, this.getInternalTime(this.game.state.time));
 
 		this.prevPosition.copy(this.currentPosition);
 		this.currentPosition.setFromMatrixPosition(transform); // The orientation doesn't matter in that version of TGE, so we only need position
+		this.internalStateNeedsStore = true;
 
 		// Approximate the velocity numerically
-		let velocity = v1.copy(this.currentPosition).sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
+		let velocity = v1.copy(this.currentPosition).sub(this.prevPosition).multiplyScalar(GAME_UPDATE_RATE);
 		this.body.linearVelocity.copy(velocity);
 
 		// Modify the sound effect position, if present
@@ -242,13 +255,14 @@ export class PathedInterior extends Interior {
 	}
 
 	render() {
-		let transform = this.getTransformAtTime(m1, this.getInternalTime(this.game.state.attemptTime));
+		let transform = this.getTransformAtTime(m1, this.getInternalTime(this.game.state.time));
 
 		this.mesh.transform.copy(transform);
 		this.mesh.changedTransform();
 
+		// Set the position of the body as well for correct camera ray casting results
 		this.body.position.setFromMatrixPosition(transform);
-		this.body.syncShapes(); // Set the position of the body as well for correct camera ray casting results
+		this.body.syncShapes();
 	}
 
 	/** Resets the movement state of the pathed interior to the beginning values. */
@@ -281,5 +295,32 @@ export class PathedInterior extends Interior {
 
 	stop() {
 		this.soundSource?.stop();
+	}
+
+	getInternalState(): InternalPathedInteriorState {
+		return {
+			prevPosition: this.prevPosition.clone(),
+			currentPosition: this.currentPosition.clone()
+		};
+	}
+
+	loadInternalState(state: InternalPathedInteriorState): void {
+		this.prevPosition.copy(state.prevPosition);
+		this.currentPosition.copy(state.currentPosition);
+	}
+
+	getCurrentState(): PathedInteriorState {
+		return {
+			entityType: 'pathedInterior',
+			currentTime: this.currentTime,
+			targetTime: this.targetTime,
+			changeTime: this.changeTime
+		};
+	}
+
+	loadState(state: PathedInteriorState) {
+		this.currentTime = state.currentTime;
+		this.targetTime = state.targetTime;
+		this.changeTime = state.changeTime;
 	}
 }

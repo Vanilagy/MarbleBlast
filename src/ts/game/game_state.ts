@@ -25,14 +25,9 @@ export class GameState {
 	id = 0;
 
 	frame = -1;
-	attemptFrame = -1;
 
 	get time() {
 		return (this.frame + this.subframeCompletion) / GAME_UPDATE_RATE;
-	}
-
-	get attemptTime() {
-		return (this.attemptFrame + this.subframeCompletion) / GAME_UPDATE_RATE;
 	}
 
 	subframeCompletion = 0;
@@ -53,6 +48,7 @@ export class GameState {
 	}
 
 	advanceTime() {
+		/*
 		if (this.attemptTime >= GO_TIME) {
 			if (this.currentTimeTravelBonus > 0) {
 				// Subtract remaining time travel time
@@ -67,17 +63,16 @@ export class GameState {
 				//this.clock += -this.currentTimeTravelBonus;
 				this.currentTimeTravelBonus = 0;
 			}
-		}
+		}*/
 
 		this.frame++;
-		this.attemptFrame++;
+		//this.attemptFrame++;
 	}
 
 	restart() {
 		let { game } = this;
 		let hud = state.menu.hud;
 
-		this.attemptFrame = -1;
 		this.currentTimeTravelBonus = 0;
 
 		if (game.totalGems > 0) {
@@ -85,17 +80,7 @@ export class GameState {
 			hud.displayGemCount(this.collectedGems, game.totalGems);
 		}
 
-		let marble = game.localPlayer.controlledMarble;
-		let { position: startPosition, euler } = this.getStartPositionAndOrientation();
-
-		// Todo put all this shit into marble bro! what the fuck are you thinking
-		// Place the marble a bit above the start pad position
-		marble.body.position.set(startPosition.x, startPosition.y, startPosition.z + 3);
-		marble.body.syncShapes();
-		marble.group.position.copy(marble.body.position);
-		marble.group.recomputeTransform();
-		marble.reset();
-		marble.calculatePredictiveTransforms();
+		game.localPlayer.controlledMarble.respawn();
 
 		let missionInfo = game.mission.missionInfo;
 		if (missionInfo.starthelptext)

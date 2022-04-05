@@ -108,7 +108,7 @@ export interface MarbleControlState {
 }
 
 /** Controls marble behavior and responds to player input. */
-export class Marble extends Entity<MarbleState, InternalMarbleState> {
+export class Marble extends Entity {
 	challengeable = true;
 
 	group: Group;
@@ -428,9 +428,9 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 
 		this.controllingPlayer?.applyControlState();
 
-		let attemptTime = this.game.state.attemptTime;
+		let time = this.game.state.time;
 
-		if (attemptTime - this.shockAbsorberEnableTime < 5000) {
+		if (time - this.shockAbsorberEnableTime < 5000) {
 			// Show the shock absorber (takes precedence over super bounce)
 			this.forcefield.setOpacity(1);
 			this.shape.restitution = 0.01;  // Yep it's not actually zero
@@ -440,7 +440,7 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 				this.shockAbsorberSound.setLoop(true);
 				this.shockAbsorberSound.play();
 			}
-		} else if (attemptTime - this.superBounceEnableTime < 5000) {
+		} else if (time - this.superBounceEnableTime < 5000) {
 			// Show the super bounce
 			this.forcefield.setOpacity(1);
 			this.shape.restitution = 0.9;
@@ -457,14 +457,14 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 			this.superBounceSound?.stop();
 			this.superBounceSound = null;
 		}
-		if (attemptTime - this.superBounceEnableTime < 5000 && !this.superBounceSound) {
+		if (time - this.superBounceEnableTime < 5000 && !this.superBounceSound) {
 			// Play the super bounce sound
 			this.superBounceSound = AudioManager.createAudioSource('forcefield.wav');
 			this.superBounceSound.setLoop(true);
 			this.superBounceSound.play();
 		}
 
-		if (attemptTime - this.helicopterEnableTime < 5000) {
+		if (time - this.helicopterEnableTime < 5000) {
 			// Show the helicopter
 			this.helicopter.setOpacity(1);
 			this.helicopter.setTransform(
@@ -488,12 +488,12 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 			this.helicopterSound = null;
 		}
 
-		if (this.radius !== MEGA_MARBLE_RADIUS && attemptTime - this.megaMarbleEnableTime < 10000) {
+		if (this.radius !== MEGA_MARBLE_RADIUS && time - this.megaMarbleEnableTime < 10000) {
 			this.setRadius(MEGA_MARBLE_RADIUS);
 			this.body.linearVelocity.addScaledVector(this.currentUp, 6); // There's a small yeet upwards
 			this.rollingSound.stop();
 			this.rollingMegaMarbleSound?.play();
-		} else if (attemptTime - this.megaMarbleEnableTime >= 10000) {
+		} else if (time - this.megaMarbleEnableTime >= 10000) {
 			this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
 			this.rollingSound.play();
 			this.rollingMegaMarbleSound?.stop();
@@ -602,10 +602,10 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 			// Angular acceleration isn't quite as speedy
 			movementRotationAxis.multiplyScalar(1/2);
 
-			let attemptTime = this.game.state.attemptTime;
+			let time = this.game.state.time;
 
 			let airMovementVector = movementVec.clone();
-			let airVelocity = (attemptTime - this.helicopterEnableTime) < 5000 ? 5 : 3.2; // Change air velocity for the helicopter
+			let airVelocity = (time - this.helicopterEnableTime) < 5000 ? 5 : 3.2; // Change air velocity for the helicopter
 			//if (this.game.simulator.finishTime) airVelocity = 0;
 			airMovementVector.multiplyScalar(airVelocity * dt);
 			this.body.linearVelocity.add(airMovementVector);
@@ -633,7 +633,7 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 		//let playReplay = this.level.replay.mode === 'playback';
 		let playReplay = false;
 
-		if (this.game.state.attemptTime < GO_TIME && !playReplay) {
+		if (this.game.state.time < GO_TIME && !playReplay) {
 			// Lock the marble to the space above the start pad
 
 			let { position: startPosition } = this.game.state.getStartPositionAndOrientation();
@@ -832,7 +832,7 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 	}
 
 	render() {
-		let attemptTime = this.game.state.attemptTime;
+		let time = this.game.state.time;
 
 		// todo: Position based on current and predicted position and orientation
 		//this.group.position.copy(this.body.position).lerp(this.predictedPosition, this.game.state.subtickCompletion);
@@ -844,14 +844,14 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 		this.innerGroup.recomputeTransform();
 
 		this.forcefield.render();
-		if (attemptTime - this.helicopterEnableTime < 5000) this.helicopter.render();
+		if (time - this.helicopterEnableTime < 5000) this.helicopter.render();
 
 		// Update the teleporting look:
 
 		let teleportFadeCompletion = 0;
 
-		if (this.teleportEnableTime !== null) teleportFadeCompletion = Util.clamp((attemptTime - this.teleportEnableTime) / TELEPORT_FADE_DURATION, 0, 1);
-		if (this.teleportDisableTime !== null) teleportFadeCompletion = Util.clamp(1 - (attemptTime - this.teleportDisableTime) / TELEPORT_FADE_DURATION, 0, 1);
+		if (this.teleportEnableTime !== null) teleportFadeCompletion = Util.clamp((time - this.teleportEnableTime) / TELEPORT_FADE_DURATION, 0, 1);
+		if (this.teleportDisableTime !== null) teleportFadeCompletion = Util.clamp(1 - (time - this.teleportDisableTime) / TELEPORT_FADE_DURATION, 0, 1);
 
 		if (teleportFadeCompletion > 0) {
 			this.sphere.opacity = Util.lerp(1, 0.25, teleportFadeCompletion);
@@ -947,6 +947,24 @@ export class Marble extends Entity<MarbleState, InternalMarbleState> {
 		this.predictedPosition.copy(this.body.position);
 		this.predictedOrientation.copy(this.body.orientation);
 		this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
+	}
+
+	respawn() {
+		let { position: startPosition, euler } = this.game.state.getStartPositionAndOrientation();
+
+		// Todo put all this shit into marble bro! what the fuck are you thinking
+		// Place the marble a bit above the start pad position
+		this.body.position.set(startPosition.x, startPosition.y, startPosition.z + 3);
+		this.body.syncShapes();
+		this.group.position.copy(this.body.position);
+		this.group.recomputeTransform();
+		this.reset();
+		this.calculatePredictiveTransforms();
+
+		if (this.controllingPlayer) {
+			this.controllingPlayer.pitch = DEFAULT_PITCH;
+			this.controllingPlayer.yaw = DEFAULT_YAW + euler.z;
+		}
 	}
 
 	stop() {

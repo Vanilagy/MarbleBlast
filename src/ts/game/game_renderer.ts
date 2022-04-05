@@ -302,7 +302,7 @@ export class GameRenderer {
 
 		let gameFrameLength = 1000 / GAME_UPDATE_RATE;
 		let completion = Util.clamp((time - game.lastGameUpdateTime) / gameFrameLength * GAME_PLAYBACK_SPEED, 0, 1);
-		game.state.subframeCompletion = completion;
+		game.state.subframeCompletion = 0 ?? completion; // temp!!
 
 		for (let entity of game.entities) entity.render();
 		this.particles.render();

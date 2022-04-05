@@ -16,7 +16,11 @@ class Entity {
 
 	updates: EntityUpdate[] = [];
 	owner: number = null;
+	mostRecentOwner: number = null;
 	versions = new DefaultMap<number, number>(() => 0);
+
+	needsTransmit = false;
+	lastTransmittedUpdate: EntityUpdate = null;
 
 	constructor(id: number, game: Game) {
 		this.id = id;
@@ -24,10 +28,10 @@ class Entity {
 	}
 
 	getTrueUpdate() {
-		if (this.owner) {
-			// If there's an owner, search for the last update by the owner that isn't too far in the past.
+		if (this.mostRecentOwner) {
+			// If there has been a recent owner (or there still is one), search for the last update by the owner that isn't too far in the past.
 			let ownerUpdate = Util.findLast(this.updates, update => {
-				return update.originator === this.owner;
+				return update.originator === this.mostRecentOwner;
 			});
 
 			if (this.game.frame - ownerUpdate.frame <= TWICE_CLIENT_UPDATE_PERIOD)
@@ -36,6 +40,11 @@ class Entity {
 
 		// Otherwise, just return the last update
 		return this.updates[this.updates.length - 1] ?? null;
+	}
+
+	setOwner(newOwner: number) {
+		this.owner = newOwner;
+		this.mostRecentOwner = newOwner ?? this.mostRecentOwner;
 	}
 
 	insertUpdate(update: EntityUpdate) {
@@ -49,6 +58,20 @@ class Entity {
 		}
 
 		this.updates.push(update);
+	}
+
+	update() {
+		this.maybeUpdateOwnership();
+
+		if (this.needsTransmit) {
+			let update = this.getTrueUpdate();
+			if (update === this.updates[this.updates.length - 1]) this.needsTransmit = false;
+
+			if (this.lastTransmittedUpdate === update) return;
+
+			this.game.queueEntityUpdate(update);
+			this.lastTransmittedUpdate = update;
+		}
 	}
 
 	maybeUpdateOwnership() {
@@ -71,9 +94,9 @@ class Entity {
 
 		// We won the challenge! Pass the ownership to the other player.
 		this.versions.set(this.owner, lastOwnerUpdate.version + 1); // Invalidate it for the other player
-		this.owner = newerOwnerUpdate.originator;
+		this.setOwner(newerOwnerUpdate.originator);
 
-		this.game.queueEntityUpdate(newerOwnerUpdate);
+		this.needsTransmit = true;
 	}
 }
 
@@ -331,11 +354,6 @@ export class Game {
 	update() {
 		this.frame++;
 
-		for (let [, entity] of this.entities) {
-			// Ownership might have expired and needs to be passed onto another player.
-			entity.maybeUpdateOwnership();
-		}
-
 		for (let i = 0; i < this.queuedUpdateGroups.length; i++) {
 			let group = this.queuedUpdateGroups[i];
 
@@ -352,6 +370,10 @@ export class Game {
 
 			// Can remove it, we've processed it now
 			this.queuedUpdateGroups.splice(i--, 1);
+		}
+
+		for (let [, entity] of this.entities) {
+			entity.update();
 		}
 	}
 
@@ -404,30 +426,24 @@ export class Game {
 		for (let update of group.entityUpdates) {
 			let entity = this.getEntityById(update.entityId);
 			entity.insertUpdate(update);
+			entity.needsTransmit = true;
 
 			if (update.originator === entity.owner) {
 				// The owner has all say
-				if (!update.owned) entity.owner = null;
+				if (!update.owned) entity.setOwner(null);
 			} else if (update.owned) {
 				// If we're here, the update is asking to give ownership to its player.
 				if (entity.owner === null) {
 					// Easy, there was no ownership before
-					entity.owner = update.originator;
+					entity.setOwner(update.originator);
 
 					for (let player of this.players) {
 						if (player.id !== update.originator) {
 							entity.versions.set(player.id, entity.versions.get(player.id) + 1);
 						}
 					}
-				} else {
-					// This is the "challenge" case
-					entity.maybeUpdateOwnership();
 				}
 			}
-
-			// Queue the update to be sent if it now is the authoritative entity update
-			if (entity.getTrueUpdate() === update)
-				this.queueEntityUpdate(update);
 		}
 	}
 
@@ -441,10 +457,10 @@ export class Game {
 
 			// Check if we own the entity. If so, revoke the ownership.
 			if (entity.owner === update.originator) {
-				entity.owner = null;
+				entity.setOwner(null);
 			}
 
-			this.queueEntityUpdate(entity.getTrueUpdate());
+			entity.needsTransmit = true;
 		}
 	}
 }
