@@ -112,10 +112,6 @@ export abstract class Trigger extends Entity {
 	render() {}
 	stop() {}
 
-	getCurrentState(): EntityState { return null; }
-	getInitialState(): EntityState { return null; }
-	loadState() {}
-
 	getInternalState(): InternalTriggerState {
 		return {
 			currentlyColliding: new Set(this.currentlyColliding)

@@ -108,6 +108,7 @@ class Player {
 	queuedEntityUpdates: EntityUpdate[] = [];
 	lastReceivedPeriodId = -1;
 	lastEstimatedRtt = 0;
+	lastSentVersion = new DefaultMap<Entity, number>(() => 0);
 
 	constructor(connection: GameServerConnection, id: number, marbleId: number) {
 		this.connection = connection;
@@ -171,7 +172,10 @@ export class Game {
 				marbleId: x.marbleId
 			})),
 			localPlayerId: player.id,
-			entityStates: [...this.entities].map(([, entity]) => entity.getTrueUpdate())
+			entityStates: [...this.entities].map(([, entity]) => ({
+				...entity.getTrueUpdate(),
+				version: entity.versions.get(player.id)
+			}))
 		}, true);
 
 		connection.on('clientStateBundle', data => {
@@ -231,8 +235,13 @@ export class Game {
 
 		// Loop over all queued updates and players
 		for (let update of this.queuedEntityUpdates) {
+			let entity = this.getEntityById(update.entityId);
+
 			for (let player of this.players) {
 				// Because of the version numbers assigned to each update, we need to send slightly different updates to each player. Here, we generate these.
+
+				let shouldSendUpdate = (update.originator !== player.id && entity.owner !== player.id) || player.lastSentVersion.get(entity) < entity.versions.get(player.id);
+				if (!shouldSendUpdate) continue;
 
 				// First, filter out the updates for the entity so we start fresh
 				player.queuedEntityUpdates = player.queuedEntityUpdates.filter(x => {
@@ -240,15 +249,14 @@ export class Game {
 				});
 
 				let copiedUpdate = { ...update }; // Create a shallow copy
-				let entity = this.getEntityById(update.entityId);
 
 				// Set the version
 				copiedUpdate.version = entity.versions.get(player.id);
 
-				copiedUpdate.owned = player.id === entity.owner;
-
 				// And add it into the personal queue for this player
 				player.queuedEntityUpdates.push(copiedUpdate);
+
+				player.lastSentVersion.set(entity, copiedUpdate.version);
 			}
 		}
 
@@ -448,20 +456,7 @@ export class Game {
 	}
 
 	rejectUpdateGroup(group: UpdateGroup) {
-		for (let update of group.entityUpdates) {
-			if (!update.state) continue;
-
-			let entity = this.getEntityById(update.entityId);
-
-			entity.versions.set(update.originator, update.version + 1);
-
-			// Check if we own the entity. If so, revoke the ownership.
-			if (entity.owner === update.originator) {
-				entity.setOwner(null);
-			}
-
-			entity.needsTransmit = true;
-		}
+		// Nothing? Let's see if this works. It should!
 	}
 }
 

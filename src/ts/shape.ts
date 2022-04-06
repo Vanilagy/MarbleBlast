@@ -22,6 +22,7 @@ import { BlendingType } from "./rendering/renderer";
 import { Game } from "./game/game";
 import { Entity } from "./game/entity";
 import { EntityState } from "../../shared/game_server_format";
+import { Marble } from "./marble";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
@@ -90,6 +91,10 @@ export interface GraphNode {
 	parent?: GraphNode
 }
 
+export interface InternalShapeState {
+	currentlyColliding: Set<RigidBody>
+}
+
 /** Represents an object created from a DTS file. This is either a static object like the start pad or a sign, or an item like gems or powerups. */
 export class Shape extends Entity {
 	srcElement: MissionElement;
@@ -110,7 +115,7 @@ export class Shape extends Entity {
 	colliders: ColliderInfo[] = [];
 	/** For each shape, the untransformed vertices of their convex hull geometry. */
 	shapeVertices = new Map<CollisionShape, Vector3[]>();
-	isCurrentlyColliding = false;
+	currentlyColliding = new Set<RigidBody>();
 
 	worldPosition = new Vector3();
 	worldOrientation = new Quaternion();
@@ -145,7 +150,7 @@ export class Shape extends Entity {
 	friction = INTERIOR_DEFAULT_FRICTION;
 	/** Whether or not to continuously spin. */
 	ambientRotate = false;
-	ambientSpinFactor = -1 / 3000 * Math.PI * 2;
+	ambientSpinFactor = -1 / 3 * Math.PI * 2;
 	/** Whether or not collision meshes will receive shadows. */
 	receiveShadows = true;
 	materialPostprocessor: (mat: Material) => void = null;
@@ -356,22 +361,34 @@ export class Shape extends Entity {
 		// Init collision handlers
 		for (let body of this.bodies) {
 			body.onBeforeIntegrate = () => {
-				if (this.isCurrentlyColliding && body.collisions.length === 0) {
-					this.isCurrentlyColliding = false;
-					this.onMarbleLeave();
+				for (let otherBody of this.currentlyColliding) {
+					if (!body.collisions.some(x => x.s1.body === otherBody)) {
+						this.currentlyColliding.delete(otherBody);
+						this.internalStateNeedsStore = true;
+
+						let marble = body.userData as Marble;
+						this.onMarbleLeave(marble);
+					}
 				}
 			};
 
 			body.onBeforeCollisionResponse = (t: number) => {
-				if (!this.isCurrentlyColliding) this.onMarbleEnter(t);
-				this.onMarbleInside(t);
+				for (let collision of body.collisions) {
+					let marble = collision.s1.body.userData as Marble;
 
-				this.isCurrentlyColliding = true;
+					if (!this.currentlyColliding.has(collision.s1.body)) this.onMarbleEnter(t, marble);
+					this.onMarbleInside(t, marble);
+
+					this.currentlyColliding.add(collision.s1.body);
+					this.internalStateNeedsStore = true;
+				}
 			};
 
 			body.onAfterCollisionResponse = () => {
 				let chosenCollision = body.collisions[0]; // Just pick the first one, for now. There's not really a better way of choosing which one to pick, right?
-				this.onMarbleContact(chosenCollision);
+				let marble = chosenCollision.s1.body.userData as Marble;
+
+				this.onMarbleContact(chosenCollision, marble);
 			};
 		}
 
@@ -694,111 +711,107 @@ export class Shape extends Entity {
 
 	update(onlyVisual = false) {
 		// If onlyVisual is set, collision bodies need not be updated.
+		if (!this.showSequences) return;
+		if (!onlyVisual && !this.hasNonVisualSequences) return;
 
-		let needsSequenceUpdate = true;
-		if (!this.showSequences) needsSequenceUpdate = false;
-		if (!onlyVisual && !this.hasNonVisualSequences) needsSequenceUpdate = false;
+		if (!this.shareNodeTransforms || this.isMaster) for (let sequence of this.dts.sequences) {
+			let rot = sequence.rotationMatters[0] ?? 0;
+			let trans = sequence.translationMatters[0] ?? 0;
+			let scale = sequence.scaleMatters[0] ?? 0;
+			let affectedCount = 0;
+			let completion = this.game.state.time / sequence.duration;
+			let quaternions: Quaternion[];
+			let translations: Vector3[];
+			let scales: Vector3[];
 
-		if (needsSequenceUpdate) {
-			if (!this.shareNodeTransforms || this.isMaster) for (let sequence of this.dts.sequences) {
-				let rot = sequence.rotationMatters[0] ?? 0;
-				let trans = sequence.translationMatters[0] ?? 0;
-				let scale = sequence.scaleMatters[0] ?? 0;
-				let affectedCount = 0;
-				let completion = this.game.state.time / sequence.duration;
-				let quaternions: Quaternion[];
-				let translations: Vector3[];
-				let scales: Vector3[];
+			// Possibly get the keyframe from the overrides
+			let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
+			if (this.lastSequenceKeyframes.get(sequence) === actualKeyframe) continue;
+			this.lastSequenceKeyframes.set(sequence, actualKeyframe);
 
-				// Possibly get the keyframe from the overrides
-				let actualKeyframe = this.sequenceKeyframeOverride.get(sequence) ?? (completion * sequence.numKeyframes) % sequence.numKeyframes;
-				if (this.lastSequenceKeyframes.get(sequence) === actualKeyframe) continue;
-				this.lastSequenceKeyframes.set(sequence, actualKeyframe);
+			let keyframeLow = Math.floor(actualKeyframe);
+			let keyframeHigh = Math.ceil(actualKeyframe) % sequence.numKeyframes;
+			let t = (actualKeyframe - keyframeLow) % 1; // The completion between two keyframes
 
-				let keyframeLow = Math.floor(actualKeyframe);
-				let keyframeHigh = Math.ceil(actualKeyframe) % sequence.numKeyframes;
-				let t = (actualKeyframe - keyframeLow) % 1; // The completion between two keyframes
+			// Handle rotation sequences
+			if (rot > 0) quaternions = this.dts.nodes.map((node, index) => {
+				let affected = ((1 << index) & rot) !== 0;
 
-				// Handle rotation sequences
-				if (rot > 0) quaternions = this.dts.nodes.map((node, index) => {
-					let affected = ((1 << index) & rot) !== 0;
+				if (affected) {
+					let rot1 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeLow];
+					let rot2 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeHigh];
 
-					if (affected) {
-						let rot1 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeLow];
-						let rot2 = this.dts.nodeRotations[sequence.numKeyframes * affectedCount + keyframeHigh];
+					let quaternion1 = new Quaternion(rot1.x, rot1.y, rot1.z, rot1.w);
+					quaternion1.normalize();
+					quaternion1.conjugate();
 
-						let quaternion1 = new Quaternion(rot1.x, rot1.y, rot1.z, rot1.w);
-						quaternion1.normalize();
-						quaternion1.conjugate();
+					let quaternion2 = new Quaternion(rot2.x, rot2.y, rot2.z, rot2.w);
+					quaternion2.normalize();
+					quaternion2.conjugate();
 
-						let quaternion2 = new Quaternion(rot2.x, rot2.y, rot2.z, rot2.w);
-						quaternion2.normalize();
-						quaternion2.conjugate();
+					// Interpolate between the two quaternions
+					quaternion1.slerp(quaternion2, t);
 
-						// Interpolate between the two quaternions
-						quaternion1.slerp(quaternion2, t);
+					affectedCount++;
+					return quaternion1;
+				} else {
+					// The rotation for this node is not animated and therefore we return the default rotation.
+					let rotation = this.dts.defaultRotations[index];
+					let quaternion = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+					quaternion.normalize();
+					quaternion.conjugate();
 
-						affectedCount++;
-						return quaternion1;
-					} else {
-						// The rotation for this node is not animated and therefore we return the default rotation.
-						let rotation = this.dts.defaultRotations[index];
-						let quaternion = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
-						quaternion.normalize();
-						quaternion.conjugate();
-
-						return quaternion;
-					}
-				});
-
-				// Handle translation sequences
-				affectedCount = 0;
-				if (trans > 0) translations = this.dts.nodes.map((node, index) => {
-					let affected = ((1 << index) & trans) !== 0;
-
-					if (affected) {
-						let trans1 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeLow];
-						let trans2 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeHigh];
-
-						affectedCount++;
-
-						// Interpolate between the two translations
-						return new Vector3(Util.lerp(trans1.x, trans2.x, t), Util.lerp(trans1.y, trans2.y, t), Util.lerp(trans1.z, trans2.z, t));
-					} else {
-						// The translation for this node is not animated and therefore we return the default translation.
-						let translation = this.dts.defaultTranslations[index];
-						return new Vector3(translation.x, translation.y, translation.z);
-					}
-				});
-
-				// Handle scale sequences
-				affectedCount = 0;
-				if (scale > 0) scales = this.dts.nodes.map((node, index) => {
-					let affected = ((1 << index) & scale) !== 0;
-
-					if (affected) {
-						let scale1 = this.dts.nodeAlignedScales[sequence.numKeyframes * affectedCount + keyframeLow];
-						let scale2 = this.dts.nodeAlignedScales[sequence.numKeyframes * affectedCount + keyframeHigh];
-
-						affectedCount++;
-
-						// Interpolate between the two scales
-						return new Vector3(Util.lerp(scale1.x, scale2.x, t), Util.lerp(scale1.y, scale2.y, t), Util.lerp(scale1.z, scale2.z, t));
-					} else {
-						// The scale for this node is not animated and therefore we return the default scale.
-						return new Vector3().setScalar(1); // Apparently always this
-					}
-				});
-
-				if (rot | trans | scale) {
-					this.updateNodeTransforms(quaternions, translations, scales, rot | trans | scale);
-					if (!onlyVisual) this.updateCollisionGeometry(rot | trans | scale);
+					return quaternion;
 				}
-			}
+			});
 
-			for (let mesh of this.meshes) {
-				mesh.changedTransform();
+			// Handle translation sequences
+			affectedCount = 0;
+			if (trans > 0) translations = this.dts.nodes.map((node, index) => {
+				let affected = ((1 << index) & trans) !== 0;
+
+				if (affected) {
+					let trans1 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeLow];
+					let trans2 = this.dts.nodeTranslations[sequence.numKeyframes * affectedCount + keyframeHigh];
+
+					affectedCount++;
+
+					// Interpolate between the two translations
+					return new Vector3(Util.lerp(trans1.x, trans2.x, t), Util.lerp(trans1.y, trans2.y, t), Util.lerp(trans1.z, trans2.z, t));
+				} else {
+					// The translation for this node is not animated and therefore we return the default translation.
+					let translation = this.dts.defaultTranslations[index];
+					return new Vector3(translation.x, translation.y, translation.z);
+				}
+			});
+
+			// Handle scale sequences
+			affectedCount = 0;
+			if (scale > 0) scales = this.dts.nodes.map((node, index) => {
+				let affected = ((1 << index) & scale) !== 0;
+
+				if (affected) {
+					let scale1 = this.dts.nodeAlignedScales[sequence.numKeyframes * affectedCount + keyframeLow];
+					let scale2 = this.dts.nodeAlignedScales[sequence.numKeyframes * affectedCount + keyframeHigh];
+
+					affectedCount++;
+
+					// Interpolate between the two scales
+					return new Vector3(Util.lerp(scale1.x, scale2.x, t), Util.lerp(scale1.y, scale2.y, t), Util.lerp(scale1.z, scale2.z, t));
+				} else {
+					// The scale for this node is not animated and therefore we return the default scale.
+					return new Vector3().setScalar(1); // Apparently always this
+				}
+			});
+
+			if (rot | trans | scale) {
+				this.updateNodeTransforms(quaternions, translations, scales, rot | trans | scale);
+				if (!onlyVisual) this.updateCollisionGeometry(rot | trans | scale);
 			}
+		}
+
+		for (let mesh of this.meshes) {
+			mesh.changedTransform();
 		}
 	}
 
@@ -958,7 +971,7 @@ export class Shape extends Entity {
 	}
 
 	/** Adds a collider shape. Whenever the marble overlaps with the shape, a callback is fired. */
-	addCollider(generateShape: (scale: Vector3) => CollisionShape, onInside: (t: number, dt: number) => void, localTransform: Matrix4) {
+	addCollider(generateShape: (scale: Vector3) => CollisionShape, onInside: (t: number, dt: number, marble: Marble) => void, localTransform: Matrix4) {
 		let body = new RigidBody();
 		body.type = RigidBodyType.Static;
 
@@ -968,7 +981,12 @@ export class Shape extends Entity {
 			transform: localTransform
 		});
 
-		body.onAfterCollisionResponse = onInside;
+		body.onAfterCollisionResponse = (t: number, dt: number) => {
+			for (let collision of body.collisions) {
+				let marble = collision.s1.body.userData as Marble;
+				onInside(t, dt, marble);
+			}
+		};
 	}
 
 	/** Enable or disable collision. */
@@ -979,19 +997,25 @@ export class Shape extends Entity {
 	}
 
 	reset() {
-		this.isCurrentlyColliding = false;
+		this.currentlyColliding.clear();
 	}
 
 	stop() {}
 
-	getCurrentState(): EntityState { return null; }
-	getInitialState(): EntityState { return null; }
-	loadState() {}
+	getInternalState(): InternalShapeState {
+		return {
+			currentlyColliding: new Set(this.currentlyColliding)
+		};
+	}
+
+	loadInternalState(state: InternalShapeState) {
+		this.currentlyColliding = new Set(state.currentlyColliding);
+	}
 
 	/* eslint-disable  @typescript-eslint/no-unused-vars */
-	onMarbleContact(collision: Collision) {}
-	onMarbleInside(t: number) {}
-	onMarbleEnter(t: number) {}
-	onMarbleLeave() {}
+	onMarbleContact(collision: Collision, marble: Marble) {}
+	onMarbleInside(t: number, marble: Marble) {}
+	onMarbleEnter(t: number, marble: Marble) {}
+	onMarbleLeave(marble: Marble) {}
 	async onLevelStart() {}
 }

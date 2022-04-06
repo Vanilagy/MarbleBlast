@@ -32,7 +32,6 @@ export interface RayCastHit {
 /** Represents a physics simulation world. */
 export class World {
 	bodies: RigidBody[] = [];
-	gravity = new Vector3();
 	octree = new Octree();
 
 	/** This cache can speed up broadphase lookups by reusing results. */
@@ -60,7 +59,6 @@ export class World {
 
 		let dynamicBodies: RigidBody[] = [];
 		let dynamicShapes: CollisionShape[] = [];
-		let ccdImmune = new Set<CollisionShape>();
 
 		// Integrate all the bodies
 		for (let i = 0; i < this.bodies.length; i++) {
@@ -72,7 +70,6 @@ export class World {
 			body.integrate(dt);
 			body.onAfterIntegrate(dt);
 
-			for (let j = 0; j < body.collisions.length; j++) ccdImmune.add(body.collisions[j].s2);
 			body.collisions.length = 0;
 
 			if (body.type === RigidBodyType.Dynamic) {
@@ -91,7 +88,7 @@ export class World {
 		for (let i = 0; i < ccdCollisions.length; i++) {
 			let collision = ccdCollisions[i];
 
-			if (!ccdImmune.has(collision.s2)) {
+			if (!collision.s1.body.inContactCcd.has(collision.s2)) {
 				t = Math.min(collision.timeOfImpact, t);
 			}
 		}
@@ -105,13 +102,15 @@ export class World {
 
 			body.revert(t);
 			body.collisions.length = 0;
+			body.inContactCcd = body.newInContactCcd;
+			body.newInContactCcd = new Set();
 
 			if (body.type !== RigidBodyType.Dynamic) continue;
 
 			// Add external forces
 
 			let externalForce = v1.set(0, 0, 0);
-			externalForce.add(this.gravity);
+			externalForce.add(body.gravity);
 
 			body.linearVelocity.addScaledVector(externalForce, dt * t);
 		}
@@ -194,6 +193,7 @@ export class World {
 					let collision = new Collision(shape, candidate);
 					collision.timeOfImpact = timeOfImpact;
 					collisions.push(collision);
+					shape.body.newInContactCcd.add(candidate);
 				} else {
 					// First, let's check if the two shapes actually intersect
 					let collides = CollisionDetection.checkIntersection(shape, candidate);

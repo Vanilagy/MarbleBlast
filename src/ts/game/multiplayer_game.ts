@@ -92,32 +92,6 @@ export class MultiplayerGame extends Game {
 			this.addPlayer(data.id, data.marbleId);
 		});
 
-		/*
-		this.connection.on('gameObjectUpdate', async data => {
-			if (sendTimeout > 0) return;
-
-			this.simulator.reconciliationUpdates.get(data.gameObjectId).push(data);
-
-			let marble = this.marbles.find(x => x.id === data.gameObjectId);
-			if (!marble) {
-				if (initting.has(data.gameObjectId)) return;
-
-				initting.add(data.gameObjectId);
-				marble = new Marble(this);
-				marble.id = data.gameObjectId;
-
-				await marble.init();
-
-				this.renderer.scene.add(marble.group);
-				this.simulator.world.add(marble.body);
-				this.marbles.push(marble);
-				this.objects.push(marble);
-
-				marble.loadState(data.state as any); // temp
-				marble.controller = new RemoteMarbleController(marble);
-			}
-		});*/
-
 		setInterval(() => {
 			this.displayNetworkStats();
 		}, 1000 / 20);
@@ -140,6 +114,8 @@ export class MultiplayerGame extends Game {
 			this.connection.on('gameJoinInfo', callback);
 		});
 
+		console.log(response);
+
 		this.state.supplyServerTimeState(response.serverFrame, response.clientFrame);
 
 		for (let playerData of response.players) {
@@ -148,6 +124,11 @@ export class MultiplayerGame extends Game {
 
 		this.localPlayer = this.players.find(x => x.id === response.localPlayerId);
 		this.localPlayer.controlledMarble.addToGame();
+
+		for (let entity of this.entities) {
+			// this is probably temp
+			entity.loadState(entity.getInitialState(), { frame: 0, remote: false });
+		}
 
 		for (let update of response.entityStates) {
 			this.applyRemoteEntityUpdate(update);
@@ -369,11 +350,6 @@ export class MultiplayerGame extends Game {
 	applyRemoteEntityUpdate(update: EntityUpdate) {
 		let entity = this.getEntityById(update.entityId);
 		if (!entity) return;
-
-		let us = this.localPlayer.id;
-		// todo for tomorrow: local owner propagation thing too because janky otherwise
-		let shouldApplyUpdate = (update.originator !== us && !update.owned) || update.version > entity.version;
-		if (!shouldApplyUpdate) return;
 
 		let history = this.state.stateHistory.get(entity.id);
 		while (history.length > 0 && Util.last(history).frame >= update.frame) {

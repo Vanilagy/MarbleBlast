@@ -1,10 +1,13 @@
 import { Util } from "../util";
 import { Shape } from "../shape";
-import { TimeState } from "../level";
 import { MissionElementItem } from "../parsing/mis_parser";
 import { state } from "../state";
+import { Marble } from "../marble";
+import { EntityState } from "../../../shared/game_server_format";
 
-export const DEFAULT_COOLDOWN_DURATION = 7000;
+export const DEFAULT_COOLDOWN_DURATION = 7;
+
+type PowerUpState = EntityState & { entityType: 'powerUp' };
 
 /** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
@@ -29,31 +32,35 @@ export abstract class PowerUp extends Shape {
 		this.element = element;
 	}
 
-	onMarbleInside(t: number) {
-		let time = this.level.timeState;
+	onMarbleInside(t: number, marble: Marble) {
+		let time = this.game.state.time;
 
-		let pickupable = this.lastPickUpTime === null || (time.currentAttemptTime - this.lastPickUpTime) >= this.cooldownDuration;
+		marble.interactWith(this);
+
+		let pickupable = this.lastPickUpTime === null || (time - this.lastPickUpTime) >= this.cooldownDuration;
 		if (!pickupable) return;
 
-		if (this.pickUp()) {
-			this.level.replay.recordMarbleInside(this);
+		if (this.pickUp(marble)) {
+			//this.level.replay.recordMarbleInside(this);
+			this.interactWith(marble);
 
-			this.lastPickUpTime = time.currentAttemptTime;
-			if (this.autoUse) this.use(t);
+			this.lastPickUpTime = time;
+			if (this.autoUse) this.use(marble, t);
 
 			state.menu.hud.displayAlert(this.customPickUpAlert ?? `You picked up ${this.an? 'an' : 'a'} ${this.pickUpName}!`);
 			if (this.element.showhelponpickup === "1" && !this.autoUse) state.menu.hud.displayHelp(`Press <func:bind mousefire> to use the ${this.pickUpName}!`);
 
-			let body = this.bodies[0];
-			body.enabled = false;
+			this.setCollisionEnabled(false);
+
+			this.stateNeedsStore = true;
 		}
 	}
 
-	tick(time: TimeState, onlyVisual: boolean) {
+	update(onlyVisual?: boolean) {
 		if (onlyVisual) return;
 
 		// Enable or disable the collision based on the last pick-up time time
-		let pickupable = this.lastPickUpTime === null || (time.currentAttemptTime - this.lastPickUpTime) >= this.cooldownDuration;
+		let pickupable = this.lastPickUpTime === null || (this.game.state.time - this.lastPickUpTime) >= this.cooldownDuration;
 		this.setCollisionEnabled(pickupable);
 	}
 
@@ -63,7 +70,7 @@ export abstract class PowerUp extends Shape {
 		let opacity = 1;
 		if (this.lastPickUpTime && this.cooldownDuration > 0) {
 			let availableTime = this.lastPickUpTime + this.cooldownDuration;
-			opacity = Util.clamp((this.game.state.attemptTime - availableTime) / 1000, 0, 1);
+			opacity = Util.clamp(this.game.state.time - availableTime, 0, 1);
 		}
 
 		this.setOpacity(opacity);
@@ -72,12 +79,29 @@ export abstract class PowerUp extends Shape {
 	reset() {
 		super.reset();
 
-		let body = this.bodies[0];
-		body.enabled = true;
+		this.setCollisionEnabled(true);
 		this.lastPickUpTime = null;
 	}
 
+	getCurrentState(): PowerUpState {
+		return {
+			entityType: 'powerUp',
+			lastPickUpTime: this.lastPickUpTime
+		};
+	}
+
+	getInitialState(): PowerUpState {
+		return {
+			entityType: 'powerUp',
+			lastPickUpTime: null
+		};
+	}
+
+	loadState(state: PowerUpState) {
+		this.lastPickUpTime = state.lastPickUpTime;
+	}
+
 	/** If this function returns true, the pickup was successful. */
-	abstract pickUp(): boolean;
-	abstract use(t: number): void;
+	abstract pickUp(marble: Marble): boolean;
+	abstract use(marble: Marble, t: number): void;
 }

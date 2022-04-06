@@ -1,5 +1,6 @@
 import { PowerUp } from "./power_up";
 import { state } from "../state";
+import { Marble } from "../marble";
 
 /** Temporarily reduces marble restitution. */
 export class ShockAbsorber extends PowerUp {
@@ -8,12 +9,12 @@ export class ShockAbsorber extends PowerUp {
 	an = state.modification !== 'gold';
 	sounds = ["pushockabsorbervoice.wav", "superbounceactive.wav"];
 
-	pickUp(): boolean {
-		return this.level.pickUpPowerUp(this);
+	pickUp(marble: Marble): boolean {
+		return marble.pickUpPowerUp(this);
 	}
 
-	use() {
-		this.level.marble.enableShockAbsorber(this.level.timeState);
-		this.level.deselectPowerUp();
+	use(marble: Marble) {
+		marble.enableShockAbsorber();
+		marble.unequipPowerUp();
 	}
 }

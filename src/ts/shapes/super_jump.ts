@@ -3,6 +3,7 @@ import { AudioManager } from "../audio";
 import { state } from "../state";
 import { Vector3 } from "../math/vector3";
 import { BlendingType } from "../rendering/renderer";
+import { Marble } from "../marble";
 
 /** Gives the marble an upwards boost. */
 export class SuperJump extends PowerUp {
@@ -10,18 +11,17 @@ export class SuperJump extends PowerUp {
 	pickUpName = (state.modification === 'gold')? "Super Jump PowerUp" : "Jump Boost PowerUp";
 	sounds = ["pusuperjumpvoice.wav", "dosuperjump.wav"];
 
-	pickUp(): boolean {
-		return this.level.pickUpPowerUp(this);
+	pickUp(marble: Marble): boolean {
+		return marble.pickUpPowerUp(this);
 	}
 
-	use() {
-		let marble = this.level.marble;
-		marble.body.linearVelocity.addScaledVector(this.level.currentUp, 20); // Simply add to vertical velocity
+	use(marble: Marble) {
+		marble.body.linearVelocity.addScaledVector(marble.currentUp, 20); // Simply add to vertical velocity
 
 		AudioManager.play(this.sounds[1]);
-		this.level.particles.createEmitter(superJumpParticleOptions, null, () => marble.body.position.clone());
+		this.game.renderer.particles.createEmitter(superJumpParticleOptions, null, () => marble.body.position.clone());
 
-		this.level.deselectPowerUp();
+		marble.unequipPowerUp();
 	}
 }
 

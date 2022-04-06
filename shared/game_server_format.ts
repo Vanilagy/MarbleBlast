@@ -1,4 +1,4 @@
-import { FixedFormatBinarySerializer, FormatToType, nullable, union } from "./fixed_format_binary_serializer";
+import { FixedFormatBinarySerializer, FormatToType, nullable, partial, union } from "./fixed_format_binary_serializer";
 
 const vector2Format = { x: 'f32', y: 'f32' } as const;
 const vector3Format = { x: 'f32', y: 'f32', z: 'f32' } as const;
@@ -9,7 +9,14 @@ export const entityStateFormat = [union, 'entityType', {
 	position: vector3Format,
 	orientation: quaternionFormat,
 	linearVelocity: vector3Format,
-	angularVelocity: vector3Format
+	angularVelocity: vector3Format,
+	extras: [partial, {
+		heldPowerUp: 'varint',
+		helicopterEnableFrame: 'varint',
+		superBounceEnableFrame: 'varint',
+		shockAbsorberEnableFrame: 'varint',
+		orientationQuat: quaternionFormat
+	}]
 }, {
 	entityType: 'player',
 	movement: vector2Format,
@@ -20,12 +27,28 @@ export const entityStateFormat = [union, 'entityType', {
 	blasting: 'boolean'
 }, {
 	entityType: 'clock',
-	time: 'f64'
+	time: 'f64',
+	timeTravelBonus: 'f64'
 }, {
 	entityType: 'pathedInterior',
 	currentTime: 'f64',
 	targetTime: 'f64',
 	changeTime: 'f64'
+}, {
+	entityType: 'gem',
+	pickedUp: 'boolean'
+}, {
+	entityType: 'powerUp',
+	lastPickUpTime: [nullable, 'f64']
+}, {
+	entityType: 'bumper',
+	lastContactTime: 'f64'
+}, {
+	entityType: 'trapDoor',
+	lastContactTime: 'f64'
+}, {
+	entityType: 'explosive',
+	disappearTime: 'f64'
 }] as const;
 
 export const entityUpdateFormat = {

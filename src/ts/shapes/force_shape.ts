@@ -3,6 +3,7 @@ import { Util } from "../util";
 import { BallCollisionShape } from "../physics/collision_shape";
 import { Vector3 } from "../math/vector3";
 import { Matrix4 } from "../math/matrix4";
+import { Marble } from "../marble";
 
 /** A shape with force areas that can push or pull the marble. */
 export abstract class ForceShape extends Shape {
@@ -16,9 +17,7 @@ export abstract class ForceShape extends Shape {
 		let actualDistance = distance - 0.7;
 
 		// Create a cone-shaped collider
-		this.addCollider(() => new BallCollisionShape(distance), (t: number, dt: number) => {
-			let marble = this.level.marble;
-
+		this.addCollider(() => new BallCollisionShape(distance), (t: number, dt: number, marble: Marble) => {
 			let perpendicular = new Vector3(0, 0, 1); // The normal to the fan
 			perpendicular.applyQuaternion(this.worldOrientation);
 
@@ -52,21 +51,18 @@ export abstract class ForceShape extends Shape {
 	/** Like `addConicForce`, but directly ported from OpenMBU (which did some reverse-engineering magic) */
 	addConicForceExceptItsAccurateThisTime(forceRadius: number, forceArc: number, forceStrength: number) {
 		// Create a cone-shaped collider
-		this.addCollider(() => new BallCollisionShape(forceRadius), (t: number, dt: number) => {
-			let force = this.computeAccurateConicForce(forceRadius, forceArc, forceStrength);
+		this.addCollider(() => new BallCollisionShape(forceRadius), (t: number, dt: number, marble: Marble) => {
+			let force = this.computeAccurateConicForce(marble.body.position, forceRadius, forceArc, forceStrength);
 
 			// Calculate the actual force
 			force.multiplyScalar(dt);
 
 			// Now we apply it
-			this.level.marble.body.linearVelocity.add(force);
+			marble.body.linearVelocity.add(force);
 		}, new Matrix4());
 	}
 
-	computeAccurateConicForce(forceRadius: number, forceArc: number, forceStrength: number) {
-		let marble = this.level.marble;
-		let pos = marble.body.position;
-
+	computeAccurateConicForce(pos: Vector3, forceRadius: number, forceArc: number, forceStrength: number) {
 		let strength = 0.0;
 		let dot = 0.0;
 		let posVec = new Vector3();
@@ -98,8 +94,7 @@ export abstract class ForceShape extends Shape {
 
 	/** Creates a spherical-shaped force whose force always acts in the direction away from the center. */
 	addSphericalForce(radius: number, strength: number) {
-		this.addCollider(() => new BallCollisionShape(radius), (t: number, dt: number) => {
-			let marble = this.level.marble;
+		this.addCollider(() => new BallCollisionShape(radius), (t: number, dt: number, marble: Marble) => {
 			let vec = marble.body.position.clone().sub(this.worldPosition);
 			if (vec.length() === 0) return;
 
@@ -111,8 +106,7 @@ export abstract class ForceShape extends Shape {
 
 	/** Creates a spherical-shaped force whose force acts in the direction of the vector specified. */
 	addFieldForce(radius: number, forceVector: Vector3) {
-		this.addCollider(() => new BallCollisionShape(radius), (t: number, dt: number) => {
-			let marble = this.level.marble;
+		this.addCollider(() => new BallCollisionShape(radius), (t: number, dt: number, marble: Marble) => {
 			if (marble.body.position.distanceTo(this.worldPosition) >= radius) return;
 
 			// Simply add the force

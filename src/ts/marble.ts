@@ -16,7 +16,7 @@ import { CubeTexture } from "./rendering/cube_texture";
 import { CubeCamera } from "./rendering/cube_camera";
 import { mainRenderer } from "./ui/misc";
 import { RigidBody, RigidBodyType } from "./physics/rigid_body";
-import { BallCollisionShape } from "./physics/collision_shape";
+import { BallCollisionShape, CollisionShape } from "./physics/collision_shape";
 import { Collision } from "./physics/collision";
 import { Vector3 } from "./math/vector3";
 import { Quaternion } from "./math/quaternion";
@@ -29,8 +29,9 @@ import { GAME_UPDATE_RATE } from "../../shared/constants";
 import { GO_TIME } from "./game/game_state";
 import { Vector2 } from "./math/vector2";
 import { MultiplayerGame } from "./game/multiplayer_game";
-import { EntityState } from "../../shared/game_server_format";
+import { EntityState, entityStateFormat } from "../../shared/game_server_format";
 import { Player } from "./game/player";
+import { FixedFormatBinarySerializer } from "../../shared/fixed_format_binary_serializer";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -95,7 +96,11 @@ type MarbleState = EntityState & { entityType: 'marble' };
 
 interface InternalMarbleState {
 	collisions: Collision[],
-	lastContactNormal: Vector3
+	inContactCcd: Set<CollisionShape>,
+	lastContactNormal: Vector3,
+	slidingTimeout: number,
+	orientationChangeTime: number,
+	oldOrientationQuat: Quaternion
 }
 
 export interface MarbleControlState {
@@ -147,9 +152,9 @@ export class Marble extends Entity {
 	forcefield: Shape;
 	/** Helicopter shown above the marble shown during gyrocopter usage. */
 	helicopter: Shape;
-	superBounceEnableTime = -Infinity;
-	shockAbsorberEnableTime = -Infinity;
-	helicopterEnableTime = -Infinity;
+	superBounceEnableFrame = -Infinity;
+	shockAbsorberEnableFrame = -Infinity;
+	helicopterEnableFrame = -Infinity;
 	megaMarbleEnableTime = -Infinity;
 	helicopterSound: AudioSource = null;
 	shockAbsorberSound: AudioSource = null;
@@ -161,6 +166,7 @@ export class Marble extends Entity {
 	beforeAngVel = new Vector3();
 	/** Necessary for super speed. */
 	lastContactNormal = new Vector3();
+	slidingTimeout = 0;
 
 	rollingSound: AudioSource;
 	rollingMegaMarbleSound: AudioSource;
@@ -173,13 +179,14 @@ export class Marble extends Entity {
 	finishPitch: number;
 	outOfBounds = false;
 
+	oldUp = new Vector3(0, 0, 1);
 	currentUp = new Vector3(0, 0, 1);
 	/** The last time the orientation was changed (by a gravity modifier) */
 	orientationChangeTime = -Infinity;
 	/** The old camera orientation quat */
 	oldOrientationQuat = new Quaternion();
-	/** The new target camera orientation quat  */
-	newOrientationQuat = new Quaternion();
+	/** The new target camera orientation quat */
+	orientationQuat = new Quaternion();
 
 	heldPowerUp: PowerUp = null;
 	blastAmount = 0;
@@ -318,18 +325,20 @@ export class Marble extends Entity {
 
 		this.forcefield = new Shape();
 		this.forcefield.dtsPath = "shapes/images/glow_bounce.dts";
+		this.forcefield.shareId = this.id;
 		await this.forcefield.init(this.game);
 		this.forcefield.setOpacity(0);
 		this.forcefield.showSequences = false; // Hide the weird default animation it does
-		//this.innerGroup.add(this.forcefield.group);
+		this.innerGroup.add(this.forcefield.group);
 
 		this.helicopter = new Shape();
 		// Easter egg: Due to an iconic bug where the helicopter would instead look like a glow bounce, this can now happen 0.1% of the time.
 		this.helicopter.dtsPath = (Math.random() < 1 / 1000)? "shapes/images/glow_bounce.dts" : "shapes/images/helicopter.dts";
 		this.helicopter.castShadows = true;
+		this.helicopter.shareId = this.id;
 		await this.helicopter.init(this.game);
 		this.helicopter.setOpacity(0);
-		//this.group.add(this.helicopter.group);
+		this.group.add(this.helicopter.group);
 
 		// Load the necessary rolling sounds
 		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"];
@@ -377,7 +386,14 @@ export class Marble extends Entity {
 			position: this.body.position.clone(),
 			orientation: this.body.orientation.clone(),
 			linearVelocity: this.body.linearVelocity.clone(),
-			angularVelocity: this.body.angularVelocity.clone()
+			angularVelocity: this.body.angularVelocity.clone(),
+			extras: {
+				heldPowerUp: this.heldPowerUp?.id,
+				helicopterEnableFrame: this.helicopterIsActive()? this.helicopterEnableFrame : undefined,
+				superBounceEnableFrame: this.superBounceIsActive()? this.superBounceEnableFrame : undefined,
+				shockAbsorberEnableFrame: this.shockAbsorberIsActive()? this.shockAbsorberEnableFrame : undefined,
+				orientationQuat: this.orientationQuat.equals(new Quaternion())? undefined : this.orientationQuat.clone()
+			}
 		};
 	}
 
@@ -387,7 +403,8 @@ export class Marble extends Entity {
 			position: this.body.position.clone(),
 			orientation: this.body.orientation.clone(),
 			linearVelocity: this.body.linearVelocity.clone(),
-			angularVelocity: this.body.angularVelocity.clone()
+			angularVelocity: this.body.angularVelocity.clone(),
+			extras: {}
 		};
 	}
 
@@ -405,18 +422,48 @@ export class Marble extends Entity {
 			this.body.updateCollisions();
 			this.internalStateNeedsStore = true;
 		}
+
+		this.heldPowerUp = this.game.getEntityById(state.extras.heldPowerUp) as any; // as PowerUp didn't work?!?!
+
+		this.helicopterEnableFrame = state.extras.helicopterEnableFrame ?? -Infinity;
+		this.superBounceEnableFrame = state.extras.superBounceEnableFrame ?? -Infinity;
+		this.shockAbsorberEnableFrame = state.extras.shockAbsorberEnableFrame ?? -Infinity;
+
+		let orientationQuat = state.extras.orientationQuat?
+			new Quaternion().copy(state.extras.orientationQuat as Quaternion)
+			: new Quaternion();
+		let up = new Vector3(0, 0, 1).applyQuaternion(orientationQuat).normalize();
+
+		let different = !this.orientationQuat.equals(orientationQuat);
+		this.orientationQuat.copy(orientationQuat);
+		if (different) {
+			this.oldOrientationQuat.copy(this.orientationQuat);
+			this.orientationChangeTime = this.game.state.time;
+		}
+
+		this.currentUp.copy(up);
+		let gravityStrength = this.body.gravity.length();
+		this.body.gravity.copy(up).multiplyScalar(-1 * gravityStrength);
 	}
 
 	getInternalState(): InternalMarbleState {
 		return {
 			collisions: this.body.collisions.slice(),
-			lastContactNormal: this.lastContactNormal.clone()
+			inContactCcd: this.body.inContactCcd,
+			lastContactNormal: this.lastContactNormal.clone(),
+			slidingTimeout: this.slidingTimeout,
+			orientationChangeTime: this.orientationChangeTime,
+			oldOrientationQuat: this.oldOrientationQuat.clone()
 		};
 	}
 
 	loadInternalState(state: InternalMarbleState) {
 		this.body.updateCollisions(state.collisions);
+		this.body.inContactCcd = state.inContactCcd;
 		this.lastContactNormal.copy(state.lastContactNormal);
+		this.slidingTimeout = state.slidingTimeout;
+		this.orientationChangeTime = state.orientationChangeTime;
+		this.oldOrientationQuat.copy(state.oldOrientationQuat);
 	}
 
 	update() {
@@ -430,7 +477,7 @@ export class Marble extends Entity {
 
 		let time = this.game.state.time;
 
-		if (time - this.shockAbsorberEnableTime < 5000) {
+		if (this.shockAbsorberIsActive()) {
 			// Show the shock absorber (takes precedence over super bounce)
 			this.forcefield.setOpacity(1);
 			this.shape.restitution = 0.01;  // Yep it's not actually zero
@@ -440,7 +487,7 @@ export class Marble extends Entity {
 				this.shockAbsorberSound.setLoop(true);
 				this.shockAbsorberSound.play();
 			}
-		} else if (time - this.superBounceEnableTime < 5000) {
+		} else if (this.superBounceIsActive()) {
 			// Show the super bounce
 			this.forcefield.setOpacity(1);
 			this.shape.restitution = 0.9;
@@ -457,19 +504,19 @@ export class Marble extends Entity {
 			this.superBounceSound?.stop();
 			this.superBounceSound = null;
 		}
-		if (time - this.superBounceEnableTime < 5000 && !this.superBounceSound) {
+		if (this.superBounceIsActive() && !this.superBounceSound) {
 			// Play the super bounce sound
 			this.superBounceSound = AudioManager.createAudioSource('forcefield.wav');
 			this.superBounceSound.setLoop(true);
 			this.superBounceSound.play();
 		}
 
-		if (time - this.helicopterEnableTime < 5000) {
+		if (this.helicopterIsActive()) {
 			// Show the helicopter
 			this.helicopter.setOpacity(1);
 			this.helicopter.setTransform(
-				new Vector3(0, 0, this.radius - DEFAULT_RADIUS).applyQuaternion(this.newOrientationQuat),
-				this.newOrientationQuat,
+				new Vector3(0, 0, this.radius - DEFAULT_RADIUS).applyQuaternion(this.orientationQuat),
+				this.orientationQuat,
 				new Vector3(1, 1, 1)
 			);
 			this.setGravityIntensity(this.game.mission.getDefaultGravity() * 0.25);
@@ -488,16 +535,18 @@ export class Marble extends Entity {
 			this.helicopterSound = null;
 		}
 
-		if (this.radius !== MEGA_MARBLE_RADIUS && time - this.megaMarbleEnableTime < 10000) {
+		if (this.radius !== MEGA_MARBLE_RADIUS && time - this.megaMarbleEnableTime < 10) {
 			this.setRadius(MEGA_MARBLE_RADIUS);
 			this.body.linearVelocity.addScaledVector(this.currentUp, 6); // There's a small yeet upwards
 			this.rollingSound.stop();
 			this.rollingMegaMarbleSound?.play();
-		} else if (time - this.megaMarbleEnableTime >= 10000) {
+		} else if (time - this.megaMarbleEnableTime >= 10) {
 			this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
 			this.rollingSound.play();
 			this.rollingMegaMarbleSound?.stop();
 		}
+
+		this.slidingTimeout--;
 
 		if (!this.pauseInterpolation) {
 			if (this.interpolationRemaining-- <= 0) {
@@ -551,7 +600,7 @@ export class Marble extends Entity {
 		movementVec.multiplyScalar(MARBLE_ROLL_FORCE * 5 * dt);
 		movementVec.applyAxisAngle(new Vector3(0, 0, 1), controlState.yaw);
 
-		let quat = this.newOrientationQuat;
+		let quat = this.orientationQuat;
 		movementVec.applyQuaternion(quat);
 
 		// The axis of rotation (for angular velocity) is the cross product of the current up vector and the movement vector, since the axis of rotation is perpendicular to both.
@@ -602,10 +651,8 @@ export class Marble extends Entity {
 			// Angular acceleration isn't quite as speedy
 			movementRotationAxis.multiplyScalar(1/2);
 
-			let time = this.game.state.time;
-
 			let airMovementVector = movementVec.clone();
-			let airVelocity = (time - this.helicopterEnableTime) < 5000 ? 5 : 3.2; // Change air velocity for the helicopter
+			let airVelocity = this.helicopterIsActive()? 5 : 3.2; // Change air velocity for the helicopter
 			//if (this.game.simulator.finishTime) airVelocity = 0;
 			airMovementVector.multiplyScalar(airVelocity * dt);
 			this.body.linearVelocity.add(airMovementVector);
@@ -621,7 +668,7 @@ export class Marble extends Entity {
 
 		//if (this.game.simulator.finishTime) this.body.linearVelocity.multiplyScalar(0.9);
 
-		if (controlState.using) this.heldPowerUp?.use(0);
+		if (controlState.using) this.heldPowerUp?.use(this, 0);
 		if (controlState.blasting) this.useBlast();
 	}
 
@@ -673,7 +720,7 @@ export class Marble extends Entity {
 		// Implements sliding: If we hit the surface at an angle below 45°, and have movement keys pressed, we don't bounce.
 		let dot0 = -contactNormal.dot(lastSurfaceRelativeVelocity.clone().normalize());
 		let slidingEligible = contactNormalUpDot > 0.1; // Kinda arbitrary rn, it's about 84°, definitely makes sure we don't slide on walls
-		if (slidingEligible && dot0 > 0.001 && dot0 <= maxDotSlide && this.currentControlState.movement.length() > 0) {
+		if (slidingEligible && this.slidingTimeout <= 0 && dot0 > 0.001 && dot0 <= maxDotSlide && this.currentControlState.movement.length() > 0) {
 			let dot = contactNormal.dot(surfaceRelativeVelocity);
 			let linearVelocity = this.body.linearVelocity;
 			let originalLength = linearVelocity.length();
@@ -767,14 +814,46 @@ export class Marble extends Entity {
 	}
 
 	/** Get the current interpolated orientation quaternion. */
-	getOrientationQuat() {
-		let completion = Util.clamp((this.game.state.time - this.orientationChangeTime) / 300, 0, 1);
-		return this.oldOrientationQuat.clone().slerp(this.newOrientationQuat, completion);
+	getInterpolatedOrientationQuat() {
+		let completion = Util.clamp((this.game.state.time - this.orientationChangeTime) / 0.3, 0, 1);
+		return this.oldOrientationQuat.clone().slerp(this.orientationQuat, completion);
 	}
 
 	setGravityIntensity(intensity: number) {
 		let gravityVector = this.currentUp.clone().multiplyScalar(-1 * intensity);
-		this.game.simulator.world.gravity.copy(gravityVector); // todo temp whatever
+		this.body.gravity.copy(gravityVector); // todo temp whatever
+	}
+
+	/** Sets the current up vector and gravity with it. */
+	setUp(newUp: Vector3, instant = false) {
+		let time = this.game.state.time;
+
+		newUp.normalize(); // We never know 👀
+		this.currentUp.copy(newUp);
+		let gravityStrength = this.body.gravity.length();
+		this.body.gravity.copy(newUp).multiplyScalar(-1 * gravityStrength);
+
+		let currentQuat = this.getInterpolatedOrientationQuat();
+		let oldUp = this.oldUp = new Vector3(0, 0, 1);
+		oldUp.applyQuaternion(currentQuat);
+
+		let quatChange = new Quaternion();
+		let dot = newUp.dot(oldUp);
+		if (dot <= -(1 - 1e-15)/* && !(this.replay.version < 3)*/) { // TODO If the old and new up are exact opposites, there are infinitely many possible rotations we could do. So choose the one that maintains the current look vector the best. Replay check so we don't break old stuff.
+			let lookVector = new Vector3(0, 0, 1).applyQuaternion(this.game.renderer.camera.orientation);
+			let intermediateVector = oldUp.clone().cross(lookVector).normalize();
+
+			// First rotation to the intermediate vector, then rotate from there to the new up
+			quatChange.setFromUnitVectors(oldUp, intermediateVector);
+			quatChange.multiplyQuaternions(new Quaternion().setFromUnitVectors(intermediateVector, newUp), quatChange);
+		} else {
+			// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
+			quatChange.setFromUnitVectors(oldUp, newUp);
+		}
+
+		this.orientationQuat = quatChange.multiply(currentQuat);
+		this.oldOrientationQuat = currentQuat;
+		this.orientationChangeTime = instant? -Infinity : time;
 	}
 
 	playJumpSound() {
@@ -814,7 +893,7 @@ export class Marble extends Entity {
 		let angVel = this.body.angularVelocity;
 
 		// Naive: Just assume the marble moves as if nothing was in its way and it continued with its current velocity.
-		let predictedPosition = pos.clone().addScaledVector(linVel, 1 / GAME_UPDATE_RATE).addScaledVector(this.game.simulator.world.gravity, 1 / GAME_UPDATE_RATE**2 / 2);
+		let predictedPosition = pos.clone().addScaledVector(linVel, 1 / GAME_UPDATE_RATE).addScaledVector(this.body.gravity, 1 / GAME_UPDATE_RATE**2 / 2);
 		let movementDiff = predictedPosition.clone().sub(pos);
 
 		let dRotation = angVel.clone().multiplyScalar(1 / GAME_UPDATE_RATE);
@@ -844,7 +923,7 @@ export class Marble extends Entity {
 		this.innerGroup.recomputeTransform();
 
 		this.forcefield.render();
-		if (time - this.helicopterEnableTime < 5000) this.helicopter.render();
+		if (this.helicopterIsActive()) this.helicopter.render();
 
 		// Update the teleporting look:
 
@@ -868,31 +947,79 @@ export class Marble extends Entity {
 	}
 
 	enableSuperBounce() {
-		this.superBounceEnableTime = this.game.state.attemptTime;
+		this.superBounceEnableFrame = this.game.state.frame;
 	}
 
 	enableShockAbsorber() {
-		this.shockAbsorberEnableTime = this.game.state.attemptTime;
+		this.shockAbsorberEnableFrame = this.game.state.frame;
 	}
 
 	enableHelicopter() {
-		this.helicopterEnableTime = this.game.state.attemptTime;
+		this.helicopterEnableFrame = this.game.state.frame;
+	}
+
+	superBounceIsActive() {
+		return this.game.state.frame - this.superBounceEnableFrame < 5 * GAME_UPDATE_RATE;
+	}
+
+	shockAbsorberIsActive() {
+		return this.game.state.frame - this.shockAbsorberEnableFrame < 5 * GAME_UPDATE_RATE;
+	}
+
+	helicopterIsActive() {
+		return this.game.state.frame - this.helicopterEnableFrame < 5 * GAME_UPDATE_RATE;
 	}
 
 	enableTeleportingLook() {
-		let completion = (this.teleportDisableTime !== null)? Util.clamp((this.game.state.attemptTime - this.teleportDisableTime) / TELEPORT_FADE_DURATION, 0, 1) : 1;
-		this.teleportEnableTime = this.game.state.attemptTime - TELEPORT_FADE_DURATION * (1 - completion);
+		let completion = (this.teleportDisableTime !== null)? Util.clamp((this.game.state.time - this.teleportDisableTime) / TELEPORT_FADE_DURATION, 0, 1) : 1;
+		this.teleportEnableTime = this.game.state.time - TELEPORT_FADE_DURATION * (1 - completion);
 		this.teleportDisableTime = null;
 	}
 
 	disableTeleportingLook() {
-		let completion = Util.clamp((this.game.state.attemptTime - this.teleportEnableTime) / TELEPORT_FADE_DURATION, 0, 1) ?? 1;
-		this.teleportDisableTime = this.game.state.attemptTime - TELEPORT_FADE_DURATION * (1 - completion);
+		let completion = Util.clamp((this.game.state.time - this.teleportEnableTime) / TELEPORT_FADE_DURATION, 0, 1) ?? 1;
+		this.teleportDisableTime = this.game.state.time - TELEPORT_FADE_DURATION * (1 - completion);
 		this.teleportEnableTime = null;
 	}
 
 	enableMegaMarble() {
-		this.megaMarbleEnableTime = this.game.state.attemptTime;
+		this.megaMarbleEnableTime = this.game.state.time;
+	}
+
+	pickUpPowerUp(powerUp: PowerUp, playPickUpSound = true) {
+		if (!powerUp) return false;
+		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
+		this.heldPowerUp = powerUp;
+		state.menu.hud.setPowerupButtonState(true);
+
+		/* todo
+		for (let overlayShape of this.overlayShapes) {
+			if (overlayShape.dtsPath.includes("gem")) continue;
+
+			// Show the corresponding icon in the HUD
+			overlayShape.setOpacity(Number(overlayShape.dtsPath === powerUp.dtsPath));
+		}
+		*/
+
+		if (playPickUpSound) AudioManager.play(powerUp.sounds[0]);
+
+		return true;
+	}
+
+	unequipPowerUp() {
+		if (!this.heldPowerUp) {
+			state.menu.hud.setPowerupButtonState(false);
+			return;
+		}
+		this.heldPowerUp = null;
+		state.menu.hud.setPowerupButtonState(false);
+
+		/*
+		for (let overlayShape of this.overlayShapes) {
+			if (overlayShape.dtsPath.includes("gem")) continue;
+			overlayShape.setOpacity(0);
+		}
+		*/
 	}
 
 	useBlast() {
@@ -935,18 +1062,20 @@ export class Marble extends Entity {
 	reset() {
 		this.body.linearVelocity.setScalar(0);
 		this.body.angularVelocity.setScalar(0);
-		this.superBounceEnableTime = -Infinity;
-		this.shockAbsorberEnableTime = -Infinity;
-		this.helicopterEnableTime = -Infinity;
+		this.superBounceEnableFrame = -Infinity;
+		this.shockAbsorberEnableFrame = -Infinity;
+		this.helicopterEnableFrame = -Infinity;
 		this.teleportEnableTime = null;
 		this.teleportDisableTime = null;
 		this.megaMarbleEnableTime = -Infinity;
 		this.lastContactNormal.set(0, 0, 0);
 		this.beforeVel.set(0, 0, 0);
 		this.beforeAngVel.set(0, 0, 0);
+		this.slidingTimeout = 0;
 		this.predictedPosition.copy(this.body.position);
 		this.predictedOrientation.copy(this.body.orientation);
 		this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
+		this.setUp(new Vector3(0, 0, 1), true);
 	}
 
 	respawn() {

@@ -1,41 +1,59 @@
 import { Shape } from "../shape";
 import { Util } from "../util";
-import { TimeState } from "../level";
 import { AudioManager } from "../audio";
 import { Collision } from "../physics/collision";
+import { Marble } from "../marble";
+import { EntityState } from "../../../shared/game_server_format";
+
+type BumperState = EntityState & { entityType: 'bumper' };
 
 /** A bumper is a shape which knocks the marble away on contact. */
 export abstract class AbstractBumper extends Shape {
-	wiggleAnimationStart = -Infinity;
+	lastContactTime = -Infinity;
 	shareNodeTransforms = false;
 
 	get animationDuration() {
-		return this.dts.sequences[0].duration * 1000;
+		return this.dts.sequences[0].duration;
 	}
 
-	onMarbleContact(collision: Collision) {
-		let time = this.level.timeState;
+	onMarbleContact(collision: Collision, marble: Marble) {
+		let time = this.game.state.time;
 
-		this.wiggleAnimationStart = time.timeSinceLoad;
+		this.lastContactTime = time;
 		AudioManager.play(this.sounds[0]);
-
-		if (!collision) return; // We're probably in a replay if this is the case
-
-		let marble = this.level.marble;
 
 		// Set the velocity along the contact normal, but make sure it's capped
 		marble.setLinearVelocityInDirection(collision.normal, 15, false);
 		marble.slidingTimeout = 2; // Make sure we don't slide on the bumper after bouncing off it
 
-		this.level.replay.recordMarbleContact(this);
+		this.interactWith(marble);
+		this.stateNeedsStore = true;
 	}
 
 	render() {
-		let currentCompletion = Util.clamp((this.game.state.time - this.wiggleAnimationStart) / this.animationDuration, 0, 1);
+		let currentCompletion = Util.clamp((this.game.state.time - this.lastContactTime) / this.animationDuration, 0, 1);
 
 		// Override the keyframe for the "wiggle" effect
 		this.sequenceKeyframeOverride.set(this.dts.sequences[0], currentCompletion * (this.dts.sequences[0].numKeyframes - 1));
 
 		super.render();
+	}
+
+	getCurrentState(): BumperState {
+		return {
+			entityType: 'bumper',
+			lastContactTime: this.lastContactTime
+		};
+	}
+
+	getInitialState(): BumperState {
+		return {
+			entityType: 'bumper',
+			lastContactTime: -Infinity
+		};
+	}
+
+	loadState(state: BumperState) {
+		this.lastContactTime = state.lastContactTime;
 	}
 }

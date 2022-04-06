@@ -1,10 +1,19 @@
-import { Shape } from "../shape";
+import { InternalShapeState, Shape } from "../shape";
 import { Util } from "../util";
-import { TimeState } from "../level";
 import { MissionElementStaticShape, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
+import { EntityState } from "../../../shared/game_server_format";
+import { Collision } from "../physics/collision";
+import { Marble } from "../marble";
 
-const RESET_TIME = 5000;
+const RESET_TIME = 5;
+
+type TrapDoorState = EntityState & { entityType: 'trapDoor' };
+
+type InternalTrapDoorState = InternalShapeState & {
+	lastCompletion: number,
+	lastDirection: number
+};
 
 /** Trap doors open on contact. */
 export class TrapDoor extends Shape {
@@ -21,19 +30,19 @@ export class TrapDoor extends Shape {
 	constructor(element: MissionElementStaticShape) {
 		super();
 
-		if (element.timeout) this.timeout = MisParser.parseNumber(element.timeout);
+		if (element.timeout) this.timeout = MisParser.parseNumber(element.timeout) / 1000;
 	}
 
 	get animationDuration() {
-		return this.dts.sequences[0].duration * 1000;
+		return this.dts.sequences[0].duration;
 	}
 
-	tick(time: TimeState, onlyVisual: boolean) {
-		let currentCompletion = this.getCurrentCompletion(time);
+	update(onlyVisual?: boolean) {
+		let currentCompletion = this.getCurrentCompletion();
 
 		// Override the keyframe
 		this.sequenceKeyframeOverride.set(this.dts.sequences[0], currentCompletion * (this.dts.sequences[0].numKeyframes - 1));
-		super.tick(time, onlyVisual);
+		super.update(onlyVisual);
 
 		let direction = Math.sign(currentCompletion - this.lastCompletion);
 		if (direction !== 0 && direction !== this.lastDirection) {
@@ -41,29 +50,68 @@ export class TrapDoor extends Shape {
 			AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
 		}
 
-		this.lastCompletion = currentCompletion;
-		this.lastDirection = direction;
+		if (this.lastCompletion !== currentCompletion || this.lastDirection !== direction) {
+			this.lastCompletion = currentCompletion;
+			this.lastDirection = direction;
+			this.internalStateNeedsStore = true;
+		}
 	}
 
 	/** Gets the current completion of the trapdoor openness. 0 = closed, 1 = open. */
-	getCurrentCompletion(time: TimeState) {
-		let elapsed = time.timeSinceLoad - this.lastContactTime;
+	getCurrentCompletion() {
+		let elapsed = this.game.state.time - this.lastContactTime;
 		let completion = Util.clamp(elapsed / this.animationDuration, 0, 1);
 		if (elapsed > RESET_TIME) completion = Util.clamp(1 - (elapsed - RESET_TIME) / this.animationDuration, 0, 1);
 
 		return completion;
 	}
 
-	onMarbleContact() {
-		let time = this.level.timeState;
+	onMarbleContact(collision: Collision, marble: Marble) {
+		this.interactWith(marble);
 
-		if (time.timeSinceLoad - this.lastContactTime <= 0) return; // The trapdoor is queued to open, so don't do anything.
-		let currentCompletion = this.getCurrentCompletion(time);
+		let time = this.game.state.time;
+		if (time - this.lastContactTime <= 0) return; // The trapdoor is queued to open, so don't do anything.
+
+		let currentCompletion = this.getCurrentCompletion();
 
 		// Set the last contact time accordingly so that the trapdoor starts closing (again)
-		this.lastContactTime = time.timeSinceLoad - currentCompletion * this.animationDuration;
+		this.lastContactTime = time - currentCompletion * this.animationDuration;
 		if (currentCompletion === 0) this.lastContactTime += this.timeout;
 
-		this.level.replay.recordMarbleContact(this);
+		this.stateNeedsStore = true;
+		marble.interactWith(this);
+	}
+
+	getCurrentState(): TrapDoorState {
+		return {
+			entityType: 'trapDoor',
+			lastContactTime: this.lastContactTime
+		};
+	}
+
+	getInitialState(): TrapDoorState {
+		return {
+			entityType: 'trapDoor',
+			lastContactTime: -Infinity
+		};
+	}
+
+	loadState(state: TrapDoorState) {
+		this.lastContactTime = state.lastContactTime;
+	}
+
+	getInternalState(): InternalTrapDoorState {
+		return {
+			...super.getInternalState(),
+			lastCompletion: this.lastCompletion,
+			lastDirection: this.lastDirection
+		};
+	}
+
+	loadInternalState(state: InternalTrapDoorState) {
+		super.loadInternalState(state);
+
+		this.lastCompletion = state.lastCompletion;
+		this.lastDirection = state.lastDirection;
 	}
 }

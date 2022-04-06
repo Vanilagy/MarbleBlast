@@ -10,6 +10,7 @@ import { state } from "../state";
 import { Util } from "../util";
 import { Game } from "./game";
 import { Entity } from "./entity";
+import { Gem } from "../shapes/gem";
 
 interface AffectionEdge {
 	id: number,
@@ -86,7 +87,7 @@ export class GameState {
 		if (missionInfo.starthelptext)
 			hud.displayHelp(missionInfo.starthelptext); // Show the start help text
 
-		for (let entity of game.entities) entity.reset();
+		//for (let entity of game.entities) entity.reset();
 
 		game.timeTravelSound?.stop();
 		game.timeTravelSound = null;
@@ -207,5 +208,38 @@ export class GameState {
 			to: o2,
 			frame: this.frame
 		});
+	}
+
+	pickUpGem(t: number) {
+		let string: string;
+		let gemWord = (state.modification === 'gold')? 'gem' : 'diamond';
+
+		let gemCount = this.game.entities.filter(x => x instanceof Gem && x.pickedUp).length;
+
+		// Show a notification (and play a sound) based on the gems remaining
+		if (gemCount === this.game.totalGems) {
+			string = `You have all the ${gemWord}s, head for the finish!`;
+			AudioManager.play('gotallgems.wav');
+
+			// todo Some levels with this package end immediately upon collection of all gems
+			/*
+			if (this.mission.misFile.activatedPackages.includes('endWithTheGems')) {
+				this.touchFinish(t);
+			}*/
+		} else {
+			string = `You picked up a ${gemWord}${state.modification === 'gold' ? '.' : '!'}  `;
+
+			let remaining = this.game.totalGems - gemCount;
+			if (remaining === 1) {
+				string += `Only one ${gemWord} to go!`;
+			} else {
+				string += `${remaining} ${gemWord}s to go!`;
+			}
+
+			AudioManager.play('gotgem.wav');
+		}
+
+		state.menu.hud.displayAlert(string);
+		state.menu.hud.displayGemCount(gemCount, this.game.totalGems);
 	}
 }

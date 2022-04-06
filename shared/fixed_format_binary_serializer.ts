@@ -1,5 +1,6 @@
 export const nullable = Symbol('nullable');
-export const union = Symbol('nullable');
+export const union = Symbol('union');
+export const partial = Symbol('partial');
 
 type Writeable<T> =
 	T extends readonly [...unknown[]] ? { -readonly [P in keyof T]: Writeable<T[P]> } :
@@ -27,6 +28,7 @@ type SerializationFormat<T> =
 		(D extends keyof V[number] ?
 			CheckUnionType<Omit<V[number], D>, T> :
 			never) :
+	T extends readonly [typeof partial, infer R] ? (R extends { [key: string]: any } ? (T extends { [K in keyof T]: SerializationFormat<T[K]> } ? T : never) : never) :
 	T extends readonly [...unknown[]] ? (T extends readonly [SerializationFormat<T[0]>] ? T : never) :
 	T extends { [key: string]: any } ? (T extends { [K in keyof T]: SerializationFormat<T[K]> } ? T : never) :
 	never;
@@ -38,6 +40,7 @@ type FormatToTypeInternal<T> =
 	T extends [typeof nullable, infer R] ? FormatToTypeInternal<R> :
 	T extends [typeof union, infer D, ...infer R] ?
 		(D extends keyof R[number] ? MapUnionType<R[number], D> : never) :
+	T extends [typeof partial, infer R] ? Partial<FormatToTypeInternal<R>> :
 	T extends { [key: string]: SerializationFormat<unknown> } ? { [P in keyof T]: FormatToTypeInternal<T[P]> } :
 	T extends [infer R] ? (R extends SerializationFormat<unknown> ? FormatToTypeInternal<R>[] : never) :
 	never;
@@ -95,6 +98,22 @@ export abstract class FixedFormatBinarySerializer {
 
 			this.writePrimitive(index, 'varint');
 			this.write(data, format[index + 2], discriminator);
+		} else if (format[0] === partial) {
+			let keys = Object.keys(format[1]);
+			let count = 0;
+
+			for (let key in data) {
+				if (data[key] !== undefined && key in format[1]) count++;
+			}
+
+			this.writePrimitive(count, 'varint');
+
+			for (let key in format[1]) {
+				if (data[key] === undefined) continue;
+
+				this.writePrimitive(keys.indexOf(key), 'varint');
+				this.write(data[key], format[1][key]);
+			}
 		} else if (Array.isArray(format)) {
 			this.writePrimitive(data.length, 'varint');
 			for (let elem of data) this.write(elem, format[0]);
@@ -189,6 +208,18 @@ export abstract class FixedFormatBinarySerializer {
 			};
 
 			return obj;
+		} else if (format[0] === partial) {
+			let count = this.readPrimitive('varint') as number;
+			let obj: any = {};
+			let keys = Object.keys(format[1]);
+
+			for (let i = 0; i < count; i++) {
+				let keyIndex = this.readPrimitive('varint') as number;
+				let key = keys[keyIndex];
+				obj[key] = this.read(format[1][key]);
+			}
+
+			return obj;
 		} else if (Array.isArray(format)) {
 			let arrayLength = this.read('varint');
 			let arr: any[] = [];
@@ -207,7 +238,7 @@ export abstract class FixedFormatBinarySerializer {
 				obj[key] = this.read(format[key]);
 			}
 
-			return obj as any;
+			return obj;
 		}
 	}
 

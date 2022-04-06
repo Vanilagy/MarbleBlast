@@ -249,7 +249,7 @@ export class GameRenderer {
 			// MBP's UI gem color is randomized
 			if (path.includes("gem") && state.menu.hud instanceof MbpHud) shape.matNamesOverride['base.gem'] = Gem.pickRandomColor() + '.gem';
 
-			await shape.init();
+			await shape.init(game);
 
 			this.overlayShapes.push(shape);
 			this.overlayScene.add(shape.group);
@@ -378,7 +378,7 @@ export class GameRenderer {
 		let marble = game.localPlayer.controlledMarble;
 
 		let marblePosition = marble.group.position;
-		let orientationQuat = marble.getOrientationQuat();
+		let orientationQuat = marble.getInterpolatedOrientationQuat();
 		let up = new Vector3(0, 0, 1).applyQuaternion(orientationQuat);
 		let directionVector = new Vector3(1, 0, 0);
 		// The camera is translated up a bit so it looks "over" the marble

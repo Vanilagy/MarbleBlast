@@ -1,9 +1,13 @@
 import { Shape } from "../shape";
 import { Util } from "../util";
-import { TimeState } from "../level";
 import { AudioManager } from "../audio";
 import { Vector3 } from "../math/vector3";
 import { BlendingType } from "../rendering/renderer";
+import { Collision } from "../physics/collision";
+import { Marble } from "../marble";
+import { EntityState } from "../../../shared/game_server_format";
+
+export type ExplosiveState = EntityState & { entityType: 'explosive' };
 
 /** Land mines explode on contact and knock the marble away. */
 export class LandMine extends Shape {
@@ -12,10 +16,8 @@ export class LandMine extends Shape {
 	sounds = ['explode1.wav'];
 	shareMaterials = false;
 
-	onMarbleContact() {
-		let time = this.level.timeState;
-
-		let marble = this.level.marble;
+	onMarbleContact(collision: Collision, marble: Marble) {
+		let time = this.game.state.time;
 		let minePos = this.worldPosition;
 		let vec = marble.body.position.clone().sub(minePos);
 
@@ -23,16 +25,18 @@ export class LandMine extends Shape {
 		let explosionStrength = this.computeExplosionStrength(vec.length());
 		marble.body.linearVelocity.addScaledVector(vec.normalize(), explosionStrength);
 		marble.slidingTimeout = 2;
-		this.disappearTime = time.timeSinceLoad;
+		this.disappearTime = time;
 		this.setCollisionEnabled(false);
+		this.stateNeedsStore = true;
+
+		this.interactWith(marble);
+		marble.interactWith(this);
 
 		AudioManager.play(this.sounds[0]);
-		this.level.particles.createEmitter(landMineParticle, this.worldPosition);
-		this.level.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
-		this.level.particles.createEmitter(landMineSparksParticle, this.worldPosition);
+		this.game.renderer.particles.createEmitter(landMineParticle, this.worldPosition);
+		this.game.renderer.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
+		this.game.renderer.particles.createEmitter(landMineSparksParticle, this.worldPosition);
 		// Normally, we would add a light here, but eh.
-
-		this.level.replay.recordMarbleContact(this);
 	}
 
 	/** Computes the strength of the explosion (force) based on distance from it. */
@@ -48,19 +52,37 @@ export class LandMine extends Shape {
 		return v;
 	}
 
-	tick(time: TimeState, onlyVisual: boolean) {
+	update(onlyVisual?: boolean) {
 		if (onlyVisual) return;
 
 		// Enable or disable the collision based on disappear time
-		let visible = time.timeSinceLoad >= this.disappearTime + 5000;
+		let visible = this.game.state.time >= this.disappearTime + 5;
 		this.setCollisionEnabled(visible);
 	}
 
 	render() {
-		let opacity = Util.clamp((this.game.state.time - (this.disappearTime + 5000)) / 1000, 0, 1);
+		let opacity = Util.clamp(this.game.state.time - (this.disappearTime + 5), 0, 1);
 		this.setOpacity(opacity);
 
 		super.render();
+	}
+
+	getCurrentState(): ExplosiveState {
+		return {
+			entityType: 'explosive',
+			disappearTime: this.disappearTime
+		};
+	}
+
+	getInitialState(): ExplosiveState {
+		return {
+			entityType: 'explosive',
+			disappearTime: -Infinity
+		};
+	}
+
+	loadState(state: ExplosiveState) {
+		this.disappearTime = state.disappearTime;
 	}
 }
 

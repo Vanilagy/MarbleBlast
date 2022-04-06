@@ -24,6 +24,7 @@ export class RigidBody {
 
 	linearVelocity = new Vector3();
 	angularVelocity = new Vector3();
+	gravity = new Vector3();
 
 	prevPosition = new Vector3();
 	prevOrientation = new Quaternion();
@@ -38,6 +39,8 @@ export class RigidBody {
 	collisions: Collision[] = [];
 	/** Bodies with lower evaluation order will be evaluated first in the simulation loop. */
 	evaluationOrder = 0;
+	inContactCcd = new Set<CollisionShape>();
+	newInContactCcd = new Set<CollisionShape>();
 
 	userData: any;
 

@@ -1,8 +1,9 @@
 import { PowerUp } from "./power_up";
 import { MissionElementItem, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
-import { PHYSICS_TICK_RATE } from "../level";
 import { state } from "../state";
+import { Marble } from "../marble";
+import { GAME_UPDATE_RATE } from "../../../shared/constants";
 
 /** Temporarily pauses the game clock. */
 export class TimeTravel extends PowerUp {
@@ -35,12 +36,14 @@ export class TimeTravel extends PowerUp {
 		return true;
 	}
 
-	use(t: number) {
-		let timeToRevert = (1 - t) * 1000 / PHYSICS_TICK_RATE;
+	use(marble: Marble, t: number) {
+		let timeToRevert = (1 - t) / GAME_UPDATE_RATE;
 
-		if (this.level.replay.mode === 'playback') timeToRevert = this.level.replay.timeTravelTimeToRevert.get(this.id);
-		else this.level.replay.timeTravelTimeToRevert.set(this.id, timeToRevert);
+		// todo wtf is this replay shit
+		//if (this.level.replay.mode === 'playback') timeToRevert = this.level.replay.timeTravelTimeToRevert.get(this.id);
+		//else this.level.replay.timeTravelTimeToRevert.set(this.id, timeToRevert);
 
-		this.level.addTimeTravelBonus(this.timeBonus, timeToRevert);
+		this.game.clock.addTimeTravelBonus(this.timeBonus / 1000, timeToRevert);
+		this.interactWith(this.game.clock);
 	}
 }

@@ -21,16 +21,16 @@ export abstract class Entity {
 	abstract reset(): void;
 	abstract stop(): void;
 
-	abstract getCurrentState(): EntityState;
-	abstract getInitialState(): EntityState;
-	abstract loadState(state: EntityState, meta: { frame: number, remote: boolean }): void;
-
 	beforeReconciliation() {}
 	afterReconciliation() {}
 
 	interactWith(otherObject: Entity) {
 		this.game.state.recordEntityInteraction(this, otherObject);
 	}
+
+	getCurrentState(): EntityState { return null; }
+	getInitialState(): EntityState { return null; }
+	loadState(state: EntityState, meta: { frame: number, remote: boolean }) {}
 
 	getInternalState(): any { return null; }
 	loadInternalState(state: any, frame: number) {}

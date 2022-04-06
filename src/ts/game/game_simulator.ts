@@ -34,10 +34,10 @@ export class GameSimulator {
 
 		let playReplay = false;
 		if (!playReplay) {
-			let gravityBefore = this.world.gravity.clone();
+			//let gravityBefore = this.world.gravity.clone();
 			//if (this.finishTime) this.world.gravity.setScalar(0);
 			this.world.step(1 / GAME_UPDATE_RATE);
-			this.world.gravity.copy(gravityBefore);
+			//this.world.gravity.copy(gravityBefore);
 		}
 
 		for (let marble of game.marbles) marble.calculatePredictiveTransforms();

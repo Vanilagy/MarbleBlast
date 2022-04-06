@@ -95,10 +95,6 @@ export abstract class Util {
 		return (a + b) / 2;
 	}
 
-	static isSameVector(v1: {x: number, y: number, z: number}, v2: {x: number, y: number, z: number}) {
-		return v1.x === v2.x && v1.y === v2.y && v1.z === v2.z;
-	}
-
 	/** Add a vector to another vector while making sure not to exceed a certain magnitude. */
 	static addToVectorCapped(target: Vector3, add: Vector3, magnitudeCap: number) {
 		let direction = add.clone().normalize();

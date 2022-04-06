@@ -524,10 +524,6 @@ export class Interior extends Entity {
 		*/
 	}
 
-	getCurrentState(): EntityState { return null; }
-	getInitialState(): EntityState { return null; }
-	loadState(state: EntityState) {}
-
 	update() {}
 	render() {}
 	reset() {}
