@@ -433,4 +433,13 @@ export class Quaternion {
 
 		return array;
 	}
+
+	fromObject(object: { x: number, y: number, z: number, w: number }) {
+		this.x = object.x;
+		this.y = object.y;
+		this.z = object.z;
+		this.w = object.w;
+
+		return this;
+	}
 }

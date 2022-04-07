@@ -412,10 +412,10 @@ export class Marble extends Entity {
 	loadState(state: MarbleState, { remote }: { remote: boolean }) {
 		if (!this.addedToGame && remote) this.addToGame();
 
-		this.body.position.copy(state.position as Vector3);
-		this.body.orientation.copy(state.orientation as Quaternion);
-		this.body.linearVelocity.copy(state.linearVelocity as Vector3);
-		this.body.angularVelocity.copy(state.angularVelocity as Vector3);
+		this.body.position.fromObject(state.position);
+		this.body.orientation.fromObject(state.orientation);
+		this.body.linearVelocity.fromObject(state.linearVelocity);
+		this.body.angularVelocity.fromObject(state.angularVelocity);
 
 		this.body.syncShapes();
 
@@ -431,7 +431,7 @@ export class Marble extends Entity {
 		this.shockAbsorberEnableFrame = state.extras.shockAbsorberEnableFrame ?? -Infinity;
 
 		let orientationQuat = state.extras.orientationQuat?
-			new Quaternion().copy(state.extras.orientationQuat as Quaternion)
+			new Quaternion().fromObject(state.extras.orientationQuat)
 			: new Quaternion();
 		let up = new Vector3(0, 0, 1).applyQuaternion(orientationQuat).normalize();
 

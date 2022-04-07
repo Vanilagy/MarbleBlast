@@ -147,7 +147,7 @@ export class Player extends Entity {
 		if (completion > 2) return Marble.getPassiveControlState();
 
 		completion = Util.clamp(completion, 0, 1);
-		let movement = this.movementLerpStart.clone().lerp(this.lastRemoteState.movement as Vector2, completion);
+		let movement = this.movementLerpStart.clone().lerp(new Vector2().fromObject(this.lastRemoteState.movement), completion);
 
 		return {
 			...this.lastRemoteState,

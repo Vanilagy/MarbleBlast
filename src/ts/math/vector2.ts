@@ -375,6 +375,13 @@ export class Vector2 {
 		return array;
 	}
 
+	fromObject(object: { x: number, y: number }) {
+		this.x = object.x;
+		this.y = object.y;
+
+		return this;
+	}
+
 	/** Rotates this vector around center by angle radians. */
 	rotateAround(center: Vector2, angle: number) {
 		const c = Math.cos(angle),

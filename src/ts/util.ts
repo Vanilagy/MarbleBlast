@@ -753,6 +753,10 @@ export abstract class Util {
 
 		return arr;
 	}
+
+	static insertSorted<T>(arr: T[], item: T, comparator: (a: T, b: T) => number) {
+
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 

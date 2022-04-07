@@ -74,6 +74,8 @@ export class Game {
 	createRenderer() { this.renderer = new GameRenderer(this); }
 
 	addEntity(entity: Entity) {
+		if (entity.id === undefined) throw new Error("Entity has no ID.");
+
 		this.entities.push(entity);
 		this.entityMap.set(entity.id, entity);
 	}

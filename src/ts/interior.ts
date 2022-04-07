@@ -16,6 +16,8 @@ import { Quaternion } from "./math/quaternion";
 import { Game } from "./game/game";
 import { Entity } from "./game/entity";
 import { EntityState } from "../../shared/game_server_format";
+import { Marble } from "./marble";
+import { GAME_UPDATE_RATE } from "../../shared/constants";
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -208,7 +210,10 @@ export class Interior extends Entity {
 		this.body.type = RigidBodyType.Static;
 
 		this.body.onAfterCollisionResponse = (t: number, dt: number) => {
-			for (let collision of this.body.collisions) this.onMarbleContact(collision, dt);
+			for (let collision of this.body.collisions) {
+				let marble = collision.s1.body.userData as Marble;
+				this.onMarbleContact(collision, dt, marble);
+			}
 		};
 
 		// Combine the default special materials with the special ones specified in the .mis file
@@ -500,11 +505,8 @@ export class Interior extends Entity {
 			this.addConvexHull(i, this.scale);
 	}
 
-	onMarbleContact(collision: Collision, dt: number) {
-		/*
-
+	onMarbleContact(collision: Collision, dt: number, marble: Marble) {
 		let contactShape = collision.s2;
-		let marble = this.level.marble;
 		let materialProperties = (contactShape.userData || contactShape.materialOverrides.get(collision.s2MaterialOverride)) as CollisionMaterialProperties;
 
 		if (materialProperties.force !== undefined) {
@@ -512,7 +514,7 @@ export class Interior extends Entity {
 			marble.setLinearVelocityInDirection(collision.normal, materialProperties.force, false);
 			marble.slidingTimeout = 2; // Make sure we don't slide on the interior after bouncing off it
 		} else if (materialProperties.isRandom) {
-			let fac = dt / (1 / PHYSICS_TICK_RATE);
+			let fac = dt / (1 / GAME_UPDATE_RATE);
 			let angVel = marble.body.angularVelocity.clone();
 			let movementVec = angVel.cross(collision.normal);
 
@@ -520,8 +522,6 @@ export class Interior extends Entity {
 			marble.body.linearVelocity.addScaledVector(movementVec, -0.0015 * fac);
 			marble.body.angularVelocity.multiplyScalar(1 + (0.07 * marble.speedFac * fac));
 		}
-
-		*/
 	}
 
 	update() {}

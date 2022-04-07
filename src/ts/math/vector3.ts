@@ -570,6 +570,14 @@ export class Vector3 {
 		return array;
 	}
 
+	fromObject(object: { x: number, y: number, z: number }) {
+		this.x = object.x;
+		this.y = object.y;
+		this.z = object.z;
+
+		return this;
+	}
+
 	/** Sets each component of this vector to a pseudo-random value between 0 and 1, excluding 1. */
 	random() {
 		this.x = Math.random();
