@@ -97,8 +97,6 @@ export class Clock extends Entity {
 		for (let i = 0; i < (this.game.state.frame - meta.frame); i++) {
 			this.update();
 		}
-
-		console.log(this.game.state.frame - meta.frame);
 	}
 
 	reset() {}

@@ -7,8 +7,9 @@ export const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should 
 
 export class GameSimulator {
 	game: Game;
-
 	world: World;
+
+	advanceTimes: number[] = [];
 
 	constructor(game: Game) {
 		this.game = game;
@@ -95,5 +96,7 @@ export class GameSimulator {
 		*/
 
 		game.state.saveStates();
+
+		this.advanceTimes.push(performance.now());
 	}
 }

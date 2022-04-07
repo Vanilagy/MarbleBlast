@@ -99,8 +99,9 @@ interface InternalMarbleState {
 	inContactCcd: Set<CollisionShape>,
 	lastContactNormal: Vector3,
 	slidingTimeout: number,
-	orientationChangeTime: number,
-	oldOrientationQuat: Quaternion
+	oldOrientationQuat: Quaternion,
+	orientationQuat: Quaternion,
+	orientationChangeTime: number
 }
 
 export interface MarbleControlState {
@@ -435,11 +436,14 @@ export class Marble extends Entity {
 		let up = new Vector3(0, 0, 1).applyQuaternion(orientationQuat).normalize();
 
 		let different = !this.orientationQuat.equals(orientationQuat);
-		this.orientationQuat.copy(orientationQuat);
 		if (different) {
-			this.oldOrientationQuat.copy(this.orientationQuat);
+			// Start an animation
+			let currentQuat = this.getInterpolatedOrientationQuat();
+			this.oldOrientationQuat.copy(currentQuat);
 			this.orientationChangeTime = this.game.state.time;
 		}
+
+		this.orientationQuat.copy(orientationQuat);
 
 		this.currentUp.copy(up);
 		let gravityStrength = this.body.gravity.length();
@@ -452,8 +456,9 @@ export class Marble extends Entity {
 			inContactCcd: this.body.inContactCcd,
 			lastContactNormal: this.lastContactNormal.clone(),
 			slidingTimeout: this.slidingTimeout,
+			oldOrientationQuat: this.oldOrientationQuat.clone(),
+			orientationQuat: this.orientationQuat.clone(),
 			orientationChangeTime: this.orientationChangeTime,
-			oldOrientationQuat: this.oldOrientationQuat.clone()
 		};
 	}
 
@@ -462,8 +467,9 @@ export class Marble extends Entity {
 		this.body.inContactCcd = state.inContactCcd;
 		this.lastContactNormal.copy(state.lastContactNormal);
 		this.slidingTimeout = state.slidingTimeout;
-		this.orientationChangeTime = state.orientationChangeTime;
+		this.orientationQuat.copy(state.orientationQuat);
 		this.oldOrientationQuat.copy(state.oldOrientationQuat);
+		this.orientationChangeTime = state.orientationChangeTime;
 	}
 
 	update() {

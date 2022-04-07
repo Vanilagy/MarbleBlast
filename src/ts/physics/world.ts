@@ -138,7 +138,6 @@ export class World {
 
 			if (collision.s1.body.type === RigidBodyType.Dynamic && collision.s2.body.type === RigidBodyType.Dynamic) {
 				// fixme
-				//debugger;
 				collision.restitution = 1;
 			}
 

@@ -57,6 +57,8 @@ export class Game {
 	tickInterval: number;
 	lastGameUpdateTime: number = null;
 
+	tickDurations: { start: number, duration: number }[] = [];
+
 	constructor(mission: Mission) {
 		this.mission = mission;
 
@@ -130,12 +132,17 @@ export class Game {
 			this.lastGameUpdateTime = time - 1000;
 		}
 
+		let start = performance.now();
+
 		while (elapsed >= 1000 / gameUpdateRate) {
 			elapsed -= 1000 / gameUpdateRate;
 			this.lastGameUpdateTime += 1000 / gameUpdateRate;
 
 			this.simulator.update();
 		}
+
+		let duration = performance.now() - start;
+		this.tickDurations.push({ start, duration });
 	}
 
 	onButtonChange() {

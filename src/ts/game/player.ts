@@ -1,3 +1,4 @@
+import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { EntityState } from "../../../shared/game_server_format";
 import { isPressed, getPressedFlag, gamepadAxes, normalizedJoystickHandlePosition } from "../input";
 import { DEFAULT_PITCH, DEFAULT_YAW, Marble, MarbleControlState } from "../marble";
@@ -89,6 +90,7 @@ export class Player extends Entity {
 		movement.add(new Vector2(-gamepadAxes.marbleY, -gamepadAxes.marbleX));
 
 		// Add touch joystick input
+
 		if (normalizedJoystickHandlePosition) movement.add(new Vector2(
 			-Util.signedSquare(normalizedJoystickHandlePosition.y),
 			-Util.signedSquare(normalizedJoystickHandlePosition.x)
@@ -100,6 +102,23 @@ export class Player extends Entity {
 		if (!allowUserInput) movement.multiplyScalar(0);
 
 		this.checkButtons();
+
+		let yawChange = 0.0;
+		let pitchChange = 0.0;
+		let freeLook = StorageManager.data.settings.alwaysFreeLook || isPressed('freeLook');
+		let amount = Util.lerp(1, 6, StorageManager.data.settings.keyboardSensitivity);
+		if (isPressed('cameraLeft')) yawChange += amount;
+		if (isPressed('cameraRight')) yawChange -= amount;
+		if (isPressed('cameraUp')) pitchChange -= amount;
+		if (isPressed('cameraDown')) pitchChange += amount;
+
+		yawChange -= gamepadAxes.cameraX * Util.lerp(0.5, 10, StorageManager.data.settings.mouseSensitivity);
+		if (freeLook) pitchChange += gamepadAxes.cameraY * Util.lerp(0.5, 10, StorageManager.data.settings.mouseSensitivity);
+
+		this.yaw += yawChange / GAME_UPDATE_RATE;
+		this.pitch += pitchChange / GAME_UPDATE_RATE;
+
+		this.pitch = Util.clamp(this.pitch, -Math.PI/2 + Math.PI/4, Math.PI/2 - 0.0001); // The player can't look straight up
 
 		let res: MarbleControlState = {
 			movement,

@@ -201,30 +201,6 @@ export class MultiplayerGame extends Game {
 		while (this.periods.length > 0 && this.periods[0].id <= data.lastReceivedPeriodId) {
 			this.periods.shift();
 		}
-
-		/*
-		// Temp stuff: create a new marble if it isn't here yet
-		for (let update of data.entityUpdates) {
-			let entityExists = this.entities.some(x => x.id === update.entityId);
-			if (entityExists) continue;
-
-			if (initting.has(update.entityId)) return;
-
-			initting.add(update.entityId);
-			let marble = new Marble(this);
-			marble.id = update.entityId;
-
-			await marble.init();
-
-			this.renderer.scene.add(marble.group);
-			this.simulator.world.add(marble.body);
-			this.marbles.push(marble);
-			this.entities.push(marble);
-
-			marble.loadState(update.state as any); // temp
-			marble.controller = new RemoteMarbleController(marble);
-		}
-		*/
 	}
 
 	tickConnection() {
@@ -367,13 +343,19 @@ export class MultiplayerGame extends Game {
 		if (!this.started) return;
 
 		let now = performance.now();
-		while (this.recentRtts.length > 1 && now - this.recentRtts[0].timestamp > RTT_WINDOW) this.recentRtts.shift();
+		while (this.recentRtts.length > 0 && now - this.recentRtts[0].timestamp > RTT_WINDOW) this.recentRtts.shift();
 		while (this.incomingTimes.length > 0 && now - this.incomingTimes[0][0] > 1000) this.incomingTimes.shift();
 		while (this.outgoingTimes.length > 0 && now - this.outgoingTimes[0][0] > 1000) this.outgoingTimes.shift();
+
+		while (this.tickDurations.length > 0 && now - this.tickDurations[0].start > 1000) this.tickDurations.shift();
+		while (this.simulator.advanceTimes.length > 0 && now - this.simulator.advanceTimes[0] > 1000) this.simulator.advanceTimes.shift();
+		while (this.simulator.reconciliationDurations.length > 0 && now - this.simulator.reconciliationDurations[0].start > 1000) this.simulator.reconciliationDurations.shift();
 
 		//let medianRtt = Util.computeMedian(this.recentRtts.map(x => x.value));
 		let averageRtt = this.recentRtts.map(x => x.value).reduce((a, b) => a + b, 0) / this.recentRtts.length;
 		let jitter = this.recentRtts.map(x => Math.abs(x.value - averageRtt)).reduce((a, b) => a + b, 0) / this.recentRtts.length;
+		let averageTickDuration = this.tickDurations.map(x => x.duration).reduce((a, b) => a + b, 0) / this.tickDurations.length;
+		let averageReconciliationDuration = this.simulator.reconciliationDurations.map(x => x.duration).reduce((a, b) => a + b, 0) / this.simulator.reconciliationDurations.length;
 
 		networkStatsElement.textContent = `
 			Ping: ${isNaN(averageRtt)? 'N/A' : averageRtt.toFixed(1) + ' ms'}
@@ -389,6 +371,9 @@ export class MultiplayerGame extends Game {
 			Frames ahead target: ${this.state.frame - this.state.targetClientFrame}
 			Server update rate: ${GAME_UPDATE_RATE} Hz
 			Client update rate: ${this.lastUpdateRate | 0} Hz
+			Advancements/s: ${this.simulator.advanceTimes.length}
+			Tick duration: ${averageTickDuration.toFixed(2)} ms
+			Reconciliation duration: ${isNaN(averageReconciliationDuration)? 'N/A' : averageReconciliationDuration.toFixed(2) + ' ms'}
 		`;
 	}
 

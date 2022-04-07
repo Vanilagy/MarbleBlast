@@ -8,8 +8,8 @@ export class MultiplayerGameSimulator extends GameSimulator {
 	game: MultiplayerGame;
 
 	reconciliationUpdates: EntityUpdate[] = [];
-
 	lastReconciliationFrameCount = 0;
+	reconciliationDurations: { start: number, duration: number }[] = [];
 
 	update() {
 		let { game } = this;
@@ -20,6 +20,8 @@ export class MultiplayerGameSimulator extends GameSimulator {
 			super.update();
 			return;
 		}
+
+		let start = performance.now();
 
 		for (let entity of game.entities) entity.beforeReconciliation();
 
@@ -53,6 +55,9 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		this.reconciliationUpdates.length = 0;
 
 		this.advance();
+
+		let duration = performance.now() - start;
+		this.reconciliationDurations.push({ start, duration });
 	}
 
 	applyReconciliationUpdates(applyOlder = false) {
