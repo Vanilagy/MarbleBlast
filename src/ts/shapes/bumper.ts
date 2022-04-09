@@ -8,7 +8,7 @@ import { EntityState } from "../../../shared/game_server_format";
 type BumperState = EntityState & { entityType: 'bumper' };
 
 /** A bumper is a shape which knocks the marble away on contact. */
-export abstract class AbstractBumper extends Shape {
+export abstract class Bumper extends Shape {
 	lastContactTime = -Infinity;
 	shareNodeTransforms = false;
 
@@ -39,7 +39,7 @@ export abstract class AbstractBumper extends Shape {
 		super.render();
 	}
 
-	getCurrentState(): BumperState {
+	getState(): BumperState {
 		return {
 			entityType: 'bumper',
 			lastContactTime: this.lastContactTime

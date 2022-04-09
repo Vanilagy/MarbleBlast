@@ -48,26 +48,13 @@ export class GameState {
 		this.game = game;
 	}
 
-	advanceTime() {
-		/*
-		if (this.attemptTime >= GO_TIME) {
-			if (this.currentTimeTravelBonus > 0) {
-				// Subtract remaining time travel time
-				this.currentTimeTravelBonus -= 1 / GAME_UPDATE_RATE;
-			} else {
-				// Increase the gameplay time
-				//this.clock += 1 / GAME_UPDATE_RATE;
-			}
-
-			if (this.currentTimeTravelBonus < 0) {
-				// If we slightly undershot the zero mark of the remaining time travel bonus, add the "lost time" back onto the gameplay clock:
-				//this.clock += -this.currentTimeTravelBonus;
-				this.currentTimeTravelBonus = 0;
-			}
-		}*/
-
-		this.frame++;
-		//this.attemptFrame++;
+	recordEntityInteraction(o1: Entity, o2: Entity) {
+		this.affectionGraph.push({
+			id: this.nextAffectionEdgeId++,
+			from: o1,
+			to: o2,
+			frame: this.frame
+		});
 	}
 
 	restart() {
@@ -82,10 +69,6 @@ export class GameState {
 		}
 
 		game.localPlayer.controlledMarble.respawn();
-
-		let missionInfo = game.mission.missionInfo;
-		if (missionInfo.starthelptext)
-			hud.displayHelp(missionInfo.starthelptext); // Show the start help text
 
 		//for (let entity of game.entities) entity.reset();
 
@@ -113,7 +96,7 @@ export class GameState {
 					challengeable: entity.challengeable,
 					originator: this.game.localPlayer.id,
 					version: entity.version,
-					state: entity.getCurrentState()
+					state: entity.getState()
 				};
 				arr.push(stateUpdate);
 
@@ -164,9 +147,18 @@ export class GameState {
 
 	rollBackToFrame(target: number) {
 		if (target === this.frame) return;
+		this.frame = target;
 
 		while (this.affectionGraph.length > 0 && Util.last(this.affectionGraph).frame > target)
 			this.affectionGraph.pop();
+
+		let helpMessages = state.menu.hud.alerts;
+		while (helpMessages.length > 0 && Util.last(helpMessages).frame > target)
+			helpMessages.pop();
+
+		let alerts = state.menu.hud.alerts;
+		while (alerts.length > 0 && Util.last(alerts).frame > target)
+			alerts.pop();
 
 		for (let [entityId, history] of this.internalStateHistory) {
 			while (history.length > 0 && Util.last(history).frame > target) history.pop();
@@ -197,49 +189,7 @@ export class GameState {
 
 		this.saveStates();
 
-		this.frame = target;
+
 		// todo: attemptTick
-	}
-
-	recordEntityInteraction(o1: Entity, o2: Entity) {
-		this.affectionGraph.push({
-			id: this.nextAffectionEdgeId++,
-			from: o1,
-			to: o2,
-			frame: this.frame
-		});
-	}
-
-	pickUpGem(t: number) {
-		let string: string;
-		let gemWord = (state.modification === 'gold')? 'gem' : 'diamond';
-
-		let gemCount = this.game.entities.filter(x => x instanceof Gem && x.pickedUp).length;
-
-		// Show a notification (and play a sound) based on the gems remaining
-		if (gemCount === this.game.totalGems) {
-			string = `You have all the ${gemWord}s, head for the finish!`;
-			AudioManager.play('gotallgems.wav');
-
-			// todo Some levels with this package end immediately upon collection of all gems
-			/*
-			if (this.mission.misFile.activatedPackages.includes('endWithTheGems')) {
-				this.touchFinish(t);
-			}*/
-		} else {
-			string = `You picked up a ${gemWord}${state.modification === 'gold' ? '.' : '!'}  `;
-
-			let remaining = this.game.totalGems - gemCount;
-			if (remaining === 1) {
-				string += `Only one ${gemWord} to go!`;
-			} else {
-				string += `${remaining} ${gemWord}s to go!`;
-			}
-
-			AudioManager.play('gotgem.wav');
-		}
-
-		state.menu.hud.displayAlert(string);
-		state.menu.hud.displayGemCount(gemCount, this.game.totalGems);
 	}
 }

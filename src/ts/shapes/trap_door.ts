@@ -82,7 +82,7 @@ export class TrapDoor extends Shape {
 		marble.interactWith(this);
 	}
 
-	getCurrentState(): TrapDoorState {
+	getState(): TrapDoorState {
 		return {
 			entityType: 'trapDoor',
 			lastContactTime: this.lastContactTime

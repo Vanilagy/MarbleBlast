@@ -3,6 +3,7 @@ import { MissionElementItem } from "../parsing/mis_parser";
 import { Util } from "../util";
 import { EntityState } from "../../../shared/game_server_format";
 import { Marble } from "../marble";
+import { state } from "../state";
 
 // List all of gem colors for randomly choosing one
 const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "orange", "black"]; // "Platinum" is also a color, but it can't appear by chance
@@ -14,7 +15,7 @@ export class Gem extends Shape {
 	dtsPath = "shapes/items/gem.dts";
 	ambientRotate = true;
 	collideable = false;
-	pickedUp = false;
+	pickedUpBy: number = null;
 	shareMaterials = false;
 	showSequences = false; // Gems actually have an animation for the little shiny thing, but the actual game ignores that. I get it, it was annoying as hell.
 	sounds = ['gotgem.wav', 'gotallgems.wav', 'missinggems.wav'];
@@ -32,43 +33,79 @@ export class Gem extends Shape {
 	onMarbleInside(t: number, marble: Marble) {
 		marble.interactWith(this);
 
-		if (this.pickedUp) return;
+		if (this.pickedUpBy !== null) return;
 
-		this.pickedUp = true;
+		this.pickedUpBy = marble.id;
 		this.setOpacity(0); // Hide the gem
-		this.game.state.pickUpGem(t);
 		this.setCollisionEnabled(false);
+		state.menu.hud.displayAlert(this.getAlertMessage.bind(this), this.game.state.frame);
 
 		this.stateNeedsStore = true;
 	}
 
-	reset() {
-		super.reset();
-
-		this.pickedUp = false;
-		this.setOpacity(1);
-		this.setCollisionEnabled(true);
-	}
-
-	getCurrentState(): GemState {
+	getState(): GemState {
 		return {
 			entityType: 'gem',
-			pickedUp: this.pickedUp
+			pickedUpBy: this.pickedUpBy
 		};
 	}
 
 	getInitialState(): GemState {
 		return {
 			entityType: 'gem',
-			pickedUp: false
+			pickedUpBy: null
 		};
 	}
 
-	loadState(state: GemState) {
-		this.pickedUp = state.pickedUp;
+	loadState(_state: GemState, { frame }: { frame: number }) {
+		this.pickedUpBy = _state.pickedUpBy;
 
-		this.setOpacity(Number(!this.pickedUp));
-		this.setCollisionEnabled(!this.pickedUp);
+		this.setOpacity(Number(this.pickedUpBy === null));
+		this.setCollisionEnabled(this.pickedUpBy === null);
+
+		if (_state.pickedUpBy !== null) {
+			state.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
+		}
+	}
+
+	getAlertMessage() {
+		let string: string;
+		let gemWord = (state.modification === 'gold')? 'gem' : 'diamond';
+		let gemCount = this.game.entities.filter(x => x instanceof Gem && x.pickedUpBy !== null).length;
+
+		// Show a notification (and play a sound) based on the gems remaining
+		if (gemCount === this.game.totalGems) {
+			string = `You have all the ${gemWord}s, head for the finish!`;
+			//AudioManager.play('gotallgems.wav');
+
+			// todo Some levels with this package end immediately upon collection of all gems
+			/*
+			if (this.mission.misFile.activatedPackages.includes('endWithTheGems')) {
+				this.touchFinish(t);
+			}*/
+		} else {
+			let subject: string;
+			let marble = this.game.getEntityById(this.pickedUpBy) as Marble;
+			if (!marble || !marble.controllingPlayer) {
+				subject = 'A marble';
+			} else {
+				if (marble.controllingPlayer === this.game.localPlayer) subject = 'You';
+				else subject = 'They'; // todo change to username
+			}
+
+			string = `${subject} picked up a ${gemWord}${state.modification === 'gold' ? '.' : '!'}  `;
+
+			let remaining = this.game.totalGems - gemCount;
+			if (remaining === 1) {
+				string += `Only one ${gemWord} to go!`;
+			} else {
+				string += `${remaining} ${gemWord}s to go!`;
+			}
+
+			//AudioManager.play('gotgem.wav');
+		}
+
+		return string;
 	}
 
 	static pickRandomColor() {

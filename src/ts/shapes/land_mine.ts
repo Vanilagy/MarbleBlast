@@ -67,7 +67,7 @@ export class LandMine extends Shape {
 		super.render();
 	}
 
-	getCurrentState(): ExplosiveState {
+	getState(): ExplosiveState {
 		return {
 			entityType: 'explosive',
 			disappearTime: this.disappearTime

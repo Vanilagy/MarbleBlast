@@ -10,6 +10,7 @@ type ClockState = EntityState & { entityType: 'clock' };
 export class Clock extends Entity {
 	time = 0;
 	timeTravelBonus = 0;
+	updateOrder = -1;
 
 	constructor(game: Game, id: number) {
 		super(game);
@@ -73,7 +74,7 @@ export class Clock extends Entity {
 		return; // Default yellow
 	}
 
-	getCurrentState(): ClockState {
+	getState(): ClockState {
 		return {
 			entityType: 'clock',
 			time: this.time,

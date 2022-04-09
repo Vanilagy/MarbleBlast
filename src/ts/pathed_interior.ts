@@ -297,6 +297,54 @@ export class PathedInterior extends Interior {
 		this.soundSource?.stop();
 	}
 
+	getState(): PathedInteriorState {
+		return {
+			entityType: 'pathedInterior',
+			currentTime: this.currentTime,
+			targetTime: this.targetTime,
+			changeTime: this.changeTime
+		};
+	}
+
+	getInitialState(): PathedInteriorState {
+		let currentTime = 0;
+		let targetTime = 0;
+		let changeTime = 0;
+
+		if (this.element.initialposition) {
+			currentTime = MisParser.parseNumber(this.element.initialposition);
+		}
+
+		if (this.element.initialtargetposition) {
+			targetTime = MisParser.parseNumber(this.element.initialtargetposition);
+			// Alright this is strange. In Torque, there are some FPS-dependent client/server desync issues that cause the interior to start at the end position whenever the initialTargetPosition is somewhere greater than 1 and, like, approximately below 50.
+			if (targetTime > 0 && targetTime < 50) currentTime = this.duration;
+		}
+
+		return {
+			entityType: 'pathedInterior',
+			currentTime,
+			targetTime,
+			changeTime
+		};
+	}
+
+	loadState(state: PathedInteriorState) {
+		this.currentTime = state.currentTime;
+		this.targetTime = state.targetTime;
+		this.changeTime = state.changeTime;
+
+		// Set the position
+		let transform = this.getTransformAtTime(m1, this.getInternalTime(0));
+		this.currentPosition.setFromMatrixPosition(transform);
+
+		// Should prevent incorrect CCD stuff
+		this.body.position.copy(this.currentPosition);
+		this.body.syncShapes();
+
+		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
+	}
+
 	getInternalState(): InternalPathedInteriorState {
 		return {
 			prevPosition: this.prevPosition.clone(),
@@ -307,20 +355,5 @@ export class PathedInterior extends Interior {
 	loadInternalState(state: InternalPathedInteriorState): void {
 		this.prevPosition.copy(state.prevPosition);
 		this.currentPosition.copy(state.currentPosition);
-	}
-
-	getCurrentState(): PathedInteriorState {
-		return {
-			entityType: 'pathedInterior',
-			currentTime: this.currentTime,
-			targetTime: this.targetTime,
-			changeTime: this.changeTime
-		};
-	}
-
-	loadState(state: PathedInteriorState) {
-		this.currentTime = state.currentTime;
-		this.targetTime = state.targetTime;
-		this.changeTime = state.changeTime;
 	}
 }

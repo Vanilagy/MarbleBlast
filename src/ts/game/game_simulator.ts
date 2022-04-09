@@ -24,7 +24,7 @@ export class GameSimulator {
 	advance() {
 		let { game } = this;
 
-		game.state.advanceTime();
+		game.state.frame++;
 
 		//if (this.mission.hasBlast && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
 
@@ -40,6 +40,8 @@ export class GameSimulator {
 			this.world.step(1 / GAME_UPDATE_RATE);
 			//this.world.gravity.copy(gravityBefore);
 		}
+
+		for (let entity of game.entities) entity.postUpdate();
 
 		for (let marble of game.marbles) marble.calculatePredictiveTransforms();
 

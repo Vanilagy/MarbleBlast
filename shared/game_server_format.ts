@@ -19,12 +19,14 @@ export const entityStateFormat = [union, 'entityType', {
 	}]
 }, {
 	entityType: 'player',
-	movement: vector2Format,
-	yaw: 'f32',
-	pitch: 'f32',
-	jumping: 'boolean',
-	using: 'boolean',
-	blasting: 'boolean'
+	controlState: {
+		movement: vector2Format,
+		yaw: 'f32',
+		pitch: 'f32',
+		jumping: 'boolean',
+		using: 'boolean',
+		blasting: 'boolean'
+	}
 }, {
 	entityType: 'clock',
 	time: 'f64',
@@ -36,10 +38,11 @@ export const entityStateFormat = [union, 'entityType', {
 	changeTime: 'f64'
 }, {
 	entityType: 'gem',
-	pickedUp: 'boolean'
+	pickedUpBy: [nullable, 'varint']
 }, {
 	entityType: 'powerUp',
-	lastPickUpTime: [nullable, 'f64']
+	lastPickUpTime: [nullable, 'f64'],
+	pickedUpBy: [nullable, 'varint']
 }, {
 	entityType: 'bumper',
 	lastContactTime: 'f64'
@@ -49,6 +52,10 @@ export const entityStateFormat = [union, 'entityType', {
 }, {
 	entityType: 'explosive',
 	disappearTime: 'f64'
+}, {
+	entityType: 'helpTrigger',
+	entered: ['varint'],
+	enteredFrame: 'varint'
 }] as const;
 
 export const entityUpdateFormat = {

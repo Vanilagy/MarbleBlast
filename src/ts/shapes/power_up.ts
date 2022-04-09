@@ -13,6 +13,7 @@ type PowerUpState = EntityState & { entityType: 'powerUp' };
 export abstract class PowerUp extends Shape {
 	element: MissionElementItem;
 	lastPickUpTime: number = null;
+	pickedUpBy: number = null;
 	/** Reappears after this time. */
 	cooldownDuration: number = DEFAULT_COOLDOWN_DURATION;
 	/** Whether or not to automatically use the powerup instantly on pickup. */
@@ -45,10 +46,10 @@ export abstract class PowerUp extends Shape {
 			this.interactWith(marble);
 
 			this.lastPickUpTime = time;
+			this.pickedUpBy = marble.id;
 			if (this.autoUse) this.use(marble, t);
 
-			state.menu.hud.displayAlert(this.customPickUpAlert ?? `You picked up ${this.an? 'an' : 'a'} ${this.pickUpName}!`);
-			if (this.element.showhelponpickup === "1" && !this.autoUse) state.menu.hud.displayHelp(`Press <func:bind mousefire> to use the ${this.pickUpName}!`);
+			this.displayAlerts(this.game.state.frame);
 
 			this.setCollisionEnabled(false);
 
@@ -83,22 +84,43 @@ export abstract class PowerUp extends Shape {
 		this.lastPickUpTime = null;
 	}
 
-	getCurrentState(): PowerUpState {
+	getState(): PowerUpState {
 		return {
 			entityType: 'powerUp',
-			lastPickUpTime: this.lastPickUpTime
+			lastPickUpTime: this.lastPickUpTime,
+			pickedUpBy: this.pickedUpBy
 		};
 	}
 
 	getInitialState(): PowerUpState {
 		return {
 			entityType: 'powerUp',
-			lastPickUpTime: null
+			lastPickUpTime: null,
+			pickedUpBy: this.pickedUpBy
 		};
 	}
 
-	loadState(state: PowerUpState) {
-		this.lastPickUpTime = state.lastPickUpTime;
+	loadState(_state: PowerUpState, { frame }: { frame: number }) {
+		this.lastPickUpTime = _state.lastPickUpTime;
+		this.pickedUpBy = _state.pickedUpBy;
+
+		if (this.pickedUpBy) this.displayAlerts(frame);
+	}
+
+	displayAlerts(frame: number) {
+		state.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
+		if (this.element.showhelponpickup === "1" && !this.autoUse)
+			state.menu.hud.displayHelp(this.getHelpMessage.bind(this), frame);
+	}
+
+	getAlertMessage() {
+		if ((this.game.getEntityById(this.pickedUpBy) as Marble).controllingPlayer !== this.game.localPlayer) return null;
+		return this.customPickUpAlert ?? `You picked up ${this.an? 'an' : 'a'} ${this.pickUpName}!`;
+	}
+
+	getHelpMessage() {
+		if ((this.game.getEntityById(this.pickedUpBy) as Marble).controllingPlayer !== this.game.localPlayer) return null;
+		return `Press <func:bind mousefire> to use the ${this.pickUpName}!`;
 	}
 
 	/** If this function returns true, the pickup was successful. */

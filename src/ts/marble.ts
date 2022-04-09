@@ -381,7 +381,7 @@ export class Marble extends Entity {
 		this.addedToGame = true;
 	}
 
-	getCurrentState(): MarbleState {
+	getState(): MarbleState {
 		return {
 			entityType: 'marble',
 			position: this.body.position.clone(),
@@ -399,6 +399,7 @@ export class Marble extends Entity {
 	}
 
 	getInitialState(): MarbleState {
+		// todo this is NOT a correct initial state is it?
 		return {
 			entityType: 'marble',
 			position: this.body.position.clone(),
@@ -417,9 +418,8 @@ export class Marble extends Entity {
 		this.body.linearVelocity.fromObject(state.linearVelocity);
 		this.body.angularVelocity.fromObject(state.angularVelocity);
 
-		this.body.syncShapes();
-
 		if (remote) {
+			this.body.syncShapes();
 			this.body.updateCollisions();
 			this.internalStateNeedsStore = true;
 		}
@@ -553,18 +553,6 @@ export class Marble extends Entity {
 		}
 
 		this.slidingTimeout--;
-
-		if (!this.pauseInterpolation) {
-			if (this.interpolationRemaining-- <= 0) {
-				this.interpolatedPosition.copy(this.body.position);
-				this.interpolatedOrientation.copy(this.body.orientation);
-			} else {
-				this.interpolatedPosition.addScaledVector(this.body.linearVelocity, 1 / GAME_UPDATE_RATE);
-				this.interpolatedPosition.lerp(this.body.position, this.interpolationStrength);
-
-				this.interpolatedOrientation.slerp(this.body.orientation, this.interpolationStrength);
-			}
-		}
 	}
 
 	findBestCollision(withRespectTo: (c: Collision) => number) {
@@ -812,6 +800,20 @@ export class Marble extends Entity {
 			this.slidingSound.gain.gain.value = 0;
 			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+		}
+	}
+
+	postUpdate() {
+		if (!this.pauseInterpolation) {
+			if (this.interpolationRemaining-- <= 0) {
+				this.interpolatedPosition.copy(this.body.position);
+				this.interpolatedOrientation.copy(this.body.orientation);
+			} else {
+				this.interpolatedPosition.addScaledVector(this.body.linearVelocity, 1 / GAME_UPDATE_RATE);
+				this.interpolatedPosition.lerp(this.body.position, this.interpolationStrength);
+
+				this.interpolatedOrientation.slerp(this.body.orientation, this.interpolationStrength);
+			}
 		}
 	}
 
@@ -1100,6 +1102,11 @@ export class Marble extends Entity {
 			this.controllingPlayer.pitch = DEFAULT_PITCH;
 			this.controllingPlayer.yaw = DEFAULT_YAW + euler.z;
 		}
+
+		state.menu.hud.displayHelp(() => {
+			if (this.controllingPlayer !== this.game.localPlayer) return null;
+			return this.game.mission.missionInfo.starthelptext ?? null;
+		}, this.game.state.frame);
 	}
 
 	stop() {

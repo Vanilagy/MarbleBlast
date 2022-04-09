@@ -1,7 +1,7 @@
-import { AbstractBumper } from "./abstract_bumper";
+import { Bumper } from "./bumper";
 
 /** A triangle-shaped bumper. */
-export class TriangleBumper extends AbstractBumper {
+export class TriangleBumper extends Bumper {
 	dtsPath = "shapes/bumpers/pball_tri.dts";
 	sounds = ["bumper1.wav"];
 }

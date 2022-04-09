@@ -21,6 +21,7 @@ import { PowerUp } from "../shapes/power_up";
 import { RandomPowerUp } from "../shapes/random_power_up";
 import { state } from "../state";
 import { StorageManager } from "../storage";
+import { Hud } from "../ui/hud";
 import { MbpHud } from "../ui/hud_mbp";
 import { mainRenderer, SCALING_RATIO } from "../ui/misc";
 import { FRAME_RATE_OPTIONS } from "../ui/options_mbp";
@@ -59,6 +60,7 @@ export class GameRenderer {
 	overlayShapes: Shape[] = [];
 	overlayScene: Scene;
 	overlayCamera: OrthographicCamera;
+	lastHeldPowerUp: PowerUp = null;
 
 	lastFrameTime: number = null;
 	/** The maximum time that has been displayed in the current attempt. */
@@ -204,7 +206,7 @@ export class GameRenderer {
 		}
 	}
 
-	async initUi() {
+	async initHud() {
 		let { game } = this;
 
 		// Load all necessary UI image elements
@@ -320,29 +322,6 @@ export class GameRenderer {
 		marble.renderReflection();
 		mainRenderer.render(this.scene, this.camera);
 
-		// Update the overlay
-		for (let overlayShape of this.overlayShapes) {
-			overlayShape.group.position.x = 500; // Make sure the shape is between the near and far planes of the camera
-			overlayShape.render();
-
-			if (overlayShape.dtsPath.includes("gem")) {
-				overlayShape.group.scale.setScalar(45 / SCALING_RATIO);
-				overlayShape.group.position.y = 25 / SCALING_RATIO;
-				overlayShape.group.position.z = -35 / SCALING_RATIO;
-			} else {
-				overlayShape.group.scale.setScalar((SHAPE_OVERLAY_SCALES[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_SCALES] ?? 40) / SCALING_RATIO);
-				overlayShape.group.position.y = window.innerWidth - 55 / SCALING_RATIO;
-				overlayShape.group.position.z = SHAPE_OVERLAY_OFFSETS[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_OFFSETS] / SCALING_RATIO;
-			}
-
-			overlayShape.group.recomputeTransform();
-		}
-
-		// Render the overlay
-		this.overlayCamera.updateMatrixWorld();
-		this.overlayScene.prepareForRender(this.overlayCamera);
-		mainRenderer.render(this.overlayScene, this.overlayCamera, null, false);
-
 		// This might seem a bit strange, but the time we display is actually a few milliseconds in the PAST (unless the user is currently in TT or has finished), for the reason that time was able to go backwards upon finishing or collecting TTs due to CCD time correction. That felt wrong, so we accept this inaccuracy in displaying time for now.
 		/*
 		let timeToDisplay = tempTimeState.gameplayClock;
@@ -352,20 +331,7 @@ export class GameRenderer {
 		if (simulator.currentTimeTravelBonus === 0 && !simulator.finishTime) timeToDisplay = this.maxDisplayedTime;
 		*/
 
-		let hud = state.menu.hud;
-		//hud.displayBlastMeterFullness(simulator.blastAmount);
-		hud.displayFps();
-
-		// Update help and alert text visibility
-		let helpTextTime = this.helpTextTimeState ?? -Infinity;
-		let alertTextTime = this.alertTextTimeState ?? -Infinity;
-		let helpTextCompletion = Util.clamp(game.state.time - helpTextTime - 3, 0, 1) ** 2;
-		let alertTextCompletion = Util.clamp(game.state.time - alertTextTime - 3, 0, 1) ** 2;
-
-		hud.helpElement.style.opacity = (1 - helpTextCompletion).toString();
-		hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, helpTextCompletion)})`;
-		hud.alertElement.style.opacity = (1 - alertTextCompletion).toString();
-		hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
+		this.renderHud();
 
 		game.state.subframeCompletion = 0;
 	}
@@ -478,6 +444,84 @@ export class GameRenderer {
 			this.camera.lookAt(marblePosition);
 			this.camera.position.add(this.lastVerticalTranslation);
 		}
+	}
+
+	renderHud() {
+		let { game } = this;
+		let hud = state.menu.hud;
+
+		let gemCount = 0;
+		for (let i = 0; i < this.game.entities.length; i++) {
+			let entity = this.game.entities[i];
+			if (entity instanceof Gem && entity.pickedUpBy) gemCount++;
+		}
+
+		hud.displayGemCount(gemCount, this.game.totalGems);
+		hud.displayFps();
+
+		hud.helpElement.textContent = '';
+		hud.alertElement.textContent = '';
+
+		for (let i = hud.helpMessages.length-1; i >= 0; i--) {
+			let helpMessage = hud.helpMessages[i];
+			let message = helpMessage.getMessage();
+			if (message === null) continue;
+
+			let completion = Util.clamp(game.state.time - helpMessage.frame/GAME_UPDATE_RATE - 3, 0, 1) ** 2;
+			hud.helpElement.textContent = Hud.processHelpMessage(message);
+			hud.helpElement.style.opacity = (1 - completion).toString();
+			hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, completion)})`;
+
+			break;
+		}
+
+		for (let i = hud.alerts.length-1; i >= 0; i--) {
+			let alert = hud.alerts[i];
+			let message = alert.getMessage();
+			if (message === null) continue;
+
+			let completion = Util.clamp(game.state.time - alert.frame/GAME_UPDATE_RATE - 3, 0, 1) ** 2;
+			hud.alertElement.textContent = message;
+			hud.alertElement.style.opacity = (1 - completion).toString();
+			hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, completion)})`;
+
+			break;
+		}
+
+		let heldPowerUp = this.game.localPlayer.controlledMarble.heldPowerUp;
+		if (this.lastHeldPowerUp !== heldPowerUp) {
+			this.lastHeldPowerUp = heldPowerUp;
+
+			for (let overlayShape of this.overlayShapes) {
+				if (overlayShape.dtsPath.includes("gem")) continue;
+
+				// Show the corresponding icon in the HUD
+				overlayShape.setOpacity(Number(overlayShape.dtsPath === heldPowerUp?.dtsPath));
+			}
+		}
+
+		// Update the overlay
+		for (let overlayShape of this.overlayShapes) {
+			overlayShape.group.position.x = 500; // Make sure the shape is between the near and far planes of the camera
+			overlayShape.render();
+
+			if (overlayShape.dtsPath.includes("gem")) {
+				overlayShape.group.scale.setScalar(45 / SCALING_RATIO);
+				overlayShape.group.position.y = 25 / SCALING_RATIO;
+				overlayShape.group.position.z = -35 / SCALING_RATIO;
+			} else {
+				overlayShape.group.scale.setScalar((SHAPE_OVERLAY_SCALES[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_SCALES] ?? 40) / SCALING_RATIO);
+				overlayShape.group.position.y = window.innerWidth - 55 / SCALING_RATIO;
+				overlayShape.group.position.z = SHAPE_OVERLAY_OFFSETS[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_OFFSETS] / SCALING_RATIO;
+			}
+
+			overlayShape.group.recomputeTransform();
+		}
+
+		// Render the overlay
+		this.overlayCamera.updateMatrixWorld();
+		this.overlayScene.prepareForRender(this.overlayCamera);
+		mainRenderer.render(this.overlayScene, this.overlayCamera, null, false);
 	}
 
 	onResize() {

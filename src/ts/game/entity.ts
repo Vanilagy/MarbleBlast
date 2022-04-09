@@ -8,6 +8,8 @@ export abstract class Entity {
 	owned = false;
 	version = 0;
 	challengeable = false;
+	/** Entities with lower update order will be updated first. */
+	updateOrder = 0;
 
 	stateNeedsStore = false;
 	internalStateNeedsStore = true; // Start out true so we store it once in the beninging... in the... in the beni... in the beninging (listen properly)
@@ -18,8 +20,8 @@ export abstract class Entity {
 
 	abstract update(): void;
 	abstract render(): void;
-	abstract reset(): void;
 	abstract stop(): void;
+	postUpdate() {}
 
 	beforeReconciliation() {}
 	afterReconciliation() {}
@@ -28,7 +30,7 @@ export abstract class Entity {
 		this.game.state.recordEntityInteraction(this, otherObject);
 	}
 
-	getCurrentState(): EntityState { return null; }
+	getState(): EntityState { return null; }
 	getInitialState(): EntityState { return null; }
 	loadState(state: EntityState, meta: { frame: number, remote: boolean }) {}
 

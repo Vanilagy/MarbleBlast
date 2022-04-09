@@ -144,7 +144,7 @@ export class GameInitter {
 		game.clock = new Clock(game, this.auxEntityIdStart);
 		game.addEntity(game.clock);
 
-		await renderer.initUi();
+		await renderer.initHud();
 		this.loadingState.loaded += 3;
 
 		await soundPromise;

@@ -161,7 +161,7 @@ export class Game {
 		let player = new Player(connection, playerId, marbleId);
 		this.players.push(player);
 
-		//connection.addedOneWayLatency = 50;
+		//connection.addedOneWayLatency = 20;
 
 		connection.queueCommand({
 			command: 'gameJoinInfo',

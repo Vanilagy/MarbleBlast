@@ -49,6 +49,16 @@ export abstract class Hud {
 	abstract supportNumberColors: boolean;
 	abstract supportFpsMeter: boolean;
 
+	lastGemCount: string = null;
+	helpMessages: {
+		frame: number,
+		getMessage: () => string
+	}[] = [];
+	alerts: {
+		frame: number,
+		getMessage: () => string
+	}[] = [];
+
 	constructor(menu: Menu) {
 		this.menu = menu;
 		this.gemCountElement = document.querySelector('#gem-count');
@@ -96,6 +106,8 @@ export abstract class Hud {
 		}
 
 		if (Util.isTouchDevice) this.setupTouchControls();
+
+		this.lastGemCount = null;
 	}
 
 	setupTouchControls() {
@@ -184,6 +196,10 @@ export abstract class Hud {
 	displayGemCount(count: number, total: number) {
 		if (total === 0) return;
 
+		let hash = `${count}/${total}`;
+		if (this.lastGemCount === hash) return;
+		this.lastGemCount = hash;
+
 		let string = Util.leftPadZeroes(count.toString(), this.gemCountMinDigits) + '/' + Util.leftPadZeroes(total.toString(), this.gemCountMinDigits);
 
 		// Generate the appropriate number of image elements
@@ -208,51 +224,21 @@ export abstract class Hud {
 	}
 
 	/** Displays a help message in the middle of the screen. */
-	displayHelp(message: string, playSound = false) {
-		keybindRegex.lastIndex = 0;
-		let match: RegExpMatchArray;
-
-		// Search the string for possible keybind references. If found, replace them with the key bound to that keybind.
-		while ((match = keybindRegex.exec(message)) !== null) {
-			let gameButton = ({
-				"moveforward": "up",
-				"movebackward": "down",
-				"moveleft": "left",
-				"moveright": "right",
-				"jump": "jump",
-				"mousefire": "use",
-				"panup": "cameraUp",
-				"pandown": "cameraDown",
-				"panleft": "cameraLeft",
-				"panright": "cameraRight",
-				"turnup": "cameraUp",
-				"turndown": "cameraDown",
-				"turnleft": "cameraLeft",
-				"turnright": "cameraRight",
-				"freelook": "freeLook",
-				"useblast": "blast"
-			} as Record<string, string>)[match[1].toLowerCase()];
-			if (!gameButton) continue;
-
-			let keyName = Util.getKeyForButtonCode(StorageManager.data.settings.gameButtonMapping[gameButton as keyof typeof StorageManager.data.settings.gameButtonMapping]);
-			message = message.slice(0, match.index) + keyName + message.slice(match.index + match[0].length);
-
-			keybindRegex.lastIndex -= match[0].length;
+	displayHelp(getMessage: () => string, frame: number) {
+		let index = Util.insertSorted(this.helpMessages, { frame, getMessage }, (a, b) => a.frame - b.frame);
+		while (this.helpMessages[index-1] && this.helpMessages[index-1].frame === frame) {
+			this.helpMessages.splice(index-1, 1);
+			index--;
 		}
-
-		// A few hardcoded messages from Marble Blast Mobile
-		if (message === 'MSG_FINDALLTHEGEMS') message = "Find all the gems!";
-		if (message === 'MSG_RACETOTHEFINISH') message = "Race to the finish!";
-
-		this.helpElement.textContent = message;
-		state.game.renderer.helpTextTimeState = state.game.state.time;
-		if (playSound) AudioManager.play('infotutorial.wav');
 	}
 
 	/** Displays an alert at the bottom of the screen. */
-	displayAlert(message: string) {
-		this.alertElement.textContent = message;
-		state.game.renderer.alertTextTimeState = state.game.state.time;
+	displayAlert(getMessage: () => string, frame: number) {
+		let index = Util.insertSorted(this.alerts, { frame, getMessage }, (a, b) => a.frame - b.frame);
+		while (this.alerts[index-1] && this.alerts[index-1].frame === frame) {
+			this.alerts.splice(index-1, 1);
+			index--;
+		}
 	}
 
 	setCenterText(type: 'none' | 'ready' | 'set' | 'go' | 'outofbounds') {
@@ -317,5 +303,44 @@ export abstract class Hud {
 			this.blastMeterFill.src = blastMeterFillSrc;
 			this.lastBlastMeterFillSrc = blastMeterFillSrc;
 		}
+	}
+
+	static processHelpMessage(message: string) {
+		keybindRegex.lastIndex = 0;
+		let match: RegExpMatchArray;
+
+		// Search the string for possible keybind references. If found, replace them with the key bound to that keybind.
+		while ((match = keybindRegex.exec(message)) !== null) {
+			let gameButton = ({
+				"moveforward": "up",
+				"movebackward": "down",
+				"moveleft": "left",
+				"moveright": "right",
+				"jump": "jump",
+				"mousefire": "use",
+				"panup": "cameraUp",
+				"pandown": "cameraDown",
+				"panleft": "cameraLeft",
+				"panright": "cameraRight",
+				"turnup": "cameraUp",
+				"turndown": "cameraDown",
+				"turnleft": "cameraLeft",
+				"turnright": "cameraRight",
+				"freelook": "freeLook",
+				"useblast": "blast"
+			} as Record<string, string>)[match[1].toLowerCase()];
+			if (!gameButton) continue;
+
+			let keyName = Util.getKeyForButtonCode(StorageManager.data.settings.gameButtonMapping[gameButton as keyof typeof StorageManager.data.settings.gameButtonMapping]);
+			message = message.slice(0, match.index) + keyName + message.slice(match.index + match[0].length);
+
+			keybindRegex.lastIndex -= match[0].length;
+		}
+
+		// A few hardcoded messages from Marble Blast Mobile
+		if (message === 'MSG_FINDALLTHEGEMS') message = "Find all the gems!";
+		if (message === 'MSG_RACETOTHEFINISH') message = "Race to the finish!";
+
+		return message;
 	}
 }

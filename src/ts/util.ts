@@ -754,8 +754,28 @@ export abstract class Util {
 		return arr;
 	}
 
+	/** Inserts an element into in array already sorted using the given comparator function. */
 	static insertSorted<T>(arr: T[], item: T, comparator: (a: T, b: T) => number) {
+		let low = 0;
+		let high = arr.length - 1;
+		let ans = -1;
 
+		// Binary search our way there
+		while (low <= high) {
+			let mid = Math.floor(low + (high - low + 1) / 2);
+			let midVal = arr[mid];
+
+			let comp = comparator(item, midVal);
+			if (comp > 0) {
+				ans = mid;
+				low = mid + 1;
+			} else {
+				high = mid - 1;
+			}
+		}
+
+		arr.splice(ans + 1, 0, item);
+		return ans + 1;
 	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing

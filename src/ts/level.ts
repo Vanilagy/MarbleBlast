@@ -1372,7 +1372,6 @@ export class Level extends Scheduler {
 			// Show the corresponding icon in the HUD
 			overlayShape.setOpacity(Number(overlayShape.dtsPath === powerUp.dtsPath));
 		}
-
 		if (playPickUpSound) AudioManager.play(powerUp.sounds[0]);
 
 		return true;

@@ -19,6 +19,7 @@ interface PlayerInternalState {
 }
 
 export class Player extends Entity {
+	updateOrder = -1;
 	controlledMarble: Marble;
 
 	pitch = DEFAULT_PITCH;
@@ -142,15 +143,16 @@ export class Player extends Entity {
 	getRemoteControlState(): MarbleControlState {
 		if (!this.lastRemoteState) return Marble.getPassiveControlState();
 
-		let completion = (this.game.state.frame - this.lastRemoteStateFrame) / (this.game as MultiplayerGame).simulator.lastReconciliationFrameCount;
+		let interpolationDuration = (this.game as MultiplayerGame).simulator.lastReconciliationFrameCount * 5;
+		let completion = (this.game.state.frame - this.lastRemoteStateFrame) / interpolationDuration;
 
-		if (completion > 2) return Marble.getPassiveControlState();
+		if (completion > 1) return Marble.getPassiveControlState();
 
 		completion = Util.clamp(completion, 0, 1);
-		let movement = this.movementLerpStart.clone().lerp(new Vector2().fromObject(this.lastRemoteState.movement), completion);
+		let movement = this.movementLerpStart.clone().lerp(new Vector2().fromObject(this.lastRemoteState.controlState.movement), completion);
 
 		return {
-			...this.lastRemoteState,
+			...this.lastRemoteState.controlState,
 			movement
 		};
 	}
@@ -172,21 +174,17 @@ export class Player extends Entity {
 		}
 	}
 
-	reset() {
-
-	}
-
 	getInitialState(): PlayerState {
 		return {
 			entityType: 'player',
-			...Marble.getPassiveControlState()
+			controlState: Marble.getPassiveControlState()
 		};
 	}
 
-	getCurrentState(): PlayerState {
+	getState(): PlayerState {
 		return {
 			entityType: 'player',
-			...(this.lastControlState ?? this.getInitialState())
+			controlState: this.lastControlState ?? Marble.getPassiveControlState()
 		};
 	}
 

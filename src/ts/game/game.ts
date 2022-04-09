@@ -76,7 +76,10 @@ export class Game {
 	addEntity(entity: Entity) {
 		if (entity.id === undefined) throw new Error("Entity has no ID.");
 
-		this.entities.push(entity);
+		Util.insertSorted(this.entities, entity, (a, b) => {
+			if (a.updateOrder === b.updateOrder) return a.id - b.id;
+			return a.updateOrder - b.updateOrder;
+		});
 		this.entityMap.set(entity.id, entity);
 	}
 
