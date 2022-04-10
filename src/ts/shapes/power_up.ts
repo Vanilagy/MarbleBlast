@@ -47,7 +47,10 @@ export abstract class PowerUp extends Shape {
 
 			this.lastPickUpTime = time;
 			this.pickedUpBy = marble.id;
-			if (this.autoUse) this.use(marble, t);
+			if (this.autoUse) {
+				this.use(marble, t);
+				this.useCosmetically(marble);
+			}
 
 			this.displayAlerts(this.game.state.frame);
 
@@ -126,4 +129,5 @@ export abstract class PowerUp extends Shape {
 	/** If this function returns true, the pickup was successful. */
 	abstract pickUp(marble: Marble): boolean;
 	abstract use(marble: Marble, t: number): void;
+	abstract useCosmetically(marble: Marble): void;
 }

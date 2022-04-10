@@ -15,7 +15,10 @@ export const entityStateFormat = [union, 'entityType', {
 		helicopterEnableFrame: 'varint',
 		superBounceEnableFrame: 'varint',
 		shockAbsorberEnableFrame: 'varint',
-		orientationQuat: quaternionFormat
+		orientationQuat: quaternionFormat,
+		jumpCount: 'varint',
+		powerUpUses: ['varint'],
+		powerUpUseFrame: 'varint'
 	}]
 }, {
 	entityType: 'player',

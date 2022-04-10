@@ -2,12 +2,8 @@ import { AudioManager, AudioSource } from "../audio";
 import { Entity } from "./entity";
 import { Interior } from "../interior";
 import { Marble } from "../marble";
-import { Euler } from "../math/euler";
-import { Vector3 } from "../math/vector3";
 import { Mission } from "../mission";
-import { MissionElementSimGroup, MissionElementTrigger, MisParser } from "../parsing/mis_parser";
 import { Shape } from "../shape";
-import { StartPad } from "../shapes/start_pad";
 import { Trigger } from "../triggers/trigger";
 import { Util } from "../util";
 import { GameInitter } from "./game_initter";
@@ -148,6 +144,8 @@ export class Game {
 
 		let duration = performance.now() - start;
 		this.tickDurations.push({ start, duration });
+
+		AudioManager.updatePositionalAudio();
 	}
 
 	onButtonChange() {

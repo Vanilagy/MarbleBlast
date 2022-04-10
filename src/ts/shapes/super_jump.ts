@@ -4,6 +4,7 @@ import { state } from "../state";
 import { Vector3 } from "../math/vector3";
 import { BlendingType } from "../rendering/renderer";
 import { Marble } from "../marble";
+import { GAME_UPDATE_RATE } from "../../../shared/constants";
 
 /** Gives the marble an upwards boost. */
 export class SuperJump extends PowerUp {
@@ -17,11 +18,13 @@ export class SuperJump extends PowerUp {
 
 	use(marble: Marble) {
 		marble.body.linearVelocity.addScaledVector(marble.currentUp, 20); // Simply add to vertical velocity
+	}
 
-		AudioManager.play(this.sounds[1]);
-		this.game.renderer.particles.createEmitter(superJumpParticleOptions, null, () => marble.body.position.clone());
-
-		marble.unequipPowerUp();
+	useCosmetically(marble: Marble) {
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(this.sounds[1], undefined, undefined, marble.body.position);
+			this.game.renderer.particles.createEmitter(superJumpParticleOptions, null, () => marble.body.position.clone());
+		}, `${this.id} ${marble.id}useCosmetic`, marble !== this.game.localPlayer.controlledMarble);
 	}
 }
 

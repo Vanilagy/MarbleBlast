@@ -30,11 +30,13 @@ export class SuperSpeed extends PowerUp {
 		movementVector.applyQuaternion(quat2); // ...then rotate the movement bonus vector by that amount.
 
 		marble.body.linearVelocity.addScaledVector(movementVector, 24.7); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)
+	}
 
-		AudioManager.play(this.sounds[1]);
-		this.game.renderer.particles.createEmitter(superSpeedParticleOptions, null, () => marble.body.position.clone());
-
-		marble.unequipPowerUp();
+	useCosmetically(marble: Marble): void {
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(this.sounds[1], undefined, undefined, marble.body.position);
+			this.game.renderer.particles.createEmitter(superSpeedParticleOptions, null, () => marble.body.position.clone());
+		}, `${this.id} ${marble.id}useCosmetic`, marble !== this.game.localPlayer.controlledMarble);
 	}
 }
 

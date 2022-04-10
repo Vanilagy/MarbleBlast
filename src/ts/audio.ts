@@ -1,9 +1,11 @@
 import { ResourceManager } from "./resources";
 import { Util } from "./util";
 import { state } from "./state";
-import { TimeState } from "./level";
 import { StorageManager } from "./storage";
 import { Vector3 } from "./math/vector3";
+import { Quaternion } from "./math/quaternion";
+
+let q1 = new Quaternion();
 
 /** A class used as an utility for sound playback. */
 export abstract class AudioManager {
@@ -19,7 +21,7 @@ export abstract class AudioManager {
 
 	static oggDecoder: ReturnType<typeof OggdecModule>; // Because Safari
 
-	static init() {
+	static async init() {
 		let AudioContext = window.AudioContext ?? (window as any).webkitAudioContext; // Safari
 		this.context = new AudioContext();
 
@@ -62,7 +64,7 @@ export abstract class AudioManager {
 		let fullPath = this.toFullPath(path);
 
 		// If there's a current level, see if there's a sound file for this path contained in it
-		let mission = state.level?.mission;
+		let mission = state.game?.mission;
 		let zipFile: JSZip.JSZipObject;
 		if (mission && mission.zipDirectory && mission.zipDirectory.files['data/sound/' + path]) {
 			zipFile = mission.zipDirectory.files['data/sound/' + path];
@@ -143,8 +145,7 @@ export abstract class AudioManager {
 		}
 
 		if (position) {
-			// Mute the sound by default to avoid any weird audible artifacts.
-			audioSource.gain.gain.value = 0;
+			audioSource.updatePositionalAudio();
 		}
 
 		this.audioSources.push(audioSource);
@@ -154,30 +155,15 @@ export abstract class AudioManager {
 	/** Utility method for creating an audio source and playing it immediately. */
 	static play(path: string | string[], volume = 1, destination = this.soundGain, position?: Vector3) {
 		let audioSource = this.createAudioSource(path, destination, position);
-		audioSource.gain.gain.value = position? 0 : volume;
+		audioSource.gain.gain.value = volume;
 		audioSource.play();
 	}
 
 	/** Updates the pan and volume of positional audio sources based on the listener's location. */
-	static updatePositionalAudio(time: TimeState, listenerPos: Vector3, listenerYaw: number) {
-		let quat = state.level.getOrientationQuat(time);
-		quat.conjugate();
-
+	static updatePositionalAudio() {
 		for (let source of this.audioSources) {
 			if (!source.position) continue;
-
-			// Get the relative position of the audio source from the listener's POV
-			let relativePosition = source.position.clone().sub(listenerPos);
-			relativePosition.applyQuaternion(quat);
-			relativePosition.applyAxisAngle(new Vector3(0, 0, 1), -listenerYaw);
-			relativePosition.normalize();
-			relativePosition.z = 0;
-
-			let distance = source.position.distanceTo(listenerPos);
-			let panRemoval = Util.clamp(distance / 1, 0, 1); // If the listener is very close to the center, start moving the audio source to the center.
-
-			source.setPannerValue(-relativePosition.y * 0.7 * panRemoval);
-			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1) * source.gainFactor;
+			source.updatePositionalAudio();
 		}
 	}
 
@@ -223,6 +209,7 @@ export class AudioSource {
 	node: AudioBufferSourceNode | MediaElementAudioSourceNode;
 	gain: GainNode;
 	panner: StereoPannerNode | PannerNode;
+	attenuationGain: GainNode;
 	position: Vector3;
 	stopped = false;
 	playing = false;
@@ -245,13 +232,15 @@ export class AudioSource {
 		this.position = position;
 
 		this.gain = AudioManager.context.createGain();
+		this.attenuationGain = AudioManager.context.createGain();
 
 		if (AudioManager.context.createStereoPanner)
 			this.panner = AudioManager.context.createStereoPanner();
 		else
 			this.panner = AudioManager.context.createPanner();
 		this.gain.connect(this.panner);
-		this.panner.connect(this.destination);
+		this.panner.connect(this.attenuationGain);
+		this.attenuationGain.connect(this.destination);
 
 		if (source instanceof Promise) {
 			this.node = AudioManager.context.createBufferSource();
@@ -336,5 +325,23 @@ export class AudioSource {
 			}
 		} catch (e) {}
 		Util.removeFromArray(AudioManager.audioSources, this);
+	}
+
+	/** Updates the pan and volume of positional audio sources based on the listener's location. */
+	updatePositionalAudio() {
+		if (!this.position) return;
+
+		let camera = state.game.renderer.camera;
+
+		// Get the relative position of the audio source from the listener's POV
+		let relativePosition = this.position.clone().sub(camera.position);
+		relativePosition.applyQuaternion(q1.copy(camera.orientation).conjugate());
+		relativePosition.normalize();
+
+		let distance = this.position.distanceTo(camera.position);
+		let panRemoval = Util.clamp(distance / 1, 0, 1); // If the listener is very close to the center, start moving the audio source to the center.
+
+		this.setPannerValue(relativePosition.x * 0.7 * panRemoval);
+		this.attenuationGain.gain.value = Util.clamp(1 - distance / 30, 0, 1) * this.gainFactor;
 	}
 }

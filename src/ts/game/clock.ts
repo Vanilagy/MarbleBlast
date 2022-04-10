@@ -1,5 +1,6 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { EntityState } from "../../../shared/game_server_format";
+import { AudioManager, AudioSource } from "../audio";
 import { state } from "../state";
 import { Entity } from "./entity";
 import { Game } from "./game";
@@ -11,6 +12,7 @@ export class Clock extends Entity {
 	time = 0;
 	timeTravelBonus = 0;
 	updateOrder = -1;
+	timeTravelSound: AudioSource = null;
 
 	constructor(game: Game, id: number) {
 		super(game);
@@ -31,6 +33,17 @@ export class Clock extends Entity {
 			// If we slightly undershot the zero mark of the remaining time travel bonus, add the "lost time" back onto the gameplay clock:
 			this.time += -this.timeTravelBonus;
 			this.timeTravelBonus = 0;
+		}
+
+		if (!this.game.simulator.isReconciling) {
+			if (this.timeTravelBonus > 0 && !this.timeTravelSound) {
+				this.timeTravelSound = AudioManager.createAudioSource('timetravelactive.wav');
+				this.timeTravelSound.setLoop(true);
+				this.timeTravelSound.play();
+			} else if (this.timeTravelBonus === 0) {
+				this.timeTravelSound?.stop();
+				this.timeTravelSound = null;
+			}
 		}
 	}
 

@@ -16,6 +16,7 @@ export class Helicopter extends PowerUp {
 
 	use(marble: Marble) {
 		marble.enableHelicopter();
-		marble.unequipPowerUp();
 	}
+
+	useCosmetically() {}
 }

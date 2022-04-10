@@ -101,7 +101,8 @@ interface InternalMarbleState {
 	slidingTimeout: number,
 	oldOrientationQuat: Quaternion,
 	orientationQuat: Quaternion,
-	orientationChangeTime: number
+	orientationChangeTime: number,
+	lastPowerUpUseFrame: number
 }
 
 export interface MarbleControlState {
@@ -210,6 +211,11 @@ export class Marble extends Entity {
 	interpolationRemaining = 0;
 	interpolationStrength = 1;
 	pauseInterpolation = false;
+
+	jumpCount = 0;
+	powerUpUses: number[] = [];
+	powerUpUseFrame = -1;
+	lastPowerUpUseFrame = -1;
 
 	constructor(game: Game, id: number) {
 		super(game);
@@ -346,19 +352,19 @@ export class Marble extends Entity {
 		if (mission.hasBlast) toLoad.push("blast.wav");
 		await AudioManager.loadBuffers(toLoad);
 
-		this.rollingSound = AudioManager.createAudioSource('rolling_hard.wav');
+		this.rollingSound = AudioManager.createAudioSource('rolling_hard.wav', undefined, this.body.position);
 		this.rollingSound.play();
 		this.rollingSound.gain.gain.value = 0;
 		this.rollingSound.setLoop(true);
 
 		// Check if we need to prep a Mega Marble sound
 		if (mission.allElements.some(x => x._type === MissionElementType.Item && x.datablock?.toLowerCase() === 'megamarbleitem')) {
-			this.rollingMegaMarbleSound = AudioManager.createAudioSource('mega_roll.wav');
+			this.rollingMegaMarbleSound = AudioManager.createAudioSource('mega_roll.wav', undefined, this.body.position);
 			this.rollingMegaMarbleSound.gain.gain.value = 0;
 			this.rollingMegaMarbleSound.setLoop(true);
 		}
 
-		this.slidingSound = AudioManager.createAudioSource('sliding.wav');
+		this.slidingSound = AudioManager.createAudioSource('sliding.wav', undefined, this.body.position);
 		this.slidingSound.play();
 		this.slidingSound.gain.gain.value = 0;
 		this.slidingSound.setLoop(true);
@@ -393,7 +399,10 @@ export class Marble extends Entity {
 				helicopterEnableFrame: this.helicopterIsActive()? this.helicopterEnableFrame : undefined,
 				superBounceEnableFrame: this.superBounceIsActive()? this.superBounceEnableFrame : undefined,
 				shockAbsorberEnableFrame: this.shockAbsorberIsActive()? this.shockAbsorberEnableFrame : undefined,
-				orientationQuat: this.orientationQuat.equals(new Quaternion())? undefined : this.orientationQuat.clone()
+				orientationQuat: this.orientationQuat.equals(new Quaternion())? undefined : this.orientationQuat.clone(),
+				jumpCount: this.jumpCount || undefined,
+				powerUpUses: this.powerUpUses.length ? this.powerUpUses : undefined,
+				powerUpUseFrame: this.powerUpUses.length ? this.powerUpUseFrame : undefined
 			}
 		};
 	}
@@ -448,6 +457,23 @@ export class Marble extends Entity {
 		this.currentUp.copy(up);
 		let gravityStrength = this.body.gravity.length();
 		this.body.gravity.copy(up).multiplyScalar(-1 * gravityStrength);
+
+		let newJumpCount = state.extras.jumpCount || 0;
+		if (newJumpCount > this.jumpCount) {
+			this.playJumpSound();
+		}
+		this.jumpCount = newJumpCount;
+
+		let newPowerUpUseFrame = state.extras.powerUpUseFrame ?? -1;
+		this.powerUpUseFrame = newPowerUpUseFrame;
+		this.powerUpUses = state.extras.powerUpUses ?? [];
+		if (newPowerUpUseFrame > this.lastPowerUpUseFrame) {
+			for (let id of this.powerUpUses) {
+				let powerUp = this.game.getEntityById(id) as PowerUp;
+				powerUp.useCosmetically(this);
+			}
+		}
+		this.lastPowerUpUseFrame = newPowerUpUseFrame;
 	}
 
 	getInternalState(): InternalMarbleState {
@@ -459,6 +485,7 @@ export class Marble extends Entity {
 			oldOrientationQuat: this.oldOrientationQuat.clone(),
 			orientationQuat: this.orientationQuat.clone(),
 			orientationChangeTime: this.orientationChangeTime,
+			lastPowerUpUseFrame: this.lastPowerUpUseFrame
 		};
 	}
 
@@ -470,6 +497,7 @@ export class Marble extends Entity {
 		this.orientationQuat.copy(state.orientationQuat);
 		this.oldOrientationQuat.copy(state.oldOrientationQuat);
 		this.orientationChangeTime = state.orientationChangeTime;
+		this.lastPowerUpUseFrame = state.lastPowerUpUseFrame;
 	}
 
 	update() {
@@ -489,7 +517,7 @@ export class Marble extends Entity {
 			this.shape.restitution = 0.01;  // Yep it's not actually zero
 
 			if (!this.shockAbsorberSound) {
-				this.shockAbsorberSound = AudioManager.createAudioSource('superbounceactive.wav');
+				this.shockAbsorberSound = AudioManager.createAudioSource('superbounceactive.wav', undefined, this.body.position);
 				this.shockAbsorberSound.setLoop(true);
 				this.shockAbsorberSound.play();
 			}
@@ -512,7 +540,7 @@ export class Marble extends Entity {
 		}
 		if (this.superBounceIsActive() && !this.superBounceSound) {
 			// Play the super bounce sound
-			this.superBounceSound = AudioManager.createAudioSource('forcefield.wav');
+			this.superBounceSound = AudioManager.createAudioSource('forcefield.wav', undefined, this.body.position);
 			this.superBounceSound.setLoop(true);
 			this.superBounceSound.play();
 		}
@@ -528,7 +556,7 @@ export class Marble extends Entity {
 			this.setGravityIntensity(this.game.mission.getDefaultGravity() * 0.25);
 
 			if (!this.helicopterSound) {
-				this.helicopterSound = AudioManager.createAudioSource('use_gyrocopter.wav');
+				this.helicopterSound = AudioManager.createAudioSource('use_gyrocopter.wav', undefined, this.body.position);
 				this.helicopterSound.setLoop(true);
 				this.helicopterSound.play();
 			}
@@ -555,13 +583,15 @@ export class Marble extends Entity {
 		this.slidingTimeout--;
 	}
 
-	findBestCollision(withRespectTo: (c: Collision) => number) {
+	findBestCollision(withRespectTo: (c: Collision, normal: Vector3, otherShape: CollisionShape) => number) {
 		let bestCollision: Collision;
 		let bestCollisionValue = -Infinity;
 		for (let collision of this.body.collisions) {
-			if (collision.s1 !== this.shape) continue; // Could also be an aux collider that caused the collision but we don't wanna count that here
+			if (collision.s1 !== this.shape && collision.s2 !== this.shape) continue; // Could also be an aux collider that caused the collision but we don't wanna count that here
 
-			let value = withRespectTo(collision);
+			let otherShape = collision.s1 === this.shape ? collision.s2 : collision.s1;
+			let normal = collision.s1 === this.shape ? collision.normal : collision.normal.clone().negate();
+			let value = withRespectTo(collision, normal, otherShape);
 
 			if (value > bestCollisionValue) {
 				bestCollision = collision;
@@ -573,9 +603,9 @@ export class Marble extends Entity {
 
 		let contactNormal = bestCollision.normal;
 		let contactShape = bestCollision.s2;
-		if (bestCollision.s1 !== this.body.shapes[0]) {
-			contactNormal.negate();
-			contactShape = bestCollision.s2;
+		if (bestCollision.s1 !== this.shape) {
+			contactNormal = contactNormal.clone().negate();
+			contactShape = bestCollision.s1;
 		}
 
 		// How much the current surface is pointing up
@@ -600,7 +630,7 @@ export class Marble extends Entity {
 		// The axis of rotation (for angular velocity) is the cross product of the current up vector and the movement vector, since the axis of rotation is perpendicular to both.
 		let movementRotationAxis = this.currentUp.clone().cross(movementVec);
 
-		let bestCollision = this.findBestCollision(c => c.normal.dot(this.currentUp));
+		let bestCollision = this.findBestCollision((_, normal) => normal.dot(this.currentUp));
 
 		if (bestCollision) {
 			let { collision, contactNormal, contactNormalUpDot } = bestCollision;
@@ -662,7 +692,17 @@ export class Marble extends Entity {
 
 		//if (this.game.simulator.finishTime) this.body.linearVelocity.multiplyScalar(0.9);
 
-		if (controlState.using) this.heldPowerUp?.use(this, 0);
+		if (controlState.using && this.heldPowerUp) {
+			this.heldPowerUp.use(this, 0);
+			this.heldPowerUp.useCosmetically(this);
+
+			if (this.powerUpUseFrame === this.game.state.frame) this.powerUpUses.push(this.heldPowerUp.id);
+			else this.powerUpUses = [this.heldPowerUp.id];
+			this.powerUpUseFrame = this.game.state.frame;
+			this.lastPowerUpUseFrame = this.powerUpUseFrame;
+
+			this.unequipPowerUp();
+		}
 		if (controlState.blasting) this.useBlast();
 	}
 
@@ -696,11 +736,26 @@ export class Marble extends Entity {
 	}
 
 	onBeforeCollisionResponse() {
-		// Nothing.
+		// Create bounce particles
+		let mostPowerfulCollision = this.findBestCollision((_, normal, otherShape) => {
+			return -normal.dot(this.body.linearVelocity.clone().sub(otherShape.body.linearVelocity));
+		});
+		if (!mostPowerfulCollision || mostPowerfulCollision.collision.s1 !== this.shape) return; // We don't want marble-marble collisions to be processed twice, once by each marble, but we let one marble do it for both
+
+		let impactVelocity = -mostPowerfulCollision.contactNormal.dot(this.body.linearVelocity.clone().sub(mostPowerfulCollision.contactShape.body.linearVelocity));
+		if (impactVelocity > 6) this.showBounceParticles();
+
+		// Handle bounce sound
+		let volume = Util.clamp((impactVelocity / 12)**1.5, 0, 1);
+		if (impactVelocity > 1) {
+			// Play a collision impact sound
+			this.playBounceSound(volume);
+			//if (this.level.replay.canStore) this.level.replay.bounceTimes.push({ tickIndex: this.level.replay.currentTickIndex, volume: volume, showParticles: impactVelocity > 6 });
+		}
 	}
 
 	onAfterCollisionResponse() {
-		let bestCollision = this.findBestCollision(c => c.normal.dot(this.currentUp));
+		let bestCollision = this.findBestCollision((_, normal) => normal.dot(this.currentUp));
 		if (!bestCollision) return;
 
 		let { collision, contactNormal, contactShape, contactNormalUpDot } = bestCollision;
@@ -747,24 +802,10 @@ export class Marble extends Entity {
 		// Handle jumping
 		if (this.currentControlState.jumping && contactNormalUpDot > 1e-6) {
 			this.setLinearVelocityInDirection(contactNormal, this.jumpImpulse + contactShape.body.linearVelocity.dot(contactNormal), true, () => {
+				this.jumpCount++;
 				this.playJumpSound();
 				//if (this.level.replay.canStore) this.level.replay.jumpSoundTimes.push(this.level.replay.currentTickIndex);
 			});
-		}
-
-		// Create bounce particles
-		let mostPowerfulCollision = this.findBestCollision(c => {
-			return -c.normal.dot(this.beforeVel.clone().sub(c.s2.body.linearVelocity));
-		});
-		let impactVelocity = -mostPowerfulCollision.contactNormal.dot(this.beforeVel.clone().sub(contactShape.body.linearVelocity));
-		if (impactVelocity > 6) this.showBounceParticles();
-
-		// Handle bounce sound
-		let volume = Util.clamp((impactVelocity / 12)**1.5, 0, 1);
-		if (impactVelocity > 1) {
-			// Play a collision impact sound
-			this.playBounceSound(volume);
-			//if (this.level.replay.canStore) this.level.replay.bounceTimes.push({ tickIndex: this.level.replay.currentTickIndex, volume: volume, showParticles: impactVelocity > 6 });
 		}
 
 		// Check for marble-marble collisions
@@ -865,17 +906,23 @@ export class Marble extends Entity {
 	}
 
 	playJumpSound() {
-		AudioManager.play(['jump.wav']);
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(['jump.wav'], undefined, undefined, this.body.position);
+		}, `${this.id}jump`);
 	}
 
 	playBounceSound(volume: number) {
-		let prefix = (this.radius === MEGA_MARBLE_RADIUS)? 'mega_' : '';
-		AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'].map(x => prefix + x), volume);
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			let prefix = (this.radius === MEGA_MARBLE_RADIUS)? 'mega_' : '';
+			AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'].map(x => prefix + x), volume, undefined, this.body.position);
+		}, `${this.id}bounceSound`);
 	}
 
 	showBounceParticles() {
-		this.game.renderer.particles.createEmitter(bounceParticleOptions, this.body.position, null,
-			new Vector3(1, 1, 1).addScaledVector(this.currentUp.clone().abs(), -0.8));
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			this.game.renderer.particles.createEmitter(bounceParticleOptions, this.body.position, null,
+				new Vector3(1, 1, 1).addScaledVector(this.currentUp.clone().abs(), -0.8));
+		}, `${this.id}bounceParticles`);
 	}
 
 	/** Sets linear velocity in a specific direction, but capped. Used for things like jumping and bumpers. */
@@ -1009,7 +1056,8 @@ export class Marble extends Entity {
 		}
 		*/
 
-		if (playPickUpSound) AudioManager.play(powerUp.sounds[0]);
+		if (playPickUpSound && this === this.game.localPlayer.controlledMarble)
+			this.game.simulator.executeNonDuplicatableEvent(() => AudioManager.play(powerUp.sounds[0]), `${powerUp.id}sound`, true);
 
 		return true;
 	}

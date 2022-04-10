@@ -25,6 +25,8 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 		for (let entity of game.entities) entity.beforeReconciliation();
 
+		this.isReconciling = true;
+
 
 		//console.time("updat");
 
@@ -50,6 +52,8 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		}
 
 		this.lastReconciliationFrameCount = endFrame - startFrame;
+		this.isReconciling = false;
+
 		for (let entity of game.entities) entity.afterReconciliation();
 
 		this.reconciliationUpdates.length = 0;

@@ -32,7 +32,6 @@ export class TimeTravel extends PowerUp {
 	}
 
 	pickUp() {
-		AudioManager.play(this.sounds[0]);
 		return true;
 	}
 
@@ -45,5 +44,11 @@ export class TimeTravel extends PowerUp {
 
 		this.game.clock.addTimeTravelBonus(this.timeBonus / 1000, timeToRevert);
 		this.interactWith(this.game.clock);
+	}
+
+	useCosmetically(marble: Marble) {
+		if (marble === this.game.localPlayer.controlledMarble) this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(this.sounds[0]);
+		}, `${this.id}sound`, true);
 	}
 }

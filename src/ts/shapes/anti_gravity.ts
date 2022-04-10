@@ -32,4 +32,10 @@ export class AntiGravity extends PowerUp {
 		marble.setUp(direction);
 		AudioManager.play(this.sounds[0]);
 	}
+
+	useCosmetically(marble: Marble): void {
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(this.sounds[0]);
+		}, `${this.id} ${marble.id}useCosmetic`, true);
+	}
 }

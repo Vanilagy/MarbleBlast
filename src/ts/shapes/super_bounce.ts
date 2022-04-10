@@ -14,6 +14,7 @@ export class SuperBounce extends PowerUp {
 
 	use(marble: Marble) {
 		marble.enableSuperBounce();
-		marble.unequipPowerUp();
 	}
+
+	useCosmetically() {}
 }

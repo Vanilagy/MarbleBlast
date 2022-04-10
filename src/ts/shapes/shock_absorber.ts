@@ -15,6 +15,7 @@ export class ShockAbsorber extends PowerUp {
 
 	use(marble: Marble) {
 		marble.enableShockAbsorber();
-		marble.unequipPowerUp();
 	}
+
+	useCosmetically() {}
 }

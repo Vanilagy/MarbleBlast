@@ -1,4 +1,5 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
+import { DefaultMap } from "../../../shared/default_map";
 import { World } from "../physics/world";
 import { Game } from "./game";
 
@@ -10,6 +11,8 @@ export class GameSimulator {
 	world: World;
 
 	advanceTimes: number[] = [];
+	nonDuplicatableEventFrames = new DefaultMap<string, number>(() => -1);
+	isReconciling = false;
 
 	constructor(game: Game) {
 		this.game = game;
@@ -25,6 +28,7 @@ export class GameSimulator {
 		let { game } = this;
 
 		game.state.frame++;
+		game.state.maxFrame = Math.max(game.state.frame, game.state.maxFrame);
 
 		//if (this.mission.hasBlast && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
 
@@ -100,5 +104,12 @@ export class GameSimulator {
 		game.state.saveStates();
 
 		this.advanceTimes.push(performance.now());
+	}
+
+	executeNonDuplicatableEvent(fn: () => void, eventId: string, addSafetyMargin = false) {
+		if (this.nonDuplicatableEventFrames.get(eventId) >= this.game.state.frame) return;
+
+		this.nonDuplicatableEventFrames.set(eventId, this.game.state.maxFrame + (addSafetyMargin ? GAME_UPDATE_RATE / 5 : 0));
+		fn();
 	}
 }

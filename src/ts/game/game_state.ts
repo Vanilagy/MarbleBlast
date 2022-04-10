@@ -26,6 +26,7 @@ export class GameState {
 	id = 0;
 
 	frame = -1;
+	maxFrame = -1;
 
 	get time() {
 		return (this.frame + this.subframeCompletion) / GAME_UPDATE_RATE;

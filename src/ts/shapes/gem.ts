@@ -1,9 +1,12 @@
 import { Shape } from "../shape";
-import { MissionElementItem } from "../parsing/mis_parser";
+import { MissionElement, MissionElementItem } from "../parsing/mis_parser";
 import { Util } from "../util";
 import { EntityState } from "../../../shared/game_server_format";
 import { Marble } from "../marble";
 import { state } from "../state";
+import { AudioManager } from "../audio";
+import { MultiplayerGame } from "../game/multiplayer_game";
+import { Game } from "../game/game";
 
 // List all of gem colors for randomly choosing one
 const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "orange", "black"]; // "Platinum" is also a color, but it can't appear by chance
@@ -30,6 +33,12 @@ export class Gem extends Shape {
 		this.matNamesOverride["base.gem"] = color.toLowerCase() + ".gem";
 	}
 
+	init(game?: Game, srcElement?: MissionElement) {
+		if (game instanceof MultiplayerGame) this.sounds.push('opponentdiamond.wav');
+
+		return super.init(game, srcElement);
+	}
+
 	onMarbleInside(t: number, marble: Marble) {
 		marble.interactWith(this);
 
@@ -39,6 +48,7 @@ export class Gem extends Shape {
 		this.setOpacity(0); // Hide the gem
 		this.setCollisionEnabled(false);
 		state.menu.hud.displayAlert(this.getAlertMessage.bind(this), this.game.state.frame);
+		this.playSound();
 
 		this.stateNeedsStore = true;
 	}
@@ -58,6 +68,7 @@ export class Gem extends Shape {
 	}
 
 	loadState(_state: GemState, { frame }: { frame: number }) {
+		let before = this.pickedUpBy;
 		this.pickedUpBy = _state.pickedUpBy;
 
 		this.setOpacity(Number(this.pickedUpBy === null));
@@ -65,6 +76,7 @@ export class Gem extends Shape {
 
 		if (_state.pickedUpBy !== null) {
 			state.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
+			if (before === null) this.playSound();
 		}
 	}
 
@@ -106,6 +118,12 @@ export class Gem extends Shape {
 		}
 
 		return string;
+	}
+
+	playSound() {
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(this.pickedUpBy === this.game.localPlayer.controlledMarble.id ? this.sounds[0] : this.sounds[3]);
+		}, `${this.id}sound`, true);
 	}
 
 	static pickRandomColor() {

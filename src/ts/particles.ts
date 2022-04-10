@@ -251,6 +251,8 @@ export class ParticleEmitter {
 	getPos: () => Vector3;
 	spawnSphereSquish: Vector3;
 
+	velComputed = false;
+
 	constructor(options: ParticleEmitterOptions, manager: ParticleManager, getPos?: () => Vector3, spawnSphereSquish?: Vector3) {
 		this.o = options;
 		this.manager = manager;
@@ -283,6 +285,8 @@ export class ParticleEmitter {
 		this.lastEmitTime = time;
 		this.currentWaitPeriod = this.o.ejectionPeriod;
 
+		if (this.getPos && !this.velComputed) return;
+
 		let pos = this.getPosAtTime(time).clone();
 		if (this.o.spawnOffset) pos.add(this.o.spawnOffset()); // Call the spawnOffset function if it's there
 
@@ -314,6 +318,7 @@ export class ParticleEmitter {
 		this.currPos = pos.clone();
 		this.currPosTime = time;
 		this.vel = this.currPos.clone().sub(this.lastPos).multiplyScalar(1000 / (this.currPosTime - this.lastPosTime));
+		this.velComputed = true;
 	}
 
 	static cloneOptions(options: ParticleEmitterOptions) {
