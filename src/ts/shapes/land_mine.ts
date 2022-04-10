@@ -19,24 +19,27 @@ export class LandMine extends Shape {
 	onMarbleContact(collision: Collision, marble: Marble) {
 		let time = this.game.state.time;
 		let minePos = this.worldPosition;
-		let vec = marble.body.position.clone().sub(minePos);
 
-		// Add velocity to the marble
-		let explosionStrength = this.computeExplosionStrength(vec.length());
-		marble.body.linearVelocity.addScaledVector(vec.normalize(), explosionStrength);
-		marble.slidingTimeout = 2;
+		for (let marble of this.game.marbles) {
+			let vec = marble.body.position.clone().sub(minePos);
+			let explosionStrength = this.computeExplosionStrength(vec.length());
+
+			if (explosionStrength === 0) continue;
+
+			// Add velocity to the marble
+			marble.body.linearVelocity.addScaledVector(vec.normalize(), explosionStrength);
+			marble.slidingTimeout = 2;
+
+			this.interactWith(marble);
+		}
+
 		this.disappearTime = time;
 		this.setCollisionEnabled(false);
 		this.stateNeedsStore = true;
 
-		this.interactWith(marble);
 		marble.interactWith(this);
 
-		AudioManager.play(this.sounds[0]);
-		this.game.renderer.particles.createEmitter(landMineParticle, this.worldPosition);
-		this.game.renderer.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
-		this.game.renderer.particles.createEmitter(landMineSparksParticle, this.worldPosition);
-		// Normally, we would add a light here, but eh.
+		this.applyCosmeticEffects();
 	}
 
 	/** Computes the strength of the explosion (force) based on distance from it. */
@@ -82,7 +85,19 @@ export class LandMine extends Shape {
 	}
 
 	loadState(state: ExplosiveState) {
+		if (state.disappearTime > this.disappearTime) this.applyCosmeticEffects();
 		this.disappearTime = state.disappearTime;
+	}
+
+	applyCosmeticEffects() {
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(this.sounds[0], undefined, undefined, this.worldPosition);
+
+			this.game.renderer.particles.createEmitter(landMineParticle, this.worldPosition);
+			this.game.renderer.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
+			this.game.renderer.particles.createEmitter(landMineSparksParticle, this.worldPosition);
+			// Normally, we would add a light here, but eh.
+		}, `${this.id}sound`, true);
 	}
 }
 

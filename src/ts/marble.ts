@@ -510,13 +510,14 @@ export class Marble extends Entity {
 		this.controllingPlayer?.applyControlState();
 
 		let time = this.game.state.time;
+		let reconciling = this.game.simulator.isReconciling;
 
 		if (this.shockAbsorberIsActive()) {
 			// Show the shock absorber (takes precedence over super bounce)
 			this.forcefield.setOpacity(1);
 			this.shape.restitution = 0.01;  // Yep it's not actually zero
 
-			if (!this.shockAbsorberSound) {
+			if (!this.shockAbsorberSound && !reconciling) {
 				this.shockAbsorberSound = AudioManager.createAudioSource('superbounceactive.wav', undefined, this.body.position);
 				this.shockAbsorberSound.setLoop(true);
 				this.shockAbsorberSound.play();
@@ -526,19 +527,23 @@ export class Marble extends Entity {
 			this.forcefield.setOpacity(1);
 			this.shape.restitution = 0.9;
 
-			this.shockAbsorberSound?.stop();
-			this.shockAbsorberSound = null;
+			if (!reconciling) {
+				this.shockAbsorberSound?.stop();
+				this.shockAbsorberSound = null;
+			}
 		} else {
 			// Stop both shock absorber and super bounce
 			this.forcefield.setOpacity(0);
 			this.shape.restitution = this.bounceRestitution;
 
-			this.shockAbsorberSound?.stop();
-			this.shockAbsorberSound = null;
-			this.superBounceSound?.stop();
-			this.superBounceSound = null;
+			if (!reconciling) {
+				this.shockAbsorberSound?.stop();
+				this.shockAbsorberSound = null;
+				this.superBounceSound?.stop();
+				this.superBounceSound = null;
+			}
 		}
-		if (this.superBounceIsActive() && !this.superBounceSound) {
+		if (this.superBounceIsActive() && !this.superBounceSound && !reconciling) {
 			// Play the super bounce sound
 			this.superBounceSound = AudioManager.createAudioSource('forcefield.wav', undefined, this.body.position);
 			this.superBounceSound.setLoop(true);
@@ -555,7 +560,7 @@ export class Marble extends Entity {
 			);
 			this.setGravityIntensity(this.game.mission.getDefaultGravity() * 0.25);
 
-			if (!this.helicopterSound) {
+			if (!this.helicopterSound && !reconciling) {
 				this.helicopterSound = AudioManager.createAudioSource('use_gyrocopter.wav', undefined, this.body.position);
 				this.helicopterSound.setLoop(true);
 				this.helicopterSound.play();
@@ -565,19 +570,27 @@ export class Marble extends Entity {
 			this.helicopter.setOpacity(0);
 			this.setGravityIntensity(this.game.mission.getDefaultGravity() * 1);
 
-			this.helicopterSound?.stop();
-			this.helicopterSound = null;
+			if (!reconciling) {
+				this.helicopterSound?.stop();
+				this.helicopterSound = null;
+			}
 		}
 
 		if (this.radius !== MEGA_MARBLE_RADIUS && time - this.megaMarbleEnableTime < 10) {
 			this.setRadius(MEGA_MARBLE_RADIUS);
 			this.body.linearVelocity.addScaledVector(this.currentUp, 6); // There's a small yeet upwards
-			this.rollingSound.stop();
-			this.rollingMegaMarbleSound?.play();
+
+			if (!reconciling) {
+				this.rollingSound.stop();
+				this.rollingMegaMarbleSound?.play();
+			}
 		} else if (time - this.megaMarbleEnableTime >= 10) {
 			this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
-			this.rollingSound.play();
-			this.rollingMegaMarbleSound?.stop();
+
+			if (!reconciling) {
+				this.rollingSound.play();
+				this.rollingMegaMarbleSound?.stop();
+			}
 		}
 
 		this.slidingTimeout--;
@@ -616,7 +629,7 @@ export class Marble extends Entity {
 
 	onBeforeIntegrate(dt: number) {
 		let controlState = this.currentControlState;
-
+		let reconciling = this.game.simulator.isReconciling;
 		let movementVec = new Vector3(controlState.movement.x, controlState.movement.y, 0);
 		let inputStrength = movementVec.length();
 
@@ -681,9 +694,11 @@ export class Marble extends Entity {
 			airMovementVector.multiplyScalar(airVelocity * dt);
 			this.body.linearVelocity.add(airMovementVector);
 
-			this.slidingSound.gain.gain.value = 0;
-			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
-			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+			if (!reconciling) {
+				this.slidingSound.gain.gain.value = 0;
+				this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+				this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+			}
 		}
 
 		movementRotationAxis.multiplyScalar(this.speedFac);
@@ -765,6 +780,7 @@ export class Marble extends Entity {
 		let lastSurfaceRelativeVelocity = this.beforeVel.clone().sub(contactShape.body.linearVelocity);
 		let surfaceRelativeVelocity = this.body.linearVelocity.clone().sub(contactShape.body.linearVelocity);
 		let maxDotSlide = 0.5; // 30°
+		let reconciling = this.game.simulator.isReconciling;
 
 		// Implements sliding: If we hit the surface at an angle below 45°, and have movement keys pressed, we don't bounce.
 		let dot0 = -contactNormal.dot(lastSurfaceRelativeVelocity.clone().normalize());
@@ -820,27 +836,29 @@ export class Marble extends Entity {
 		}
 
 		// Handle rolling and sliding sounds
-		if (contactNormal.dot(surfaceRelativeVelocity) < 0.01) {
-			let predictedMovement = this.body.angularVelocity.clone().cross(this.currentUp).multiplyScalar(1 / Math.PI / 2);
-			// The expected movement based on the current angular velocity. If actual movement differs too much, we consider the marble to be "sliding".
+		if (!reconciling) {
+			if (contactNormal.dot(surfaceRelativeVelocity) < 0.01) {
+				let predictedMovement = this.body.angularVelocity.clone().cross(this.currentUp).multiplyScalar(1 / Math.PI / 2);
+				// The expected movement based on the current angular velocity. If actual movement differs too much, we consider the marble to be "sliding".
 
-			if (predictedMovement.dot(surfaceRelativeVelocity) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > surfaceRelativeVelocity.length() * 1.5)) {
-				this.slidingSound.gain.gain.value = 0.6;
-				this.rollingSound.gain.gain.value = 0;
-				if (this.rollingMegaMarbleSound) this.rollingMegaMarbleSound.gain.gain.value = 0;
+				if (predictedMovement.dot(surfaceRelativeVelocity) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > surfaceRelativeVelocity.length() * 1.5)) {
+					this.slidingSound.gain.gain.value = 0.6;
+					this.rollingSound.gain.gain.value = 0;
+					if (this.rollingMegaMarbleSound) this.rollingMegaMarbleSound.gain.gain.value = 0;
+				} else {
+					this.slidingSound.gain.gain.value = 0;
+					let pitch = Util.clamp(surfaceRelativeVelocity.length() / 15, 0, 1) * 0.75 + 0.75;
+
+					this.rollingSound.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02);
+					this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02);
+					this.rollingSound.setPlaybackRate(pitch);
+					this.rollingMegaMarbleSound?.setPlaybackRate(pitch);
+				}
 			} else {
 				this.slidingSound.gain.gain.value = 0;
-				let pitch = Util.clamp(surfaceRelativeVelocity.length() / 15, 0, 1) * 0.75 + 0.75;
-
-				this.rollingSound.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02);
-				this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02);
-				this.rollingSound.setPlaybackRate(pitch);
-				this.rollingMegaMarbleSound?.setPlaybackRate(pitch);
+				this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+				this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 			}
-		} else {
-			this.slidingSound.gain.gain.value = 0;
-			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
-			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 		}
 	}
 

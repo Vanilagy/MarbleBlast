@@ -179,7 +179,7 @@ export class PathedInterior extends Interior {
 		this.body.linearVelocity.copy(velocity);
 
 		// Modify the sound effect position, if present
-		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
+		if (!this.game.simulator.isReconciling) this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
 	}
 
 	onBeforeIntegrate() {
@@ -265,34 +265,6 @@ export class PathedInterior extends Interior {
 		this.body.syncShapes();
 	}
 
-	/** Resets the movement state of the pathed interior to the beginning values. */
-	reset() {
-		this.currentTime = 0;
-		this.targetTime = 0;
-		this.changeTime = 0;
-
-		if (this.element.initialposition) {
-			this.currentTime = MisParser.parseNumber(this.element.initialposition);
-		}
-
-		if (this.element.initialtargetposition) {
-			this.targetTime = MisParser.parseNumber(this.element.initialtargetposition);
-			// Alright this is strange. In Torque, there are some FPS-dependent client/server desync issues that cause the interior to start at the end position whenever the initialTargetPosition is somewhere greater than 1 and, like, approximately below 50.
-			if (this.targetTime > 0 && this.targetTime < 50) this.currentTime = this.duration;
-		}
-
-		// Reset the position
-		let transform = this.getTransformAtTime(m1, this.getInternalTime(0));
-		this.prevPosition.setFromMatrixPosition(transform);
-		this.currentPosition.setFromMatrixPosition(transform);
-
-		// Should prevent incorrect CCD stuff
-		this.body.position.copy(this.currentPosition);
-		this.body.syncShapes();
-
-		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
-	}
-
 	stop() {
 		this.soundSource?.stop();
 	}
@@ -335,14 +307,8 @@ export class PathedInterior extends Interior {
 		this.changeTime = state.changeTime;
 
 		// Set the position
-		let transform = this.getTransformAtTime(m1, this.getInternalTime(0));
+		let transform = this.getTransformAtTime(m1, this.getInternalTime(this.game.state.time));
 		this.currentPosition.setFromMatrixPosition(transform);
-
-		// Should prevent incorrect CCD stuff
-		this.body.position.copy(this.currentPosition);
-		this.body.syncShapes();
-
-		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
 	}
 
 	getInternalState(): InternalPathedInteriorState {

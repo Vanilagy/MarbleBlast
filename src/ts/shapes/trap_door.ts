@@ -44,10 +44,14 @@ export class TrapDoor extends Shape {
 		this.sequenceKeyframeOverride.set(this.dts.sequences[0], currentCompletion * (this.dts.sequences[0].numKeyframes - 1));
 		super.update(onlyVisual);
 
+		if (onlyVisual) return;
+
 		let direction = Math.sign(currentCompletion - this.lastCompletion);
 		if (direction !== 0 && direction !== this.lastDirection) {
 			// If the direction has changed, play the sound
-			AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
+			this.game.simulator.executeNonDuplicatableEvent(() => {
+				AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
+			}, `${this.id}sound`, true);
 		}
 
 		if (this.lastCompletion !== currentCompletion || this.lastDirection !== direction) {

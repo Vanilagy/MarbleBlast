@@ -59,6 +59,9 @@ export const entityStateFormat = [union, 'entityType', {
 	entityType: 'helpTrigger',
 	entered: ['varint'],
 	enteredFrame: 'varint'
+}, {
+	entityType: 'pushButton',
+	lastContactTime: 'f64'
 }] as const;
 
 export const entityUpdateFormat = {

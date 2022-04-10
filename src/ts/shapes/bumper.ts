@@ -20,7 +20,6 @@ export abstract class Bumper extends Shape {
 		let time = this.game.state.time;
 
 		this.lastContactTime = time;
-		AudioManager.play(this.sounds[0]);
 
 		// Set the velocity along the contact normal, but make sure it's capped
 		marble.setLinearVelocityInDirection(collision.normal, 15, false);
@@ -28,6 +27,8 @@ export abstract class Bumper extends Shape {
 
 		this.interactWith(marble);
 		this.stateNeedsStore = true;
+
+		this.playSound(marble === this.game.localPlayer.controlledMarble);
 	}
 
 	render() {
@@ -54,6 +55,13 @@ export abstract class Bumper extends Shape {
 	}
 
 	loadState(state: BumperState) {
+		if (state.lastContactTime > this.lastContactTime) this.playSound(true);
 		this.lastContactTime = state.lastContactTime;
+	}
+
+	playSound(safetyMargin: boolean) {
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(this.sounds[0], undefined, undefined, this.worldPosition);
+		}, `${this.id}sound`, safetyMargin);
 	}
 }
