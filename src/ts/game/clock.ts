@@ -18,6 +18,7 @@ export class Clock extends Entity {
 	timeTravelBonus = 0;
 	updateOrder = -1;
 	timeTravelSound: AudioSource = null;
+	alarmSound: AudioSource = null;
 
 	constructor(game: Game, id: number) {
 		super(game);
@@ -26,6 +27,49 @@ export class Clock extends Entity {
 	}
 
 	update() {
+		this.advanceTime();
+
+		this.internalStateNeedsStore = true;
+
+		if (this.game.simulator.isReconciling) return;
+
+		if (this.timeTravelBonus > 0 && !this.timeTravelSound) {
+			this.timeTravelSound = AudioManager.createAudioSource('timetravelactive.wav');
+			this.timeTravelSound.setLoop(true);
+			this.timeTravelSound.play();
+		} else if (this.timeTravelBonus === 0) {
+			this.timeTravelSound?.stop();
+			this.timeTravelSound = null;
+		}
+
+		// Handle alarm warnings (that the user is about to exceed the par time)
+		if (isFinite(this.game.mission.qualifyTime) && state.modification === 'platinum'/* todo && !this.finishTime*/) {
+			let alarmStart = this.game.mission.computeAlarmStartTime();
+
+			if (this.time > 0 && 1000 * this.time >= alarmStart) {
+				if (1000 * this.time < this.game.mission.qualifyTime && !this.alarmSound) {
+					// Start the alarm
+					this.alarmSound = AudioManager.createAudioSource('alarm.wav');
+					this.alarmSound.setLoop(true);
+					this.alarmSound.play();
+					state.menu.hud.displayHelp(() => `You have ${(this.game.mission.qualifyTime - alarmStart) / 1000} seconds remaining.`, this.game.state.frame, true);
+				}
+
+				if (1000 * this.time >= this.game.mission.qualifyTime && this.alarmSound) {
+					// Stop the alarm
+					this.alarmSound?.stop();
+					this.alarmSound = null;
+					state.menu.hud.displayHelp(() => "The clock has passed the Par Time.", this.game.state.frame, true);
+					AudioManager.play('alarm_timeout.wav');
+				}
+			} else {
+				this.alarmSound?.stop();
+				this.alarmSound = null;
+			}
+		}
+	}
+
+	advanceTime() {
 		if (this.timeTravelBonus > 0) {
 			// Subtract remaining time travel time
 			this.timeTravelBonus -= 1 / GAME_UPDATE_RATE;
@@ -38,19 +82,6 @@ export class Clock extends Entity {
 			// If we slightly undershot the zero mark of the remaining time travel bonus, add the "lost time" back onto the gameplay clock:
 			this.time += -this.timeTravelBonus;
 			this.timeTravelBonus = 0;
-		}
-
-		this.internalStateNeedsStore = true;
-
-		if (!this.game.simulator.isReconciling) {
-			if (this.timeTravelBonus > 0 && !this.timeTravelSound) {
-				this.timeTravelSound = AudioManager.createAudioSource('timetravelactive.wav');
-				this.timeTravelSound.setLoop(true);
-				this.timeTravelSound.play();
-			} else if (this.timeTravelBonus === 0) {
-				this.timeTravelSound?.stop();
-				this.timeTravelSound = null;
-			}
 		}
 	}
 
@@ -78,18 +109,17 @@ export class Clock extends Entity {
 
 		if (state.modification === 'gold') return;
 
-		//if (simulator.finishTime) return 'green'; // Even if not qualified
-		if (/*game.state.time < GO_TIME || */game.clock.timeTravelBonus > 0) return 'green';
-		if (timeToDisplay >= game.mission.qualifyTime) return 'red';
+		// todo if (simulator.finishTime) return 'green'; // Even if not qualified
+		if (this.time === 0 || game.clock.timeTravelBonus > 0) return 'green';
+		if (1000 * timeToDisplay >= game.mission.qualifyTime) return 'red';
 
-		/*
-		if (simulator.timeState.currentAttemptTime >= GO_TIME && isFinite(game.mission.qualifyTime) && state.modification === 'platinum') {
+		if (isFinite(game.mission.qualifyTime) && state.modification === 'platinum') {
 			// Create the flashing effect
 			let alarmStart = game.mission.computeAlarmStartTime();
-			let elapsed = timeToDisplay - alarmStart;
+			let elapsed = 1000 * timeToDisplay - alarmStart;
 			if (elapsed < 0) return;
 			if (Math.floor(elapsed / 1000) % 2 === 0) return 'red';
-		}*/
+		}
 
 		return; // Default yellow
 	}
@@ -116,7 +146,7 @@ export class Clock extends Entity {
 
 		// Catch up to the now
 		for (let i = 0; i < (this.game.state.frame - meta.frame); i++) {
-			this.update();
+			this.advanceTime();
 		}
 	}
 
