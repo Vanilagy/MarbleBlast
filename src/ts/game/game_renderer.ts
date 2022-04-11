@@ -71,8 +71,6 @@ export class GameRenderer {
 	/** The time state at the last point the alert text was updated. */
 	alertTextTimeState: number = null;
 
-	/** Where the camera was when the marble went OOB. */
-	oobCameraPosition: Vector3;
 	lastVerticalTranslation = new Vector3();
 
 	constructor(game: Game) {
@@ -372,7 +370,7 @@ export class GameRenderer {
 		}
 		*/
 
-		if (!marble.outOfBounds) {
+		if (marble.outOfBoundsFrame === null) {
 			directionVector.applyAxisAngle(new Vector3(0, 1, 0), pitch);
 			directionVector.applyAxisAngle(new Vector3(0, 0, 1), yaw);
 			directionVector.applyQuaternion(orientationQuat);
@@ -439,7 +437,7 @@ export class GameRenderer {
 			this.lastVerticalTranslation = cameraVerticalTranslation;
 		} else {
 			// Simply look at the marble
-			this.camera.position.copy(this.oobCameraPosition);
+			this.camera.position.copy(marble.outOfBoundsCameraPosition);
 			this.camera.position.sub(this.lastVerticalTranslation);
 			this.camera.lookAt(marblePosition);
 			this.camera.position.add(this.lastVerticalTranslation);
@@ -449,6 +447,21 @@ export class GameRenderer {
 	renderHud() {
 		let { game } = this;
 		let hud = state.menu.hud;
+
+		if (game.localPlayer.controlledMarble.outOfBoundsFrame !== null) {
+			hud.setCenterText('outofbounds');
+		} else {
+			let timeSinceRespawn = (game.state.frame - game.localPlayer.controlledMarble.respawnFrame) / GAME_UPDATE_RATE;
+			if (timeSinceRespawn < 0.5 || timeSinceRespawn > 5.5) {
+				hud.setCenterText('none');
+			} else if (timeSinceRespawn > 3.5) {
+				hud.setCenterText('go');
+			} else if (timeSinceRespawn > 2) {
+				hud.setCenterText('set');
+			} else {
+				hud.setCenterText('ready');
+			}
+		}
 
 		let gemCount = 0;
 		for (let i = 0; i < this.game.entities.length; i++) {

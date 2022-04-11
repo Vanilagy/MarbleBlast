@@ -18,7 +18,9 @@ export const entityStateFormat = [union, 'entityType', {
 		orientationQuat: quaternionFormat,
 		jumpCount: 'varint',
 		powerUpUses: ['varint'],
-		powerUpUseFrame: 'varint'
+		powerUpUseFrame: 'varint',
+		respawnFrame: 'varint',
+		outOfBoundsFrame: 'varint'
 	}]
 }, {
 	entityType: 'player',

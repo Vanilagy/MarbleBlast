@@ -8,6 +8,11 @@ import { MAX_TIME } from "./game_simulator";
 
 type ClockState = EntityState & { entityType: 'clock' };
 
+interface InternalClockState {
+	time: number,
+	timeTravelBonus: number
+}
+
 export class Clock extends Entity {
 	time = 0;
 	timeTravelBonus = 0;
@@ -34,6 +39,8 @@ export class Clock extends Entity {
 			this.time += -this.timeTravelBonus;
 			this.timeTravelBonus = 0;
 		}
+
+		this.internalStateNeedsStore = true;
 
 		if (!this.game.simulator.isReconciling) {
 			if (this.timeTravelBonus > 0 && !this.timeTravelSound) {
@@ -111,6 +118,18 @@ export class Clock extends Entity {
 		for (let i = 0; i < (this.game.state.frame - meta.frame); i++) {
 			this.update();
 		}
+	}
+
+	getInternalState(): InternalClockState {
+		return {
+			time: this.time,
+			timeTravelBonus: this.timeTravelBonus
+		};
+	}
+
+	loadInternalState(state: InternalClockState) {
+		this.time = state.time;
+		this.timeTravelBonus = state.timeTravelBonus;
 	}
 
 	reset() {}

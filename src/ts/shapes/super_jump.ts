@@ -4,7 +4,6 @@ import { state } from "../state";
 import { Vector3 } from "../math/vector3";
 import { BlendingType } from "../rendering/renderer";
 import { Marble } from "../marble";
-import { GAME_UPDATE_RATE } from "../../../shared/constants";
 
 /** Gives the marble an upwards boost. */
 export class SuperJump extends PowerUp {

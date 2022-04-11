@@ -162,20 +162,29 @@ export class GameState {
 			alerts.pop();
 
 		for (let [entityId, history] of this.internalStateHistory) {
-			while (history.length > 0 && Util.last(history).frame > target) history.pop();
+			let popped = false;
+			while (history.length > 0 && Util.last(history).frame > target) {
+				history.pop();
+				popped = true;
+			}
+
+			if (!popped) continue;
 
 			let entity = this.game.getEntityById(entityId);
 			let last = Util.last(history);
 			entity.loadInternalState(last.state, last.frame);
 		}
 
-		for (let entity of this.game.entities) {
-			let history = this.stateHistory.get(entity.id) ?? [];
-
+		for (let [entityId, history] of this.stateHistory) {
+			let popped = false;
 			while (Util.last(history) && Util.last(history).frame > target) {
 				history.pop();
+				popped = true;
 			}
 
+			if (!popped) continue;
+
+			let entity = this.game.getEntityById(entityId);
 			let update = Util.last(history);
 			let state = update?.state ?? entity.getInitialState();
 
@@ -189,8 +198,5 @@ export class GameState {
 		}
 
 		this.saveStates();
-
-
-		// todo: attemptTick
 	}
 }

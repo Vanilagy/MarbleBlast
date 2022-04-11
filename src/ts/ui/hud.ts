@@ -224,12 +224,17 @@ export abstract class Hud {
 	}
 
 	/** Displays a help message in the middle of the screen. */
-	displayHelp(getMessage: () => string, frame: number) {
+	displayHelp(getMessage: () => string, frame: number, playSound = true) {
 		let index = Util.insertSorted(this.helpMessages, { frame, getMessage }, (a, b) => a.frame - b.frame);
 		while (this.helpMessages[index-1] && this.helpMessages[index-1].frame === frame) {
 			this.helpMessages.splice(index-1, 1);
 			index--;
 		}
+
+		let game = state.game;
+		if (playSound && getMessage() !== null) game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play('infotutorial.wav');
+		}, `displayHelp`);
 	}
 
 	/** Displays an alert at the bottom of the screen. */

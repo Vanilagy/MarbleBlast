@@ -4,6 +4,7 @@ import { MissionElementItem } from "../parsing/mis_parser";
 import { state } from "../state";
 import { Marble } from "../marble";
 import { EntityState } from "../../../shared/game_server_format";
+import { AudioManager } from "../audio";
 
 export const DEFAULT_COOLDOWN_DURATION = 7;
 
@@ -42,19 +43,17 @@ export abstract class PowerUp extends Shape {
 		if (!pickupable) return;
 
 		if (this.pickUp(marble)) {
-			//this.level.replay.recordMarbleInside(this);
 			this.interactWith(marble);
+			this.pickUpCosmetically(marble, this.game.state.frame);
+			this.setCollisionEnabled(false);
 
 			this.lastPickUpTime = time;
 			this.pickedUpBy = marble.id;
+
 			if (this.autoUse) {
 				this.use(marble, t);
 				this.useCosmetically(marble);
 			}
-
-			this.displayAlerts(this.game.state.frame);
-
-			this.setCollisionEnabled(false);
 
 			this.stateNeedsStore = true;
 		}
@@ -80,11 +79,23 @@ export abstract class PowerUp extends Shape {
 		this.setOpacity(opacity);
 	}
 
-	reset() {
-		super.reset();
+	pickUpCosmetically(marble: Marble, frame: number) {
+		if (marble === this.game.localPlayer.controlledMarble)
+			this.game.simulator.executeNonDuplicatableEvent(() => AudioManager.play(this.sounds[0]), `${this.id}sound`, true);
 
-		this.setCollisionEnabled(true);
-		this.lastPickUpTime = null;
+		state.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
+		if (this.element.showhelponpickup === "1" && !this.autoUse)
+			state.menu.hud.displayHelp(this.getHelpMessage.bind(this), frame);
+	}
+
+	getAlertMessage() {
+		if ((this.game.getEntityById(this.pickedUpBy) as Marble).controllingPlayer !== this.game.localPlayer) return null;
+		return this.customPickUpAlert ?? `You picked up ${this.an? 'an' : 'a'} ${this.pickUpName}!`;
+	}
+
+	getHelpMessage() {
+		if ((this.game.getEntityById(this.pickedUpBy) as Marble).controllingPlayer !== this.game.localPlayer) return null;
+		return `Press <func:bind mousefire> to use the ${this.pickUpName}!`;
 	}
 
 	getState(): PowerUpState {
@@ -107,23 +118,8 @@ export abstract class PowerUp extends Shape {
 		this.lastPickUpTime = _state.lastPickUpTime;
 		this.pickedUpBy = _state.pickedUpBy;
 
-		if (this.pickedUpBy) this.displayAlerts(frame);
-	}
-
-	displayAlerts(frame: number) {
-		state.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
-		if (this.element.showhelponpickup === "1" && !this.autoUse)
-			state.menu.hud.displayHelp(this.getHelpMessage.bind(this), frame);
-	}
-
-	getAlertMessage() {
-		if ((this.game.getEntityById(this.pickedUpBy) as Marble).controllingPlayer !== this.game.localPlayer) return null;
-		return this.customPickUpAlert ?? `You picked up ${this.an? 'an' : 'a'} ${this.pickUpName}!`;
-	}
-
-	getHelpMessage() {
-		if ((this.game.getEntityById(this.pickedUpBy) as Marble).controllingPlayer !== this.game.localPlayer) return null;
-		return `Press <func:bind mousefire> to use the ${this.pickUpName}!`;
+		if (this.pickedUpBy)
+			this.pickUpCosmetically(this.game.getEntityById(this.pickedUpBy) as Marble, frame);
 	}
 
 	/** If this function returns true, the pickup was successful. */

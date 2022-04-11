@@ -179,7 +179,9 @@ export class Marble extends Entity {
 
 	finishYaw: number;
 	finishPitch: number;
-	outOfBounds = false;
+	outOfBoundsFrame: number = null;
+	outOfBoundsCameraPosition: Vector3 = null;
+	respawnFrame = 0;
 
 	oldUp = new Vector3(0, 0, 1);
 	currentUp = new Vector3(0, 0, 1);
@@ -195,16 +197,6 @@ export class Marble extends Entity {
 
 	reconciliationPosition = new Vector3();
 	reconciliationLinearVelocity = new Vector3();
-
-	/*
-	interpolationStart = 0;
-	interpolationDuration = 0;
-	interpolationPosition = new Vector3();
-	interpolationLinearVelocity = new Vector3();
-	interpolationOrientation = new Quaternion();
-
-	pauseInterpolation = false;
-	*/
 
 	interpolatedPosition = new Vector3();
 	interpolatedOrientation = new Quaternion();
@@ -402,7 +394,9 @@ export class Marble extends Entity {
 				orientationQuat: this.orientationQuat.equals(new Quaternion())? undefined : this.orientationQuat.clone(),
 				jumpCount: this.jumpCount || undefined,
 				powerUpUses: this.powerUpUses.length ? this.powerUpUses : undefined,
-				powerUpUseFrame: this.powerUpUses.length ? this.powerUpUseFrame : undefined
+				powerUpUseFrame: this.powerUpUses.length ? this.powerUpUseFrame : undefined,
+				respawnFrame: this.respawnFrame || undefined,
+				outOfBoundsFrame: this.outOfBoundsFrame ?? undefined
 			}
 		};
 	}
@@ -474,6 +468,18 @@ export class Marble extends Entity {
 			}
 		}
 		this.lastPowerUpUseFrame = newPowerUpUseFrame;
+
+		let newRespawnFrame = state.extras.respawnFrame ?? 0;
+		if (newRespawnFrame > this.respawnFrame) {
+			this.game.simulator.executeNonDuplicatableEvent(() => {
+				AudioManager.play('spawn.wav', undefined, undefined, this.body.position);
+			}, `${this.id}respawnSound`, true);
+		}
+		this.respawnFrame = newRespawnFrame;
+
+		if (this.outOfBoundsFrame === null && state.extras.outOfBoundsFrame !== undefined)
+			this.goOutOfBounds(state.extras.outOfBoundsFrame);
+		this.outOfBoundsFrame = state.extras.outOfBoundsFrame ?? null;
 	}
 
 	getInternalState(): InternalMarbleState {
@@ -508,6 +514,11 @@ export class Marble extends Entity {
 		this.internalStateNeedsStore = true;
 
 		this.controllingPlayer?.applyControlState();
+
+		if (this.outOfBoundsFrame !== null && (this.currentControlState.using || this.game.state.frame - this.outOfBoundsFrame >= 2 * GAME_UPDATE_RATE)) {
+			// Respawn the marble two seconds after having gone out of bounds
+			this.respawn();
+		}
 
 		let time = this.game.state.time;
 		let reconciling = this.game.simulator.isReconciling;
@@ -594,6 +605,14 @@ export class Marble extends Entity {
 		}
 
 		this.slidingTimeout--;
+
+		if (this === this.game.localPlayer.controlledMarble && !reconciling) {
+			let timeSinceRespawn = (this.game.state.frame - this.respawnFrame) / GAME_UPDATE_RATE;
+
+			if (timeSinceRespawn === 0.5) AudioManager.play('ready.wav');
+			if (timeSinceRespawn === 2.0) AudioManager.play('set.wav');
+			if (timeSinceRespawn === 3.5) AudioManager.play('go.wav');
+		}
 	}
 
 	findBestCollision(withRespectTo: (c: Collision, normal: Vector3, otherShape: CollisionShape) => number) {
@@ -726,10 +745,7 @@ export class Marble extends Entity {
 		this.beforeVel.copy(this.body.linearVelocity);
 		this.beforeAngVel.copy(this.body.angularVelocity);
 
-		//let playReplay = this.level.replay.mode === 'playback';
-		let playReplay = false;
-
-		if (this.game.state.time < GO_TIME && !playReplay) {
+		if (this.game.state.frame - this.respawnFrame < 3.5 * GAME_UPDATE_RATE) {
 			// Lock the marble to the space above the start pad
 
 			let { position: startPosition } = this.game.state.getStartPositionAndOrientation();
@@ -932,7 +948,7 @@ export class Marble extends Entity {
 	playBounceSound(volume: number) {
 		this.game.simulator.executeNonDuplicatableEvent(() => {
 			let prefix = (this.radius === MEGA_MARBLE_RADIUS)? 'mega_' : '';
-			AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'].map(x => prefix + x), volume, undefined, this.body.position);
+			AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'].map(x => prefix + x), volume, undefined, this.body.position.clone());
 		}, `${this.id}bounceSound`);
 	}
 
@@ -1059,23 +1075,12 @@ export class Marble extends Entity {
 		this.megaMarbleEnableTime = this.game.state.time;
 	}
 
-	pickUpPowerUp(powerUp: PowerUp, playPickUpSound = true) {
+	pickUpPowerUp(powerUp: PowerUp) {
 		if (!powerUp) return false;
 		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
+
 		this.heldPowerUp = powerUp;
 		state.menu.hud.setPowerupButtonState(true);
-
-		/* todo
-		for (let overlayShape of this.overlayShapes) {
-			if (overlayShape.dtsPath.includes("gem")) continue;
-
-			// Show the corresponding icon in the HUD
-			overlayShape.setOpacity(Number(overlayShape.dtsPath === powerUp.dtsPath));
-		}
-		*/
-
-		if (playPickUpSound && this === this.game.localPlayer.controlledMarble)
-			this.game.simulator.executeNonDuplicatableEvent(() => AudioManager.play(powerUp.sounds[0]), `${powerUp.id}sound`, true);
 
 		return true;
 	}
@@ -1087,13 +1092,19 @@ export class Marble extends Entity {
 		}
 		this.heldPowerUp = null;
 		state.menu.hud.setPowerupButtonState(false);
+	}
 
-		/*
-		for (let overlayShape of this.overlayShapes) {
-			if (overlayShape.dtsPath.includes("gem")) continue;
-			overlayShape.setOpacity(0);
-		}
-		*/
+	goOutOfBounds(frame = this.game.state.frame) {
+		if (this.outOfBoundsFrame !== null /* todo || this.finishTime*/) return;
+
+		state.menu.hud.setPowerupButtonState(true);
+		this.game.renderer.updateCamera(); // Update the camera at the point of OOB-ing
+		this.outOfBoundsCameraPosition = this.game.renderer.camera.position.clone();
+		this.outOfBoundsFrame = frame;
+
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play('whoosh.wav', undefined, undefined, this.body.position.clone());
+		}, `${this.id}whoosh`, true);
 	}
 
 	useBlast() {
@@ -1155,14 +1166,18 @@ export class Marble extends Entity {
 	respawn() {
 		let { position: startPosition, euler } = this.game.state.getStartPositionAndOrientation();
 
-		// Todo put all this shit into marble bro! what the fuck are you thinking
 		// Place the marble a bit above the start pad position
 		this.body.position.set(startPosition.x, startPosition.y, startPosition.z + 3);
-		this.body.syncShapes();
 		this.group.position.copy(this.body.position);
 		this.group.recomputeTransform();
 		this.reset();
 		this.calculatePredictiveTransforms();
+		this.respawnFrame = this.game.state.frame;
+		this.outOfBoundsFrame = null;
+
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play('spawn.wav', undefined, undefined, this.body.position);
+		}, `${this.id}respawnSound`, true);
 
 		if (this.controllingPlayer) {
 			this.controllingPlayer.pitch = DEFAULT_PITCH;
@@ -1172,7 +1187,7 @@ export class Marble extends Entity {
 		state.menu.hud.displayHelp(() => {
 			if (this.controllingPlayer !== this.game.localPlayer) return null;
 			return this.game.mission.missionInfo.starthelptext ?? null;
-		}, this.game.state.frame);
+		}, this.game.state.frame, false);
 	}
 
 	stop() {

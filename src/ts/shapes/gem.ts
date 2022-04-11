@@ -68,7 +68,6 @@ export class Gem extends Shape {
 	}
 
 	loadState(_state: GemState, { frame }: { frame: number }) {
-		let before = this.pickedUpBy;
 		this.pickedUpBy = _state.pickedUpBy;
 
 		this.setOpacity(Number(this.pickedUpBy === null));
@@ -76,7 +75,7 @@ export class Gem extends Shape {
 
 		if (_state.pickedUpBy !== null) {
 			state.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
-			if (before === null) this.playSound();
+			this.playSound();
 		}
 	}
 
