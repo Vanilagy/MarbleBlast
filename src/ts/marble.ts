@@ -427,7 +427,7 @@ export class Marble extends Entity {
 			this.internalStateNeedsStore = true;
 		}
 
-		this.heldPowerUp = this.game.getEntityById(state.extras.heldPowerUp) as any; // as PowerUp didn't work?!?!
+		this.heldPowerUp = this.game.getEntityById(state.extras.heldPowerUp) as PowerUp;
 
 		this.helicopterEnableFrame = state.extras.helicopterEnableFrame ?? -Infinity;
 		this.superBounceEnableFrame = state.extras.superBounceEnableFrame ?? -Infinity;

@@ -1,6 +1,6 @@
 import { Util } from "../util";
 import { Shape } from "../shape";
-import { MissionElementItem } from "../parsing/mis_parser";
+import { MisParser, MissionElementItem } from "../parsing/mis_parser";
 import { state } from "../state";
 import { Marble } from "../marble";
 import { EntityState } from "../../../shared/game_server_format";
@@ -8,7 +8,7 @@ import { AudioManager } from "../audio";
 
 export const DEFAULT_COOLDOWN_DURATION = 7;
 
-type PowerUpState = EntityState & { entityType: 'powerUp' };
+export type PowerUpState = EntityState & { entityType: 'powerUp' };
 
 /** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
@@ -43,12 +43,12 @@ export abstract class PowerUp extends Shape {
 		if (!pickupable) return;
 
 		if (this.pickUp(marble)) {
+			this.lastPickUpTime = time;
+			this.pickedUpBy = marble.id;
+
 			this.interactWith(marble);
 			this.pickUpCosmetically(marble, this.game.state.frame);
 			this.setCollisionEnabled(false);
-
-			this.lastPickUpTime = time;
-			this.pickedUpBy = marble.id;
 
 			if (this.autoUse) {
 				this.use(marble, t);
@@ -84,7 +84,7 @@ export abstract class PowerUp extends Shape {
 			this.game.simulator.executeNonDuplicatableEvent(() => AudioManager.play(this.sounds[0]), `${this.id}sound`, true);
 
 		state.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
-		if (this.element.showhelponpickup === "1" && !this.autoUse)
+		if (MisParser.parseBoolean(this.element.showhelponpickup) && !this.autoUse)
 			state.menu.hud.displayHelp(this.getHelpMessage.bind(this), frame);
 	}
 
@@ -110,15 +110,17 @@ export abstract class PowerUp extends Shape {
 		return {
 			entityType: 'powerUp',
 			lastPickUpTime: null,
-			pickedUpBy: this.pickedUpBy
+			pickedUpBy: null
 		};
 	}
 
 	loadState(_state: PowerUpState, { frame }: { frame: number }) {
+		let prevLastPickUpTime = this.lastPickUpTime;
+
 		this.lastPickUpTime = _state.lastPickUpTime;
 		this.pickedUpBy = _state.pickedUpBy;
 
-		if (this.pickedUpBy)
+		if (this.pickedUpBy && prevLastPickUpTime < this.lastPickUpTime)
 			this.pickUpCosmetically(this.game.getEntityById(this.pickedUpBy) as Marble, frame);
 	}
 

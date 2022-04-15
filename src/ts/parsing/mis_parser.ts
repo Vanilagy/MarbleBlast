@@ -707,7 +707,6 @@ export class MisParser {
 		return val;
 	}
 
-
 	/** Parses a list of space-separated numbers. */
 	static parseNumberList(string: string) {
 		let parts = string.split(' ');
