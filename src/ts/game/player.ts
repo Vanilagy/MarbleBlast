@@ -162,7 +162,7 @@ export class Player extends Entity {
 
 		this.controlledMarble.currentControlState = state;
 
-		if (state.movement.length() > 0 || state.jumping || state.using || state.blasting) {
+		if (true || state.movement.length() > 0 || state.jumping || state.using || state.blasting) {
 			this.interactWith(this.controlledMarble);
 		}
 	}

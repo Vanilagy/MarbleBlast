@@ -38,6 +38,8 @@ export abstract class PowerUp extends Shape {
 		let time = this.game.state.time;
 
 		marble.interactWith(this);
+		//this.interactWith(marble);
+		//this.stateNeedsStore = true;
 
 		let pickupable = this.lastPickUpTime === null || (time - this.lastPickUpTime) >= this.cooldownDuration;
 		if (!pickupable) return;
@@ -48,7 +50,7 @@ export abstract class PowerUp extends Shape {
 
 			this.interactWith(marble);
 			this.pickUpCosmetically(marble, this.game.state.frame);
-			this.setCollisionEnabled(false);
+			//this.setCollisionEnabled(false);
 
 			if (this.autoUse) {
 				this.use(marble, t);
@@ -64,7 +66,7 @@ export abstract class PowerUp extends Shape {
 
 		// Enable or disable the collision based on the last pick-up time time
 		let pickupable = this.lastPickUpTime === null || (this.game.state.time - this.lastPickUpTime) >= this.cooldownDuration;
-		this.setCollisionEnabled(pickupable);
+		//this.setCollisionEnabled(pickupable);
 	}
 
 	render() {
@@ -89,11 +91,13 @@ export abstract class PowerUp extends Shape {
 	}
 
 	getAlertMessage() {
+		if (this.pickedUpBy === null) return null;
 		if ((this.game.getEntityById(this.pickedUpBy) as Marble).controllingPlayer !== this.game.localPlayer) return null;
 		return this.customPickUpAlert ?? `You picked up ${this.an? 'an' : 'a'} ${this.pickUpName}!`;
 	}
 
 	getHelpMessage() {
+		if (this.pickedUpBy === null) return null;
 		if ((this.game.getEntityById(this.pickedUpBy) as Marble).controllingPlayer !== this.game.localPlayer) return null;
 		return `Press <func:bind mousefire> to use the ${this.pickUpName}!`;
 	}

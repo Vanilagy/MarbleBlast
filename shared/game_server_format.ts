@@ -74,7 +74,7 @@ export const entityUpdateFormat = {
 	challengeable: 'boolean',
 	originator: 'varint',
 	version: 'varint',
-	state: entityStateFormat
+	state: [nullable, entityStateFormat]
 } as const;
 
 export type EntityState = FormatToType<typeof entityStateFormat>;

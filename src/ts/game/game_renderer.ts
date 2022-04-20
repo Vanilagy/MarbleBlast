@@ -5,7 +5,7 @@ import { Quaternion } from "../math/quaternion";
 import { Vector3 } from "../math/vector3";
 import { MissionElementType, MisParser, MissionElementSky } from "../parsing/mis_parser";
 import { ParticleManager } from "../particles";
-import { CollisionShape } from "../physics/collision_shape";
+import { BallCollisionShape, CollisionShape } from "../physics/collision_shape";
 import { AmbientLight } from "../rendering/ambient_light";
 import { OrthographicCamera, PerspectiveCamera } from "../rendering/camera";
 import { CubeTexture } from "../rendering/cube_texture";
@@ -397,7 +397,7 @@ export class GameRenderer {
 
 				let length = rayCastDirection.length();
 				let hits = simulator.world.castRay(rayCastOrigin, rayCastDirection.normalize(), length);
-				let firstHit = hits.find(x => x.shape !== marble.shape);
+				let firstHit = hits.find(x => !(x.shape instanceof BallCollisionShape)); // Ignore all marbles with the ray
 
 				if (firstHit) {
 					processedShapes.add(firstHit.shape);

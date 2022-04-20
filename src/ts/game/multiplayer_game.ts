@@ -19,7 +19,7 @@ let sendTimeout = 0;
 // todo make sure to remove this eventually
 window.addEventListener('keydown', e => {
 	if (e.code === 'KeyG') {
-		sendTimeout = 300;
+		sendTimeout = 200;
 		console.log("activated timeout");
 	}
 });
@@ -189,6 +189,10 @@ export class MultiplayerGame extends Game {
 
 		data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
 
+		//console.log(data.entityUpdates.find(x => x.entityId === -2)?.frame);
+
+		//console.log(data.entityUpdates);
+
 		this.lastReceivedServerUpdateId = Math.max(
 			this.lastReceivedServerUpdateId,
 			...data.entityUpdates.map(x => x.updateId)
@@ -332,7 +336,7 @@ export class MultiplayerGame extends Game {
 			history.pop();
 		}
 
-		entity.loadState(update.state, { frame: update.frame, remote: true });
+		entity.loadState(update.state ?? entity.getInitialState(), { frame: update.frame, remote: true });
 		entity.version = update.version;
 
 		update.updateId = -1; // We set the update ID to something negative so that the update NEVER gets sent back to the server
@@ -374,7 +378,10 @@ export class MultiplayerGame extends Game {
 			Advancements/s: ${this.simulator.advanceTimes.length}
 			Tick duration: ${averageTickDuration.toFixed(2)} ms
 			Reconciliation duration: ${isNaN(averageReconciliationDuration)? 'N/A' : averageReconciliationDuration.toFixed(2) + ' ms'}
+			Send timeout: ${Math.max(0, sendTimeout)}
 		`;
+
+		document.body.style.filter = sendTimeout <= 0 ? '' : 'saturate(0.25)';
 	}
 
 	stop() {
