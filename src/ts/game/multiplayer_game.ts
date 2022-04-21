@@ -232,9 +232,9 @@ export class MultiplayerGame extends Game {
 		let bundle: CommandToData<'clientStateBundle'> = {
 			command: 'clientStateBundle',
 			serverFrame: this.state.serverFrame,
-			clientFrame: this.state.targetClientFrame,
+			clientFrame: this.state.frame,
 			worldState: worldState,
-			affectionGraph: this.state.affectionGraph.map(x => ({ from: x.id, to: x.id, frame: x.frame })),
+			affectionGraph: this.state.affectionGraph.map(x => ({ from: x.from.id, to: x.to.id, frame: x.frame })),
 			lastReceivedServerUpdateId: this.lastReceivedServerUpdateId
 		};
 		this.connection.queueCommand(bundle, false);
