@@ -93,6 +93,9 @@ export const gameServerCommandFormat = [union, 'command', {
 	command: 'clientStateBundle',
 	serverFrame: 'varint',
 	clientFrame: 'varint',
+	worldState: [entityUpdateFormat],
+	affectionGraph: [{ from: 'varint', to: 'varint', frame: 'varint' }],
+	/*
 	periods: [{
 		id: 'varint',
 		start: 'varint',
@@ -105,13 +108,15 @@ export const gameServerCommandFormat = [union, 'command', {
 			ownedAtSomePoint: 'boolean'
 		}]
 	}],
+	*/
 	lastReceivedServerUpdateId: 'varint'
 }, {
 	command: 'serverStateBundle',
 	serverFrame: 'varint',
 	clientFrame: 'varint',
 	entityUpdates: [entityUpdateFormat],
-	lastReceivedPeriodId: 'varint',
+	//lastReceivedPeriodId: 'varint',
+	lastReceivedAffectionGraphFrame: 'varint',
 	rewindToFrameCap: 'varint'
 }, {
 	command: 'gameJoinInfo',

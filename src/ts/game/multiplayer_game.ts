@@ -201,10 +201,17 @@ export class MultiplayerGame extends Game {
 		// Add them to a queue
 		this.simulator.reconciliationUpdates.push(...data.entityUpdates);
 
+		// Remove arrived affection edges
+		while (this.state.affectionGraph.length > 0 && this.state.affectionGraph[0].frame <= data.lastReceivedAffectionGraphFrame) {
+			this.state.affectionGraph.pop();
+		}
+
+		/*
 		// Remove arrived periods
 		while (this.periods.length > 0 && this.periods[0].id <= data.lastReceivedPeriodId) {
 			this.periods.shift();
 		}
+		*/
 	}
 
 	tickConnection() {
@@ -213,107 +220,12 @@ export class MultiplayerGame extends Game {
 		let timestamp = performance.now();
 		this.connection.queueCommand({ command: 'ping', timestamp }, false);
 
-		let periodStart = this.lastPeriodEnd + 1;
-		let periodEnd = this.state.frame;
-
-		let entityUpdates: EntityUpdate[] = [];
-		let entityInfo: Period["entityInfo"] = [];
-		let includedEntityIds = new Set<number>();
-		let affectionGraph: Period["affectionGraph"] = [];
+		let worldState: EntityUpdate[] = [];
 
 		for (let [, history] of this.state.stateHistory) {
-			for (let i = history.length - 1; i >= 0; i--) {
-				let update = history[i];
-				if (update.originator !== this.localPlayer.id) continue;
-				if (update.updateId < this.lastPeriodUpdateId) break;
-
-				let info = entityInfo.find(x => x.entityId === update.entityId);
-				if (!info) {
-					info = {
-						entityId: update.entityId,
-						earliestUpdateFrame: update.frame,
-						ownedAtSomePoint: update.owned
-					};
-
-					entityInfo.push(info);
-					entityUpdates.push(update);
-					includedEntityIds.add(update.entityId);
-				} else {
-					info.earliestUpdateFrame = update.frame;
-					info.ownedAtSomePoint ||= update.owned;
-				}
-			}
+			Util.assert(history.length > 0); // Idk this is just here for now 😂😂😂😂😂
+			worldState.push(Util.last(history));
 		}
-
-		outer:
-		for (let i = this.state.affectionGraph.length - 1; i >= 0; i--) {
-			let edge = this.state.affectionGraph[i];
-			if (edge.id < this.lastPeriodAffectionEdgeId) break;
-
-			for (let includedEdge of affectionGraph) {
-				if (edge.from.id === includedEdge.from && edge.to.id === includedEdge.to)
-					continue outer;
-			}
-
-			affectionGraph.push({ from: edge.from.id, to: edge.to.id });
-		}
-
-		for (let period of this.periods) {
-			Util.filterInPlace(period.entityUpdates, x => !includedEntityIds.has(x.entityId));
-			Util.filterInPlace(period.affectionGraph, x => {
-				return !affectionGraph.some(y => x.from === y.from && x.to === y.to);
-			});
-		}
-
-		let newPeriod: Period = {
-			id: this.nextPeriodId++,
-			start: periodStart,
-			end: periodEnd,
-			entityUpdates,
-			entityInfo,
-			affectionGraph,
-			size: 0
-		};
-
-		this.periods.push(newPeriod);
-
-		// Merge old periods together into larger and larger combined periods to cause logarithmic increase of periods instead of linear with respect to time
-		let count = 0;
-		for (let i = this.periods.length - 1; i >= 0; i--) {
-			if (this.periods[i].size !== this.periods[i+1]?.size) {
-				count = 0;
-			}
-			count++;
-
-			// If we encounter 4 periods in a row of same size (size = how many times this period has been merged before), we merge the last two neighboring periods.
-			if (count === 4) {
-				let a = this.periods[i];
-				let b = this.periods[i+1];
-
-				b.size++;
-				b.start = a.start;
-
-				// For both of these, we need not worry about duplicates (they can't happen):
-				b.entityUpdates.push(...a.entityUpdates);
-				b.affectionGraph.push(...a.affectionGraph);
-
-				// Merge the entity info
-				for (let info of b.entityInfo) {
-					let prevInfo = a.entityInfo.find(x => x.entityId === info.entityId);
-					if (!prevInfo) continue;
-
-					info.earliestUpdateFrame = Math.min(info.earliestUpdateFrame, prevInfo.earliestUpdateFrame);
-					info.ownedAtSomePoint ||= prevInfo.ownedAtSomePoint;
-				}
-				b.entityInfo.push(...a.entityInfo.filter(x => !b.entityInfo.some(y => x.entityId === y.entityId)));
-
-				this.periods.splice(i++, 1);
-			}
-		}
-
-		this.lastPeriodUpdateId = this.state.nextUpdateId;
-		this.lastPeriodAffectionEdgeId = this.state.nextAffectionEdgeId;
-		this.lastPeriodEnd = newPeriod.end;
 
 		if (sendTimeout-- > 0) return;
 
@@ -321,7 +233,8 @@ export class MultiplayerGame extends Game {
 			command: 'clientStateBundle',
 			serverFrame: this.state.serverFrame,
 			clientFrame: this.state.targetClientFrame,
-			periods: this.periods,
+			worldState: worldState,
+			affectionGraph: this.state.affectionGraph.map(x => ({ from: x.id, to: x.id, frame: x.frame })),
 			lastReceivedServerUpdateId: this.lastReceivedServerUpdateId
 		};
 		this.connection.queueCommand(bundle, false);
