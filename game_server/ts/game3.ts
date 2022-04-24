@@ -55,43 +55,44 @@ class Entity {
 	canApplyUpdate(update: EntityUpdate, player: Player) {
 		if (!this.currentUpdate) return true;
 
-		if (update.version < this.versions.get(player)) return false;
+		if (update.version < this.versions.get(player)) {if (this.id >= 0) console.log(1); return false; }
 
-		if (this.owner !== null && update.originator !== this.owner) {
-			if (update.frame - this.currentUpdate.frame < TWICE_CLIENT_UPDATE_PERIOD) return false;
+		if (this.owner !== null && this.currentUpdate.originator === this.owner && update.originator !== this.owner) {
+			if (update.frame - this.currentUpdate.frame < TWICE_CLIENT_UPDATE_PERIOD) {if (this.id >= 0) console.log(2); return false; }
 		}
 
 		return true;
 	}
 
 	applyUpdate(update: EntityUpdate) {
+		if (this.currentUpdate && this.currentUpdate.frame === update.frame && Util.areEqualDeep(this.currentUpdate.state, update.state)) return false;
+
 		this.currentUpdate = update;
 
 		if (update.owned) {
-			if (update.originator !== this.owner) {
-				for (let player of this.game.players) {
-					if (player.id === update.originator) continue;
-
-					this.versions.set(player, this.versions.get(player) + 1);
-				}
-			}
-
 			this.owner = update.originator;
 		}
+
+		return true;
 	}
 
 	queueSend() {
 		if (!this.currentUpdate) return;
 
 		for (let player of this.game.players) {
-			if (player.id === this.owner) continue;
+			if (player.id === this.owner || this.currentUpdate.originator === player.id) continue;
 
-			Util.filterInPlace(player.queuedEntityUpdates, x => x.entityId !== this.id);
-
-			let leUpdate = { ...this.currentUpdate, version: this.versions.get(player) };
-			leUpdate.updateId = this.game.incrementalUpdateId++;
-			player.queuedEntityUpdates.push(leUpdate);
+			this.sendToPlayer(player);
 		}
+	}
+
+	sendToPlayer(player: Player) {
+		Util.filterInPlace(player.queuedEntityUpdates, x => x.entityId !== this.id);
+
+		this.versions.set(player, this.versions.get(player) + 1);
+		let leUpdate = { ...this.currentUpdate, version: this.versions.get(player) };
+		leUpdate.updateId = this.game.incrementalUpdateId++;
+		player.queuedEntityUpdates.push(leUpdate);
 	}
 }
 
@@ -267,6 +268,10 @@ export class Game3 {
 	}
 
 	processUpdateBundle(bundle: UpdateBundle) {
+		//console.log(bundle.end - bundle.start);
+
+		//if (bundle.affectionGraph.some(x => x.frame < bundle.start || x.frame > bundle.end)) console.log("neeg");
+
 		for (let [, entity] of this.entities) {
 			if (!bundle.worldState.some(x => x.entityId === entity.id)) {
 				bundle.worldState.push(entity.getInitialUpdate());
@@ -277,7 +282,10 @@ export class Game3 {
 
 		for (let update of bundle.worldState) {
 			let entity = this.getEntityById(update.entityId);
-			if (!entity.canApplyUpdate(update, bundle.player)) disallowed.add(entity.id);
+			if (!entity.canApplyUpdate(update, bundle.player)) {
+				//if (entity.id >= 0) console.log(entity, update);
+				disallowed.add(entity.id);
+			}
 		}
 
 		let old = this.affectionGraph.slice(); // todo optimize
@@ -298,11 +306,20 @@ export class Game3 {
 			if (!madeChange) break;
 		}
 
+		let appliedUpdates: EntityUpdate[] = [];
 		for (let update of bundle.worldState) {
-			if (disallowed.has(update.entityId)) continue;
+			if (disallowed.has(update.entityId)) {
+				if (bundle.end - bundle.start > 500) console.log(update.entityId);
+				//if (bundle.player.id === -3 && update.entityId >= 0) console.log(update);
+				//this.getEntityById(update.entityId).sendToPlayer(bundle.player);
+				continue;
+			}
 
 			let entity = this.getEntityById(update.entityId);
-			entity.applyUpdate(update);
+			let updateWasApplied = entity.applyUpdate(update);
+			if (updateWasApplied) appliedUpdates.push(update);
+
+			if (bundle.player.id === -3 && bundle.end - bundle.start > 120) console.log(entity.id);
 		}
 
 		let urgh: { from: number, to: number, frame: number }[] = [];
@@ -314,6 +331,7 @@ export class Game3 {
 		}
 
 		let changed = new Set<Entity>();
+		//console.log("entered");
 		while (true) {
 			let changeMade = false;
 
@@ -326,15 +344,16 @@ export class Game3 {
 				if (e2.owner !== e1.owner) {
 					e2.owner = e1.owner;
 					changeMade = true;
-
 					changed.add(e2);
 				}
 			}
 
 			if (!changeMade) break;
 		}
+		//console.log("didnt exit");
 
-		for (let [, entity] of [...this.entities].filter(x => !disallowed.has(x[1].id))) {
+		for (let update of appliedUpdates) {
+			let entity = this.getEntityById(update.entityId);
 			entity.queueSend();
 		}
 	}

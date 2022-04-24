@@ -222,9 +222,12 @@ export class MultiplayerGame extends Game {
 
 		let worldState: EntityUpdate[] = [];
 
-		for (let [, history] of this.state.stateHistory) {
+		for (let [entityId, history] of this.state.stateHistory) {
 			Util.assert(history.length > 0); // Idk this is just here for now 😂😂😂😂😂
-			worldState.push(Util.last(history));
+
+			let entity = this.getEntityById(entityId);
+			let leUpdate = { ...Util.last(history), version: entity.version };
+			worldState.push(leUpdate);
 		}
 
 		if (sendTimeout-- > 0) return;
@@ -234,7 +237,7 @@ export class MultiplayerGame extends Game {
 			serverFrame: this.state.serverFrame,
 			clientFrame: this.state.frame,
 			worldState: worldState,
-			affectionGraph: this.state.affectionGraph.map(x => ({ from: x.from.id, to: x.to.id, frame: x.frame })),
+			affectionGraph: this.state.affectionGraph.map(x => ({ from: x.from.id, to: x.to.id, frame: this.state.frame /* todo fine?? */ })),
 			lastReceivedServerUpdateId: this.lastReceivedServerUpdateId
 		};
 		this.connection.queueCommand(bundle, false);
