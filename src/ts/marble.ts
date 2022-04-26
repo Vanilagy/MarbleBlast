@@ -414,7 +414,9 @@ export class Marble extends Entity {
 	}
 
 	loadState(state: MarbleState, { remote }: { remote: boolean }) {
-		if (!this.addedToGame && remote) this.addToGame();
+		if (!this.addedToGame && remote) console.log("que?"), this.addToGame();
+
+		//if (this.uncertain) console.log("how");
 
 		this.body.position.fromObject(state.position);
 		this.body.orientation.fromObject(state.orientation);
@@ -745,7 +747,7 @@ export class Marble extends Entity {
 		this.beforeVel.copy(this.body.linearVelocity);
 		this.beforeAngVel.copy(this.body.angularVelocity);
 
-		if (this.game.state.frame - this.respawnFrame < 3.5 * GAME_UPDATE_RATE) {
+		if (false && this.game.state.frame - this.respawnFrame < 3.5 * GAME_UPDATE_RATE) {
 			// Lock the marble to the space above the start pad
 
 			let { position: startPosition } = this.game.state.getStartPositionAndOrientation();

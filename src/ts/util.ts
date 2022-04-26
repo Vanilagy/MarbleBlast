@@ -777,6 +777,22 @@ export abstract class Util {
 		arr.splice(ans + 1, 0, item);
 		return ans + 1;
 	}
+
+	static areEqualDeep(o1: any, o2: any) {
+		if (o1 === o2) return true;
+		if (typeof o1 !== 'object' || typeof o2 !== 'object') return o1 === o2;
+		if (Array.isArray(o1) !== Array.isArray(o2)) return false;
+		if (Array.isArray(o1)) {
+			if (o1.length !== o2.length) return false;
+			for (let i = 0; i < o1.length; i++) if (!this.areEqualDeep(o1[i], o2[i])) return false;
+		} else {
+			for (let key in o2) if (!(key in o1)) return false;
+			for (let key in o1) {
+				if (!this.areEqualDeep(o1[key], o2[key])) return false;
+			}
+		}
+		return true;
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 

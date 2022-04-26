@@ -12,15 +12,12 @@ import { MultiplayerGame } from "./multiplayer_game";
 
 type PlayerState = EntityState & { entityType: 'player' };
 
-interface PlayerInternalState {
-	lastRemoteState: PlayerState,
-	lastRemoteStateFrame: number,
-	movementLerpStart: Vector2
-}
-
 export class Player extends Entity {
-	updateOrder = -1;
 	controlledMarble: Marble;
+
+	updateOrder = -1;
+	applyUpdatesBeforeAdvance = true;
+	sendAllUpdates = true;
 
 	pitch = DEFAULT_PITCH;
 	yaw = DEFAULT_YAW;
@@ -28,13 +25,10 @@ export class Player extends Entity {
 	using = false;
 	blasting = false;
 
-	lastControlState: MarbleControlState = null;
 	previousMouseMovementDistance = 0;
 	inputHistory = new Map<number, MarbleControlState>();
-
-	lastRemoteState: PlayerState = null;
-	lastRemoteStateFrame: number = null;
-	movementLerpStart = new Vector2();
+	lastRemoteState: PlayerState;
+	lastRemoteStateFrame = -1;
 
 	constructor(game: Game, id: number) {
 		super(game);
@@ -72,10 +66,19 @@ export class Player extends Entity {
 	}
 
 	getControlState(): MarbleControlState {
-		if (this !== this.game.localPlayer) return this.getRemoteControlState();
+		//if (this !== this.game.localPlayer) return this.getRemoteControlState();
 
 		if (this.inputHistory.has(this.game.state.frame)) {
 			return this.inputHistory.get(this.game.state.frame);
+		} else {
+			if (this !== this.game.localPlayer) {
+				if (!this.lastRemoteState)
+					return Marble.getPassiveControlState();
+				if (this.game.state.frame - this.lastRemoteStateFrame >= (this.game as MultiplayerGame).simulator.lastReconciliationFrameCount * 2)
+					return Marble.getPassiveControlState();
+
+				return { ...this.lastRemoteState.controlState, movement: new Vector2() };
+			}
 		}
 
 		let allowUserInput = !state.menu.finishScreen.showing;
@@ -130,7 +133,6 @@ export class Player extends Entity {
 			blasting: allowUserInput && this.blasting
 		};
 
-		this.lastControlState = res;
 		this.inputHistory.set(this.game.state.frame, res);
 
 		this.jumping = false;
@@ -140,34 +142,17 @@ export class Player extends Entity {
 		return res;
 	}
 
-	getRemoteControlState(): MarbleControlState {
-		if (!this.lastRemoteState) return Marble.getPassiveControlState();
-
-		let interpolationDuration = (this.game as MultiplayerGame).simulator.lastReconciliationFrameCount * 5;
-		let completion = (this.game.state.frame - this.lastRemoteStateFrame) / interpolationDuration;
-
-		if (completion > 1) return Marble.getPassiveControlState();
-
-		completion = Util.clamp(completion, 0, 1);
-		let movement = this.movementLerpStart.clone().lerp(new Vector2().fromObject(this.lastRemoteState.controlState.movement), completion);
-
-		return {
-			...this.lastRemoteState.controlState,
-			movement
-		};
-	}
-
 	applyControlState() {
 		let state = this.getControlState();
 
 		this.controlledMarble.currentControlState = state;
 
-		if (true || state.movement.length() > 0 || state.jumping || state.using || state.blasting) {
-			this.interactWith(this.controlledMarble);
-		}
+		this.interactWith(this.controlledMarble);
 	}
 
 	update() {
+		this.affectedBy.add(this);
+
 		if (this === this.game.localPlayer) {
 			this.owned = true;
 			this.stateNeedsStore = true;
@@ -184,32 +169,22 @@ export class Player extends Entity {
 	getState(): PlayerState {
 		return {
 			entityType: 'player',
-			controlState: this.lastControlState ?? Marble.getPassiveControlState()
+			controlState: this.inputHistory.get(this.game.state.frame) ?? Marble.getPassiveControlState()
 		};
 	}
 
 	loadState(state: PlayerState, { frame }: { frame: number }) {
 		if (this === this.game.localPlayer) return; // Don't care
 
-		this.movementLerpStart = this.getRemoteControlState().movement;
-		this.lastRemoteState = state;
-		this.lastRemoteStateFrame = frame;
+		this.inputHistory.set(frame, {
+			...state.controlState,
+			movement: new Vector2().fromObject(state.controlState.movement)
+		});
 
-		this.internalStateNeedsStore = true;
-	}
-
-	getInternalState(): PlayerInternalState {
-		return {
-			lastRemoteState: this.lastRemoteState,
-			lastRemoteStateFrame: this.lastRemoteStateFrame,
-			movementLerpStart: this.movementLerpStart.clone()
-		};
-	}
-
-	loadInternalState(state: PlayerInternalState) {
-		this.lastRemoteState = state.lastRemoteState;
-		this.lastRemoteStateFrame = state.lastRemoteStateFrame;
-		this.movementLerpStart.copy(state.movementLerpStart);
+		if (frame > this.lastRemoteStateFrame) {
+			this.lastRemoteStateFrame = frame;
+			this.lastRemoteState = state;
+		}
 	}
 
 	render() {}

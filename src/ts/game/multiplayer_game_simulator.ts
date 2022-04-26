@@ -23,7 +23,10 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 		let start = performance.now();
 
-		for (let entity of game.entities) entity.beforeReconciliation();
+		for (let entity of game.entities) {
+			entity.beforeReconciliation();
+			entity.affectedBy.clear();
+		}
 
 		this.isReconciling = true;
 
@@ -36,7 +39,13 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		let startFrame = Math.min(
 			...this.reconciliationUpdates.map(x => x.frame)
 		);
-		startFrame = Math.max(startFrame, game.lastServerStateBundle.rewindToFrameCap);
+		if (this.reconciliationUpdates.some(x => x.frame === startFrame && game.getEntityById(x.entityId).applyUpdatesBeforeAdvance)) {
+			startFrame--;
+		}
+
+		let rewindCap = game.lastServerStateBundle.serverFrame - 4; // todo don't forget this I guess
+		//if (startFrame < rewindCap) console.log("yo que");
+		//startFrame = Math.max(startFrame, rewindCap);
 		let endFrame = state.frame;
 
 		state.rollBackToFrame(startFrame);
@@ -47,6 +56,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		//console.log(`Tryna go from ${startFrame} to ${endFrame}`);
 
 		while (state.frame < endFrame) {
+			this.applyEarlyReconciliationUpdates();
 			this.advance();
 			this.applyReconciliationUpdates();
 		}
@@ -70,9 +80,26 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 		for (let update of this.reconciliationUpdates) {
 			if (applyOlder? update.frame > currentFrame : update.frame !== currentFrame) continue;
+
+			let entity = this.game.getEntityById(update.entityId);
+			if (entity.applyUpdatesBeforeAdvance) continue;
+			//if (entity.uncertainFrame > this.game.state.serverFrame) continue;
+
 			this.game.applyRemoteEntityUpdate(update);
 		}
+	}
 
-		state.saveStates();
+	applyEarlyReconciliationUpdates() {
+		let state = this.game.state;
+		let currentFrame = state.frame;
+
+		for (let update of this.reconciliationUpdates) {
+			if (update.frame !== currentFrame+1) continue;
+
+			let entity = this.game.getEntityById(update.entityId);
+			if (!entity.applyUpdatesBeforeAdvance) continue;
+
+			this.game.applyRemoteEntityUpdate(update);
+		}
 	}
 }

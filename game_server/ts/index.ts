@@ -4,8 +4,7 @@ import { Socket } from '../../shared/socket';
 import { RTCPeerConnection as WRTCPeerConnection, RTCIceCandidate, RTCSessionDescription } from 'wrtc';
 import { RTCConnection } from '../../shared/rtc_connection';
 import { GameServerConnection, GameServerSocket } from '../../shared/game_server_connection';
-import { Game2 } from './game2';
-import { Game3 } from './game3';
+import { Game4 } from './game4';
 
 const wss = new WebSocketServer({
 	port: 6969
@@ -48,7 +47,7 @@ wss.on('connection', ws => {
 		let game = games.find(x => x.missionPath === data.missionPath);
 
 		if (!game) {
-			game = new Game3(data.missionPath);
+			game = new Game4(data.missionPath);
 			games.push(game);
 		}
 
@@ -68,7 +67,7 @@ const createRTCSocket = (sessionId: string) => {
 		let game = games.find(x => x.missionPath === data.missionPath);
 
 		if (!game) {
-			game = new Game3(data.missionPath);
+			game = new Game4(data.missionPath);
 			games.push(game);
 		}
 
@@ -126,8 +125,8 @@ class GameClientRTCConnection extends RTCConnection {
 	}
 }
 
-let games: Game3[] = [];
+let games: Game4[] = [];
 
 setDriftlessInterval(() => {
-	for (let game of games) game.tick();
+	for (let game of games) game.tickConnections();
 }, 1000 / TICK_FREQUENCY);

@@ -375,6 +375,7 @@ export class Vector2 {
 		return array;
 	}
 
+	/** Sets this vector's x and y values from an object. */
 	fromObject(object: { x: number, y: number }) {
 		this.x = object.x;
 		this.y = object.y;

@@ -49,13 +49,27 @@ export class GameState {
 		this.game = game;
 	}
 
-	recordEntityInteraction(o1: Entity, o2: Entity) {
+	recordEntityInteraction(e1: Entity, e2: Entity) {
 		this.affectionGraph.push({
 			id: this.nextAffectionEdgeId++,
-			from: o1,
-			to: o2,
+			from: e1,
+			to: e2,
 			frame: this.frame
 		});
+
+		const propagate = (e: Entity) => {
+			let keepGoing = false;
+
+			for (let player of e1.affectedBy) {
+				if (!e.affectedBy.has(player)) {
+					e.affectedBy.add(player);
+					keepGoing = true;
+				}
+			}
+
+			if (keepGoing) for (let edge of this.affectionGraph) if (edge.frame === this.frame && edge.from === e) propagate(edge.to);
+		};
+		propagate(e2);
 	}
 
 	restart() {

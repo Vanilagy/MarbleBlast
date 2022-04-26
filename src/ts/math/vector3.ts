@@ -570,6 +570,7 @@ export class Vector3 {
 		return array;
 	}
 
+	/** Sets this vector's x, y and z values from an object. */
 	fromObject(object: { x: number, y: number, z: number }) {
 		this.x = object.x;
 		this.y = object.y;

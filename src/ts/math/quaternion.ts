@@ -434,6 +434,7 @@ export class Quaternion {
 		return array;
 	}
 
+	/** Sets this quaternion's x, y, z and w properties from an object. */
 	fromObject(object: { x: number, y: number, z: number, w: number }) {
 		this.x = object.x;
 		this.y = object.y;

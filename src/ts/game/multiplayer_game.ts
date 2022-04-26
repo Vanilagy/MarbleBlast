@@ -1,6 +1,7 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
+import { FixedFormatBinarySerializer } from "../../../shared/fixed_format_binary_serializer";
 import { GameServerConnection } from "../../../shared/game_server_connection";
-import { CommandToData, EntityUpdate } from "../../../shared/game_server_format";
+import { CommandToData, entityStateFormat, EntityUpdate } from "../../../shared/game_server_format";
 import { Marble } from "../marble";
 import { Mission } from "../mission";
 import { GameServer } from "../net/game_server";
@@ -63,6 +64,9 @@ export class MultiplayerGame extends Game {
 	lastPeriodUpdateId = 0;
 	lastPeriodAffectionEdgeId = 0;
 	lastPeriodEnd = -1;
+
+	lastSentFrame = -1;
+	lastSentServerFrame = -1;
 
 	constructor(mission: Mission, gameServer: GameServer) {
 		super(mission);
@@ -187,23 +191,34 @@ export class MultiplayerGame extends Game {
 
 		this.state.supplyServerTimeState(data.serverFrame, data.clientFrame);
 
-		data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
+		//data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
 
 		//console.log(data.entityUpdates.find(x => x.entityId === -2)?.frame);
 
 		//console.log(data.entityUpdates);
 
+		/*
 		this.lastReceivedServerUpdateId = Math.max(
 			this.lastReceivedServerUpdateId,
 			...data.entityUpdates.map(x => x.updateId)
 		);
+		*/
 
 		// Add them to a queue
 		this.simulator.reconciliationUpdates.push(...data.entityUpdates);
 
-		// Remove arrived affection edges
-		while (this.state.affectionGraph.length > 0 && this.state.affectionGraph[0].frame <= data.lastReceivedAffectionGraphFrame) {
-			this.state.affectionGraph.pop();
+		if (data.recentBaseState) {
+			console.log(this.state.frame - data.recentBaseState.frame, this.state.frame - this.state.serverFrame);
+			for (let update of data.recentBaseState.updates) {
+				let entity = this.getEntityById(update.entityId);
+				let comparable = this.state.stateHistory.get(update.entityId).find(x => x.frame === update.frame);
+
+				if (comparable) {
+					if (!Util.areEqualDeep(update.state, FixedFormatBinarySerializer.encodeDecode(comparable.state, entityStateFormat))) {
+						console.log(update.state, FixedFormatBinarySerializer.encodeDecode(comparable.state, entityStateFormat), update.frame, data.recentBaseState.frame);
+					}
+				}
+			}
 		}
 
 		/*
@@ -220,32 +235,61 @@ export class MultiplayerGame extends Game {
 		let timestamp = performance.now();
 		this.connection.queueCommand({ command: 'ping', timestamp }, false);
 
-		let worldState: EntityUpdate[] = [];
+		let updates: EntityUpdate[] = [];
 
 		for (let [entityId, history] of this.state.stateHistory) {
-			Util.assert(history.length > 0); // Idk this is just here for now 😂😂😂😂😂
-
 			let entity = this.getEntityById(entityId);
-			let leUpdate = { ...Util.last(history), version: entity.version };
-			worldState.push(leUpdate);
+			if (entity.affectedBy.size !== 1 || !entity.affectedBy.has(this.localPlayer)) continue;
+
+			if (entity.sendAllUpdates) {
+				updates.push(...history.filter(x => x.frame > this.lastSentFrame));
+			} else {
+				let last = Util.last(history);
+				if (last.frame > this.lastSentFrame) updates.push(last);
+			}
 		}
 
-		if (sendTimeout-- > 0) return;
+		this.lastSentFrame = this.state.frame;
 
 		let bundle: CommandToData<'clientStateBundle'> = {
 			command: 'clientStateBundle',
 			serverFrame: this.state.serverFrame,
 			clientFrame: this.state.frame,
-			worldState: worldState,
-			affectionGraph: this.state.affectionGraph.map(x => ({ from: x.from.id, to: x.to.id, frame: this.state.frame /* todo fine?? */ })),
+			entityUpdates: updates,
+			baseState: null,
 			lastReceivedServerUpdateId: this.lastReceivedServerUpdateId
 		};
+
+		if (this.lastServerStateBundle) {
+			let baseUpdates: EntityUpdate[] = []; // What do I call 'em, omg
+
+			for (let [, history] of this.state.stateHistory) {
+				let index = history.length - 1;
+				while (index >= 0 && history[index].frame > this.lastServerStateBundle.serverFrame) index--;
+
+				if (index < 0) continue;
+				if (history[index].frame <= this.lastSentServerFrame) continue;
+
+				baseUpdates.push(history[index]);
+			}
+
+			this.lastSentServerFrame = this.lastServerStateBundle.serverFrame;
+
+			bundle.baseState = {
+				frame: this.lastServerStateBundle.serverFrame,
+				updates: baseUpdates
+			};
+		}
+
+		if (sendTimeout-- > 0) return;
 		this.connection.queueCommand(bundle, false);
 	}
 
 	applyRemoteEntityUpdate(update: EntityUpdate) {
 		let entity = this.getEntityById(update.entityId);
 		if (!entity) return;
+
+		if (entity.affectedBy.size > 1) return;
 
 		let history = this.state.stateHistory.get(entity.id);
 		while (history.length > 0 && Util.last(history).frame >= update.frame) {
@@ -294,6 +338,7 @@ export class MultiplayerGame extends Game {
 			Advancements/s: ${this.simulator.advanceTimes.length}
 			Tick duration: ${averageTickDuration.toFixed(2)} ms
 			Reconciliation duration: ${isNaN(averageReconciliationDuration)? 'N/A' : averageReconciliationDuration.toFixed(2) + ' ms'}
+			Reconciliation frames: ${this.simulator.lastReconciliationFrameCount}
 			Send timeout: ${Math.max(0, sendTimeout)}
 		`;
 
