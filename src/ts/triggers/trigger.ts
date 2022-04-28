@@ -65,6 +65,7 @@ export abstract class Trigger extends Entity {
 
 		let body = new RigidBody();
 		body.type = RigidBodyType.Static;
+		body.evaluationOrder = this.id;
 		body.addCollisionShape(ownShape);
 
 		this.body = body;

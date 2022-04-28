@@ -292,7 +292,7 @@ export class Marble extends Entity {
 		// Create the physics stuff
 		this.body = new RigidBody();
 		this.body.userData = this;
-		this.body.evaluationOrder = 1000; // Make sure this body's handlers are called after all the other ones (interiors, shapes, etc)
+		this.body.evaluationOrder = this.id + 1000000; // Make sure this body's handlers are called after all the other ones (interiors, shapes, etc)
 		let colShape = new BallCollisionShape(0); // We'll update the radius later
 		colShape.restitution = this.bounceRestitution;
 		this.shape = colShape;

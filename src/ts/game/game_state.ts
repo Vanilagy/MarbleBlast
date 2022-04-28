@@ -10,7 +10,6 @@ import { state } from "../state";
 import { Util } from "../util";
 import { Game } from "./game";
 import { Entity } from "./entity";
-import { Gem } from "../shapes/gem";
 
 interface AffectionEdge {
 	id: number,
@@ -60,9 +59,9 @@ export class GameState {
 		const propagate = (e: Entity) => {
 			let keepGoing = false;
 
-			for (let player of e1.affectedBy) {
+			for (let [player] of e1.affectedBy) {
 				if (!e.affectedBy.has(player)) {
-					e.affectedBy.add(player);
+					e.affectedBy.set(player, this.frame);
 					keepGoing = true;
 				}
 			}

@@ -151,7 +151,7 @@ export class Player extends Entity {
 	}
 
 	update() {
-		this.affectedBy.add(this);
+		this.affectedBy.set(this, this.game.state.frame);
 
 		if (this === this.game.localPlayer) {
 			this.owned = true;

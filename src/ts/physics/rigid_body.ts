@@ -28,8 +28,6 @@ export class RigidBody {
 
 	prevPosition = new Vector3();
 	prevOrientation = new Quaternion();
-	prevLinearVelocity = new Vector3();
-	prevAngularVelocity = new Vector3();
 	/** Indicates whether the previous values are valid, i.e. have been set. */
 	prevValid = false;
 
@@ -37,8 +35,8 @@ export class RigidBody {
 	shapes: CollisionShape[] = [];
 	/** The list of collisions this body was a part of in the last simulation step. */
 	collisions: Collision[] = [];
-	/** Bodies with lower evaluation order will be evaluated first in the simulation loop. */
-	evaluationOrder = 0;
+	/** Bodies with lower evaluation order will be evaluated first in the simulation loop. This needs to be set in order for the body to be added.*/
+	evaluationOrder: number;
 	inContactCcd = new Set<CollisionShape>();
 	newInContactCcd = new Set<CollisionShape>();
 
@@ -82,8 +80,6 @@ export class RigidBody {
 	storePrevious() {
 		this.prevPosition.copy(this.position);
 		this.prevOrientation.copy(this.orientation);
-		this.prevLinearVelocity.copy(this.linearVelocity);
-		this.prevAngularVelocity.copy(this.angularVelocity);
 
 		this.prevValid = true;
 	}
@@ -99,8 +95,7 @@ export class RigidBody {
 			this.orientation.copy(this.prevOrientation).slerp(q1, t);
 		}
 
-		this.linearVelocity.lerpVectors(this.prevLinearVelocity, this.linearVelocity, t);
-		this.angularVelocity.lerpVectors(this.prevAngularVelocity, this.angularVelocity, t);
+		// Don't revert the velocities
 	}
 
 	addCollisionShape(shape: CollisionShape) {

@@ -6,6 +6,7 @@ import { Marble } from "../marble";
 import { Mission } from "../mission";
 import { GameServer } from "../net/game_server";
 import { Util } from "../util";
+import { Entity } from "./entity";
 import { Game } from "./game";
 import { MultiplayerGameSimulator } from "./multiplayer_game_simulator";
 import { MultiplayerGameState } from "./multiplayer_game_state";
@@ -25,20 +26,6 @@ window.addEventListener('keydown', e => {
 	}
 });
 
-interface Period {
-	id: number,
-	start: number,
-	end: number,
-	entityUpdates: EntityUpdate[],
-	affectionGraph: { from: number, to: number }[],
-	entityInfo: {
-		entityId: number,
-		earliestUpdateFrame: number,
-		ownedAtSomePoint: boolean
-	}[],
-	size: number
-}
-
 export class MultiplayerGame extends Game {
 	state: MultiplayerGameState;
 	simulator: MultiplayerGameSimulator;
@@ -47,7 +34,6 @@ export class MultiplayerGame extends Game {
 	connection: GameServerConnection;
 	lastServerTickTime: number = null;
 	lastServerStateBundle: CommandToData<"serverStateBundle"> = null;
-	lastReceivedServerUpdateId = -1;
 
 	lastUpdateRate: number;
 
@@ -59,14 +45,13 @@ export class MultiplayerGame extends Game {
 	incomingTimes: [number, number][] = [];
 	outgoingTimes: [number, number][] = [];
 
-	periods: Period[] = [];
-	nextPeriodId = 0;
-	lastPeriodUpdateId = 0;
-	lastPeriodAffectionEdgeId = 0;
-	lastPeriodEnd = -1;
-
+	queuedEntityUpdates: EntityUpdate[] = [];
 	lastSentFrame = -1;
 	lastSentServerFrame = -1;
+	lastReceivedBaseStateFrame = -1;
+	lastReceivedServerUpdateFrame = -1;
+	maxReceivedBaseStateRequestFrame = -1;
+	maxReceivedServerUpdateId = -1;
 
 	constructor(mission: Mission, gameServer: GameServer) {
 		super(mission);
@@ -191,6 +176,11 @@ export class MultiplayerGame extends Game {
 
 		this.state.supplyServerTimeState(data.serverFrame, data.clientFrame);
 
+		Util.filterInPlace(this.queuedEntityUpdates, x => x.frame > data.lastReceivedClientUpdateFrame);
+		Util.filterInPlace(data.entityUpdates, x => x.updateId > this.maxReceivedServerUpdateId);
+
+		if (data.entityUpdates.length > 0) this.maxReceivedServerUpdateId = Math.max(...data.entityUpdates.map(x => x.updateId));
+
 		//data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
 
 		//console.log(data.entityUpdates.find(x => x.entityId === -2)?.frame);
@@ -206,20 +196,12 @@ export class MultiplayerGame extends Game {
 
 		// Add them to a queue
 		this.simulator.reconciliationUpdates.push(...data.entityUpdates);
+		if (data.entityUpdates.length > 0) this.lastReceivedServerUpdateFrame = Util.last(data.entityUpdates).frame;
 
-		if (data.recentBaseState) {
-			console.log(this.state.frame - data.recentBaseState.frame, this.state.frame - this.state.serverFrame);
-			for (let update of data.recentBaseState.updates) {
-				let entity = this.getEntityById(update.entityId);
-				let comparable = this.state.stateHistory.get(update.entityId).find(x => x.frame === update.frame);
+		Util.filterInPlace(data.baseState, x => x.requestFrame > this.maxReceivedBaseStateRequestFrame);
+		this.maxReceivedBaseStateRequestFrame = Math.max(...data.baseState.map(x => x.requestFrame));
 
-				if (comparable) {
-					if (!Util.areEqualDeep(update.state, FixedFormatBinarySerializer.encodeDecode(comparable.state, entityStateFormat))) {
-						console.log(update.state, FixedFormatBinarySerializer.encodeDecode(comparable.state, entityStateFormat), update.frame, data.recentBaseState.frame);
-					}
-				}
-			}
-		}
+		//if (data.baseState) this.lastReceivedBaseStateFrame = data.baseState.frame;
 
 		/*
 		// Remove arrived periods
@@ -235,17 +217,24 @@ export class MultiplayerGame extends Game {
 		let timestamp = performance.now();
 		this.connection.queueCommand({ command: 'ping', timestamp }, false);
 
-		let updates: EntityUpdate[] = [];
+		let conflictingEntities: Entity[] = [];
 
 		for (let [entityId, history] of this.state.stateHistory) {
+			let last = Util.last(history);
+			if (!last || last.frame <= this.lastSentFrame) continue;
+
 			let entity = this.getEntityById(entityId);
-			if (entity.affectedBy.size !== 1 || !entity.affectedBy.has(this.localPlayer)) continue;
+			if (entity.affectedBy.size > 1 || !entity.affectedBy.has(this.localPlayer)) {
+				if (entity.affectedBy.size > 1) conflictingEntities.push(entity);
+				continue;
+			}
+
+			Util.filterInPlace(this.queuedEntityUpdates, x => x.entityId !== entityId);
 
 			if (entity.sendAllUpdates) {
-				updates.push(...history.filter(x => x.frame > this.lastSentFrame));
+				this.queuedEntityUpdates.push(...history.filter(x => x.frame > this.lastSentFrame));
 			} else {
-				let last = Util.last(history);
-				if (last.frame > this.lastSentFrame) updates.push(last);
+				this.queuedEntityUpdates.push(last);
 			}
 		}
 
@@ -255,10 +244,17 @@ export class MultiplayerGame extends Game {
 			command: 'clientStateBundle',
 			serverFrame: this.state.serverFrame,
 			clientFrame: this.state.frame,
-			entityUpdates: updates,
-			baseState: null,
-			lastReceivedServerUpdateId: this.lastReceivedServerUpdateId
+			entityUpdates: this.queuedEntityUpdates,
+			possibleConflictingEntities: conflictingEntities.map(x => x.id),
+			baseState: this.simulator.computedBaseState,
+			lastReceivedBaseState: this.lastReceivedBaseStateFrame,
+			lastReceivedServerUpdateFrame: this.lastReceivedServerUpdateFrame,
+			lastReceivedServerFrame: this.lastServerStateBundle?.serverFrame ?? -1
 		};
+
+		this.simulator.computedBaseState = null;
+
+		/*
 
 		if (this.lastServerStateBundle) {
 			let baseUpdates: EntityUpdate[] = []; // What do I call 'em, omg
@@ -281,6 +277,8 @@ export class MultiplayerGame extends Game {
 			};
 		}
 
+		*/
+
 		if (sendTimeout-- > 0) return;
 		this.connection.queueCommand(bundle, false);
 	}
@@ -299,7 +297,7 @@ export class MultiplayerGame extends Game {
 		entity.loadState(update.state ?? entity.getInitialState(), { frame: update.frame, remote: true });
 		entity.version = update.version;
 
-		update.updateId = -1; // We set the update ID to something negative so that the update NEVER gets sent back to the server
+		update.updateId = -1; // todo remove this? We set the update ID to something negative so that the update NEVER gets sent back to the server
 		history.push(update);
 	}
 

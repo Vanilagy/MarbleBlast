@@ -345,6 +345,7 @@ export class Shape extends Entity {
 					let body = new RigidBody();
 					body.type = RigidBodyType.Static;
 					body.userData = { nodeIndex: i };
+					body.evaluationOrder = this.id;
 
 					this.bodies.push(body);
 				}
@@ -355,6 +356,8 @@ export class Shape extends Entity {
 		if (this.bodies.length === 0 && !this.isTSStatic) {
 			let body = new RigidBody();
 			body.type = RigidBodyType.Static;
+			body.evaluationOrder = this.id;
+
 			this.bodies.push(body);
 		}
 
@@ -949,6 +952,7 @@ export class Shape extends Entity {
 
 			collider.body.position.copy(position);
 			collider.body.orientation.copy(orientation);
+			collider.body.evaluationOrder = this.id;
 
 			while (collider.body.shapes.length) collider.body.removeCollisionShape(collider.body.shapes[0]); // Remove all shapes
 

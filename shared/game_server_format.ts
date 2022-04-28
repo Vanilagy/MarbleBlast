@@ -94,10 +94,12 @@ export const gameServerCommandFormat = [union, 'command', {
 	serverFrame: 'varint',
 	clientFrame: 'varint',
 	entityUpdates: [entityUpdateFormat],
+	possibleConflictingEntities: ['varint'],
 	baseState: [nullable, {
 		frame: 'varint',
 		updates: [entityUpdateFormat]
 	}],
+	lastReceivedBaseState: 'varint',
 	/*
 	periods: [{
 		id: 'varint',
@@ -112,17 +114,21 @@ export const gameServerCommandFormat = [union, 'command', {
 		}]
 	}],
 	*/
-	lastReceivedServerUpdateId: 'varint'
+	lastReceivedServerUpdateFrame: 'varint',
+	lastReceivedServerFrame: 'varint'
 }, {
 	command: 'serverStateBundle',
 	serverFrame: 'varint',
 	clientFrame: 'varint',
 	entityUpdates: [entityUpdateFormat],
-	recentBaseState: [nullable, {
-		frame: 'varint',
-		updates: [entityUpdateFormat]
-	}]
-	//lastReceivedPeriodId: 'varint',
+	baseStateRequest: {
+		entities: ['varint']
+	},
+	baseState: [{
+		requestFrame: 'varint',
+		update: entityUpdateFormat
+	}],
+	lastReceivedClientUpdateFrame: 'varint'
 }, {
 	command: 'gameJoinInfo',
 	serverFrame: 'varint',

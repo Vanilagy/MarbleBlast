@@ -222,6 +222,7 @@ export class Interior extends Entity {
 
 	async init(id: number) {
 		this.id = id;
+		this.body.evaluationOrder = id;
 
 		let cached = await Interior.initCache.get(this.detailLevel);
 		if (cached && cached.fancyShaders !== StorageManager.data.settings.fancyShaders) {

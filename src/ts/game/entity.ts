@@ -13,7 +13,7 @@ export abstract class Entity {
 	updateOrder = 0;
 	applyUpdatesBeforeAdvance = false;
 	sendAllUpdates = false;
-	affectedBy = new Set<Player>();
+	affectedBy = new Map<Player, number>();
 
 	stateNeedsStore = false;
 	internalStateNeedsStore = true; // Start out true so we store it once in the beninging... in the... in the beni... in the beninging (listen properly)

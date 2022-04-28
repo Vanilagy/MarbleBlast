@@ -7,6 +7,7 @@ import { CollisionResponse } from "./collision_response";
 import { Vector3 } from "../math/vector3";
 import { Box3 } from "../math/box3";
 import { Plane } from "../math/plane";
+import { Util } from "../util";
 
 const MAX_SUBSTEPS = 10;
 
@@ -41,8 +42,12 @@ export class World {
 		if (body.world) {
 			throw new Error("RigidBody already belongs to a world.");
 		}
+		if (body.evaluationOrder === undefined) {
+			console.log(body);
+			throw new Error("RigidBody has undefined evaluation order.");
+		}
 
-		this.bodies.push(body);
+		Util.insertSorted(this.bodies, body, (a, b) => a.evaluationOrder - b.evaluationOrder);
 		body.world = this;
 		body.syncShapes();
 	}
@@ -81,11 +86,11 @@ export class World {
 		this.cachedBroadphaseResults.clear();
 
 		// Check for CCD collisions
-		let ccdCollisions = this.computeCollisions(dynamicShapes, true);
+		//let ccdCollisions = this.computeCollisions(dynamicShapes, true);
 		let t = 1;
 
 		// Find the first collision with a **new** shape
-		for (let i = 0; i < ccdCollisions.length; i++) {
+		if (false) for (let i = 0; i < ccdCollisions.length; i++) {
 			let collision = ccdCollisions[i];
 
 			if (!collision.s1.body.inContactCcd.has(collision.s2)) {

@@ -5,8 +5,7 @@ import { Util } from "./util";
 import { GAME_UPDATE_RATE } from '../../shared/constants';
 import { performance } from 'perf_hooks';
 
-const TWICE_CLIENT_UPDATE_PERIOD = 4 * 2; // todo remove hardcode?
-const UPDATE_BUFFER_SIZE = 4 + 1; // In frames
+const UPDATE_BUFFER_SIZE = 4 + 1 + 10; // In frames
 
 class Player {
 	connection: GameServerConnection;
@@ -14,18 +13,39 @@ class Player {
 	marbleId: number;
 
 	lastEstimatedRtt = 0;
-	lastReceivedServerUpdateId = -1;
+	lastReceivedClientUpdateFrame = -1;
+	queuedEntityUpdates: EntityUpdate[] = [];
 
 	constructor(connection: GameServerConnection, id: number, marbleId: number) {
 		this.connection = connection;
 		this.id = id;
 		this.marbleId = marbleId;
 	}
+
+	cleanUpQueuedUpdates() {
+		let count = new DefaultMap<number, number>(() => 0);
+
+		for (let i = this.queuedEntityUpdates.length-1; i >= 0; i--) {
+			let update = this.queuedEntityUpdates[i];
+			count.set(update.entityId, count.get(update.entityId) + 1);
+			let newCount = count.get(update.entityId);
+			let maxCount = update.state?.entityType === 'player' ? 8 : 1; // Dirty hardcode 😬
+
+			if (newCount > maxCount) this.queuedEntityUpdates.splice(i, 1);
+		}
+	}
 }
 
 interface BaseState {
 	frame: number,
 	updates: EntityUpdate[]
+}
+
+interface BaseStateRequest {
+	entityId: number,
+	requestFrame: number,
+	sendTo: Set<Player>,
+	update: EntityUpdate
 }
 
 export class Game4 {
@@ -39,8 +59,10 @@ export class Game4 {
 
 	pendingPings = new DefaultMap<Player, Map<number, number>>(() => new Map());
 	queuedEntityUpdates: EntityUpdate[] = [];
+	incrementalUpdateId = 0;
 
-	baseStates: BaseState[] = [];
+	baseStateRequests: BaseStateRequest[] = [];
+	maxReceivedBaseStateFrame = -1;
 
 	constructor(missionPath: string) {
 		this.missionPath = missionPath;
@@ -115,19 +137,28 @@ export class Game4 {
 
 		this.tryAdvanceGame();
 
-		let toSend = this.queuedEntityUpdates.filter(x => x.frame <= this.frame);
+		// Todo for today: Packet loss for server-sent stuff ✅, packet loss for base state-related stuff ✅, and all the cases with long-disconnected playerz 🤔. You can do this! ♥
+
+		let newUpdates = this.queuedEntityUpdates.filter(x => x.frame <= this.frame);
 		Util.filterInPlace(this.queuedEntityUpdates, x => x.frame > this.frame);
+
+		newUpdates.forEach(x => x.updateId = this.incrementalUpdateId++);
 
 		// Send packets to all players
 		for (let player of this.players) {
-			//console.log(Util.last(player.queuedEntityUpdates)?.frame, this.getEntityById(-2)?.currentSnapshot.frame, this.frame);
+			player.queuedEntityUpdates.push(...newUpdates.filter(x => x.originator !== player.id));
+			player.cleanUpQueuedUpdates();
 
 			player.connection.queueCommand({
 				command: 'serverStateBundle',
 				serverFrame: this.frame,
 				clientFrame: this.frame + player.lastEstimatedRtt + UPDATE_BUFFER_SIZE,
-				entityUpdates: toSend.filter(x => x.originator !== player.id),
-				recentBaseState: Util.last(this.baseStates) ?? null
+				entityUpdates: player.queuedEntityUpdates,
+				baseStateRequest: {
+					entities: this.baseStateRequests.map(x => x.entityId)
+				},
+				baseState: this.baseStateRequests.filter(x => x.update && x.sendTo.has(player)),
+				lastReceivedClientUpdateFrame: player.lastReceivedClientUpdateFrame
 			}, false);
 
 			for (let [timestamp, receiveTime] of this.pendingPings.get(player)) {
@@ -148,19 +179,54 @@ export class Game4 {
 		this.tryAdvanceGame(); // First, advance the game as much as we can
 
 		player.lastEstimatedRtt = Math.max(this.frame - msg.serverFrame, 0);
+		Util.filterInPlace(player.queuedEntityUpdates, x => x.frame > msg.lastReceivedServerUpdateFrame);
+
+		for (let request of this.baseStateRequests) {
+			if (request.sendTo.has(player) && request.requestFrame <= msg.lastReceivedServerFrame)
+				request.sendTo.delete(player);
+		}
+		Util.filterInPlace(this.baseStateRequests, x => x.sendTo.size > 0);
 
 		if (msg.baseState) this.processBaseState(msg);
 
-		//console.log(msg.clientFrame - this.frame);
+		for (let id of msg.possibleConflictingEntities) {
+			let request = this.baseStateRequests.find(x => x.entityId === id);
+			if (!request) {
+				request = {
+					entityId: id,
+					requestFrame: this.frame,
+					sendTo: new Set(),
+					update: null
+				};
+				this.baseStateRequests.push(request);
+			}
+
+			for (let player of this.players) request.sendTo.add(player);
+			request.requestFrame = this.frame;
+		}
 
 		if (msg.clientFrame < this.frame) return; // You better be on time
 
+		Util.filterInPlace(msg.entityUpdates, x => x.frame > player.lastReceivedClientUpdateFrame);
+		if (msg.entityUpdates.length === 0) return;
+
+		msg.entityUpdates.sort((a, b) => a.frame - b.frame);
+		player.lastReceivedClientUpdateFrame = Util.last(msg.entityUpdates).frame;
+
+		Util.filterInPlace(msg.entityUpdates, x => !this.baseStateRequests.some(y => y.entityId === x.entityId && y.sendTo.has(player)));
+
 		this.queuedEntityUpdates.push(...msg.entityUpdates);
+		this.queuedEntityUpdates.sort((a, b) => a.frame - b.frame); // Guarantee order
 	}
 
 	processBaseState(msg: CommandToData<'clientStateBundle'>) {
-		if (this.baseStates.length > 0 && Util.last(this.baseStates).frame >= msg.baseState.frame) return;
+		if (this.maxReceivedBaseStateFrame >= msg.baseState.frame) return;
 
-		this.baseStates.push(msg.baseState);
+		for (let update of msg.baseState.updates) {
+			let request = this.baseStateRequests.find(x => x.entityId === update.entityId);
+			if (!request) continue;
+
+			request.update = update;
+		}
 	}
 }
