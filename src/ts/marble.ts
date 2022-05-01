@@ -200,7 +200,6 @@ export class Marble extends Entity {
 	interpolatedOrientation = new Quaternion();
 	interpolationRemaining = 0;
 	interpolationStrength = 1;
-	pauseInterpolation = false;
 
 	jumpCount = 0;
 	powerUpUses: number[] = [];
@@ -411,13 +410,8 @@ export class Marble extends Entity {
 		};
 	}
 
-	loadState(state: MarbleState, { frame, remote }: { remote: boolean }) {
-		if (!this.addedToGame && remote) console.log("que?"), this.addToGame();
-
-		//if (remote) console.log("aqui", state, frame);
-		//if (this.id === -2) console.trace(state, frame, this.game.state.frame, remote);
-
-		//if (this.uncertain) console.log("how");
+	loadState(state: MarbleState, { remote }: { remote: boolean }) {
+		if (!this.addedToGame && remote) this.addToGame();
 
 		this.body.position.fromObject(state.position);
 		this.body.orientation.fromObject(state.orientation);
@@ -748,7 +742,7 @@ export class Marble extends Entity {
 		this.beforeVel.copy(this.body.linearVelocity);
 		this.beforeAngVel.copy(this.body.angularVelocity);
 
-		if (false && this.game.state.frame - this.respawnFrame < 3.5 * GAME_UPDATE_RATE) {
+		if (this.game.state.frame - this.respawnFrame < 3.5 * GAME_UPDATE_RATE) {
 			// Lock the marble to the space above the start pad
 
 			let { position: startPosition } = this.game.state.getStartPositionAndOrientation();
@@ -882,7 +876,7 @@ export class Marble extends Entity {
 	}
 
 	postUpdate() {
-		if (!this.pauseInterpolation) {
+		if (!this.game.simulator.isReconciling) {
 			if (this.interpolationRemaining-- <= 0) {
 				this.interpolatedPosition.copy(this.body.position);
 				this.interpolatedOrientation.copy(this.body.orientation);
@@ -1208,13 +1202,9 @@ export class Marble extends Entity {
 	beforeReconciliation() {
 		this.reconciliationPosition.copy(this.body.position);
 		this.reconciliationLinearVelocity.copy(this.body.linearVelocity);
-
-		this.pauseInterpolation = true;
 	}
 
 	afterReconciliation() {
-		this.pauseInterpolation = false;
-
 		let frames = (this.game as MultiplayerGame).state.frameGap;
 		if (this.interpolationRemaining > frames) return;
 

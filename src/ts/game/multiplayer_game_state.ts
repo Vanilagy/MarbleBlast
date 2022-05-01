@@ -1,4 +1,3 @@
-import { CommandToData } from "../../../shared/game_server_format";
 import { GameState } from "./game_state";
 import { MultiplayerGame } from "./multiplayer_game";
 
@@ -6,19 +5,19 @@ export class MultiplayerGameState extends GameState {
 	game: MultiplayerGame;
 
 	serverFrame: number = null;
-	targetClientFrame: number = null;
+	targetFrame: number = null;
 
-	supplyServerTimeState(serverFrame: number, clientFrame: number) {
+	supplyServerTimeState(serverFrame: number, targetFrame: number) {
 		if (this.serverFrame === null) {
 			// This is the first time state we get from the server
-			this.frame = clientFrame - 1;
+			this.frame = targetFrame - 1;
 		}
 
 		this.serverFrame = serverFrame;
-		this.targetClientFrame = clientFrame;
+		this.targetFrame = targetFrame;
 	}
 
 	get frameGap() {
-		return this.targetClientFrame - this.serverFrame;
+		return this.targetFrame - this.serverFrame;
 	}
 }

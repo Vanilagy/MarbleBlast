@@ -1,128 +1,20 @@
 import { DefaultMap } from "../../shared/default_map";
 import { GameServerConnection } from "../../shared/game_server_connection";
-import { CommandToData, EntityUpdate, entityUpdateFormat } from "../../shared/game_server_format";
+import { CommandToData, EntityUpdate } from "../../shared/game_server_format";
 import { Util } from "./util";
 import { GAME_UPDATE_RATE } from '../../shared/constants';
 import { performance } from 'perf_hooks';
 
-const TWICE_CLIENT_UPDATE_PERIOD = 4 * 2; // todo remove hardcode?
-const UPDATE_BUFFER_SIZE = 1; // In frames
+const UPDATE_BUFFER_SIZE = 4 + 1 + 10; // In frames
 
-type EntityInfo = CommandToData<'clientStateBundle'>["periods"][number]["entityInfo"][number];
+interface BaseStateRequest {
+	entityId: number,
+	sendTo: Set<Player>,
 
-class Entity {
-	id: number;
-	game: Game;
-
-	updates: EntityUpdate[] = [];
-	owner: number = null;
-	mostRecentOwner: number = null;
-	versions = new DefaultMap<number, number>(() => 0);
-
-	needsTransmit = false;
-	lastTransmittedUpdate: EntityUpdate = null;
-
-	constructor(id: number, game: Game) {
-		this.id = id;
-		this.game = game;
-	}
-
-	getTrueUpdate() {
-		if (this.mostRecentOwner) {
-			// If there has been a recent owner (or there still is one), search for the last update by the owner that isn't too far in the past.
-			let ownerUpdate = Util.findLast(this.updates, update => {
-				return update.originator === this.mostRecentOwner;
-			});
-
-			if (this.game.frame - ownerUpdate.frame <= TWICE_CLIENT_UPDATE_PERIOD)
-				return ownerUpdate;
-		}
-
-		// Otherwise, just return the last update
-		return this.updates[this.updates.length - 1] ?? null;
-	}
-
-	setOwner(newOwner: number) {
-		this.owner = newOwner;
-		this.mostRecentOwner = newOwner ?? this.mostRecentOwner;
-	}
-
-	insertUpdate(update: EntityUpdate) {
-		for (let i = this.updates.length-1; i >= 0; i--) {
-			let otherUpdate = this.updates[i];
-
-			if (otherUpdate.frame <= update.frame) {
-				this.updates.splice(i + 1, 0, update);
-				return;
-			}
-		}
-
-		this.updates.push(update);
-	}
-
-	update() {
-		this.maybeUpdateOwnership();
-
-		if (this.needsTransmit) {
-			let update = this.getTrueUpdate();
-			if (update === this.updates[this.updates.length - 1]) this.needsTransmit = false;
-
-			if (this.lastTransmittedUpdate === update) return;
-
-			this.game.queueEntityUpdate(update);
-			this.lastTransmittedUpdate = update;
-		}
-	}
-
-	maybeUpdateOwnership() {
-		if (this.owner === null) return;
-
-		let lastOwnerUpdate = Util.findLast(this.updates, update => {
-			return update.originator === this.owner;
-		});
-
-		if (this.game.frame - lastOwnerUpdate.frame <= TWICE_CLIENT_UPDATE_PERIOD) return; // The ownership is still valid
-
-		// See if there's a newer update
-		let newerOwnerUpdate = Util.findLast(this.updates, update => {
-			return this.game.frame - update.frame <= TWICE_CLIENT_UPDATE_PERIOD
-				&& update.owned
-				&& update.originator !== this.owner;
-		});
-
-		if (!newerOwnerUpdate) return;
-
-		// We won the challenge! Pass the ownership to the other player.
-		this.versions.set(this.owner, lastOwnerUpdate.version + 1); // Invalidate it for the other player
-		this.setOwner(newerOwnerUpdate.originator);
-
-		this.needsTransmit = true;
-	}
-}
-
-class Player {
-	connection: GameServerConnection;
-	id: number;
-	marbleId: number;
-
-	queuedEntityUpdates: EntityUpdate[] = [];
-	lastReceivedPeriodId = -1;
-	lastEstimatedRtt = 0;
-	lastSentVersion = new DefaultMap<Entity, number>(() => 0);
-
-	constructor(connection: GameServerConnection, id: number, marbleId: number) {
-		this.connection = connection;
-		this.id = id;
-		this.marbleId = marbleId;
-	}
-}
-
-interface UpdateGroup {
-	player: Player,
-	entityIds: number[],
-	entityUpdates: EntityUpdate[],
-	entityInfo: EntityInfo[],
-	periodStart: number
+	sentFrom: Set<Player>,
+	responseFrame: number,
+	update: EntityUpdate,
+	id: number
 }
 
 export class Game {
@@ -131,16 +23,20 @@ export class Game {
 
 	startTime: number;
 	lastAdvanceTime: number;
-
 	frame = -1;
-	entities = new Map<number, Entity>();
+
+	queuedPlayerBundles: [Player, CommandToData<'clientStateBundle'>][] = [];
+	pendingPings = new DefaultMap<Player, Map<number, number>>(() => new Map());
 
 	queuedEntityUpdates: EntityUpdate[] = [];
+	updateOriginator = new WeakMap<EntityUpdate, Player>();
+	allEntityUpdates: EntityUpdate[] = [];
+	affectionGraph: { id: number, from: number, to: number }[] = [];
 	incrementalUpdateId = 0;
+	baseStateRequestId = 0;
 
-	queuedUpdateGroups: UpdateGroup[] = [];
-
-	pendingPings = new DefaultMap<Player, Map<number, number>>(() => new Map());
+	baseStateRequests: BaseStateRequest[] = [];
+	maxReceivedBaseStateFrame = -1;
 
 	constructor(missionPath: string) {
 		this.missionPath = missionPath;
@@ -158,10 +54,10 @@ export class Game {
 		let playerId = -(1 + this.players.length * 2);
 		let marbleId = -(1 + this.players.length * 2 + 1);
 
-		let player = new Player(connection, playerId, marbleId);
+		let player = new Player(connection, this, playerId, marbleId);
 		this.players.push(player);
 
-		//connection.addedOneWayLatency = 20;
+		//connection.addedOneWayLatency = 25;
 
 		connection.queueCommand({
 			command: 'gameJoinInfo',
@@ -172,14 +68,14 @@ export class Game {
 				marbleId: x.marbleId
 			})),
 			localPlayerId: player.id,
-			entityStates: [...this.entities].map(([, entity]) => ({
+			entityStates: []/* ?? [...this.entities].map(([, entity]) => ({
 				...entity.getTrueUpdate(),
 				version: entity.versions.get(player.id)
-			}))
+			}))*/
 		}, true);
 
 		connection.on('clientStateBundle', data => {
-			this.onClientStateReceived(player, data);
+			this.queuedPlayerBundles.push([player, data]);
 		});
 
 		connection.on('ping', ({ timestamp }) => {
@@ -198,28 +94,6 @@ export class Game {
 		}
 	}
 
-	getEntityById(id: number) {
-		if (this.entities.has(id)) return this.entities.get(id);
-
-		// Create a new entity entry
-		let entity = new Entity(id, this);
-		this.entities.set(id, entity);
-
-		return entity;
-	}
-
-	queueEntityUpdate(update: EntityUpdate) {
-		if (!update) return;
-
-		for (let i = 0; i < this.queuedEntityUpdates.length; i++) {
-			if (this.queuedEntityUpdates[i].entityId === update.entityId)
-				this.queuedEntityUpdates.splice(i--, 1);
-		}
-
-		update.updateId = this.incrementalUpdateId++;
-		this.queuedEntityUpdates.push(update);
-	}
-
 	tryAdvanceGame() {
 		let now = performance.now();
 		while (now - this.lastAdvanceTime >= 1000 / GAME_UPDATE_RATE) {
@@ -228,53 +102,58 @@ export class Game {
 		}
 	}
 
+	update() {
+		this.frame++;
+	}
+
 	tick() {
 		let now = performance.now();
 
 		this.tryAdvanceGame();
 
-		// Loop over all queued updates and players
-		for (let update of this.queuedEntityUpdates) {
-			let entity = this.getEntityById(update.entityId);
+		// First, churn through all the player bundles we recently received
+		for (let [player, bundle] of this.queuedPlayerBundles)
+			this.processPlayerBundle(player, bundle);
+		this.queuedPlayerBundles.length = 0;
 
-			for (let player of this.players) {
-				// Because of the version numbers assigned to each update, we need to send slightly different updates to each player. Here, we generate these.
+		let newUpdates = this.queuedEntityUpdates.filter(x => x.frame <= this.frame);
+		Util.filterInPlace(this.queuedEntityUpdates, x => x.frame > this.frame);
 
-				let shouldSendUpdate = (update.originator !== player.id && entity.owner !== player.id) || player.lastSentVersion.get(entity) < entity.versions.get(player.id);
-				if (!shouldSendUpdate) continue;
-
-				// First, filter out the updates for the entity so we start fresh
-				player.queuedEntityUpdates = player.queuedEntityUpdates.filter(x => {
-					return x.entityId !== update.entityId;
-				});
-
-				let copiedUpdate = { ...update }; // Create a shallow copy
-
-				// Set the version
-				copiedUpdate.version = entity.versions.get(player.id);
-
-				// And add it into the personal queue for this player
-				player.queuedEntityUpdates.push(copiedUpdate);
-
-				player.lastSentVersion.set(entity, copiedUpdate.version);
-			}
-		}
-
-		this.queuedEntityUpdates.length = 0;
+		newUpdates.forEach(x => x.updateId = this.incrementalUpdateId++);
+		this.allEntityUpdates.push(...newUpdates);
 
 		// Send packets to all players
 		for (let player of this.players) {
-			let rewindToFrameCap = this.frame - TWICE_CLIENT_UPDATE_PERIOD;
+			// Filter out the updates the player themselves sent
+			player.queuedEntityUpdates.push(...newUpdates.filter(x => this.updateOriginator.get(x) !== player));
+			player.cleanUpQueuedUpdates();
 
+			// If this is 0, then the player hasn't sent a bundle in a while. In that case, we also don't want to send anything to the player because we can make more informed decisions about what to send only if we have data from them.
+			if (player.serverBundleBudget === 0) continue;
+			player.serverBundleBudget--;
+
+			// Compile a list of base states to be sent to the player
+			let curatedBaseStateRequests: BaseStateRequest[] = [];
+			for (let i = this.baseStateRequests.length-1; i >= 0; i--) {
+				let request = this.baseStateRequests[i];
+				if (!request.update || !request.sendTo.has(player)) continue;
+				if (curatedBaseStateRequests.some(x => x.entityId === request.entityId)) continue;
+
+				curatedBaseStateRequests.push(request);
+			}
+
+			// Queue the ting
 			player.connection.queueCommand({
 				command: 'serverStateBundle',
 				serverFrame: this.frame,
-				clientFrame: this.frame + player.lastEstimatedRtt + UPDATE_BUFFER_SIZE,
 				entityUpdates: player.queuedEntityUpdates,
-				lastReceivedPeriodId: player.lastReceivedPeriodId,
-				rewindToFrameCap: rewindToFrameCap
+				baseStateRequests: [...new Set(this.baseStateRequests.map(x => x.entityId))],
+				baseState: curatedBaseStateRequests,
+				maxReceivedClientUpdateFrame: player.maxReceivedClientUpdateFrame
 			}, false);
+		}
 
+		for (let player of this.players) {
 			for (let [timestamp, receiveTime] of this.pendingPings.get(player)) {
 				let elapsed = now - receiveTime;
 				player.connection.queueCommand({
@@ -285,225 +164,155 @@ export class Game {
 			}
 			this.pendingPings.get(player).clear();
 
+			player.connection.queueCommand({
+				command: 'timeState',
+				serverFrame: this.frame,
+				targetFrame: this.frame + player.lastEstimatedRtt + UPDATE_BUFFER_SIZE
+			}, false);
+
 			player.connection.tick();
 		}
+
+		// Remove past updates / edges if we know all players are past their ID to not explode memory
+		let minMaxUpdateId = Math.min(...this.players.map(x => x.maxReceivedServerUpdateId));
+		Util.filterInPlace(this.allEntityUpdates, x => x.updateId > minMaxUpdateId);
+		Util.filterInPlace(this.affectionGraph, x => x.id > minMaxUpdateId);
 	}
 
-	onClientStateReceived(player: Player, msg: CommandToData<'clientStateBundle'>) {
-		this.tryAdvanceGame(); // First, advance the game as much as we can
+	processPlayerBundle(player: Player, bundle: CommandToData<'clientStateBundle'>) {
+		player.lastEstimatedRtt = Math.max(this.frame - bundle.serverFrame, 0);
+		player.maxReceivedServerUpdateId = bundle.maxReceivedServerUpdateId;
 
-		player.lastEstimatedRtt = Math.max(this.frame - msg.serverFrame, 0);
+		// Remove the updates the player has already received
+		Util.filterInPlace(player.queuedEntityUpdates, x => x.updateId > bundle.maxReceivedServerUpdateId);
 
-		// Filter out updates received by the server
-		let periods = msg.periods.filter(period => {
-			return period.id > player.lastReceivedPeriodId;
-		});
-		player.lastReceivedPeriodId = msg.periods[msg.periods.length - 1].id;
+		// Mark the base states the player has already received
+		for (let request of this.baseStateRequests) {
+			if (request.update && request.sendTo.has(player) && request.id <= bundle.maxReceivedBaseStateId)
+				request.sendTo.delete(player);
+		}
+		Util.filterInPlace(this.baseStateRequests, x => x.sendTo.size > 0);
 
-		if (periods.length > 1) console.log(periods.length);
+		if (bundle.clientFrame < this.frame) return; // You better be on time
 
-		// Filter out updates received by the client
-		player.queuedEntityUpdates = player.queuedEntityUpdates.filter(update => {
-			return update.updateId > msg.lastReceivedServerUpdateId;
-		});
+		player.serverBundleBudget = 2; // The player can receive server bundle messages again
 
-		let entityUpdates: EntityUpdate[] = periods.map(x => x.entityUpdates).flat();
-		let entityIds = new Set(entityUpdates.map(x => x.entityId));
-		let affectionGraph = periods.map(x => x.affectionGraph).flat();
-		let entityInfo = periods.map(x => x.entityInfo).flat().reduce((curr, next) => {
-			let index = curr.findIndex(y => y.entityId === next.entityId);
+		if (bundle.baseState) this.processBaseState(bundle, player);
 
-			if (index === -1) {
-				curr.push(next);
-			} else {
-				curr[index].earliestUpdateFrame = Math.min(curr[index].earliestUpdateFrame, next.earliestUpdateFrame);
-				curr[index].ownedAtSomePoint ||= next.ownedAtSomePoint;
+		// Add the client's local affection graph to the shared affection graph
+		this.affectionGraph.push(...bundle.affectionGraph.map(x => ({ from: x.from, to: x.to, id: this.incrementalUpdateId })));
+
+		// Remove the updates we've already processed before
+		Util.filterInPlace(bundle.entityUpdates, x => x.frame > player.maxReceivedClientUpdateFrame);
+
+		// Now, we compile a list of entities that are conflicting, i.e. need a base state verification.
+		let conflictingEntities = new Set<number>();
+		// First, add the entities the client concluded are conflicting.
+		for (let id of bundle.possibleConflictingEntities) conflictingEntities.add(id);
+		// Then, also add all the entities that both this and another player have sent updates about.
+		this.allEntityUpdates.filter(x =>
+			x.updateId > bundle.maxReceivedServerUpdateId &&
+			this.updateOriginator.get(x) !== player &&
+			bundle.entityUpdates.some(y => y.entityId === x.entityId)
+		).forEach(x => conflictingEntities.add(x.entityId));
+
+		let relevantEdges = this.affectionGraph.filter(edge => edge.id > bundle.maxReceivedServerUpdateId);
+
+		for (let id of conflictingEntities) {
+			// Entities conflicts propagate along affection graph edges
+			for (let edge of relevantEdges) {
+				if (edge.from === id) conflictingEntities.add(edge.to);
+				// Because of JavaScript Set logic, this loop will automatically iterate over the newly added elements too. Awesome!
 			}
 
-			return curr;
-		}, [] as EntityInfo[]);
-
-		let map = new Map<number, EntityUpdate>();
-		for (let update of entityUpdates) map.set(update.entityId, update);
-
-		propagateOwnership(entityInfo, affectionGraph);
-		for (let info of entityInfo) if (info.ownedAtSomePoint) map.get(info.entityId).owned = true;
-
-		for (let entityId of entityIds) {
-			let affecting = getAffectingSubgraph(entityId, affectionGraph);
-			let updates = entityUpdates.filter(x => affecting.includes(x.entityId));
-			let infos = entityInfo.filter(x => affecting.includes(x.entityId));
-			let entityIds = updates.map(x => x.entityId); // The subgraph might contain entities for which no update was sent
-
-			let newGroup: UpdateGroup = {
-				player,
-				entityIds: entityIds,
-				entityUpdates: updates,
-				entityInfo: infos,
-				periodStart: periods[0].start
+			let request: BaseStateRequest = {
+				entityId: id,
+				responseFrame: null,
+				sendTo: new Set(this.players),
+				sentFrom: new Set(),
+				update: null,
+				id: null
 			};
-
-			let i: number;
-			for (i = 0; i < this.queuedUpdateGroups.length; i++) {
-				let oldGroup = this.queuedUpdateGroups[i];
-
-				if (newGroup.entityIds.length === oldGroup.entityIds.length
-					&& newGroup.entityUpdates.every(x => oldGroup.entityUpdates.includes(x))) {
-					this.queuedUpdateGroups.splice(i, 1, newGroup);
-					break;
-				}
-			}
-
-			if (i === this.queuedUpdateGroups.length)
-				this.queuedUpdateGroups.push(newGroup);
+			this.baseStateRequests.push(request);
 		}
+
+		if (bundle.entityUpdates.length === 0) return;
+
+		bundle.entityUpdates.sort((a, b) => a.frame - b.frame);
+		player.maxReceivedClientUpdateFrame = Util.last(bundle.entityUpdates).frame;
+
+		// See which updates we cannot apply because there's a pending base state request for them.
+		let disallowedEntities = new Set<number>();
+		for (let update of bundle.entityUpdates) {
+			if (!this.baseStateRequests.some(x => x.entityId === update.entityId && x.sendTo.has(player))) continue;
+
+			const disallow = (e: number) => {
+				if (disallowedEntities.has(e)) return;
+				disallowedEntities.add(e);
+				for (let edge of relevantEdges) if (edge.from === e) disallow(edge.to);
+			};
+			disallow(update.entityId);
+		}
+
+		Util.filterInPlace(bundle.entityUpdates, x => !disallowedEntities.has(x.entityId));
+
+		this.queuedEntityUpdates.push(...bundle.entityUpdates);
+		this.queuedEntityUpdates.sort((a, b) => a.frame - b.frame); // Guarantee global order. Lol that sounds like some right-wing party slogan ngl
+
+		// Remember which player these updates came from
+		for (let update of bundle.entityUpdates) this.updateOriginator.set(update, player);
 	}
 
-	update() {
-		this.frame++;
+	processBaseState(msg: CommandToData<'clientStateBundle'>, player: Player) {
+		// Base states have to be fresh!
+		if (this.maxReceivedBaseStateFrame >= msg.baseState.frame) return;
+		this.maxReceivedBaseStateFrame = msg.baseState.frame;
 
-		for (let i = 0; i < this.queuedUpdateGroups.length; i++) {
-			let group = this.queuedUpdateGroups[i];
+		// If there's still a pending base state that the player has not acknowledged, we don't allow them to send in any base states. The (intended) result of this is that usually, the lowest-ping player will be the one that sends the first base state and will then continue being the base state authority because all the other clients are busy applying its base states before they can contribute one themselves.
+		if (this.baseStateRequests.some(x => x.update && x.sendTo.has(player) && !x.sentFrom.has(player))) return;
 
-			if (getMaxFrame(group) > this.frame) continue; // Lata bitch
+		for (let update of msg.baseState.updates) {
+			for (let request of this.baseStateRequests) {
+				if (request.entityId !== update.entityId) continue;
 
-			// Let's check if applying this group update is legal
-			if (this.isApplicationLegal(group)) {
-				// If it is, apply it!
-				this.applyUpdateGroup(group);
-			} else {
-				// If it isn't, reject it.
-				this.rejectUpdateGroup(group);
-			}
-
-			// Can remove it, we've processed it now
-			this.queuedUpdateGroups.splice(i--, 1);
-		}
-
-		for (let [, entity] of this.entities) {
-			entity.update();
-		}
-	}
-
-	isApplicationLegal(group: UpdateGroup) {
-		for (let id of group.entityIds) {
-			let entity = this.getEntityById(id);
-			let lastStoredUpdate = entity.updates[entity.updates.length - 1];
-
-			if (!lastStoredUpdate) continue;
-
-			let updateCandidate = group.entityUpdates.find(x => x.entityId === id);
-
-			// If the new update has a lower version, we definitely don't want to merge
-			if (entity.versions.get(updateCandidate.originator) > updateCandidate.version) {
-				//console.log(entity.versions.get(updateCandidate.originator), updateCandidate.version, "this");
-				return false;
-			}
-
-			if (!updateCandidate.owned) continue;
-
-			let entityInfo = group.entityInfo.find(x => x.entityId === id);
-			let earliestUpdateFrame = Math.max(entityInfo.earliestUpdateFrame, group.periodStart);
-
-			// Check if the new update is too far in the past
-			if (lastStoredUpdate.frame >= earliestUpdateFrame && entity.owner !== updateCandidate.originator) {
-				if (this.frame - earliestUpdateFrame > TWICE_CLIENT_UPDATE_PERIOD) {
-					console.log("THESE");
-					console.log(entity.id, entity.owner, updateCandidate.originator, lastStoredUpdate.frame, entityInfo.earliestUpdateFrame, updateCandidate.frame, this.frame, group.periodStart);
-					return false;
-				}
-			}
-
-			// Check if there are any ownership conficts
-			if (entity.owner !== null && updateCandidate.originator !== entity.owner) {
-				let trueUpdate = entity.getTrueUpdate();
-				if (trueUpdate.originator !== entity.owner) continue; // The ownership has "expired" in the sense that it lost its power to prevent other updates.
-
-				let entityIsChallengeable = lastStoredUpdate.challengeable;
-				if (!entityIsChallengeable) {
-					console.log(updateCandidate.originator, updateCandidate.entityId, "that");
-					return false;
-				}
+				if (request.id === null) request.id = this.baseStateRequestId++;
+				request.update = update;
+				request.sentFrom.add(player);
+				request.responseFrame = msg.baseState.frame;
 			}
 		}
-
-		return true;
-	}
-
-	applyUpdateGroup(group: UpdateGroup) {
-		for (let update of group.entityUpdates) {
-			let entity = this.getEntityById(update.entityId);
-			entity.insertUpdate(update);
-			entity.needsTransmit = true;
-
-			if (update.originator === entity.owner) {
-				// The owner has all say
-				if (!update.owned) entity.setOwner(null);
-			} else if (update.owned) {
-				// If we're here, the update is asking to give ownership to its player.
-				if (entity.owner === null) {
-					// Easy, there was no ownership before
-					entity.setOwner(update.originator);
-
-					for (let player of this.players) {
-						if (player.id !== update.originator) {
-							entity.versions.set(player.id, entity.versions.get(player.id) + 1);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	rejectUpdateGroup(group: UpdateGroup) {
-		// Nothing? Let's see if this works. It should!
 	}
 }
 
-const getMaxFrame = (group: UpdateGroup) => {
-	return Math.max(...group.entityUpdates.map(x => x.frame));
-};
+class Player {
+	connection: GameServerConnection;
+	game: Game;
+	id: number;
+	marbleId: number;
 
-const getAffectingSubgraph = (start: number, graph: { from: number, to: number }[]) => {
-	let nodes = [start];
+	lastEstimatedRtt = 0;
+	maxReceivedClientUpdateFrame = -1;
+	maxReceivedServerUpdateId = -1;
+	queuedEntityUpdates: EntityUpdate[] = [];
+	serverBundleBudget = 0;
 
-	while (true) {
-		let added = false;
+	constructor(connection: GameServerConnection, game: Game, id: number, marbleId: number) {
+		this.connection = connection;
+		this.game = game;
+		this.id = id;
+		this.marbleId = marbleId;
+	}
 
-		for (let edge of graph) {
-			if (nodes.includes(edge.to) && !nodes.includes(edge.from)) {
-				nodes.push(edge.from);
-				added = true;
-			}
+	cleanUpQueuedUpdates() {
+		let count = new DefaultMap<number, number>(() => 0);
+
+		for (let i = this.queuedEntityUpdates.length-1; i >= 0; i--) {
+			let update = this.queuedEntityUpdates[i];
+			count.set(update.entityId, count.get(update.entityId) + 1);
+			let newCount = count.get(update.entityId);
+			let maxCount = update.state?.entityType === 'player' ? 8 : 1; // Dirty hardcode 😬
+
+			if (newCount > maxCount) this.queuedEntityUpdates.splice(i, 1);
 		}
-
-		if (!added) break;
 	}
-
-	return nodes;
-};
-
-const propagateOwnership = (entityInfo: EntityInfo[], affectionGraph: { from: number, to: number }[]) => {
-	let owned = new Set<number>();
-
-	for (let info of entityInfo) {
-		if (info.ownedAtSomePoint) owned.add(info.entityId);
-	}
-
-	while (true) {
-		let changeMade = false;
-
-		for (let edge of affectionGraph) {
-			if (owned.has(edge.from) && !owned.has(edge.to)) {
-				owned.add(edge.to);
-				changeMade = true;
-			}
-		}
-
-		if (!changeMade) break;
-	}
-
-	for (let info of entityInfo) {
-		info.ownedAtSomePoint = owned.has(info.entityId);
-	}
-};
+}

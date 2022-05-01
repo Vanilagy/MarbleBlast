@@ -60,9 +60,9 @@ export class GameState {
 		const propagate = (e: Entity) => {
 			let keepGoing = false;
 
-			for (let [player] of e1.affectedBy) {
+			for (let player of e1.affectedBy) {
 				if (!e.affectedBy.has(player)) {
-					e.affectedBy.set(player, this.frame);
+					e.affectedBy.add(player);
 					keepGoing = true;
 				}
 			}
@@ -107,10 +107,6 @@ export class GameState {
 					updateId: this.nextUpdateId++,
 					entityId: entity.id,
 					frame: this.frame,
-					owned: entity.owned,
-					challengeable: entity.challengeable,
-					originator: this.game.localPlayer.id,
-					version: entity.version,
 					state: entity.getState()
 				};
 				arr.push(stateUpdate);
@@ -189,40 +185,40 @@ export class GameState {
 			entity.loadInternalState(last.state, last.frame);
 		}
 
-		for (let [entityId, history] of this.stateHistory) {
-			let popped = false;
-			while (Util.last(history) && Util.last(history).frame > target) {
-				history.pop();
-				popped = true;
-			}
-
-			if (!popped) continue;
-
-			let entity = this.game.getEntityById(entityId);
-			let update = Util.last(history);
-			let state = update?.state ?? entity.getInitialState();
-
-			if (!state) continue;
-
-			entity.loadState(state, {
-				frame: update?.frame ?? 0,
-				remote: false
-			});
-			entity.version = update?.version ?? 0;
+		for (let [entityId] of this.stateHistory) {
+			this.rollBackEntityToFrame(this.game.getEntityById(entityId), target);
 		}
 
 		this.saveStates();
+	}
+
+	rollBackEntityToFrame(entity: Entity, frame: number) {
+		let history = this.stateHistory.get(entity.id);
+
+		let popped = false;
+		while (Util.last(history) && Util.last(history).frame > frame) {
+			history.pop();
+			popped = true;
+		}
+
+		if (!popped) return;
+
+		let update = Util.last(history);
+		let state = update?.state ?? entity.getInitialState();
+
+		if (!state) return;
+
+		entity.loadState(state, {
+			frame: update?.frame ?? 0,
+			remote: false
+		});
 	}
 
 	createInitialUpdate(entity: Entity): EntityUpdate {
 		return {
 			updateId: -1,
 			entityId: entity.id,
-			originator: 0,
 			frame: -1,
-			owned: false,
-			challengeable: false,
-			version: 0,
 			state: null
 		};
 	}

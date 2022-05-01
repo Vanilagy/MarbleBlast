@@ -70,10 +70,6 @@ export const entityUpdateFormat = {
 	updateId: 'varint',
 	entityId: 'varint',
 	frame: 'varint',
-	owned: 'boolean',
-	challengeable: 'boolean',
-	originator: 'varint',
-	version: 'varint',
 	state: [nullable, entityStateFormat]
 } as const;
 
@@ -96,8 +92,7 @@ export const gameServerCommandFormat = [union, 'command', {
 	entityUpdates: [entityUpdateFormat],
 	affectionGraph: [{
 		from: 'varint',
-		to: 'varint',
-		frame: 'varint'
+		to: 'varint'
 	}],
 	possibleConflictingEntities: ['varint'],
 	baseState: [nullable, {
@@ -109,7 +104,6 @@ export const gameServerCommandFormat = [union, 'command', {
 }, {
 	command: 'serverStateBundle',
 	serverFrame: 'varint',
-	clientFrame: 'varint',
 	entityUpdates: [entityUpdateFormat],
 	baseStateRequests: ['varint'],
 	baseState: [{
@@ -117,7 +111,11 @@ export const gameServerCommandFormat = [union, 'command', {
 		responseFrame: 'varint',
 		update: entityUpdateFormat
 	}],
-	lastReceivedClientUpdateFrame: 'varint'
+	maxReceivedClientUpdateFrame: 'varint'
+}, {
+	command: 'timeState',
+	serverFrame: 'varint',
+	targetFrame: 'varint'
 }, {
 	command: 'gameJoinInfo',
 	serverFrame: 'varint',

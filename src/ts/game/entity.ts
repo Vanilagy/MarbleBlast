@@ -8,12 +8,11 @@ export abstract class Entity {
 
 	game: Game;
 	owned = false;
-	version = 0;
 	/** Entities with lower update order will be updated first. */
 	updateOrder = 0;
 	applyUpdatesBeforeAdvance = false;
 	sendAllUpdates = false;
-	affectedBy = new Map<Player, number>();
+	affectedBy = new Set<Player>();
 
 	stateNeedsStore = false;
 	internalStateNeedsStore = true; // Start out true so we store it once in the beninging... in the... in the beni... in the beninging (listen properly)

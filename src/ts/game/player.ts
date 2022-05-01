@@ -94,13 +94,12 @@ export class Player extends Entity {
 		movement.add(new Vector2(-gamepadAxes.marbleY, -gamepadAxes.marbleX));
 
 		// Add touch joystick input
-
 		if (normalizedJoystickHandlePosition) movement.add(new Vector2(
 			-Util.signedSquare(normalizedJoystickHandlePosition.y),
 			-Util.signedSquare(normalizedJoystickHandlePosition.x)
 		));
 
-		// Restrict to [-1, 1]^2
+		// Restrict movement to [-1, 1]^2
 		movement.clampScalar(-1, 1);
 
 		if (!allowUserInput) movement.multiplyScalar(0);
@@ -152,7 +151,7 @@ export class Player extends Entity {
 
 	update() {
 		if (this === this.game.localPlayer) {
-			this.affectedBy.set(this, this.game.state.frame);
+			this.affectedBy.add(this);
 			this.stateNeedsStore = true;
 		}
 	}
@@ -185,7 +184,7 @@ export class Player extends Entity {
 				this.lastRemoteState = state;
 			}
 
-			this.affectedBy.set(this, frame);
+			this.affectedBy.add(this);
 			this.interactWith(this.controlledMarble); // Is this clean?
 		}
 	}
