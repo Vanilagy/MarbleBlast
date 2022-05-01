@@ -116,8 +116,6 @@ export interface MarbleControlState {
 
 /** Controls marble behavior and responds to player input. */
 export class Marble extends Entity {
-	challengeable = true;
-
 	group: Group;
 	innerGroup: Group;
 	sphere: Mesh;
@@ -413,8 +411,11 @@ export class Marble extends Entity {
 		};
 	}
 
-	loadState(state: MarbleState, { remote }: { remote: boolean }) {
+	loadState(state: MarbleState, { frame, remote }: { remote: boolean }) {
 		if (!this.addedToGame && remote) console.log("que?"), this.addToGame();
+
+		//if (remote) console.log("aqui", state, frame);
+		//if (this.id === -2) console.trace(state, frame, this.game.state.frame, remote);
 
 		//if (this.uncertain) console.log("how");
 
@@ -1214,7 +1215,7 @@ export class Marble extends Entity {
 	afterReconciliation() {
 		this.pauseInterpolation = false;
 
-		let frames = (this.game as MultiplayerGame).simulator.lastReconciliationFrameCount;
+		let frames = (this.game as MultiplayerGame).state.frameGap;
 		if (this.interpolationRemaining > frames) return;
 
 		if (this.reconciliationPosition.distanceTo(this.body.position) === 0) return;

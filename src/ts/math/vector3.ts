@@ -552,6 +552,11 @@ export class Vector3 {
 		return v.x === this.x && v.y === this.y && v.z === this.z;
 	}
 
+	/** Returns true if the components of this vector and v are strictly equal as 32-bit floats; false otherwise. */
+	fequals(v: Vector3) {
+		return Math.fround(v.x) === Math.fround(this.x) && Math.fround(v.y) === Math.fround(this.y) && Math.fround(v.z) === Math.fround(this.z);
+	}
+
 	/** Sets this vector's x value to be array[offset + 0], y value to be array[offset + 1] and z value to be array[offset + 2]. */
 	fromArray(array: number[], offset = 0) {
 		this.x = array[offset];

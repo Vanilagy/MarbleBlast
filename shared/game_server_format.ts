@@ -94,38 +94,27 @@ export const gameServerCommandFormat = [union, 'command', {
 	serverFrame: 'varint',
 	clientFrame: 'varint',
 	entityUpdates: [entityUpdateFormat],
+	affectionGraph: [{
+		from: 'varint',
+		to: 'varint',
+		frame: 'varint'
+	}],
 	possibleConflictingEntities: ['varint'],
 	baseState: [nullable, {
 		frame: 'varint',
 		updates: [entityUpdateFormat]
 	}],
-	lastReceivedBaseState: 'varint',
-	/*
-	periods: [{
-		id: 'varint',
-		start: 'varint',
-		end: 'varint',
-		entityUpdates: [entityUpdateFormat],
-		affectionGraph: [{ from: 'varint', to: 'varint' }],
-		entityInfo: [{
-			entityId: 'varint',
-			earliestUpdateFrame: 'varint',
-			ownedAtSomePoint: 'boolean'
-		}]
-	}],
-	*/
-	lastReceivedServerUpdateFrame: 'varint',
-	lastReceivedServerFrame: 'varint'
+	maxReceivedServerUpdateId: 'varint',
+	maxReceivedBaseStateId: 'varint'
 }, {
 	command: 'serverStateBundle',
 	serverFrame: 'varint',
 	clientFrame: 'varint',
 	entityUpdates: [entityUpdateFormat],
-	baseStateRequest: {
-		entities: ['varint']
-	},
+	baseStateRequests: ['varint'],
 	baseState: [{
-		requestFrame: 'varint',
+		id: 'varint',
+		responseFrame: 'varint',
 		update: entityUpdateFormat
 	}],
 	lastReceivedClientUpdateFrame: 'varint'

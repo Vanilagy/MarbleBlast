@@ -1,4 +1,5 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
+import { DefaultMap } from "../../../shared/default_map";
 import { FixedFormatBinarySerializer } from "../../../shared/fixed_format_binary_serializer";
 import { GameServerConnection } from "../../../shared/game_server_connection";
 import { CommandToData, entityStateFormat, EntityUpdate } from "../../../shared/game_server_format";
@@ -48,10 +49,9 @@ export class MultiplayerGame extends Game {
 	queuedEntityUpdates: EntityUpdate[] = [];
 	lastSentFrame = -1;
 	lastSentServerFrame = -1;
-	lastReceivedBaseStateFrame = -1;
-	lastReceivedServerUpdateFrame = -1;
-	maxReceivedBaseStateRequestFrame = -1;
+	maxReceivedBaseStateId = -1;
 	maxReceivedServerUpdateId = -1;
+	loneEntityTimeout = new DefaultMap<Entity, number>(() => -Infinity);
 
 	constructor(mission: Mission, gameServer: GameServer) {
 		super(mission);
@@ -176,10 +176,20 @@ export class MultiplayerGame extends Game {
 
 		this.state.supplyServerTimeState(data.serverFrame, data.clientFrame);
 
+		//if (this.localPlayer.id === -3 && data.entityUpdates.some(x => x.entityId === -2)) console.log("a", data.entityUpdates.filter(x => x.entityId === -2));
+		//if (this.localPlayer.id === -3 && data.baseState.some(x => x.update.entityId === -2)) console.log("b", data.baseState.filter(x => x.update.entityId === -2));
+
+		//data.baseStateRequests.length && console.log(data.baseStateRequests);
+
+		//if (data.entityUpdates.some(x => x.entityId === 9)) console.log(data.entityUpdates.filter(x => x.entityId === 9));
+		//if (data.baseState.some(x => x.update.entityId === 9)) console.log(data.baseState.filter(x => x.update.entityId === 9));
+
 		Util.filterInPlace(this.queuedEntityUpdates, x => x.frame > data.lastReceivedClientUpdateFrame);
 		Util.filterInPlace(data.entityUpdates, x => x.updateId > this.maxReceivedServerUpdateId);
 
 		if (data.entityUpdates.length > 0) this.maxReceivedServerUpdateId = Math.max(...data.entityUpdates.map(x => x.updateId));
+
+
 
 		//data.entityUpdates = data.entityUpdates.filter(x => x.updateId > this.lastReceivedServerUpdateId);
 
@@ -195,11 +205,10 @@ export class MultiplayerGame extends Game {
 		*/
 
 		// Add them to a queue
-		this.simulator.reconciliationUpdates.push(...data.entityUpdates);
-		if (data.entityUpdates.length > 0) this.lastReceivedServerUpdateFrame = Util.last(data.entityUpdates).frame;
+		this.simulator.queuedServerBundles.push(data);
 
-		Util.filterInPlace(data.baseState, x => x.requestFrame > this.maxReceivedBaseStateRequestFrame);
-		this.maxReceivedBaseStateRequestFrame = Math.max(...data.baseState.map(x => x.requestFrame));
+		Util.filterInPlace(data.baseState, x => x.id > this.maxReceivedBaseStateId);
+		if (data.baseState.length > 0) this.maxReceivedBaseStateId = Math.max(...data.baseState.map(x => x.id));
 
 		//if (data.baseState) this.lastReceivedBaseStateFrame = data.baseState.frame;
 
@@ -220,14 +229,33 @@ export class MultiplayerGame extends Game {
 		let conflictingEntities: Entity[] = [];
 
 		for (let [entityId, history] of this.state.stateHistory) {
+			let entity = this.getEntityById(entityId);
+			if (entity.affectedBy.size > 1) {
+				conflictingEntities.push(entity);
+				continue;
+			}
+
 			let last = Util.last(history);
 			if (!last || last.frame <= this.lastSentFrame) continue;
 
-			let entity = this.getEntityById(entityId);
-			if (entity.affectedBy.size > 1 || !entity.affectedBy.has(this.localPlayer)) {
-				if (entity.affectedBy.size > 1) conflictingEntities.push(entity);
+			let isExpiredEntity = false;
+			if (entity.affectedBy.size === 1) {
+				let affector = entity.affectedBy.keys().next().value as Player;
+				if (affector !== this.localPlayer && last.frame - affector.lastRemoteStateFrame >= GAME_UPDATE_RATE) {
+					isExpiredEntity = true;
+				}
+			}
+
+			if (entity.affectedBy.size === 0 || isExpiredEntity) {
+				if (this.state.frame - this.loneEntityTimeout.get(entity) < GAME_UPDATE_RATE) continue;
+
+				conflictingEntities.push(entity);
+				this.loneEntityTimeout.set(entity, this.state.frame);
+
 				continue;
 			}
+
+			if (!entity.affectedBy.has(this.localPlayer)) continue;
 
 			Util.filterInPlace(this.queuedEntityUpdates, x => x.entityId !== entityId);
 
@@ -238,18 +266,41 @@ export class MultiplayerGame extends Game {
 			}
 		}
 
+		//if (conflictingEntities.length > 0) console.log("aqui", conflictingEntities);
+
 		this.lastSentFrame = this.state.frame;
+
+		if (this.lastServerStateBundle && this.lastServerStateBundle.baseStateRequests.length > 0 && this.simulator.queuedServerBundles.length === 0) {
+			let baseState = {
+				frame: this.lastServerStateBundle.serverFrame,
+				updates: [] as EntityUpdate[]
+			};
+
+			for (let id of this.lastServerStateBundle.baseStateRequests) {
+				let history = this.state.stateHistory.get(id);
+				let update = Util.findLast(history, x => x.frame <= this.lastServerStateBundle.serverFrame);
+				if (!update) update = this.state.createInitialUpdate(this.getEntityById(id));
+
+				baseState.updates.push(update);
+			}
+
+			this.simulator.computedBaseState = baseState;
+		}
+
+		let affectionGraph = this.state.affectionGraph.filter(x => this.lastServerStateBundle && x.frame > this.lastServerStateBundle.lastReceivedClientUpdateFrame);
+
+		let processedAffectionGraph = affectionGraph.filter((x, i1) => !affectionGraph.some((y, i2) => i2 > i1 && x.from === y.from && x.to === y.to)).map(x => ({ frame: x.frame, from: x.from.id, to: x.to.id }));
 
 		let bundle: CommandToData<'clientStateBundle'> = {
 			command: 'clientStateBundle',
 			serverFrame: this.state.serverFrame,
 			clientFrame: this.state.frame,
 			entityUpdates: this.queuedEntityUpdates,
+			affectionGraph: processedAffectionGraph,
 			possibleConflictingEntities: conflictingEntities.map(x => x.id),
 			baseState: this.simulator.computedBaseState,
-			lastReceivedBaseState: this.lastReceivedBaseStateFrame,
-			lastReceivedServerUpdateFrame: this.lastReceivedServerUpdateFrame,
-			lastReceivedServerFrame: this.lastServerStateBundle?.serverFrame ?? -1
+			maxReceivedServerUpdateId: this.maxReceivedServerUpdateId,
+			maxReceivedBaseStateId: this.maxReceivedBaseStateId
 		};
 
 		this.simulator.computedBaseState = null;
@@ -297,7 +348,7 @@ export class MultiplayerGame extends Game {
 		entity.loadState(update.state ?? entity.getInitialState(), { frame: update.frame, remote: true });
 		entity.version = update.version;
 
-		update.updateId = -1; // todo remove this? We set the update ID to something negative so that the update NEVER gets sent back to the server
+		update.updateId = -1; // todo remove this? We set the update ID to something negative so that the update NEVER gets sent back to the server. Probably better solution: just mark updates as remote 😂
 		history.push(update);
 	}
 
@@ -336,7 +387,7 @@ export class MultiplayerGame extends Game {
 			Advancements/s: ${this.simulator.advanceTimes.length}
 			Tick duration: ${averageTickDuration.toFixed(2)} ms
 			Reconciliation duration: ${isNaN(averageReconciliationDuration)? 'N/A' : averageReconciliationDuration.toFixed(2) + ' ms'}
-			Reconciliation frames: ${this.simulator.lastReconciliationFrameCount}
+			Reconciliation frames: ${this.simulator.lastReconciliationFrames}
 			Send timeout: ${Math.max(0, sendTimeout)}
 		`;
 

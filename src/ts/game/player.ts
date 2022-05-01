@@ -74,7 +74,7 @@ export class Player extends Entity {
 			if (this !== this.game.localPlayer) {
 				if (!this.lastRemoteState)
 					return Marble.getPassiveControlState();
-				if (this.game.state.frame - this.lastRemoteStateFrame >= (this.game as MultiplayerGame).simulator.lastReconciliationFrameCount * 2)
+				if (this.game.state.frame - this.lastRemoteStateFrame >= (this.game as MultiplayerGame).state.frameGap * 2)
 					return Marble.getPassiveControlState();
 
 				return { ...this.lastRemoteState.controlState, movement: new Vector2() };
@@ -147,14 +147,12 @@ export class Player extends Entity {
 
 		this.controlledMarble.currentControlState = state;
 
-		this.interactWith(this.controlledMarble);
+		if (this === this.game.localPlayer) this.interactWith(this.controlledMarble);
 	}
 
 	update() {
-		this.affectedBy.set(this, this.game.state.frame);
-
 		if (this === this.game.localPlayer) {
-			this.owned = true;
+			this.affectedBy.set(this, this.game.state.frame);
 			this.stateNeedsStore = true;
 		}
 	}
@@ -173,7 +171,7 @@ export class Player extends Entity {
 		};
 	}
 
-	loadState(state: PlayerState, { frame }: { frame: number }) {
+	loadState(state: PlayerState, { frame, remote }: { frame: number, remote: boolean }) {
 		if (this === this.game.localPlayer) return; // Don't care
 
 		this.inputHistory.set(frame, {
@@ -181,9 +179,14 @@ export class Player extends Entity {
 			movement: new Vector2().fromObject(state.controlState.movement)
 		});
 
-		if (frame > this.lastRemoteStateFrame) {
-			this.lastRemoteStateFrame = frame;
-			this.lastRemoteState = state;
+		if (remote) {
+			if (frame > this.lastRemoteStateFrame) {
+				this.lastRemoteStateFrame = frame;
+				this.lastRemoteState = state;
+			}
+
+			this.affectedBy.set(this, frame);
+			this.interactWith(this.controlledMarble); // Is this clean?
 		}
 	}
 

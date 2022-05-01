@@ -17,4 +17,8 @@ export class MultiplayerGameState extends GameState {
 		this.serverFrame = serverFrame;
 		this.targetClientFrame = clientFrame;
 	}
+
+	get frameGap() {
+		return this.targetClientFrame - this.serverFrame;
+	}
 }

@@ -1,4 +1,5 @@
 import { EntityState } from "../../../shared/game_server_format";
+import { Util } from "../util";
 import { Game } from "./game";
 import { Player } from "./player";
 
@@ -8,7 +9,6 @@ export abstract class Entity {
 	game: Game;
 	owned = false;
 	version = 0;
-	challengeable = false;
 	/** Entities with lower update order will be updated first. */
 	updateOrder = 0;
 	applyUpdatesBeforeAdvance = false;
@@ -32,6 +32,11 @@ export abstract class Entity {
 
 	interactWith(otherObject: Entity) {
 		this.game.state.recordEntityInteraction(this, otherObject);
+	}
+
+	clearInteractions() {
+		this.affectedBy.clear();
+		Util.filterInPlace(this.game.state.affectionGraph, x => x.from !== this && x.to !== this);
 	}
 
 	getState(): EntityState { return null; }

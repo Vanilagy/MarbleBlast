@@ -21,7 +21,7 @@ export class AntiGravity extends PowerUp {
 	pickUp(marble: Marble) {
 		let direction = new Vector3(0, 0, -1);
 		direction.applyQuaternion(this.worldOrientation).normalize();
-		return !direction.equals(marble.currentUp);
+		return !direction.fequals(marble.currentUp);
 	}
 
 	use(marble: Marble) {

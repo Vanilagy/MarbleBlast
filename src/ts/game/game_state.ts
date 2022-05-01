@@ -10,6 +10,7 @@ import { state } from "../state";
 import { Util } from "../util";
 import { Game } from "./game";
 import { Entity } from "./entity";
+import { PowerUp } from "../shapes/power_up";
 
 interface AffectionEdge {
 	id: number,
@@ -66,7 +67,7 @@ export class GameState {
 				}
 			}
 
-			if (keepGoing) for (let edge of this.affectionGraph) if (edge.frame === this.frame && edge.from === e) propagate(edge.to);
+			if (keepGoing) for (let edge of this.affectionGraph) if (edge.from === e) propagate(edge.to);
 		};
 		propagate(e2);
 	}
@@ -211,5 +212,18 @@ export class GameState {
 		}
 
 		this.saveStates();
+	}
+
+	createInitialUpdate(entity: Entity): EntityUpdate {
+		return {
+			updateId: -1,
+			entityId: entity.id,
+			originator: 0,
+			frame: -1,
+			owned: false,
+			challengeable: false,
+			version: 0,
+			state: null
+		};
 	}
 }
