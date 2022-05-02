@@ -67,13 +67,13 @@ export class Gem extends Shape {
 		};
 	}
 
-	loadState(_state: GemState, { frame }: { frame: number }) {
-		this.pickedUpBy = _state.pickedUpBy;
+	loadState(state: GemState, { frame }: { frame: number }) {
+		this.pickedUpBy = state.pickedUpBy;
 
 		this.setOpacity(Number(this.pickedUpBy === null));
 		this.setCollisionEnabled(this.pickedUpBy === null);
 
-		if (_state.pickedUpBy !== null) {
+		if (state.pickedUpBy !== null) {
 			G.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
 			this.playSound();
 		}

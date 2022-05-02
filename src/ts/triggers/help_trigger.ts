@@ -47,10 +47,10 @@ export class HelpTrigger extends Trigger {
 		};
 	}
 
-	loadState(_state: HelpTriggerState) {
+	loadState(state: HelpTriggerState) {
 		G.menu.hud.displayHelp(() => {
-			if (!_state.entered.includes(this.game.localPlayer.controlledMarble.id)) return null;
+			if (!state.entered.includes(this.game.localPlayer.controlledMarble.id)) return null;
 			return this.element.text;
-		}, _state.enteredFrame);
+		}, state.enteredFrame);
 	}
 }

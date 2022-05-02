@@ -118,11 +118,11 @@ export abstract class PowerUp extends Shape {
 		};
 	}
 
-	loadState(_state: PowerUpState, { frame }: { frame: number }) {
+	loadState(state: PowerUpState, { frame }: { frame: number }) {
 		let prevLastPickUpTime = this.lastPickUpTime;
 
-		this.lastPickUpTime = _state.lastPickUpTime;
-		this.pickedUpBy = _state.pickedUpBy;
+		this.lastPickUpTime = state.lastPickUpTime;
+		this.pickedUpBy = state.pickedUpBy;
 
 		if (this.pickedUpBy && prevLastPickUpTime < this.lastPickUpTime)
 			this.pickUpCosmetically(this.game.getEntityById(this.pickedUpBy) as Marble, frame);

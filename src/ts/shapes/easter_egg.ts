@@ -17,7 +17,7 @@ export class EasterEgg extends PowerUp {
 	alreadyHadEasterEgg = false;
 
 	init(game?: Game, srcElement: MissionElement = null) {
-		//this.alreadyHadEasterEgg = StorageManager.data.collectedEggs.includes(game.mission.path);
+		this.alreadyHadEasterEgg = StorageManager.data.collectedEggs.includes(game.mission.path);
 		Util.removeFromArray(StorageManager.data.collectedEggs, game.mission.path);
 		return super.init(game, srcElement);
 	}
@@ -41,10 +41,10 @@ export class EasterEgg extends PowerUp {
 	use() {}
 	useCosmetically() {}
 
-	loadState(_state: PowerUpState, meta: { frame: number, remote: number }) {
+	loadState(state: PowerUpState, meta: { frame: number, remote: boolean }) {
 		if (!this.alreadyHadEasterEgg) {
 			let index = StorageManager.data.collectedEggs.indexOf(this.game.mission.path);
-			if (index !== -1 && _state.pickedUpBy === null) {
+			if (index !== -1 && state.pickedUpBy === null) {
 				// "Unpickup" the egg
 				StorageManager.data.collectedEggs.splice(index, 1);
 				StorageManager.store();
@@ -52,6 +52,6 @@ export class EasterEgg extends PowerUp {
 			}
 		}
 
-		super.loadState(_state, meta);
+		super.loadState(state, meta);
 	}
 }
