@@ -20,7 +20,14 @@ export const entityStateFormat = [union, 'entityType', {
 		powerUpUses: ['varint'],
 		powerUpUseFrame: 'varint',
 		respawnFrame: 'varint',
-		outOfBoundsFrame: 'varint'
+		outOfBoundsFrame: 'varint',
+		teleportStates: [{
+			trigger: 'varint',
+			entryFrame: [nullable, 'varint'],
+			exitFrame: [nullable, 'varint']
+		}],
+		teleportEnableTime: 'f32',
+		teleportDisableTime: 'f32'
 	}]
 }, {
 	entityType: 'player',

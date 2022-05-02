@@ -7,13 +7,12 @@ import { G } from "../global";
 import { Util } from "../util";
 import { DestinationTrigger } from "./destination_trigger";
 import { Trigger } from "./trigger";
+import { Marble } from "../marble";
 
 /** A teleport trigger teleports the marble to a specified destination after some time of being inside it. */
 export class TeleportTrigger extends Trigger {
 	/** How long after entry until the teleport happens */
 	delay = 2000;
-	entryTime: number = null;
-	exitTime: number = null;
 	sounds = ["teleport.wav"];
 	teleportingSound: AudioSource = null;
 
@@ -23,52 +22,37 @@ export class TeleportTrigger extends Trigger {
 		if (element.delay) this.delay = MisParser.parseNumber(element.delay);
 	}
 
-	onMarbleEnter() {
-		let time = this.level.timeState;
+	onMarbleEnter(marble: Marble) {
+		let teleportState = marble.getTeleportState(this);
+		teleportState.exitFrame = null;
 
-		this.exitTime = null;
-		this.level.marble.enableTeleportingLook(time);
-		this.level.replay.recordMarbleEnter(this);
-		if (this.entryTime !== null) return;
+		marble.enableTeleportingLook();
+		if (teleportState.entryFrame !== null) return;
 
-		this.entryTime = time.currentAttemptTime;
-		G.menu.hud.displayAlert("Teleporter has been activated, please wait.");
+		teleportState.entryFrame = this.game.state.frame;
+		G.menu.hud.displayAlert(() => {
+			return this.game.localPlayer.controlledMarble === marble ? "Teleporter has been activated, please wait." : null;
+		}, this.game.state.frame);
 		this.teleportingSound = AudioManager.createAudioSource('teleport.wav');
 		this.teleportingSound.play();
 	}
 
-	onMarbleLeave() {
-		let time = this.level.timeState;
+	onMarbleLeave(marble: Marble) {
+		let teleportState = marble.getTeleportState(this);
 
-		this.exitTime = time.currentAttemptTime;
-		this.level.marble.disableTeleportingLook(time);
-		this.level.replay.recordMarbleLeave(this);
+		teleportState.exitFrame = this.game.state.frame;
+		marble.disableTeleportingLook();
 	}
 
-	tick(time: TimeState) {
-		if (this.entryTime === null) return;
-
-		if (time.currentAttemptTime - this.entryTime >= this.delay) {
-			this.executeTeleport();
-			return;
-		}
-
-		// There's a little delay after exiting before the teleporter gets cancelled
-		if (this.exitTime !== null && time.currentAttemptTime - this.exitTime > 50) {
-			this.entryTime = null;
-			this.exitTime = null;
-			return;
-		}
-	}
-
-	executeTeleport() {
-		this.entryTime = null;
+	executeTeleport(marble: Marble) {
+		let teleportState = marble.getTeleportState(this);
+		teleportState.entryFrame = null;
 
 		// Find the destination trigger
-		let destination = this.level.triggers.find(x => x instanceof DestinationTrigger && x.element._name.toLowerCase() === this.element.destination?.toLowerCase());
+		let destination = this.game.triggers.find(x => x instanceof DestinationTrigger && x.element._name.toLowerCase() === this.element.destination?.toLowerCase());
 		if (!destination) return; // Who knows
 
-		let body = this.level.marble.body;
+		let body = marble.body;
 
 		// Determine where to place the marble
 		let position: Vector3;
@@ -85,25 +69,18 @@ export class TeleportTrigger extends Trigger {
 		if (!MisParser.parseBoolean(this.element.keepangular || destination.element.keepangular)) body.angularVelocity.setScalar(0);
 
 		// Determine camera orientation
-		if (!MisParser.parseBoolean(this.element.keepcamera || destination.element.keepcamera)) {
+		if (!MisParser.parseBoolean(this.element.keepcamera || destination.element.keepcamera) && marble.controllingPlayer) {
 			let yaw: number;
 			if (this.element.camerayaw) yaw = Util.degToRad(MisParser.parseNumber(this.element.camerayaw));
 			else if (destination.element.camerayaw) yaw = Util.degToRad(MisParser.parseNumber(destination.element.camerayaw));
 			else yaw = 0;
 
-			this.level.yaw = yaw + Math.PI/2;
-			this.level.pitch = DEFAULT_PITCH;
+			marble.controllingPlayer.yaw = yaw + Math.PI/2;
+			marble.controllingPlayer.pitch = DEFAULT_PITCH;
 		}
 
 		AudioManager.play('spawn.wav');
 		this.teleportingSound?.stop();
 		this.teleportingSound = null;
-	}
-
-	reset() {
-		super.reset();
-
-		this.entryTime = null;
-		this.exitTime = null;
 	}
 }

@@ -14,7 +14,7 @@ export class Tornado extends ForceShape {
 
 		this.addSphericalForce(8, -60);
 		this.addSphericalForce(3, 60);
-		this.addFieldForce(3, new Vector3(0, 0, 150)); // The upwards force is always in the same direction, which is fine considering tornados never appear with modified gravity.
+		this.addFieldForce(3, new Vector3(0, 0, 150)); // The upwards force is always in the same direction regardless of tornado orientation
 	}
 
 	async onLevelStart() {

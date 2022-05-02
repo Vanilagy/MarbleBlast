@@ -32,6 +32,7 @@ import { MultiplayerGame } from "./game/multiplayer_game";
 import { EntityState, entityStateFormat } from "../../shared/game_server_format";
 import { Player } from "./game/player";
 import { FixedFormatBinarySerializer } from "../../shared/fixed_format_binary_serializer";
+import { TeleportTrigger } from "./triggers/teleport_trigger";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -159,8 +160,8 @@ export class Marble extends Entity {
 	helicopterSound: AudioSource = null;
 	shockAbsorberSound: AudioSource = null;
 	superBounceSound: AudioSource = null;
-	teleportEnableTime: number;
-	teleportDisableTime: number;
+	teleportEnableTime: number = null;
+	teleportDisableTime: number = null;
 
 	beforeVel = new Vector3();
 	beforeAngVel = new Vector3();
@@ -205,6 +206,12 @@ export class Marble extends Entity {
 	powerUpUses: number[] = [];
 	powerUpUseFrame = -1;
 	lastPowerUpUseFrame = -1;
+
+	teleportStates: {
+		trigger: TeleportTrigger,
+		entryFrame: number,
+		exitFrame: number
+	}[] = [];
 
 	constructor(game: Game, id: number) {
 		super(game);
@@ -393,7 +400,14 @@ export class Marble extends Entity {
 				powerUpUses: this.powerUpUses.length ? this.powerUpUses : undefined,
 				powerUpUseFrame: this.powerUpUses.length ? this.powerUpUseFrame : undefined,
 				respawnFrame: this.respawnFrame || undefined,
-				outOfBoundsFrame: this.outOfBoundsFrame ?? undefined
+				outOfBoundsFrame: this.outOfBoundsFrame ?? undefined,
+				teleportStates: this.teleportStates.length ? this.teleportStates.map(x => ({
+					trigger: x.trigger.id,
+					entryFrame: x.entryFrame,
+					exitFrame: x.exitFrame
+				})) : undefined,
+				teleportEnableTime: this.teleportEnableTime ?? undefined,
+				teleportDisableTime: this.teleportDisableTime !== null && this.game.state.time - this.teleportDisableTime < TELEPORT_FADE_DURATION ? this.teleportDisableTime : undefined,
 			}
 		};
 	}
@@ -477,6 +491,15 @@ export class Marble extends Entity {
 		if (this.outOfBoundsFrame === null && state.extras.outOfBoundsFrame !== undefined)
 			this.goOutOfBounds(state.extras.outOfBoundsFrame);
 		this.outOfBoundsFrame = state.extras.outOfBoundsFrame ?? null;
+
+		// todo: sound stuff
+		this.teleportStates = (state.extras.teleportStates ?? []).map(x => ({
+			trigger: this.game.getEntityById(x.trigger) as TeleportTrigger,
+			entryFrame: x.entryFrame,
+			exitFrame: x.exitFrame
+		}));
+		this.teleportEnableTime = state.extras.teleportEnableTime ?? null;
+		this.teleportDisableTime = state.extras.teleportDisableTime ?? null;
 	}
 
 	getInternalState(): InternalMarbleState {
@@ -610,6 +633,28 @@ export class Marble extends Entity {
 			if (timeSinceRespawn === 2.0) AudioManager.play('set.wav');
 			if (timeSinceRespawn === 3.5) AudioManager.play('go.wav');
 		}
+
+		// Handle teleporting
+		for (let teleportState of this.teleportStates) {
+			if (teleportState.entryFrame === null) continue;
+
+			let delayInFrames = teleportState.trigger.delay * GAME_UPDATE_RATE / 1000;
+			if (this.game.state.frame - teleportState.entryFrame >= delayInFrames) {
+				// Execute the teleport
+				teleportState.trigger.executeTeleport(this);
+				continue;
+			}
+
+			// There's a little delay after exiting before the teleporter gets cancelled
+			if (teleportState.exitFrame !== null && this.game.state.frame - teleportState.exitFrame > 0.05 * GAME_UPDATE_RATE) {
+				// Cancel the teleport
+				teleportState.entryFrame = null;
+				teleportState.exitFrame = null;
+				return;
+			}
+		}
+
+		Util.filterInPlace(this.teleportStates, x => x.entryFrame !== null || x.exitFrame !== null);
 	}
 
 	findBestCollision(withRespectTo: (c: Collision, normal: Vector3, otherShape: CollisionShape) => number) {
@@ -1120,6 +1165,18 @@ export class Marble extends Entity {
 
 		this.blastAmount = 0;
 		//this.level.replay.recordUseBlast();
+	}
+
+	getTeleportState(trigger: TeleportTrigger) {
+		let existing = this.teleportStates.find(x => x.trigger === trigger);
+		if (existing) return existing;
+
+		this.teleportStates.push({
+			trigger: trigger,
+			entryFrame: null,
+			exitFrame: null
+		});
+		return Util.last(this.teleportStates);
 	}
 
 	/** Updates the radius of the marble both visually and physically. */
