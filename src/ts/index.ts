@@ -5,7 +5,7 @@ import { StorageManager } from './storage';
 import { Util } from './util';
 import { Leaderboard } from './leaderboard';
 import { MissionLibrary } from './mission_library';
-import { state } from './state';
+import { G } from './global';
 import { setMenu } from './ui/menu_setter';
 import { initMainRenderer } from './ui/misc';
 import { Connectivity } from './net/connectivity';
@@ -49,7 +49,7 @@ const init = async () => {
 			if (installPromptEvent) img.style.display = '';
 		}, 100);
 
-		state.menu.showAlertPopup('Install as app', `This website can be installed on your device's home screen to run in proper fullscreen and feel like a native app. To install it, press the icon below, or if there is none, follow <a href="https://natomasunified.org/kb/add-website-to-mobile-device-home-screen/" target="_blank">these</a> steps.`, div).then(() => {
+		G.menu.showAlertPopup('Install as app', `This website can be installed on your device's home screen to run in proper fullscreen and feel like a native app. To install it, press the icon below, or if there is none, follow <a href="https://natomasunified.org/kb/add-website-to-mobile-device-home-screen/" target="_blank">these</a> steps.`, div).then(() => {
 			clearInterval(intervalId);
 		});
 	}
@@ -59,7 +59,7 @@ const init = async () => {
 		started = true;
 		startGameDialog.style.display = 'none';
 		AudioManager.context.resume();
-		state.menu.show();
+		G.menu.show();
 	};
 
 	loadingMessage.style.display = 'none';

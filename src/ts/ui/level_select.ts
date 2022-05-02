@@ -8,7 +8,7 @@ import { previousButtonState } from "../input";
 import { Leaderboard } from "../leaderboard";
 import { Menu } from "./menu";
 import { MissionLibrary } from "../mission_library";
-import { state } from "../state";
+import { G } from "../global";
 
 export abstract class LevelSelect {
 	menu: Menu;
@@ -50,11 +50,11 @@ export abstract class LevelSelect {
 		menu.setupButton(this.homeButton, this.homeButtonSrc, () => {
 			this.hide();
 			menu.home.show();
-		}, undefined, undefined, state.modification === 'gold');
+		}, undefined, undefined, G.modification === 'gold');
 
-		menu.setupButton(this.prevButton, 'play/prev', () => this.cycleMission(-1), true, true, state.modification === 'gold', true);
-		menu.setupButton(this.playButton, 'play/play', () => this.playCurrentMission(), true, undefined, state.modification === 'gold');
-		menu.setupButton(this.nextButton, 'play/next', () => this.cycleMission(1), true, true, state.modification === 'gold', true);
+		menu.setupButton(this.prevButton, 'play/prev', () => this.cycleMission(-1), true, true, G.modification === 'gold', true);
+		menu.setupButton(this.playButton, 'play/play', () => this.playCurrentMission(), true, undefined, G.modification === 'gold');
+		menu.setupButton(this.nextButton, 'play/next', () => this.cycleMission(1), true, true, G.modification === 'gold', true);
 	}
 
 	abstract initProperties(): void;
@@ -521,16 +521,16 @@ export abstract class LevelSelect {
 				let mission = MissionLibrary.allMissions.find(x => x.path === replay.missionPath);
 				if (!mission) throw new Error("Mission not found.");
 
-				if (state.modification === 'gold' && mission.path.startsWith('mbp')) {
+				if (G.modification === 'gold' && mission.path.startsWith('mbp')) {
 					// We don't allow this
-					state.menu.showAlertPopup('Warning', "You can't watch replays of Platinum level inside Marble Blast Gold.");
+					G.menu.showAlertPopup('Warning', "You can't watch replays of Platinum level inside Marble Blast Gold.");
 					return;
 				}
 
 				this.div.classList.add('hidden');
 				this.menu.loadingScreen.loadLevel(mission, () => replay);
 			} catch (e) {
-				state.menu.showAlertPopup('Error', "There was an error loading the replay.");
+				G.menu.showAlertPopup('Error', "There was an error loading the replay.");
 				console.error(e);
 			}
 		};

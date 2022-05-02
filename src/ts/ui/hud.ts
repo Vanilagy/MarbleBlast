@@ -1,7 +1,7 @@
 import { AudioManager } from "../audio";
 import { actionButtonContainer, blastButton, blastEnabled, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, jumpButton, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setBlastEnabled, setUseEnabled, useButton } from "../input";
 import { ResourceManager } from "../resources";
-import { state } from "../state";
+import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
@@ -92,7 +92,7 @@ export abstract class Hud {
 		else this.clockBackground.classList.add('hidden');
 
 		this.menu.gameUiDiv.classList.remove('gold', 'platinum');
-		this.menu.gameUiDiv.classList.add(state.modification);
+		this.menu.gameUiDiv.classList.add(G.modification);
 
 		if (StorageManager.data.settings.showFrameRate && this.supportFpsMeter) {
 			this.fpsMeter.classList.remove('hidden');
@@ -100,8 +100,8 @@ export abstract class Hud {
 			this.fpsMeter.classList.add('hidden');
 		}
 
-		this.setBlastMeterVisibility(state.game.mission.hasBlast);
-		if (state.game.mission.hasBlast) {
+		this.setBlastMeterVisibility(G.game.mission.hasBlast);
+		if (G.game.mission.hasBlast) {
 			await ResourceManager.loadImages(["blastbar.png", "blastbar_charged.png", "blastbar_bargreen.png", "blastbar_bargray.png"].map(x => "./assets/ui_mbp/game/" + x));
 		}
 
@@ -112,13 +112,13 @@ export abstract class Hud {
 
 	setupTouchControls() {
 		// Change the offset based on whether or not there's a gem counter
-		pauseButton.style.top = state.game.totalGems? '60px' : '';
-		restartButton.style.top = state.game.totalGems? '60px' : '';
-		freeLookButton.style.top = state.game.totalGems? '60px' : '';
+		pauseButton.style.top = G.game.totalGems? '60px' : '';
+		restartButton.style.top = G.game.totalGems? '60px' : '';
+		freeLookButton.style.top = G.game.totalGems? '60px' : '';
 
 		// Kinda hacky here, don't wanna clean up: (Yes there's a good reason we don't set display)
-		blastButton.style.visibility = state.game.mission.hasBlast? '' : 'hidden';
-		blastButton.style.pointerEvents = state.game.mission.hasBlast? '' : 'none';
+		blastButton.style.visibility = G.game.mission.hasBlast? '' : 'hidden';
+		blastButton.style.pointerEvents = G.game.mission.hasBlast? '' : 'none';
 		freeLookButton.style.visibility = StorageManager.data.settings.alwaysFreeLook? 'hidden' : '';
 		freeLookButton.style.pointerEvents = StorageManager.data.settings.alwaysFreeLook? 'none' : '';
 
@@ -231,7 +231,7 @@ export abstract class Hud {
 			index--;
 		}
 
-		let game = state.game;
+		let game = G.game;
 		if (playSound && getMessage() !== null) game.simulator.executeNonDuplicatableEvent(() => {
 			AudioManager.play('infotutorial.wav');
 		}, `displayHelp`);

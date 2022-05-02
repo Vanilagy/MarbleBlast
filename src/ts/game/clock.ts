@@ -1,7 +1,7 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { EntityState } from "../../../shared/game_server_format";
 import { AudioManager, AudioSource } from "../audio";
-import { state } from "../state";
+import { G } from "../global";
 import { Entity } from "./entity";
 import { Game } from "./game";
 import { MAX_TIME } from "./game_simulator";
@@ -43,7 +43,7 @@ export class Clock extends Entity {
 		}
 
 		// Handle alarm warnings (that the user is about to exceed the par time)
-		if (isFinite(this.game.mission.qualifyTime) && state.modification === 'platinum'/* todo && !this.finishTime*/) {
+		if (isFinite(this.game.mission.qualifyTime) && G.modification === 'platinum'/* todo && !this.finishTime*/) {
 			let alarmStart = this.game.mission.computeAlarmStartTime();
 
 			if (this.time > 0 && 1000 * this.time >= alarmStart) {
@@ -52,14 +52,14 @@ export class Clock extends Entity {
 					this.alarmSound = AudioManager.createAudioSource('alarm.wav');
 					this.alarmSound.setLoop(true);
 					this.alarmSound.play();
-					state.menu.hud.displayHelp(() => `You have ${(this.game.mission.qualifyTime - alarmStart) / 1000} seconds remaining.`, this.game.state.frame, true);
+					G.menu.hud.displayHelp(() => `You have ${(this.game.mission.qualifyTime - alarmStart) / 1000} seconds remaining.`, this.game.state.frame, true);
 				}
 
 				if (1000 * this.time >= this.game.mission.qualifyTime && this.alarmSound) {
 					// Stop the alarm
 					this.alarmSound?.stop();
 					this.alarmSound = null;
-					state.menu.hud.displayHelp(() => "The clock has passed the Par Time.", this.game.state.frame, true);
+					G.menu.hud.displayHelp(() => "The clock has passed the Par Time.", this.game.state.frame, true);
 					AudioManager.play('alarm_timeout.wav');
 				}
 			} else {
@@ -101,19 +101,19 @@ export class Clock extends Entity {
 		let timeToDisplay = this.time; // fixme not visually smoothed
 		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
 
-		state.menu.hud.displayTime(timeToDisplay, this.determineClockColor(timeToDisplay));
+		G.menu.hud.displayTime(timeToDisplay, this.determineClockColor(timeToDisplay));
 	}
 
 	determineClockColor(timeToDisplay: number): 'red' | 'green' {
 		let { game } = this;
 
-		if (state.modification === 'gold') return;
+		if (G.modification === 'gold') return;
 
 		// todo if (simulator.finishTime) return 'green'; // Even if not qualified
 		if (this.time === 0 || game.clock.timeTravelBonus > 0) return 'green';
 		if (1000 * timeToDisplay >= game.mission.qualifyTime) return 'red';
 
-		if (isFinite(game.mission.qualifyTime) && state.modification === 'platinum') {
+		if (isFinite(game.mission.qualifyTime) && G.modification === 'platinum') {
 			// Create the flashing effect
 			let alarmStart = game.mission.computeAlarmStartTime();
 			let elapsed = 1000 * timeToDisplay - alarmStart;

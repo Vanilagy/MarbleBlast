@@ -3,7 +3,7 @@ import { EntityState } from "../../../shared/game_server_format";
 import { isPressed, getPressedFlag, gamepadAxes, normalizedJoystickHandlePosition } from "../input";
 import { DEFAULT_PITCH, DEFAULT_YAW, Marble, MarbleControlState } from "../marble";
 import { Vector2 } from "../math/vector2";
-import { state } from "../state";
+import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Entity } from "./entity";
@@ -81,7 +81,7 @@ export class Player extends Entity {
 			}
 		}
 
-		let allowUserInput = !state.menu.finishScreen.showing;
+		let allowUserInput = !G.menu.finishScreen.showing;
 
 		let movement = new Vector2();
 

@@ -1,6 +1,6 @@
 import { PowerUp } from "./power_up";
 import { AudioManager } from "../audio";
-import { state } from "../state";
+import { G } from "../global";
 import { Vector3 } from "../math/vector3";
 import { Quaternion } from "../math/quaternion";
 import { BlendingType } from "../rendering/renderer";
@@ -9,7 +9,7 @@ import { Marble } from "../marble";
 /** Accelerates the marble. */
 export class SuperSpeed extends PowerUp {
 	dtsPath = "shapes/items/superspeed.dts";
-	pickUpName = (state.modification === 'gold')? "Super Speed PowerUp" : "Speed Booster PowerUp";
+	pickUpName = (G.modification === 'gold')? "Super Speed PowerUp" : "Speed Booster PowerUp";
 	sounds = ["pusuperspeedvoice.wav", "dosuperspeed.wav"];
 
 	pickUp(marble: Marble): boolean {

@@ -39,7 +39,7 @@ import { Replay } from "./replay";
 import { Mission } from "./mission";
 import { PushButton } from "./shapes/push_button";
 import { DifFile } from "./parsing/dif_parser";
-import { state } from "./state";
+import { G } from "./global";
 import { Sign } from "./shapes/sign";
 import { Magnet } from "./shapes/magnet";
 import { Nuke, nukeSmokeParticle, nukeSparksParticle } from "./shapes/nuke";
@@ -446,7 +446,7 @@ export class Level extends Scheduler {
 
 	async initUi() {
 		// Load all necessary UI image elements
-		await state.menu.hud.load();
+		await G.menu.hud.load();
 
 		// Set up the HUD overlay
 
@@ -485,7 +485,7 @@ export class Level extends Scheduler {
 			shape.ambientRotate = true;
 			shape.showSequences = false;
 			// MBP's UI gem color is randomized
-			if (path.includes("gem") && state.menu.hud instanceof MbpHud) shape.matNamesOverride['base.gem'] = Gem.pickRandomColor() + '.gem';
+			if (path.includes("gem") && G.menu.hud instanceof MbpHud) shape.matNamesOverride['base.gem'] = Gem.pickRandomColor() + '.gem';
 
 			await shape.init();
 
@@ -502,16 +502,16 @@ export class Level extends Scheduler {
 
 		if (this.totalGems > 0) {
 			// Show the gem overlay
-			state.menu.hud.setGemVisibility(true);
+			G.menu.hud.setGemVisibility(true);
 		} else {
 			// Hide the gem UI
-			state.menu.hud.setGemVisibility(false);
+			G.menu.hud.setGemVisibility(false);
 		}
 
 		this.overlayScene.compile();
 
-		if (state.menu.pauseScreen instanceof MbpPauseScreen)
-			state.menu.pauseScreen.jukebox.reset();
+		if (G.menu.pauseScreen instanceof MbpPauseScreen)
+			G.menu.pauseScreen.jukebox.reset();
 	}
 
 	async initSounds() {
@@ -519,13 +519,13 @@ export class Level extends Scheduler {
 		if (this.mission.modification === 'ultra') {
 			musicFileName = 'tim trance.ogg'; // ALWAYS play this banger
 			this.originalMusicName = musicFileName;
-		} else if (state.modification !== 'gold' && this.mission.missionInfo.music && this.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
+		} else if (G.modification !== 'gold' && this.mission.missionInfo.music && this.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
 			musicFileName = this.mission.missionInfo.music.toLowerCase();
 			this.originalMusicName = musicFileName;
 		} else {
 			if (this.mission.modification === 'gold') {
 				// Play the song based on the level index
-				let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
+				let levelIndex = G.menu.levelSelect.currentMissionArray.indexOf(this.mission);
 				musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The default music choice is based off of level index
 				// Yes, the extra space is intentional
 				this.originalMusicName = ['groove police.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
@@ -535,10 +535,10 @@ export class Level extends Scheduler {
 				this.originalMusicName = musicFileName;
 			}
 		}
-		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
+		if (G.modification === 'platinum') musicFileName = 'music/' + musicFileName;
 
 		let toLoad = ["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName];
-		if (isFinite(this.mission.qualifyTime) && state.modification === 'platinum') toLoad.push("alarm.wav", "alarm_timeout.wav", "infotutorial.wav");
+		if (isFinite(this.mission.qualifyTime) && G.modification === 'platinum') toLoad.push("alarm.wav", "alarm_timeout.wav", "infotutorial.wav");
 
 		try {
 			await AudioManager.loadBuffers(toLoad);
@@ -770,7 +770,7 @@ export class Level extends Scheduler {
 			return;
 		}
 
-		let hud = state.menu.hud;
+		let hud = G.menu.hud;
 		hud.setPowerupButtonState(false, true);
 
 		this.timeState.gameplayClock = 0;
@@ -821,7 +821,7 @@ export class Level extends Scheduler {
 		this.pitch = DEFAULT_PITCH;
 
 		let missionInfo = this.mission.missionInfo;
-		if (missionInfo.starthelptext) state.menu.hud.displayHelp(missionInfo.starthelptext); // Show the start help text
+		if (missionInfo.starthelptext) G.menu.hud.displayHelp(missionInfo.starthelptext); // Show the start help text
 
 		for (let shape of this.shapes) shape.reset();
 		for (let interior of this.interiors) interior.reset();
@@ -953,7 +953,7 @@ export class Level extends Scheduler {
 
 		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
 
-		let hud = state.menu.hud;
+		let hud = G.menu.hud;
 		hud.displayTime(timeToDisplay / 1000, this.determineClockColor(timeToDisplay));
 		hud.displayBlastMeterFullness(this.blastAmount);
 		hud.displayFps();
@@ -971,13 +971,13 @@ export class Level extends Scheduler {
 	}
 
 	determineClockColor(timeToDisplay: number) {
-		if (state.modification === 'gold') return;
+		if (G.modification === 'gold') return;
 
 		if (this.finishTime) return 'green'; // Even if not qualified
 		if (this.timeState.currentAttemptTime < GO_TIME || this.currentTimeTravelBonus > 0) return 'green';
 		if (timeToDisplay >= this.mission.qualifyTime) return 'red';
 
-		if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum') {
+		if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && G.modification === 'platinum') {
 			// Create the flashing effect
 			let alarmStart = this.mission.computeAlarmStartTime();
 			let elapsed = timeToDisplay - alarmStart;
@@ -1094,7 +1094,7 @@ export class Level extends Scheduler {
 		if (time === undefined) time = performance.now();
 		let playReplay = this.replay.mode === 'playback';
 
-		if (!playReplay && !state.menu.finishScreen.showing && (isPressed('use') || this.useQueued) && getPressedFlag('use')) {
+		if (!playReplay && !G.menu.finishScreen.showing && (isPressed('use') || this.useQueued) && getPressedFlag('use')) {
 			if (this.outOfBounds && !this.finishTime) {
 				// Skip the out of bounds "animation" and restart immediately
 				this.restart(false);
@@ -1102,7 +1102,7 @@ export class Level extends Scheduler {
 			}
 		}
 
-		state.menu.finishScreen.handleGamepadInput();
+		G.menu.finishScreen.handleGamepadInput();
 
 		// Handle pressing of the gamepad pause button
 		if (isPressed('pause') && getPressedFlag('pause')) {
@@ -1204,7 +1204,7 @@ export class Level extends Scheduler {
 			tickDone = true;
 
 			// Handle alarm warnings (that the user is about to exceed the par time)
-			if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum' && !this.finishTime) {
+			if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && G.modification === 'platinum' && !this.finishTime) {
 				let alarmStart = this.mission.computeAlarmStartTime();
 
 				if (prevGameplayClock <= alarmStart && this.timeState.gameplayClock >= alarmStart && !this.alarmSound) {
@@ -1212,13 +1212,13 @@ export class Level extends Scheduler {
 					this.alarmSound = AudioManager.createAudioSource('alarm.wav');
 					this.alarmSound.setLoop(true);
 					this.alarmSound.play();
-					state.menu.hud.displayHelp(`You have ${(this.mission.qualifyTime - alarmStart) / 1000} seconds remaining.`, true);
+					G.menu.hud.displayHelp(`You have ${(this.mission.qualifyTime - alarmStart) / 1000} seconds remaining.`, true);
 				}
 				if (prevGameplayClock < this.mission.qualifyTime && this.timeState.gameplayClock >= this.mission.qualifyTime) {
 					// Stop the alarm
 					this.alarmSound?.stop();
 					this.alarmSound = null;
-					state.menu.hud.displayHelp("The clock has passed the Par Time.", true);
+					G.menu.hud.displayHelp("The clock has passed the Par Time.", true);
 					AudioManager.play('alarm_timeout.wav');
 				}
 			}
@@ -1364,7 +1364,7 @@ export class Level extends Scheduler {
 		if (!powerUp) return false;
 		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
 		this.heldPowerUp = powerUp;
-		state.menu.hud.setPowerupButtonState(true);
+		G.menu.hud.setPowerupButtonState(true);
 
 		for (let overlayShape of this.overlayShapes) {
 			if (overlayShape.dtsPath.includes("gem")) continue;
@@ -1379,11 +1379,11 @@ export class Level extends Scheduler {
 
 	deselectPowerUp() {
 		if (!this.heldPowerUp) {
-			state.menu.hud.setPowerupButtonState(false);
+			G.menu.hud.setPowerupButtonState(false);
 			return;
 		}
 		this.heldPowerUp = null;
-		state.menu.hud.setPowerupButtonState(false);
+		G.menu.hud.setPowerupButtonState(false);
 
 		for (let overlayShape of this.overlayShapes) {
 			if (overlayShape.dtsPath.includes("gem")) continue;
@@ -1394,7 +1394,7 @@ export class Level extends Scheduler {
 	pickUpGem(t: number) {
 		this.gemCount++;
 		let string: string;
-		let gemWord = (state.modification === 'gold')? 'gem' : 'diamond';
+		let gemWord = (G.modification === 'gold')? 'gem' : 'diamond';
 
 		// Show a notification (and play a sound) based on the gems remaining
 		if (this.gemCount === this.totalGems) {
@@ -1406,7 +1406,7 @@ export class Level extends Scheduler {
 				this.touchFinish(t);
 			}
 		} else {
-			string = `You picked up a ${gemWord}${state.modification === 'gold' ? '.' : '!'}  `;
+			string = `You picked up a ${gemWord}${G.modification === 'gold' ? '.' : '!'}  `;
 
 			let remaining = this.totalGems - this.gemCount;
 			if (remaining === 1) {
@@ -1418,8 +1418,8 @@ export class Level extends Scheduler {
 			AudioManager.play('gotgem.wav');
 		}
 
-		state.menu.hud.displayAlert(string);
-		state.menu.hud.displayGemCount(this.gemCount, this.totalGems);
+		G.menu.hud.displayAlert(string);
+		G.menu.hud.displayGemCount(this.gemCount, this.totalGems);
 	}
 
 	addTimeTravelBonus(bonus: number, timeToRevert: number) {
@@ -1436,12 +1436,12 @@ export class Level extends Scheduler {
 	goOutOfBounds() {
 		if (this.outOfBounds || this.finishTime) return;
 
-		state.menu.hud.setPowerupButtonState(true);
+		G.menu.hud.setPowerupButtonState(true);
 		this.updateCamera(this.timeState); // Update the camera at the point of OOB-ing
 		this.outOfBounds = true;
 		this.outOfBoundsTime = Util.jsonClone(this.timeState);
 		this.oobCameraPosition = this.camera.position.clone();
-		state.menu.hud.setCenterText('outofbounds');
+		G.menu.hud.setCenterText('outofbounds');
 		AudioManager.play('whoosh.wav');
 
 		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart(false), 'oobRestart');
@@ -1469,7 +1469,7 @@ export class Level extends Scheduler {
 
 		this.checkpointHeldPowerUp = this.heldPowerUp;
 
-		state.menu.hud.displayAlert("Checkpoint reached!");
+		G.menu.hud.displayAlert("Checkpoint reached!");
 		AudioManager.play('checkpoint.wav');
 	}
 
@@ -1524,8 +1524,8 @@ export class Level extends Scheduler {
 				this.gemCount--;
 			}
 		}
-		state.menu.hud.displayGemCount(this.gemCount, this.totalGems);
-		state.menu.hud.setCenterText('none');
+		G.menu.hud.displayGemCount(this.gemCount, this.totalGems);
+		G.menu.hud.setCenterText('none');
 
 		// Turn all of these off
 		marble.superBounceEnableTime = -Infinity;
@@ -1553,7 +1553,7 @@ export class Level extends Scheduler {
 
 		if (this.gemCount < this.totalGems) {
 			AudioManager.play('missinggems.wav');
-			state.menu.hud.displayAlert((state.modification === 'gold')? "You can't finish without all the gems!!" : "You may not finish without all the diamonds!");
+			G.menu.hud.displayAlert((G.modification === 'gold')? "You can't finish without all the gems!!" : "You may not finish without all the diamonds!");
 		} else {
 			if (completionOfImpact === undefined) completionOfImpact = 1;
 
@@ -1577,7 +1577,7 @@ export class Level extends Scheduler {
 			let endPad = Util.findLast(this.shapes, (shape) => shape instanceof EndPad) as EndPad;
 			endPad?.spawnFirework(this.timeState); // EndPad *might* not exist, in that case no fireworks lol
 
-			state.menu.hud.displayAlert("Congratulations! You've finished!");
+			G.menu.hud.displayAlert("Congratulations! You've finished!");
 
 			// Check if the player is OOB, but still allow finishing with less than half a second of having been OOB
 			if (this.outOfBounds && this.timeState.currentAttemptTime - this.outOfBoundsTime.currentAttemptTime >= 500) return;
@@ -1589,7 +1589,7 @@ export class Level extends Scheduler {
 			if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => {
 				// Show the finish screen
 				document.exitPointerLock?.();
-				state.menu.finishScreen.show();
+				G.menu.finishScreen.show();
 				hideTouchControls();
 
 				resetPressedFlag('use');
@@ -1601,12 +1601,12 @@ export class Level extends Scheduler {
 
 	/** Pauses the level. */
 	pause() {
-		if (this.paused || (state.level.finishTime && state.level.replay.mode === 'record')) return;
+		if (this.paused || (G.level.finishTime && G.level.replay.mode === 'record')) return;
 
 		this.paused = true;
 		document.exitPointerLock?.();
 		releaseAllButtons(); // Safety measure to prevent keys from getting stuck
-		state.menu.pauseScreen.show();
+		G.menu.pauseScreen.show();
 		hideTouchControls();
 	}
 
@@ -1614,7 +1614,7 @@ export class Level extends Scheduler {
 	unpause() {
 		this.paused = false;
 		if (!Util.isTouchDevice) Util.requestPointerLock();
-		state.menu.pauseScreen.hide();
+		G.menu.pauseScreen.hide();
 		this.lastPhysicsTick = performance.now();
 		maybeShowTouchControls();
 	}
@@ -1645,15 +1645,15 @@ export class Level extends Scheduler {
 	/** Stops and destroys the current level and returns back to the menu. */
 	stopAndExit() {
 		this.stop();
-		state.level = null;
+		G.level = null;
 		mainCanvas.classList.add('hidden');
 
-		state.menu.pauseScreen.hide();
-		state.menu.levelSelect.show();
-		state.menu.levelSelect.displayBestTimes(); // Potentially update best times having changed
-		state.menu.finishScreen.hide();
-		state.menu.hideGameUi();
-		state.menu.show();
+		G.menu.pauseScreen.hide();
+		G.menu.levelSelect.show();
+		G.menu.levelSelect.displayBestTimes(); // Potentially update best times having changed
+		G.menu.finishScreen.hide();
+		G.menu.hideGameUi();
+		G.menu.show();
 
 		document.exitPointerLock?.();
 	}

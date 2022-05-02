@@ -1,4 +1,4 @@
-import { state } from "../state";
+import { G } from "../global";
 import { Menu } from "./menu";
 
 export abstract class HelpScreen {
@@ -13,7 +13,7 @@ export abstract class HelpScreen {
 			// Close help and go back to the main menu
 			this.hide();
 			menu.home.show();
-		}, undefined, undefined, state.modification === 'gold');
+		}, undefined, undefined, G.modification === 'gold');
 	}
 
 	abstract initProperties(): void;

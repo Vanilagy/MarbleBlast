@@ -3,7 +3,7 @@ import { MissionElement, MissionElementItem } from "../parsing/mis_parser";
 import { Util } from "../util";
 import { EntityState } from "../../../shared/game_server_format";
 import { Marble } from "../marble";
-import { state } from "../state";
+import { G } from "../global";
 import { AudioManager } from "../audio";
 import { MultiplayerGame } from "../game/multiplayer_game";
 import { Game } from "../game/game";
@@ -47,7 +47,7 @@ export class Gem extends Shape {
 		this.pickedUpBy = marble.id;
 		this.setOpacity(0); // Hide the gem
 		this.setCollisionEnabled(false);
-		state.menu.hud.displayAlert(this.getAlertMessage.bind(this), this.game.state.frame);
+		G.menu.hud.displayAlert(this.getAlertMessage.bind(this), this.game.state.frame);
 		this.playSound();
 
 		this.stateNeedsStore = true;
@@ -74,14 +74,14 @@ export class Gem extends Shape {
 		this.setCollisionEnabled(this.pickedUpBy === null);
 
 		if (_state.pickedUpBy !== null) {
-			state.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
+			G.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
 			this.playSound();
 		}
 	}
 
 	getAlertMessage() {
 		let string: string;
-		let gemWord = (state.modification === 'gold')? 'gem' : 'diamond';
+		let gemWord = (G.modification === 'gold')? 'gem' : 'diamond';
 		let gemCount = this.game.entities.filter(x => x instanceof Gem && x.pickedUpBy !== null).length;
 
 		// Show a notification (and play a sound) based on the gems remaining
@@ -104,7 +104,7 @@ export class Gem extends Shape {
 				else subject = 'They'; // todo change to username
 			}
 
-			string = `${subject} picked up a ${gemWord}${state.modification === 'gold' ? '.' : '!'}  `;
+			string = `${subject} picked up a ${gemWord}${G.modification === 'gold' ? '.' : '!'}  `;
 
 			let remaining = this.game.totalGems - gemCount;
 			if (remaining === 1) {

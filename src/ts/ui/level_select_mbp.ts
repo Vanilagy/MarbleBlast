@@ -5,7 +5,7 @@ import { Util } from "../util";
 import { LevelSelect } from "./level_select";
 import { MissionLibrary } from "../mission_library";
 import { MBP_GOLD_COLOR, MBP_PLATINUM_COLOR, MBP_ULTIMATE_COLOR } from "./finish_screen_mbp";
-import { state } from "../state";
+import { G } from "../global";
 import { MbpMenu } from "./menu_mbp";
 import { ResourceManager } from "../resources";
 
@@ -245,9 +245,9 @@ export class MbpLevelSelect extends LevelSelect {
 	/** Sets the background image based on the modification. */
 	updateBackground() {
 		let arr = this.currentMissionArray;
-		state.menu.backgroundImage.src =
-			(MissionLibrary.getModification(arr) === 'gold')? (state.menu as MbpMenu).mbgBg :
-			(MissionLibrary.getModification(arr) === 'ultra')? (state.menu as MbpMenu).mbuBg :
-			(state.menu as MbpMenu).mbpBg;
+		G.menu.backgroundImage.src =
+			(MissionLibrary.getModification(arr) === 'gold')? (G.menu as MbpMenu).mbgBg :
+			(MissionLibrary.getModification(arr) === 'ultra')? (G.menu as MbpMenu).mbuBg :
+			(G.menu as MbpMenu).mbpBg;
 	}
 }

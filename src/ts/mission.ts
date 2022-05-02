@@ -3,7 +3,7 @@ import { ResourceManager } from "./resources";
 import { DifParser, DifFile } from "./parsing/dif_parser";
 import { Util } from "./util";
 import { DtsFile, DtsParser } from "./parsing/dts_parser";
-import { state } from "./state";
+import { G } from "./global";
 
 /** A custom levels archive entry. */
 export interface CLAEntry {
@@ -209,10 +209,10 @@ export class Mission {
 	getImagePath() {
 		if (this.type !== 'custom') {
 			let directoryMissionPath = this.getDirectoryMissionPath();
-			if (state.modification !== 'gold') directoryMissionPath = directoryMissionPath.replace('missions/', 'missions_mbg/');
+			if (G.modification !== 'gold') directoryMissionPath = directoryMissionPath.replace('missions/', 'missions_mbg/');
 
 			let withoutExtension = directoryMissionPath.slice(0, -4);
-			let imagePaths = ResourceManager.getFullNamesOf(withoutExtension, state.modification !== 'gold');
+			let imagePaths = ResourceManager.getFullNamesOf(withoutExtension, G.modification !== 'gold');
 			let imagePath: string;
 			for (let path of imagePaths) {
 				if (!path.endsWith('.mis')) {
@@ -222,7 +222,7 @@ export class Mission {
 			}
 
 			let res = directoryMissionPath.slice(0, directoryMissionPath.lastIndexOf('/') + 1) + imagePath;
-			if (state.modification === 'gold') return "./assets/data/" + res;
+			if (G.modification === 'gold') return "./assets/data/" + res;
 			return "./assets/data_mbp/" + res;
 		} else {
 			// Request the bitmap
@@ -270,7 +270,7 @@ export class Mission {
 	async getDts(path: string) {
 		let dts: DtsFile = null;
 
-		let base = (state.modification === 'gold')? 'data/' : 'data_mbp/';
+		let base = (G.modification === 'gold')? 'data/' : 'data_mbp/';
 
 		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
 			// Get it from the zip

@@ -2,7 +2,7 @@ import { AudioManager } from "../audio";
 import { Game } from "../game/game";
 import { Marble } from "../marble";
 import { MissionElement } from "../parsing/mis_parser";
-import { state } from "../state";
+import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { PowerUp, PowerUpState } from "./power_up";
@@ -31,11 +31,11 @@ export class EasterEgg extends PowerUp {
 		if (!alreadyFound) {
 			StorageManager.data.collectedEggs.push(this.game.mission.path);
 			StorageManager.store();
-			state.menu.levelSelect.displayMission(); // To refresh the icon
+			G.menu.levelSelect.displayMission(); // To refresh the icon
 		}
 
 		this.game.simulator.executeNonDuplicatableEvent(() => AudioManager.play(this.sounds[Number(alreadyFound)]), `${this.id}sound`, true);
-		state.menu.hud.displayAlert(() => alreadyFound ? "You already found this Easter Egg." : "You found an Easter Egg!", frame);
+		G.menu.hud.displayAlert(() => alreadyFound ? "You already found this Easter Egg." : "You found an Easter Egg!", frame);
 	}
 
 	use() {}
@@ -48,7 +48,7 @@ export class EasterEgg extends PowerUp {
 				// "Unpickup" the egg
 				StorageManager.data.collectedEggs.splice(index, 1);
 				StorageManager.store();
-				state.menu.levelSelect.displayMission(); // To refresh the icon
+				G.menu.levelSelect.displayMission(); // To refresh the icon
 			}
 		}
 

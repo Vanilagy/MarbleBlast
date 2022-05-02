@@ -1,4 +1,4 @@
-import { state } from "../state";
+import { G } from "../global";
 import { HomeScreen } from "./home";
 import { Menu } from "./menu";
 import { MbpMenu } from "./menu_mbp";
@@ -35,6 +35,6 @@ export class MbpHomeScreen extends HomeScreen {
 
 	show() {
 		super.show();
-		state.menu.backgroundImage.src = (state.menu as MbpMenu).homeBg;
+		G.menu.backgroundImage.src = (G.menu as MbpMenu).homeBg;
 	}
 }

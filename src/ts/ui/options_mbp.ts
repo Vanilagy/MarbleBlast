@@ -1,7 +1,7 @@
 import { AudioManager, AudioSource } from "../audio";
 import { currentMousePosition } from "../input";
 import { ResourceManager } from "../resources";
-import { state } from "../state";
+import { G } from "../global";
 import { StorageData, StorageManager } from "../storage";
 import { Util } from "../util";
 import { SCALING_RATIO } from "./misc";
@@ -329,7 +329,7 @@ export class MbpOptionsScreen extends OptionsScreen {
 		element.classList.add('mbp-options-element', '_hotkey');
 
 		let p = document.createElement('p');
-		let map = (state.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
+		let map = (G.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
 		p.textContent = map[key] + ':';
 
 		let button = document.createElement('img');

@@ -13,7 +13,7 @@ import { GameState } from "./game_state";
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { mainCanvas, resize } from "../ui/misc";
 import { hideTouchControls, maybeShowTouchControls, releaseAllButtons } from "../input";
-import { state } from "../state";
+import { G } from "../global";
 import { workerClearTimeoutOrInterval, workerSetInterval } from "../worker";
 import { Player } from "./player";
 import { Clock } from "./clock";
@@ -166,7 +166,7 @@ export class Game {
 
 		document.exitPointerLock?.();
 		releaseAllButtons(); // Safety measure to prevent keys from getting stuck
-		state.menu.pauseScreen.show();
+		G.menu.pauseScreen.show();
 		hideTouchControls();
 
 		this.paused = true;
@@ -176,7 +176,7 @@ export class Game {
 	unpause() {
 		this.paused = false;
 		if (!Util.isTouchDevice) Util.requestPointerLock();
-		state.menu.pauseScreen.hide();
+		G.menu.pauseScreen.hide();
 		maybeShowTouchControls();
 
 		this.lastGameUpdateTime = performance.now();
@@ -197,15 +197,15 @@ export class Game {
 	/** Stops and destroys the current level and returns back to the menu. */
 	stopAndExit() {
 		this.stop();
-		state.game = null;
+		G.game = null;
 		mainCanvas.classList.add('hidden');
 
-		state.menu.pauseScreen.hide();
-		state.menu.levelSelect.show();
-		state.menu.levelSelect.displayBestTimes(); // Potentially update best times having changed
-		state.menu.finishScreen.hide();
-		state.menu.hideGameUi();
-		state.menu.show();
+		G.menu.pauseScreen.hide();
+		G.menu.levelSelect.show();
+		G.menu.levelSelect.displayBestTimes(); // Potentially update best times having changed
+		G.menu.finishScreen.hide();
+		G.menu.hideGameUi();
+		G.menu.show();
 
 		document.exitPointerLock?.();
 	}

@@ -1,4 +1,4 @@
-import { state } from "../state";
+import { G } from "../global";
 import { Util } from "../util";
 import { Replay } from "../replay";
 import { Mission } from "../mission";
@@ -62,7 +62,7 @@ export abstract class LoadingScreen {
 			}) as unknown as number;
 
 			let game = new MultiplayerGame(mission, gameServers[0]);
-			state.game = game;
+			G.game = game;
 			await game.init();
 
 			/*
@@ -106,8 +106,8 @@ export abstract class LoadingScreen {
 		} catch(e) {
 			console.error(e);
 			this.cancelButton.click();
-			state.game = null;
-			state.menu.showAlertPopup('Error', "There was an error due to which the level couldn't be loaded.");
+			G.game = null;
+			G.menu.showAlertPopup('Error', "There was an error due to which the level couldn't be loaded.");
 		}
 	}
 }

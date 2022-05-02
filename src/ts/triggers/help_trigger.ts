@@ -1,5 +1,5 @@
 import { Trigger } from "./trigger";
-import { state } from "../state";
+import { G } from "../global";
 import { Marble } from "../marble";
 import { EntityState } from "../../../shared/game_server_format";
 
@@ -22,7 +22,7 @@ export class HelpTrigger extends Trigger {
 			this.entered = [marble.id];
 		}
 
-		state.menu.hud.displayHelp(() => {
+		G.menu.hud.displayHelp(() => {
 			if (this.game.localPlayer !== marble.controllingPlayer) return null;
 			return this.element.text;
 		}, frame);
@@ -48,7 +48,7 @@ export class HelpTrigger extends Trigger {
 	}
 
 	loadState(_state: HelpTriggerState) {
-		state.menu.hud.displayHelp(() => {
+		G.menu.hud.displayHelp(() => {
 			if (!_state.entered.includes(this.game.localPlayer.controlledMarble.id)) return null;
 			return this.element.text;
 		}, _state.enteredFrame);

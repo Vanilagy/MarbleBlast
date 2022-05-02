@@ -1,7 +1,7 @@
 import { Util } from "../util";
 import { Shape } from "../shape";
 import { MisParser, MissionElementItem } from "../parsing/mis_parser";
-import { state } from "../state";
+import { G } from "../global";
 import { Marble } from "../marble";
 import { EntityState } from "../../../shared/game_server_format";
 import { AudioManager } from "../audio";
@@ -85,9 +85,9 @@ export abstract class PowerUp extends Shape {
 		if (marble === this.game.localPlayer.controlledMarble)
 			this.game.simulator.executeNonDuplicatableEvent(() => AudioManager.play(this.sounds[0]), `${this.id}sound`, true);
 
-		state.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
+		G.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
 		if (MisParser.parseBoolean(this.element.showhelponpickup) && !this.autoUse)
-			state.menu.hud.displayHelp(this.getHelpMessage.bind(this), frame);
+			G.menu.hud.displayHelp(this.getHelpMessage.bind(this), frame);
 	}
 
 	getAlertMessage() {

@@ -41,7 +41,7 @@ import { TimeTravel } from "../shapes/time_travel";
 import { Tornado } from "../shapes/tornado";
 import { TrapDoor } from "../shapes/trap_door";
 import { TriangleBumper } from "../shapes/triangle_bumper";
-import { state } from "../state";
+import { G } from "../global";
 import { CheckpointTrigger } from "../triggers/checkpoint_trigger";
 import { DestinationTrigger } from "../triggers/destination_trigger";
 import { HelpTrigger } from "../triggers/help_trigger";
@@ -162,13 +162,13 @@ export class GameInitter {
 		if (game.mission.modification === 'ultra') {
 			musicFileName = 'tim trance.ogg'; // ALWAYS play this banger
 			game.originalMusicName = musicFileName;
-		} else if (state.modification !== 'gold' && game.mission.missionInfo.music && game.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
+		} else if (G.modification !== 'gold' && game.mission.missionInfo.music && game.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
 			musicFileName = game.mission.missionInfo.music.toLowerCase();
 			game.originalMusicName = musicFileName;
 		} else {
 			if (game.mission.modification === 'gold') {
 				// Play the song based on the level index
-				let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(game.mission);
+				let levelIndex = G.menu.levelSelect.currentMissionArray.indexOf(game.mission);
 				musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The default music choice is based off of level index
 				// Yes, the extra space is intentional
 				game.originalMusicName = ['groove police.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
@@ -178,10 +178,10 @@ export class GameInitter {
 				game.originalMusicName = musicFileName;
 			}
 		}
-		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
+		if (G.modification === 'platinum') musicFileName = 'music/' + musicFileName;
 
 		let toLoad = ["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName];
-		if (isFinite(game.mission.qualifyTime) && state.modification === 'platinum') toLoad.push("alarm.wav", "alarm_timeout.wav", "infotutorial.wav");
+		if (isFinite(game.mission.qualifyTime) && G.modification === 'platinum') toLoad.push("alarm.wav", "alarm_timeout.wav", "infotutorial.wav");
 
 		try {
 			await AudioManager.loadBuffers(toLoad);

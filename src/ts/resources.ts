@@ -1,5 +1,5 @@
 import { Texture } from "./rendering/texture";
-import { state } from "./state";
+import { G } from "./global";
 import { mainRenderer } from "./ui/misc";
 
 const imageCacheElement = document.querySelector('#image-cache');
@@ -27,7 +27,7 @@ export abstract class ResourceManager {
 	static urlCache = new Map<Blob, string>();
 
 	static get mainDataPath() {
-		return (state.modification === 'gold')? './assets/data/' : './assets/data_mbp/';
+		return (G.modification === 'gold')? './assets/data/' : './assets/data_mbp/';
 	}
 
 	static async init() {
@@ -69,7 +69,7 @@ export abstract class ResourceManager {
 	}
 
 	/** Gets the full filenames (with extension) of the file located at the given path (without extension). */
-	static getFullNamesOf(path: string, mbp = state.modification === 'platinum') {
+	static getFullNamesOf(path: string, mbp = G.modification === 'platinum') {
 		let parts = path.split('/');
 
 		let current: DirectoryStructure = mbp? this.dataMbpDirectoryStructure : this.dataDirectoryStructure;
@@ -95,7 +95,7 @@ export abstract class ResourceManager {
 	}
 
 	static redirectPath(path: string) {
-		if (state.modification !== 'gold') {
+		if (G.modification !== 'gold') {
 			for (let key in MBP_REDIRECT_RULES) {
 				if (path.includes(key)) return path.replace(key, MBP_REDIRECT_RULES[key as keyof typeof MBP_REDIRECT_RULES]);
 			}

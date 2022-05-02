@@ -1,4 +1,4 @@
-import { state } from "../state";
+import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
@@ -60,7 +60,7 @@ export abstract class OptionsScreen {
 		menu.setupButton(this.homeButton, this.homeButtonSrc, () => {
 			this.hide();
 			menu.home.show();
-		}, undefined, undefined, state.modification === 'gold');
+		}, undefined, undefined, G.modification === 'gold');
 
 		window.addEventListener('keydown', (e) => {
 			if (!this.currentlyRebinding || this.rebindValue) return;
@@ -133,7 +133,7 @@ export abstract class OptionsScreen {
 	changeKeybinding(button: keyof typeof StorageManager.data.settings.gameButtonMapping) {
 		if (Util.isTouchDevice) return; // Don't
 
-		let map = (state.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
+		let map = (G.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
 		this.rebindDialog.classList.remove('hidden');
 		this.rebindDialog.children[1].innerHTML = `Press a new key or button for<br>"${map[button]}"`;
 		this.currentlyRebinding = button;
@@ -141,7 +141,7 @@ export abstract class OptionsScreen {
 
 	/** Updates the binding for a given button. */
 	setKeybinding(button: keyof typeof StorageManager.data.settings.gameButtonMapping, value: string) {
-		let map = (state.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
+		let map = (G.modification === 'gold')? buttonToDisplayNameMbg : buttonToDisplayNameMbp;
 
 		// Check for collisions with other bindings
 		for (let key in StorageManager.data.settings.gameButtonMapping) {

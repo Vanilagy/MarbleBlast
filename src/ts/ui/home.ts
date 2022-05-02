@@ -1,6 +1,6 @@
 import { Leaderboard } from "../leaderboard";
 import { ResourceManager } from "../resources";
-import { state } from "../state";
+import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
@@ -39,7 +39,7 @@ export abstract class HomeScreen {
 			// Show the help screen
 			this.hide();
 			menu.helpScreen.show();
-		}, undefined, undefined, state.modification === 'gold');
+		}, undefined, undefined, G.modification === 'gold');
 		menu.setupButton(this.optionsButton, this.optionsSrc, () => {
 			// Show the options screen
 			this.hide();
@@ -52,13 +52,13 @@ export abstract class HomeScreen {
 
 		menu.setupButton(this.showChangelogButton, this.showChangelogSrc, () => {
 			this.changelogContainer.classList.remove('hidden');
-		}, undefined, undefined, state.modification === 'gold');
+		}, undefined, undefined, G.modification === 'gold');
 		menu.setupButton(this.changelogBackButton, this.changelogBackSrc, () => {
 			this.changelogContainer.classList.add('hidden');
 		});
 
 		this.div.querySelector('.modification-switcher').addEventListener('click', () => {
-			setMenu((state.modification === 'gold')? 'platinum' : 'gold');
+			setMenu((G.modification === 'gold')? 'platinum' : 'gold');
 		});
 	}
 
@@ -85,7 +85,7 @@ export abstract class HomeScreen {
 			this.version.style.bottom = '15px';
 		}
 
-		let classPrefix = (state.modification === 'gold')? 'changelog' : 'mbp-changelog';
+		let classPrefix = (G.modification === 'gold')? 'changelog' : 'mbp-changelog';
 		// Cheap conversion from markdown to HTML here
 		text = text.replace(/(^|\n)# (.*)/g, `$1<span class="${classPrefix}-h1">$2</span>`);
 		text = text.replace(/(^|\n)## (.*)/g, `$1<span class="${classPrefix}-h2">$2</span>`);

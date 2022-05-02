@@ -1,7 +1,7 @@
 import { PowerUp } from "./power_up";
 import { MissionElementItem, MisParser } from "../parsing/mis_parser";
 import { AudioManager } from "../audio";
-import { state } from "../state";
+import { G } from "../global";
 import { Marble } from "../marble";
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 
@@ -24,7 +24,7 @@ export class TimeTravel extends PowerUp {
 			this.timeBonus = -MisParser.parseNumber(element.timepenalty);
 		}
 
-		if (state.modification === 'gold') {
+		if (G.modification === 'gold') {
 			this.pickUpName = `${this.timeBonus/1000} second Time Travel bonus`;
 		} else {
 			this.pickUpName = `${Math.abs(this.timeBonus/1000)} second Time ${this.timeBonus >= 0 ? 'Modifier' : 'Penalty'}`; // MBP calls them Time Penalty when they add time

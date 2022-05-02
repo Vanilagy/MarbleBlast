@@ -19,7 +19,7 @@ import { Shape } from "../shape";
 import { Gem } from "../shapes/gem";
 import { PowerUp } from "../shapes/power_up";
 import { RandomPowerUp } from "../shapes/random_power_up";
-import { state } from "../state";
+import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Hud } from "../ui/hud";
 import { MbpHud } from "../ui/hud_mbp";
@@ -208,7 +208,7 @@ export class GameRenderer {
 		let { game } = this;
 
 		// Load all necessary UI image elements
-		await state.menu.hud.load();
+		await G.menu.hud.load();
 
 		// Set up the HUD overlay
 
@@ -247,7 +247,7 @@ export class GameRenderer {
 			shape.ambientRotate = true;
 			shape.showSequences = false;
 			// MBP's UI gem color is randomized
-			if (path.includes("gem") && state.menu.hud instanceof MbpHud) shape.matNamesOverride['base.gem'] = Gem.pickRandomColor() + '.gem';
+			if (path.includes("gem") && G.menu.hud instanceof MbpHud) shape.matNamesOverride['base.gem'] = Gem.pickRandomColor() + '.gem';
 
 			await shape.init(game);
 
@@ -264,16 +264,16 @@ export class GameRenderer {
 
 		if (game.totalGems > 0) {
 			// Show the gem overlay
-			state.menu.hud.setGemVisibility(true);
+			G.menu.hud.setGemVisibility(true);
 		} else {
 			// Hide the gem UI
-			state.menu.hud.setGemVisibility(false);
+			G.menu.hud.setGemVisibility(false);
 		}
 
 		this.overlayScene.compile();
 
-		if (state.menu.pauseScreen instanceof MbpPauseScreen)
-			state.menu.pauseScreen.jukebox.reset();
+		if (G.menu.pauseScreen instanceof MbpPauseScreen)
+			G.menu.pauseScreen.jukebox.reset();
 	}
 
 	render() {
@@ -446,7 +446,7 @@ export class GameRenderer {
 
 	renderHud() {
 		let { game } = this;
-		let hud = state.menu.hud;
+		let hud = G.menu.hud;
 
 		if (game.localPlayer.controlledMarble.outOfBoundsFrame !== null) {
 			hud.setCenterText('outofbounds');

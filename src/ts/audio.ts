@@ -1,6 +1,6 @@
 import { ResourceManager } from "./resources";
 import { Util } from "./util";
-import { state } from "./state";
+import { G } from "./global";
 import { StorageManager } from "./storage";
 import { Vector3 } from "./math/vector3";
 import { Quaternion } from "./math/quaternion";
@@ -64,7 +64,7 @@ export abstract class AudioManager {
 		let fullPath = this.toFullPath(path);
 
 		// If there's a current level, see if there's a sound file for this path contained in it
-		let mission = state.game?.mission;
+		let mission = G.game?.mission;
 		let zipFile: JSZip.JSZipObject;
 		if (mission && mission.zipDirectory && mission.zipDirectory.files['data/sound/' + path]) {
 			zipFile = mission.zipDirectory.files['data/sound/' + path];
@@ -331,7 +331,7 @@ export class AudioSource {
 	updatePositionalAudio() {
 		if (!this.position) return;
 
-		let camera = state.game.renderer.camera;
+		let camera = G.game.renderer.camera;
 
 		// Get the relative position of the audio source from the listener's POV
 		let relativePosition = this.position.clone().sub(camera.position);

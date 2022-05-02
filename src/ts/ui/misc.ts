@@ -1,5 +1,5 @@
 import { Renderer } from "../rendering/renderer";
-import { state } from "../state";
+import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 
@@ -34,7 +34,7 @@ export const resize = async (wait = true) => {
 	mainRenderer?.setSize(window.innerWidth, window.innerHeight);
 	mainRenderer?.setPixelRatio(Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]));
 
-	state.game?.renderer.onResize();
+	G.game?.renderer.onResize();
 };
 window.addEventListener('resize', resize as any);
 

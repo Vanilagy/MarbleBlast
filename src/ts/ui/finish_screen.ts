@@ -3,7 +3,7 @@ import { isPressedByGamepad, getPressedFlag, resetPressedFlag } from "../input";
 import { Leaderboard } from "../leaderboard";
 import { GO_TIME } from "../level";
 import { Replay } from "../replay";
-import { state } from "../state";
+import { G } from "../global";
 import { BestTimes, StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
@@ -37,21 +37,21 @@ export abstract class FinishScreen {
 		menu.setupButton(this.replayButton, 'endgame/replay', () => {
 			// Restart the level
 			this.div.classList.add('hidden');
-			state.level.restart(true);
+			G.level.restart(true);
 			if (!Util.isTouchDevice) Util.requestPointerLock();
 		});
-		menu.setupButton(this.continueButton, 'endgame/continue', () => state.level.stopAndExit());
+		menu.setupButton(this.continueButton, 'endgame/continue', () => G.level.stopAndExit());
 
 		menu.setupButton(this.nameEntryButton, this.nameEntryButtonSrc, async () => {
 			let trimmed = this.nameEntryInput.value.trim().slice(0, 16);
 
 			if (trimmed.length < 2) {
-				state.menu.showAlertPopup('Warning', "Please enter a proper name for usage in the online leaderboard.");
+				G.menu.showAlertPopup('Warning', "Please enter a proper name for usage in the online leaderboard.");
 				return;
 			}
 
 			if (Util.isNaughty(trimmed)) {
-				state.menu.showAlertPopup('Warning', "The name you chose contains words deemed inappropriate. Please do the right thing and choose a non-offensive name.");
+				G.menu.showAlertPopup('Warning', "The name you chose contains words deemed inappropriate. Please do the right thing and choose a non-offensive name.");
 				return;
 			}
 
@@ -59,7 +59,7 @@ export abstract class FinishScreen {
 			StorageManager.store();
 
 			// Store the time and close the dialog.
-			let level = state.level;
+			let level = G.level;
 			let inserted = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
 
 			this.nameEntryScreenDiv.classList.add('hidden');
@@ -77,11 +77,11 @@ export abstract class FinishScreen {
 				// Submit the score to the leaderboard but only if it's the local top time and qualified
 				if (inserted.index === 0 && level.finishTime.gameplayClock <= level.mission.qualifyTime) Leaderboard.submitBestTime(level.mission.path, inserted.score);
 			}
-		}, undefined, undefined, state.modification === 'gold');
+		}, undefined, undefined, G.modification === 'gold');
 
 		window.addEventListener('keydown', (e) => {
-			if (!state.level) return;
-			if (state.menu !== menu) return;
+			if (!G.level) return;
+			if (G.menu !== menu) return;
 
 			if (e.key === 'Enter') {
 				if (!this.nameEntryScreenDiv.classList.contains('hidden')) {
@@ -92,8 +92,8 @@ export abstract class FinishScreen {
 			}
 		});
 		window.addEventListener('keyup', (e) => {
-			if (!state.level) return;
-			if (state.menu !== menu) return;
+			if (!G.level) return;
+			if (G.menu !== menu) return;
 
 			if (e.key === 'Enter') {
 				if (!this.nameEntryScreenDiv.classList.contains('hidden')) {
@@ -120,7 +120,7 @@ export abstract class FinishScreen {
 	abstract generateNameEntryText(place: number): string;
 
 	show() {
-		let level = state.level;
+		let level = G.level;
 		this.div.classList.remove('hidden');
 
 		let elapsedTime = Math.max(level.finishTime.currentAttemptTime - GO_TIME, 0);
@@ -159,7 +159,7 @@ export abstract class FinishScreen {
 		}
 
 		if (!failedToQualify && level.mission.type !== 'custom') {
-			let levelSelect = state.menu.levelSelect;
+			let levelSelect = G.menu.levelSelect;
 			if (levelSelect.currentMission === level.mission) levelSelect.cycleMission(1); // Cycle to that next level, but only if it isn't already selected
 		}
 
@@ -173,21 +173,21 @@ export abstract class FinishScreen {
 
 	/** Updates the best times. */
 	drawBestTimes() {
-		let bestTimes = StorageManager.getBestTimesForMission(state.level.mission.path, this.bestTimeCount, this.scorePlaceholderName);
+		let bestTimes = StorageManager.getBestTimesForMission(G.level.mission.path, this.bestTimeCount, this.scorePlaceholderName);
 		for (let i = 0; i < this.bestTimeCount; i++) {
 			this.updateBestTimeElement(this.bestTimeContainer.children[i] as HTMLDivElement, bestTimes[i], i+1);
 		}
 	}
 
 	async onViewReplayButtonClick(download: boolean) {
-		let level = state.level;
+		let level = G.level;
 
 		if (download) {
 			let serialized = await level.replay.serialize();
 			Replay.download(serialized, level.mission, false);
-			if (Util.isTouchDevice && Util.isInFullscreen()) state.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
+			if (Util.isTouchDevice && Util.isInFullscreen()) G.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
 		} else {
-			let confirmed = await state.menu.showConfirmPopup('Confirm', `Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top ${this.bestTimeCount} local scores.`);
+			let confirmed = await G.menu.showConfirmPopup('Confirm', `Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top ${this.bestTimeCount} local scores.`);
 			if (!confirmed) return;
 
 			level.replay.mode = 'playback';

@@ -1,4 +1,4 @@
-import { state } from "./state";
+import { G } from "./global";
 import { StorageManager } from "./storage";
 import { SCALING_RATIO } from "./ui/misc";
 import { Util } from "./util";
@@ -11,7 +11,7 @@ export const currentMousePosition = {
 window.addEventListener('mousemove', (e) => {
 	currentMousePosition.x = e.clientX * SCALING_RATIO;
 	currentMousePosition.y = e.clientY * SCALING_RATIO;
-	state.game?.onMouseMove(e);
+	G.game?.onMouseMove(e);
 });
 window.addEventListener('touchstart', (e) => {
 	let touch = e.changedTouches[0];
@@ -27,7 +27,7 @@ window.addEventListener('touchmove', (e) => {
 window.addEventListener('mousedown', (e) => {
 	if (!StorageManager.data) return;
 	// Request pointer lock if we're currently in-game
-	if (state.game && !state.game.paused /*&& !state.level.finishTime*/ && !Util.isTouchDevice) Util.requestPointerLock(); // fixme
+	if (G.game && !G.game.paused /*&& !state.level.finishTime*/ && !Util.isTouchDevice) Util.requestPointerLock(); // fixme
 
 	let buttonName = ["LMB", "MMB", "RMB"][e.button];
 	if (buttonName && document.pointerLockElement) {
@@ -83,7 +83,7 @@ window.addEventListener('contextmenu', (e) => e.preventDefault()); // Disable ri
 window.addEventListener('beforeunload', (e) => {
 	return; // fixme
 	// Ask the user if they're sure about closing the tab if they're currently in game
-	if (state.level) {
+	if (G.level) {
 		e.preventDefault();
 		e.returnValue = '';
 	}
@@ -91,7 +91,7 @@ window.addEventListener('beforeunload', (e) => {
 
 document.addEventListener('pointerlockchange', () => {
 	// When pointer lock is left, we pause.
-	if (!document.pointerLockElement) state.game?.pause();
+	if (!document.pointerLockElement) G.game?.pause();
 });
 
 /** For each game button, a list of the keys/buttons corresponding to it that are currently pressed. */
@@ -140,7 +140,7 @@ const setPressed = (buttonName: keyof typeof gameButtons, presser: string, butto
 		pressedSinceFlag[buttonName] = true;
 	}
 
-	state.game?.onButtonChange();
+	G.game?.onButtonChange();
 };
 
 /** Determine if a button is pressed. */
@@ -236,11 +236,11 @@ const updateGamepadInput = () => {
 	}
 
 	// Check for input on the level select screen
-	if (state.menu?.levelSelect && !state.menu.levelSelect.div.classList.contains('hidden'))
-		state.menu.levelSelect.handleControllerInput(gamepads[mostRecentGamepad]);
+	if (G.menu?.levelSelect && !G.menu.levelSelect.div.classList.contains('hidden'))
+		G.menu.levelSelect.handleControllerInput(gamepads[mostRecentGamepad]);
 
-	if (state.level?.paused)
-		state.menu.pauseScreen.handleGamepadInput(gamepads[mostRecentGamepad]);
+	if (G.level?.paused)
+		G.menu.pauseScreen.handleGamepadInput(gamepads[mostRecentGamepad]);
 
 	for (let i = 0; i < gamepads[mostRecentGamepad].buttons.length && i < 18; i++) {
 		previousButtonState[i] = (gamepads[mostRecentGamepad].buttons[i].value > 0.5);
@@ -443,7 +443,7 @@ cameraAreaElement.addEventListener('touchstart', (e) => {
 // Put this on touchInputContainer instead of cameraAreaElement so it also works when you start the drag on a button
 touchInputContainer.addEventListener('touchmove', (e) => {
 	let touch = [...e.changedTouches].find(x => x.identifier === cameraAreaTouchIdentifier);
-	let level = state.level;
+	let level = G.level;
 
 	if (!touch) return;
 

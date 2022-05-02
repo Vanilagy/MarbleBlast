@@ -6,7 +6,7 @@ import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
 import { MisParser, MissionElementType } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
-import { state } from "./state";
+import { G } from "./global";
 import { Group } from "./rendering/group";
 import { Geometry } from "./rendering/geometry";
 import { Material } from "./rendering/material";
@@ -1078,24 +1078,24 @@ export class Marble extends Entity {
 		if (this.heldPowerUp && powerUp.constructor === this.heldPowerUp.constructor) return false;
 
 		this.heldPowerUp = powerUp;
-		state.menu.hud.setPowerupButtonState(true);
+		G.menu.hud.setPowerupButtonState(true);
 
 		return true;
 	}
 
 	unequipPowerUp() {
 		if (!this.heldPowerUp) {
-			state.menu.hud.setPowerupButtonState(false);
+			G.menu.hud.setPowerupButtonState(false);
 			return;
 		}
 		this.heldPowerUp = null;
-		state.menu.hud.setPowerupButtonState(false);
+		G.menu.hud.setPowerupButtonState(false);
 	}
 
 	goOutOfBounds(frame = this.game.state.frame) {
 		if (this.outOfBoundsFrame !== null /* todo || this.finishTime*/) return;
 
-		state.menu.hud.setPowerupButtonState(true);
+		G.menu.hud.setPowerupButtonState(true);
 		this.game.renderer.updateCamera(); // Update the camera at the point of OOB-ing
 		this.outOfBoundsCameraPosition = this.game.renderer.camera.position.clone();
 		this.outOfBoundsFrame = frame;
@@ -1182,7 +1182,7 @@ export class Marble extends Entity {
 			this.controllingPlayer.yaw = DEFAULT_YAW + euler.z;
 		}
 
-		state.menu.hud.displayHelp(() => {
+		G.menu.hud.displayHelp(() => {
 			if (this.controllingPlayer !== this.game.localPlayer) return null;
 			return this.game.mission.missionInfo.starthelptext ?? null;
 		}, this.game.state.frame, false);

@@ -6,7 +6,7 @@ import { Euler } from "../math/euler";
 import { Vector3 } from "../math/vector3";
 import { MissionElementSimGroup, MissionElementTrigger, MisParser } from "../parsing/mis_parser";
 import { StartPad } from "../shapes/start_pad";
-import { state } from "../state";
+import { G } from "../global";
 import { Util } from "../util";
 import { Game } from "./game";
 import { Entity } from "./entity";
@@ -74,7 +74,7 @@ export class GameState {
 
 	restart() {
 		let { game } = this;
-		let hud = state.menu.hud;
+		let hud = G.menu.hud;
 
 		this.currentTimeTravelBonus = 0;
 
@@ -163,11 +163,11 @@ export class GameState {
 		while (this.affectionGraph.length > 0 && Util.last(this.affectionGraph).frame > target)
 			this.affectionGraph.pop();
 
-		let helpMessages = state.menu.hud.alerts;
+		let helpMessages = G.menu.hud.alerts;
 		while (helpMessages.length > 0 && Util.last(helpMessages).frame > target)
 			helpMessages.pop();
 
-		let alerts = state.menu.hud.alerts;
+		let alerts = G.menu.hud.alerts;
 		while (alerts.length > 0 && Util.last(alerts).frame > target)
 			alerts.pop();
 

@@ -1,5 +1,5 @@
 import { MissionLibrary } from "../mission_library";
-import { state } from "../state";
+import { G } from "../global";
 import { BestTimes } from "../storage";
 import { Util } from "../util";
 import { FinishScreen } from "./finish_screen";
@@ -60,7 +60,7 @@ export class MbpFinishScreen extends FinishScreen {
 
 		menu.setupButton(this.nextLevelButton, 'endgame/level_window', () => {
 			let nextLevel = this.getNextLevel();
-			let levelSelect = state.menu.levelSelect;
+			let levelSelect = G.menu.levelSelect;
 
 			// Exit to level select and immediately load the next level
 			this.continueButton.click();
@@ -93,7 +93,7 @@ export class MbpFinishScreen extends FinishScreen {
 		if (type === 'ultimate') {
 			this.message.innerHTML = `You beat the <span style="color: ${MBP_ULTIMATE_COLOR};">Ultimate</span> Time!`;
 		} else if (type === 'gold') {
-			if (state.level.mission.modification === 'gold') this.message.innerHTML = `You beat the <span style="color: ${MBP_GOLD_COLOR};">Gold</span> Time!`;
+			if (G.level.mission.modification === 'gold') this.message.innerHTML = `You beat the <span style="color: ${MBP_GOLD_COLOR};">Gold</span> Time!`;
 			else this.message.innerHTML = `You beat the <span style="color: ${MBP_PLATINUM_COLOR};">Platinum</span> Time!`;
 		} else if (type === 'qualified') {
 			this.message.innerHTML = "You beat the Par Time!";
@@ -104,7 +104,7 @@ export class MbpFinishScreen extends FinishScreen {
 	}
 
 	updateTimeElements(elapsedTime: number, bonusTime: number) {
-		let level = state.level;
+		let level = G.level;
 
 		this.time.textContent = Util.secondsToTimeString(level.finishTime.gameplayClock / 1000);
 		this.qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? Util.secondsToTimeString(level.mission.qualifyTime / 1000) : Util.secondsToTimeString(5999.999);
@@ -147,8 +147,8 @@ export class MbpFinishScreen extends FinishScreen {
 	}
 
 	updateBestTimeElement(element: HTMLDivElement, score: BestTimes[number], rank: number) {
-		let goldTime = state.level.mission.goldTime;
-		let ultimateTime = state.level.mission.ultimateTime;
+		let goldTime = G.level.mission.goldTime;
+		let ultimateTime = G.level.mission.ultimateTime;
 
 		let tmp = document.createElement('div');
 		tmp.textContent = Util.secondsToTimeString(score[1] / 1000);
@@ -156,7 +156,7 @@ export class MbpFinishScreen extends FinishScreen {
 		element.innerHTML = `<div><span>${rank}. </span>${Util.htmlEscape(score[0])}</div><div>${tmp.innerHTML}</div>`;
 
 		element.style.color = '';
-		if (score[1] <= goldTime) element.style.color = (state.level.mission.modification === 'gold')? MBP_GOLD_COLOR : MBP_PLATINUM_COLOR;
+		if (score[1] <= goldTime) element.style.color = (G.level.mission.modification === 'gold')? MBP_GOLD_COLOR : MBP_PLATINUM_COLOR;
 		if (score[1] <= ultimateTime) element.style.color = MBP_ULTIMATE_COLOR;
 	}
 
@@ -166,8 +166,8 @@ export class MbpFinishScreen extends FinishScreen {
 
 	/** Figures out what the next level after this one should be. */
 	getNextLevel() {
-		let levelSelect = state.menu.levelSelect;
-		let currIndex = levelSelect.currentMissionArray.indexOf(state.level.mission); // Get it like this because the index might have already changed
+		let levelSelect = G.menu.levelSelect;
+		let currIndex = levelSelect.currentMissionArray.indexOf(G.level.mission); // Get it like this because the index might have already changed
 
 		if (currIndex < levelSelect.currentMissionArray.length-1) {
 			// Just the next level in the current array

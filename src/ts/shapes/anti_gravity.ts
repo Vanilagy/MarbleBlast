@@ -1,6 +1,6 @@
 import { PowerUp } from "./power_up";
 import { AudioManager } from "../audio";
-import { state } from "../state";
+import { G } from "../global";
 import { MissionElementItem } from "../parsing/mis_parser";
 import { Vector3 } from "../math/vector3";
 import { Marble } from "../marble";
@@ -9,7 +9,7 @@ import { Marble } from "../marble";
 export class AntiGravity extends PowerUp {
 	dtsPath = "shapes/items/antigravity.dts";
 	autoUse = true;
-	pickUpName = (state.modification === 'gold')? "Gravity Modifier" : "Gravity Defier";
+	pickUpName = (G.modification === 'gold')? "Gravity Modifier" : "Gravity Defier";
 	sounds = ["gravitychange.wav"];
 
 	constructor(element: MissionElementItem, respawnInstantly = false) {

@@ -1,7 +1,7 @@
 import { AudioManager, AudioSource } from "../audio";
 import { currentMousePosition } from "../input";
 import { ResourceManager } from "../resources";
-import { state } from "../state";
+import { G } from "../global";
 import { Util } from "../util";
 import { FinishScreen } from "./finish_screen";
 import { HelpScreen } from "./help";
@@ -224,14 +224,14 @@ export abstract class Menu {
 		let div = document.createElement('div');
 		div.classList.add('hidden');
 		div.classList.add('popup');
-		div.classList.add((state.modification === 'gold')? 'mbg' : 'mbp');
+		div.classList.add((G.modification === 'gold')? 'mbg' : 'mbp');
 
 		let clickPreventer = document.createElement('div');
 
 		let img = document.createElement('img');
 		img.onload = () => {
-			div.style.width = ((state.modification === 'gold')? 400 : img.width) + 'px';
-			div.style.height = ((state.modification === 'gold')? 250 : img.height) + 'px';
+			div.style.width = ((G.modification === 'gold')? 400 : img.width) + 'px';
+			div.style.height = ((G.modification === 'gold')? 250 : img.height) + 'px';
 			img.style.width = div.style.width;
 			img.style.height = div.style.height;
 			div.classList.remove('hidden');

@@ -1,5 +1,5 @@
 import { AudioManager } from "../audio";
-import { state } from "../state";
+import { G } from "../global";
 import { BestTimes } from "../storage";
 import { Util } from "../util";
 import { FinishScreen } from "./finish_screen";
@@ -61,7 +61,7 @@ export class MbgFinishScreen extends FinishScreen {
 	}
 
 	updateTimeElements(elapsedTime: number, bonusTime: number, failedToQualify: boolean) {
-		let level = state.level;
+		let level = G.level;
 
 		this.time.textContent = Util.secondsToTimeString(level.finishTime.gameplayClock / 1000);
 		this.qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? Util.secondsToTimeString(level.mission.qualifyTime / 1000) : Util.secondsToTimeString(5999.999);
@@ -89,7 +89,7 @@ export class MbgFinishScreen extends FinishScreen {
 	}
 
 	updateBestTimeElement(element: HTMLDivElement, score: BestTimes[number], rank: number) {
-		let goldTime = state.level.mission.goldTime;
+		let goldTime = G.level.mission.goldTime;
 
 		element.children[0].textContent = rank + '. ' + score[0];
 		element.children[1].textContent = Util.secondsToTimeString(score[1] / 1000);

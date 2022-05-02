@@ -1,5 +1,5 @@
 import { AudioManager } from "../audio";
-import { state } from "../state";
+import { G } from "../global";
 import { Util } from "../util";
 import { Menu } from "./menu";
 import { PauseScreen } from "./pause_screen";
@@ -80,12 +80,12 @@ class Jukebox {
 		menu.setupButton(this.closeButton, 'jukebox/close', () => this.hide());
 		menu.setupButton(this.prevButton, 'play/prev', () => this.select(Object.keys(SONGS)[this.selectedIndex - 1]), true);
 		menu.setupVaryingButton(this.playButton, ['jukebox/stop', 'jukebox/play'], () => {
-			if (this.playing) { state.level.music?.stop(); this.playing = false; }
+			if (this.playing) { G.level.music?.stop(); this.playing = false; }
 			else {
 				if (this.selectedIndex !== null) this.select(Object.keys(SONGS)[this.selectedIndex]);
 				else {
 					// Restart the default song
-					state.level.music?.play();
+					G.level.music?.play();
 					this.playing = true;
 				}
 			}
@@ -128,7 +128,7 @@ class Jukebox {
 			if (i === index) this.songsContainer.children[i].classList.add('selected');
 		}
 
-		let level = state.level;
+		let level = G.level;
 
 		if (level.music) level.music.stop();
 		level.music = AudioManager.createAudioSource('music/' + song, AudioManager.musicGain, undefined, true);
@@ -167,14 +167,14 @@ class Jukebox {
 
 	show() {
 		this.div.classList.remove('hidden');
-		state.menu.pauseScreen.preventClose = true;
+		G.menu.pauseScreen.preventClose = true;
 
 		if (this.selectedIndex === null) {
 			// This runs if this was the first time in the current level that the jukebox was opened.
 
 			for (let child of this.songsContainer.children) child.classList.remove('selected');
 
-			let index = Object.keys(SONGS).indexOf(state.level.originalMusicName);
+			let index = Object.keys(SONGS).indexOf(G.level.originalMusicName);
 			if (index >= 0) {
 				this.songsContainer.children[index].classList.add('selected');
 				this.selectedIndex = index;
@@ -194,7 +194,7 @@ class Jukebox {
 
 	hide() {
 		this.div.classList.add('hidden');
-		state.menu.pauseScreen.preventClose = false;
+		G.menu.pauseScreen.preventClose = false;
 	}
 
 	reset() {

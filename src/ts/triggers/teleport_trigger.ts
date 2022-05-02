@@ -3,7 +3,7 @@ import { Game } from "../game/game";
 import { DEFAULT_PITCH, Level, TimeState } from "../level";
 import { Vector3 } from "../math/vector3";
 import { MisParser, MissionElementTrigger } from "../parsing/mis_parser";
-import { state } from "../state";
+import { G } from "../global";
 import { Util } from "../util";
 import { DestinationTrigger } from "./destination_trigger";
 import { Trigger } from "./trigger";
@@ -32,7 +32,7 @@ export class TeleportTrigger extends Trigger {
 		if (this.entryTime !== null) return;
 
 		this.entryTime = time.currentAttemptTime;
-		state.menu.hud.displayAlert("Teleporter has been activated, please wait.");
+		G.menu.hud.displayAlert("Teleporter has been activated, please wait.");
 		this.teleportingSound = AudioManager.createAudioSource('teleport.wav');
 		this.teleportingSound.play();
 	}
