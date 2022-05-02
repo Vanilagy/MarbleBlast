@@ -5,7 +5,7 @@ import { Util } from "./util";
 import { GAME_UPDATE_RATE } from '../../shared/constants';
 import { performance } from 'perf_hooks';
 
-const UPDATE_BUFFER_SIZE = 4 + 1 + 10; // In frames
+const UPDATE_BUFFER_SIZE = 4 + 1; // In frames
 
 interface BaseStateRequest {
 	entityId: number,
@@ -164,10 +164,13 @@ export class Game {
 			}
 			this.pendingPings.get(player).clear();
 
+			while (player.estimatedRttHistory.length > 45) player.estimatedRttHistory.shift();
+			let rtt = Util.percentile(player.estimatedRttHistory, 0.1);
+
 			player.connection.queueCommand({
 				command: 'timeState',
 				serverFrame: this.frame,
-				targetFrame: this.frame + player.lastEstimatedRtt + UPDATE_BUFFER_SIZE
+				targetFrame: this.frame + rtt + UPDATE_BUFFER_SIZE
 			}, false);
 
 			player.connection.tick();
@@ -180,8 +183,8 @@ export class Game {
 	}
 
 	processPlayerBundle(player: Player, bundle: CommandToData<'clientStateBundle'>) {
-		player.lastEstimatedRtt = Math.max(this.frame - bundle.serverFrame, 0);
 		player.maxReceivedServerUpdateId = bundle.maxReceivedServerUpdateId;
+		player.estimatedRttHistory.push(Math.max(this.frame - bundle.serverFrame, 0));
 
 		// Remove the updates the player has already received
 		Util.filterInPlace(player.queuedEntityUpdates, x => x.updateId > bundle.maxReceivedServerUpdateId);
@@ -290,7 +293,7 @@ class Player {
 	id: number;
 	marbleId: number;
 
-	lastEstimatedRtt = 0;
+	estimatedRttHistory: number[] = [6]; // 6 frames are 50 ms, reasonable starting value innit
 	maxReceivedClientUpdateFrame = -1;
 	maxReceivedServerUpdateId = -1;
 	queuedEntityUpdates: EntityUpdate[] = [];

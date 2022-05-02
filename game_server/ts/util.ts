@@ -48,4 +48,9 @@ export abstract class Util {
 		}
 		return true;
 	}
+
+	static percentile(arr: number[], p: number) {
+		let sorted = arr.slice().sort((a, b) => a - b);
+		return sorted[Math.floor(p * (arr.length - 1))];
+	}
 }

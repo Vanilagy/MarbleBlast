@@ -50,6 +50,7 @@ import { OutOfBoundsTrigger } from "../triggers/out_of_bounds_trigger";
 import { TeleportTrigger } from "../triggers/teleport_trigger";
 import { Trigger } from "../triggers/trigger";
 import { Util } from "../util";
+import { Balloon } from "./balloon";
 import { Clock } from "./clock";
 import { Game } from "./game";
 
@@ -417,5 +418,12 @@ export class GameInitter {
 		if (!emitterOptions) return;
 
 		this.game.renderer.particles.createEmitter(emitterOptions, MisParser.parseVector3(element.position));
+	}
+
+	/** Adds a Balloon entity to the world. They're just a testing entity, fun to play around with. */
+	async addBalloon() {
+		let balloon = new Balloon(this.game, this.auxEntityIdStart + 1);
+		await balloon.init();
+		this.game.addEntity(balloon);
 	}
 }

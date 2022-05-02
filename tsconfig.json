@@ -13,8 +13,6 @@
     },
     "include": [
     "src/ts/**/*",
-    "server/ts/**/*",
-    "game_server/ts/**/*",
     "shared/**/*",
     "src/node_modules/**/*"
     ]

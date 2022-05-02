@@ -843,6 +843,7 @@ export class Marble extends Entity {
 			if (!shapes.includes(this.shape)) continue;
 			if (shapes[0] !== this.shape) shapes.reverse();
 			if (!(shapes[1] instanceof BallCollisionShape)) continue;
+			if (!(shapes[1].body.userData instanceof Marble)) continue;
 
 			let otherMarble = shapes[1].body.userData as Marble;
 			this.onMarbleMarbleCollision(otherMarble);

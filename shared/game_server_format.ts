@@ -64,6 +64,12 @@ export const entityStateFormat = [union, 'entityType', {
 }, {
 	entityType: 'pushButton',
 	lastContactTime: 'f64'
+}, {
+	entityType: 'balloon',
+	position: vector3Format,
+	orientation: quaternionFormat,
+	linearVelocity: vector3Format,
+	angularVelocity: vector3Format
 }] as const;
 
 export const entityUpdateFormat = {
