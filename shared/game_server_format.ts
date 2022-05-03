@@ -16,9 +16,6 @@ export const entityStateFormat = [union, 'entityType', {
 		superBounceEnableFrame: 'varint',
 		shockAbsorberEnableFrame: 'varint',
 		orientationQuat: quaternionFormat,
-		jumpCount: 'varint',
-		powerUpUses: ['varint'],
-		powerUpUseFrame: 'varint',
 		respawnFrame: 'varint',
 		outOfBoundsFrame: 'varint',
 		teleportStates: [{

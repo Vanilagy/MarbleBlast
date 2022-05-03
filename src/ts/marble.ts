@@ -33,6 +33,7 @@ import { EntityState, entityStateFormat } from "../../shared/game_server_format"
 import { Player } from "./game/player";
 import { FixedFormatBinarySerializer } from "../../shared/fixed_format_binary_serializer";
 import { TeleportTrigger } from "./triggers/teleport_trigger";
+import { DefaultMap } from "../../shared/default_map";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -102,8 +103,7 @@ interface InternalMarbleState {
 	slidingTimeout: number,
 	oldOrientationQuat: Quaternion,
 	orientationQuat: Quaternion,
-	orientationChangeTime: number,
-	lastPowerUpUseFrame: number
+	orientationChangeTime: number
 }
 
 export interface MarbleControlState {
@@ -202,16 +202,12 @@ export class Marble extends Entity {
 	interpolationRemaining = 0;
 	interpolationStrength = 1;
 
-	jumpCount = 0;
-	powerUpUses: number[] = [];
-	powerUpUseFrame = -1;
-	lastPowerUpUseFrame = -1;
-
 	teleportStates: {
 		trigger: TeleportTrigger,
 		entryFrame: number,
 		exitFrame: number
 	}[] = [];
+	teleportSounds = new DefaultMap<TeleportTrigger, AudioSource[]>(() => []);
 
 	constructor(game: Game, id: number) {
 		super(game);
@@ -396,9 +392,6 @@ export class Marble extends Entity {
 				superBounceEnableFrame: this.superBounceIsActive()? this.superBounceEnableFrame : undefined,
 				shockAbsorberEnableFrame: this.shockAbsorberIsActive()? this.shockAbsorberEnableFrame : undefined,
 				orientationQuat: this.orientationQuat.equals(new Quaternion())? undefined : this.orientationQuat.clone(),
-				jumpCount: this.jumpCount || undefined,
-				powerUpUses: this.powerUpUses.length ? this.powerUpUses : undefined,
-				powerUpUseFrame: this.powerUpUses.length ? this.powerUpUseFrame : undefined,
 				respawnFrame: this.respawnFrame || undefined,
 				outOfBoundsFrame: this.outOfBoundsFrame ?? undefined,
 				teleportStates: this.teleportStates.length ? this.teleportStates.map(x => ({
@@ -463,23 +456,6 @@ export class Marble extends Entity {
 		let gravityStrength = this.body.gravity.length();
 		this.body.gravity.copy(up).multiplyScalar(-1 * gravityStrength);
 
-		let newJumpCount = state.extras.jumpCount || 0;
-		if (newJumpCount > this.jumpCount) {
-			this.playJumpSound();
-		}
-		this.jumpCount = newJumpCount;
-
-		let newPowerUpUseFrame = state.extras.powerUpUseFrame ?? -1;
-		this.powerUpUseFrame = newPowerUpUseFrame;
-		this.powerUpUses = state.extras.powerUpUses ?? [];
-		if (newPowerUpUseFrame > this.lastPowerUpUseFrame) {
-			for (let id of this.powerUpUses) {
-				let powerUp = this.game.getEntityById(id) as PowerUp;
-				powerUp.useCosmetically(this);
-			}
-		}
-		this.lastPowerUpUseFrame = newPowerUpUseFrame;
-
 		let newRespawnFrame = state.extras.respawnFrame ?? 0;
 		if (newRespawnFrame > this.respawnFrame) {
 			this.game.simulator.executeNonDuplicatableEvent(() => {
@@ -510,8 +486,7 @@ export class Marble extends Entity {
 			slidingTimeout: this.slidingTimeout,
 			oldOrientationQuat: this.oldOrientationQuat.clone(),
 			orientationQuat: this.orientationQuat.clone(),
-			orientationChangeTime: this.orientationChangeTime,
-			lastPowerUpUseFrame: this.lastPowerUpUseFrame
+			orientationChangeTime: this.orientationChangeTime
 		};
 	}
 
@@ -523,7 +498,6 @@ export class Marble extends Entity {
 		this.orientationQuat.copy(state.orientationQuat);
 		this.oldOrientationQuat.copy(state.oldOrientationQuat);
 		this.orientationChangeTime = state.orientationChangeTime;
-		this.lastPowerUpUseFrame = state.lastPowerUpUseFrame;
 	}
 
 	update() {
@@ -771,12 +745,6 @@ export class Marble extends Entity {
 		if (controlState.using && this.heldPowerUp) {
 			this.heldPowerUp.use(this, 0);
 			this.heldPowerUp.useCosmetically(this);
-
-			if (this.powerUpUseFrame === this.game.state.frame) this.powerUpUses.push(this.heldPowerUp.id);
-			else this.powerUpUses = [this.heldPowerUp.id];
-			this.powerUpUseFrame = this.game.state.frame;
-			this.lastPowerUpUseFrame = this.powerUpUseFrame;
-
 			this.unequipPowerUp();
 		}
 		if (controlState.blasting) this.useBlast();
@@ -876,9 +844,7 @@ export class Marble extends Entity {
 		// Handle jumping
 		if (this.currentControlState.jumping && contactNormalUpDot > 1e-6) {
 			this.setLinearVelocityInDirection(contactNormal, this.jumpImpulse + contactShape.body.linearVelocity.dot(contactNormal), true, () => {
-				this.jumpCount++;
 				this.playJumpSound();
-				//if (this.level.replay.canStore) this.level.replay.jumpSoundTimes.push(this.level.replay.currentTickIndex);
 			});
 		}
 

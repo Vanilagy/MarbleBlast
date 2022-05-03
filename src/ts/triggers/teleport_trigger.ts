@@ -1,6 +1,6 @@
-import { AudioManager, AudioSource } from "../audio";
+import { AudioManager } from "../audio";
 import { Game } from "../game/game";
-import { DEFAULT_PITCH, Level, TimeState } from "../level";
+import { DEFAULT_PITCH } from "../level";
 import { Vector3 } from "../math/vector3";
 import { MisParser, MissionElementTrigger } from "../parsing/mis_parser";
 import { G } from "../global";
@@ -14,7 +14,6 @@ export class TeleportTrigger extends Trigger {
 	/** How long after entry until the teleport happens */
 	delay = 2000;
 	sounds = ["teleport.wav"];
-	teleportingSound: AudioSource = null;
 
 	constructor(element: MissionElementTrigger, game: Game) {
 		super(element, game);
@@ -25,16 +24,20 @@ export class TeleportTrigger extends Trigger {
 	onMarbleEnter(marble: Marble) {
 		let teleportState = marble.getTeleportState(this);
 		teleportState.exitFrame = null;
-
 		marble.enableTeleportingLook();
+
 		if (teleportState.entryFrame !== null) return;
 
 		teleportState.entryFrame = this.game.state.frame;
 		G.menu.hud.displayAlert(() => {
 			return this.game.localPlayer.controlledMarble === marble ? "Teleporter has been activated, please wait." : null;
 		}, this.game.state.frame);
-		this.teleportingSound = AudioManager.createAudioSource('teleport.wav');
-		this.teleportingSound.play();
+
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			let sound = AudioManager.createAudioSource('teleport.wav', undefined, marble.body.position);
+			sound.play();
+			marble.teleportSounds.get(this).push(sound);
+		}, `${this.id} ${marble.id}sound`, true);
 	}
 
 	onMarbleLeave(marble: Marble) {
@@ -79,8 +82,11 @@ export class TeleportTrigger extends Trigger {
 			marble.controllingPlayer.pitch = DEFAULT_PITCH;
 		}
 
-		AudioManager.play('spawn.wav');
-		this.teleportingSound?.stop();
-		this.teleportingSound = null;
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play('spawn.wav', undefined, undefined, marble.body.position);
+		}, `${this.id} ${marble.id}spawn`, true);
+
+		for (let sound of marble.teleportSounds.get(this)) sound.stop();
+		marble.teleportSounds.get(this).length = 0;
 	}
 }
