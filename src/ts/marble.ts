@@ -915,7 +915,7 @@ export class Marble extends Entity {
 	}
 
 	onMarbleMarbleCollision(otherMarble: Marble, collision: Collision) {
-		this.interactWith(otherMarble);
+		this.affect(otherMarble);
 
 		// Set restitution for marble-marble collisions
 		collision.restitution = 1;
@@ -1174,7 +1174,7 @@ export class Marble extends Entity {
 				dir.normalize().multiplyScalar(knockbackStrength);
 				marble.body.linearVelocity.add(dir);
 
-				this.interactWith(marble);
+				this.affect(marble);
 			}
 		}
 
@@ -1257,7 +1257,7 @@ export class Marble extends Entity {
 			if (!(shape instanceof Gem)) continue;
 			if (shape.pickedUpBy === this) {
 				shape.pickDown();
-				this.interactWith(shape);
+				this.affect(shape);
 			}
 		}
 

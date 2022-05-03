@@ -25,7 +25,7 @@ export abstract class Bumper extends Shape {
 		marble.setLinearVelocityInDirection(collision.normal, 15, false);
 		marble.slidingTimeout = 2; // Make sure we don't slide on the bumper after bouncing off it
 
-		this.interactWith(marble);
+		this.affect(marble);
 		this.stateNeedsStore = true;
 
 		this.playSound(marble === this.game.localPlayer.controlledMarble);

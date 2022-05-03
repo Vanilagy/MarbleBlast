@@ -37,7 +37,7 @@ export abstract class PowerUp extends Shape {
 	onMarbleInside(t: number, marble: Marble) {
 		let time = this.game.state.time;
 
-		marble.interactWith(this);
+		marble.affect(this);
 		//this.interactWith(marble);
 		//this.stateNeedsStore = true;
 
@@ -48,7 +48,7 @@ export abstract class PowerUp extends Shape {
 			this.lastPickUpTime = time;
 			this.pickedUpBy = marble;
 
-			this.interactWith(marble);
+			this.affect(marble);
 			this.pickUpCosmetically(marble, this.game.state.frame);
 			//this.setCollisionEnabled(false);
 

@@ -29,7 +29,7 @@ export abstract class Entity {
 	beforeReconciliation() {}
 	afterReconciliation() {}
 
-	interactWith(otherObject: Entity) {
+	affect(otherObject: Entity) {
 		this.game.state.recordEntityInteraction(this, otherObject);
 	}
 

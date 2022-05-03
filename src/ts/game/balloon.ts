@@ -56,8 +56,8 @@ export class Balloon extends Entity {
 			if (!(shapes[1].body.userData instanceof Marble)) continue;
 
 			let marble = shapes[1].body.userData as Marble;
-			this.interactWith(marble);
-			marble.interactWith(this);
+			this.affect(marble);
+			marble.affect(this);
 		}
 	}
 

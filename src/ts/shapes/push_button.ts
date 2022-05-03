@@ -41,7 +41,7 @@ export class PushButton extends Shape {
 		if (currentCompletion === 0) {
 			this.lastContactTime = this.game.state.time;
 			this.stateNeedsStore = true;
-			marble.interactWith(this);
+			marble.affect(this);
 		}
 	}
 

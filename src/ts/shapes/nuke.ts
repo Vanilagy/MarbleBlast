@@ -26,14 +26,14 @@ export class Nuke extends Shape {
 			marble.body.linearVelocity.add(explosionForce);
 			marble.slidingTimeout = 2;
 
-			this.interactWith(marble);
+			this.affect(marble);
 		}
 
 		this.disappearTime = this.game.state.time;
 		this.setCollisionEnabled(false);
 		this.stateNeedsStore = true;
 
-		marble.interactWith(this);
+		marble.affect(this);
 
 		this.applyCosmeticEffects();
 	}

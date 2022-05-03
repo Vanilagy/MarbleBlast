@@ -71,7 +71,7 @@ export class TrapDoor extends Shape {
 	}
 
 	onMarbleContact(collision: Collision, marble: Marble) {
-		this.interactWith(marble);
+		this.affect(marble);
 
 		let time = this.game.state.time;
 		if (time - this.lastContactTime <= 0) return; // The trapdoor is queued to open, so don't do anything.
@@ -83,7 +83,7 @@ export class TrapDoor extends Shape {
 		if (currentCompletion === 0) this.lastContactTime += this.timeout;
 
 		this.stateNeedsStore = true;
-		marble.interactWith(this);
+		marble.affect(this);
 	}
 
 	getState(): TrapDoorState {

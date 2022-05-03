@@ -146,7 +146,7 @@ export class Player extends Entity {
 
 		this.controlledMarble.currentControlState = state;
 
-		if (this === this.game.localPlayer) this.interactWith(this.controlledMarble);
+		if (this === this.game.localPlayer) this.affect(this.controlledMarble);
 	}
 
 	update() {
@@ -185,7 +185,7 @@ export class Player extends Entity {
 			}
 
 			this.affectedBy.add(this);
-			this.interactWith(this.controlledMarble); // Is this clean?
+			this.affect(this.controlledMarble); // Is this clean?
 		}
 	}
 

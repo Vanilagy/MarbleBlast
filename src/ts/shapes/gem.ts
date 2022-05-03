@@ -45,7 +45,7 @@ export class Gem extends Shape {
 	}
 
 	onMarbleInside(t: number, marble: Marble) {
-		marble.interactWith(this);
+		marble.affect(this);
 
 		if (this.pickedUpBy !== null) return;
 

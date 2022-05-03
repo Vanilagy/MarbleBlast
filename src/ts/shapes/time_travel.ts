@@ -43,7 +43,7 @@ export class TimeTravel extends PowerUp {
 		//else this.level.replay.timeTravelTimeToRevert.set(this.id, timeToRevert);
 
 		this.game.clock.addTimeTravelBonus(this.timeBonus / 1000, timeToRevert);
-		this.interactWith(this.game.clock);
+		this.affect(this.game.clock);
 	}
 
 	useCosmetically(marble: Marble) {

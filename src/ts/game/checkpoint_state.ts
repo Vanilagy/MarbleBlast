@@ -73,7 +73,7 @@ export class CheckpointState extends Entity {
 			}, `${this.id}sound`, true);
 		}
 
-		this.marble.interactWith(this);
+		this.marble.affect(this);
 		this.stateNeedsStore = true;
 	}
 
@@ -130,7 +130,7 @@ export class CheckpointState extends Entity {
 			if (!(shape instanceof Gem)) continue;
 			if (shape.pickedUpBy === marble && !this.checkpointCollectedGems.has(shape)) {
 				shape.pickDown();
-				marble.interactWith(shape);
+				marble.affect(shape);
 			}
 		}
 

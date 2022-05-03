@@ -37,7 +37,7 @@ export class RandomPowerUp extends PowerUp {
 				this.lastInstance = instance;
 				this.imitatePowerUp(instance);
 
-				marble.interactWith(instance);
+				marble.affect(instance);
 
 				return true;
 			}

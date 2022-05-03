@@ -29,6 +29,6 @@ export class MustChangeTrigger extends Trigger {
 
 		//this.level.replay.recordMarbleEnter(this);
 
-		marble.interactWith(this.interior);
+		marble.affect(this.interior);
 	}
 }
