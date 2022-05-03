@@ -67,6 +67,8 @@ export class TeleportTrigger extends Trigger {
 		body.position.copy(position);
 		body.prevPosition.copy(position); // Avoid funky CCD business
 
+		marble.cancelInterpolation();
+
 		if (!MisParser.parseBoolean(this.element.keepvelocity || destination.element.keepvelocity)) body.linearVelocity.setScalar(0);
 		if (MisParser.parseBoolean(this.element.inversevelocity || destination.element.inversevelocity)) body.linearVelocity.negate();
 		if (!MisParser.parseBoolean(this.element.keepangular || destination.element.keepangular)) body.angularVelocity.setScalar(0);

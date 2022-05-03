@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { Marble } from "../marble";
 import { PowerUp } from "./power_up";
 
 export class Blast extends PowerUp {
@@ -8,11 +8,12 @@ export class Blast extends PowerUp {
 	pickUpName = "Blast PowerUp";
 
 	pickUp() {
-		AudioManager.play(this.sounds[0]);
 		return true;
 	}
 
-	use() {
-		this.level.blastAmount = 1.03;
+	use(marble: Marble) {
+		marble.blastAmount = 1.03;
 	}
+
+	useCosmetically() {}
 }

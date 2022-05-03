@@ -234,7 +234,7 @@ export abstract class Hud {
 		let game = G.game;
 		if (playSound && getMessage() !== null) game.simulator.executeNonDuplicatableEvent(() => {
 			AudioManager.play('infotutorial.wav');
-		}, `displayHelp`);
+		}, `displayHelp`, true);
 	}
 
 	/** Displays an alert at the bottom of the screen. */

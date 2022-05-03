@@ -53,7 +53,7 @@ export class CheckpointState extends Entity {
 		this.currentCheckpointTrigger = trigger;
 		this.checkpointCollectedGems.clear();
 		this.checkpointUp = this.marble.currentUp.clone();
-		this.checkpointBlast = 0; // todo this.blastAmount;
+		this.checkpointBlast = this.marble.blastAmount;
 
 		// Remember all gems that were collected up to this point
 		for (let shape of this.game.shapes) {
@@ -115,6 +115,7 @@ export class CheckpointState extends Entity {
 		marble.calculatePredictiveTransforms();
 		marble.group.position.copy(marble.body.position);
 		marble.group.recomputeTransform();
+		marble.cancelInterpolation();
 
 		if (marble.controllingPlayer) {
 		// Set camera orienation
@@ -137,7 +138,7 @@ export class CheckpointState extends Entity {
 		marble.superBounceEnableFrame = -Infinity;
 		marble.shockAbsorberEnableFrame = -Infinity;
 		marble.helicopterEnableFrame = -Infinity;
-		marble.megaMarbleEnableTime = -Infinity; // todo
+		marble.megaMarbleEnableFrame = -Infinity;
 
 		this.scheduledPickUpFrame = null;
 		marble.outOfBoundsFrame = null;

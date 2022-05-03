@@ -42,6 +42,7 @@ const ULTRA_RADIUS = 0.3;
 const MEGA_MARBLE_RADIUS = 0.6666;
 export const MARBLE_ROLL_FORCE = 40 || 40;
 const TELEPORT_FADE_DURATION = 0.5;
+const BLAST_CHARGE_TIME = 25000;
 export const DEFAULT_PITCH = 0.45;
 export const DEFAULT_YAW = Math.PI / 2;
 
@@ -158,7 +159,7 @@ export class Marble extends Entity {
 	superBounceEnableFrame = -Infinity;
 	shockAbsorberEnableFrame = -Infinity;
 	helicopterEnableFrame = -Infinity;
-	megaMarbleEnableTime = -Infinity;
+	megaMarbleEnableFrame = -Infinity;
 	helicopterSound: AudioSource = null;
 	shockAbsorberSound: AudioSource = null;
 	superBounceSound: AudioSource = null;
@@ -199,7 +200,6 @@ export class Marble extends Entity {
 	checkpointState: CheckpointState;
 
 	reconciliationPosition = new Vector3();
-	reconciliationLinearVelocity = new Vector3();
 
 	interpolatedPosition = new Vector3();
 	interpolatedOrientation = new Quaternion();
@@ -396,6 +396,7 @@ export class Marble extends Entity {
 				helicopterEnableFrame: this.helicopterIsActive()? this.helicopterEnableFrame : undefined,
 				superBounceEnableFrame: this.superBounceIsActive()? this.superBounceEnableFrame : undefined,
 				shockAbsorberEnableFrame: this.shockAbsorberIsActive()? this.shockAbsorberEnableFrame : undefined,
+				megaMarbleEnableFrame: this.megaMarbleIsActive()? this.megaMarbleEnableFrame : undefined,
 				orientationQuat: this.orientationQuat.equals(new Quaternion())? undefined : this.orientationQuat.clone(),
 				respawnFrame: this.respawnFrame || undefined,
 				outOfBoundsFrame: this.outOfBoundsFrame ?? undefined,
@@ -406,6 +407,7 @@ export class Marble extends Entity {
 				})) : undefined,
 				teleportEnableTime: this.teleportEnableTime ?? undefined,
 				teleportDisableTime: this.teleportDisableTime !== null && this.game.state.time - this.teleportDisableTime < TELEPORT_FADE_DURATION ? this.teleportDisableTime : undefined,
+				blastAmount: this.blastAmount || undefined
 			}
 		};
 	}
@@ -441,6 +443,7 @@ export class Marble extends Entity {
 		this.helicopterEnableFrame = state.extras.helicopterEnableFrame ?? -Infinity;
 		this.superBounceEnableFrame = state.extras.superBounceEnableFrame ?? -Infinity;
 		this.shockAbsorberEnableFrame = state.extras.shockAbsorberEnableFrame ?? -Infinity;
+		this.megaMarbleEnableFrame = state.extras.megaMarbleEnableFrame ?? -Infinity;
 
 		let orientationQuat = state.extras.orientationQuat?
 			new Quaternion().fromObject(state.extras.orientationQuat)
@@ -481,6 +484,8 @@ export class Marble extends Entity {
 		}));
 		this.teleportEnableTime = state.extras.teleportEnableTime ?? null;
 		this.teleportDisableTime = state.extras.teleportDisableTime ?? null;
+
+		this.blastAmount = state.extras.blastAmount || 0;
 	}
 
 	getInternalState(): InternalMarbleState {
@@ -586,15 +591,14 @@ export class Marble extends Entity {
 			}
 		}
 
-		if (this.radius !== MEGA_MARBLE_RADIUS && time - this.megaMarbleEnableTime < 10) {
+		if (this.megaMarbleIsActive()) {
 			this.setRadius(MEGA_MARBLE_RADIUS);
-			this.body.linearVelocity.addScaledVector(this.currentUp, 6); // There's a small yeet upwards
 
 			if (!reconciling) {
 				this.rollingSound.stop();
 				this.rollingMegaMarbleSound?.play();
 			}
-		} else if (time - this.megaMarbleEnableTime >= 10) {
+		} else {
 			this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
 
 			if (!reconciling) {
@@ -632,6 +636,10 @@ export class Marble extends Entity {
 				return;
 			}
 		}
+
+		// Increase blast meter over time
+		if (this.game.mission.hasBlast && this.blastAmount < 1)
+			this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / GAME_UPDATE_RATE, 0, 1);
 
 		Util.filterInPlace(this.teleportStates, x => x.entryFrame !== null || x.exitFrame !== null);
 	}
@@ -798,6 +806,18 @@ export class Marble extends Entity {
 			this.playBounceSound(volume);
 			//if (this.level.replay.canStore) this.level.replay.bounceTimes.push({ tickIndex: this.level.replay.currentTickIndex, volume: volume, showParticles: impactVelocity > 6 });
 		}
+
+		// Check for marble-marble collisions
+		for (let collision of this.body.collisions) {
+			let shapes = [collision.s1, collision.s2];
+			if (!shapes.includes(this.shape)) continue;
+			if (shapes[0] !== this.shape) shapes.reverse();
+			if (!(shapes[1] instanceof BallCollisionShape)) continue;
+			if (!(shapes[1].body.userData instanceof Marble)) continue;
+
+			let otherMarble = shapes[1].body.userData as Marble;
+			this.onMarbleMarbleCollision(otherMarble, collision);
+		}
 	}
 
 	onAfterCollisionResponse() {
@@ -853,18 +873,6 @@ export class Marble extends Entity {
 			});
 		}
 
-		// Check for marble-marble collisions
-		for (let collision of this.body.collisions) {
-			let shapes = [collision.s1, collision.s2];
-			if (!shapes.includes(this.shape)) continue;
-			if (shapes[0] !== this.shape) shapes.reverse();
-			if (!(shapes[1] instanceof BallCollisionShape)) continue;
-			if (!(shapes[1].body.userData instanceof Marble)) continue;
-
-			let otherMarble = shapes[1].body.userData as Marble;
-			this.onMarbleMarbleCollision(otherMarble);
-		}
-
 		// Handle rolling and sliding sounds
 		if (!reconciling) {
 			if (contactNormal.dot(surfaceRelativeVelocity) < 0.01) {
@@ -906,8 +914,29 @@ export class Marble extends Entity {
 		}
 	}
 
-	onMarbleMarbleCollision(otherMarble: Marble) {
+	onMarbleMarbleCollision(otherMarble: Marble, collision: Collision) {
 		this.interactWith(otherMarble);
+
+		// Set restitution for marble-marble collisions
+		collision.restitution = 1;
+
+		// Set custom collision code for mega marble goodness
+		if (this.megaMarbleIsActive() !== otherMarble.megaMarbleIsActive()) {
+			collision.customVelocitySolver = () => {
+				// https://github.com/MBU-Team/OpenMBU/blob/96061f8d1bb03ede1a7119c139927402f77692f0/engine/source/game/marble/marblephysics.cpp#L379
+
+				let ourMass = collision.s1.mass;
+				let theirMass = collision.s2.mass;
+				let bounce = 1;
+
+				let dp = collision.s1.body.linearVelocity.clone().multiplyScalar(ourMass).addScaledVector(collision.s2.body.linearVelocity, -theirMass);
+				let normP = collision.normal.clone().multiplyScalar(dp.dot(collision.normal));
+				normP.multiplyScalar(bounce + 1);
+
+				collision.s1.body.linearVelocity.addScaledVector(normP, -1 / ourMass);
+				collision.s2.body.linearVelocity.addScaledVector(normP, 1 / theirMass);
+			};
+		}
 	}
 
 	/** Get the current interpolated orientation quaternion. */
@@ -1061,6 +1090,13 @@ export class Marble extends Entity {
 		this.helicopterEnableFrame = this.game.state.frame;
 	}
 
+	enableMegaMarble() {
+		if (!this.megaMarbleIsActive())
+			this.body.linearVelocity.addScaledVector(this.currentUp, 6); // There's a small yeet upwards
+
+		this.megaMarbleEnableFrame = this.game.state.frame;
+	}
+
 	superBounceIsActive() {
 		return this.game.state.frame - this.superBounceEnableFrame < 5 * GAME_UPDATE_RATE;
 	}
@@ -1073,6 +1109,10 @@ export class Marble extends Entity {
 		return this.game.state.frame - this.helicopterEnableFrame < 5 * GAME_UPDATE_RATE;
 	}
 
+	megaMarbleIsActive() {
+		return this.game.state.frame - this.megaMarbleEnableFrame < 10 * GAME_UPDATE_RATE;
+	}
+
 	enableTeleportingLook() {
 		let completion = (this.teleportDisableTime !== null)? Util.clamp((this.game.state.time - this.teleportDisableTime) / TELEPORT_FADE_DURATION, 0, 1) : 1;
 		this.teleportEnableTime = this.game.state.time - TELEPORT_FADE_DURATION * (1 - completion);
@@ -1083,10 +1123,6 @@ export class Marble extends Entity {
 		let completion = Util.clamp((this.game.state.time - this.teleportEnableTime) / TELEPORT_FADE_DURATION, 0, 1) ?? 1;
 		this.teleportDisableTime = this.game.state.time - TELEPORT_FADE_DURATION * (1 - completion);
 		this.teleportEnableTime = null;
-	}
-
-	enableMegaMarble() {
-		this.megaMarbleEnableTime = this.game.state.time;
 	}
 
 	pickUpPowerUp(powerUp: PowerUp) {
@@ -1128,16 +1164,31 @@ export class Marble extends Entity {
 
 		let impulse = this.currentUp.clone().multiplyScalar(Math.max(Math.sqrt(this.blastAmount), this.blastAmount) * 10);
 		this.body.linearVelocity.add(impulse);
-		AudioManager.play('blast.wav');
-		this.game.renderer.particles.createEmitter(
-			(this.blastAmount > 1)? blastMaxParticleOptions : blastParticleOptions,
-			null,
-			() => this.body.position.clone().addScaledVector(this.currentUp, -this.radius * 0.4),
-			new Vector3(1, 1, 1).addScaledVector(this.currentUp.clone().abs(), -0.8)
-		);
+
+		for (let marble of this.game.marbles) {
+			if (marble === this) continue;
+
+			let knockbackStrength = this.blastAmount * (this.blastAmount > 1 ? 10 : 5);
+			if (this.body.position.distanceTo(marble.body.position) < knockbackStrength) {
+				let dir = marble.body.position.clone().sub(this.body.position);
+				dir.normalize().multiplyScalar(knockbackStrength);
+				marble.body.linearVelocity.add(dir);
+
+				this.interactWith(marble);
+			}
+		}
+
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play('blast.wav', undefined, undefined, this.body.position);
+			this.game.renderer.particles.createEmitter(
+				(this.blastAmount > 1)? blastMaxParticleOptions : blastParticleOptions,
+				null,
+				() => this.body.position.clone().addScaledVector(this.currentUp, -this.radius * 0.4),
+				new Vector3(1, 1, 1).addScaledVector(this.currentUp.clone().abs(), -0.8)
+			);
+		}, `${this.id}blast`);
 
 		this.blastAmount = 0;
-		//this.level.replay.recordUseBlast();
 	}
 
 	getTeleportState(trigger: TeleportTrigger) {
@@ -1166,6 +1217,9 @@ export class Marble extends Entity {
 		this.largeAuxShape.radius = 2 * radius;
 		this.smallAuxShape.radius = radius;
 
+		this.shape.mass = radius === MEGA_MARBLE_RADIUS ? 5 : 1;
+		this.shape.updateInertiaTensor();
+
 		this.body.syncShapes();
 
 		this.forcefield.group.scale.setScalar(this.radius / DEFAULT_RADIUS);
@@ -1178,9 +1232,9 @@ export class Marble extends Entity {
 		this.superBounceEnableFrame = -Infinity;
 		this.shockAbsorberEnableFrame = -Infinity;
 		this.helicopterEnableFrame = -Infinity;
+		this.megaMarbleEnableFrame = -Infinity;
 		this.teleportEnableTime = null;
 		this.teleportDisableTime = null;
-		this.megaMarbleEnableTime = -Infinity;
 		this.lastContactNormal.set(0, 0, 0);
 		this.beforeVel.set(0, 0, 0);
 		this.beforeAngVel.set(0, 0, 0);
@@ -1217,6 +1271,7 @@ export class Marble extends Entity {
 		this.calculatePredictiveTransforms();
 		this.respawnFrame = this.game.state.frame;
 		this.outOfBoundsFrame = null;
+		this.cancelInterpolation();
 
 		this.game.simulator.executeNonDuplicatableEvent(() => {
 			AudioManager.play('spawn.wav', undefined, undefined, this.body.position);
@@ -1247,7 +1302,6 @@ export class Marble extends Entity {
 
 	beforeReconciliation() {
 		this.reconciliationPosition.copy(this.body.position);
-		this.reconciliationLinearVelocity.copy(this.body.linearVelocity);
 	}
 
 	afterReconciliation() {
@@ -1258,6 +1312,11 @@ export class Marble extends Entity {
 
 		this.interpolationRemaining = frames;
 		this.interpolationStrength = 1 - Math.pow(1 - 0.99, 1 / this.interpolationRemaining);
+	}
+
+	cancelInterpolation() {
+		this.interpolationRemaining = 0;
+		this.reconciliationPosition.copy(this.body.position);
 	}
 
 	static getPassiveControlState(): MarbleControlState {

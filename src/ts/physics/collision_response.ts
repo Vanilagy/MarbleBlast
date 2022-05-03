@@ -1,6 +1,7 @@
 import { Matrix3 } from "../math/matrix3";
 import { Vector3 } from "../math/vector3";
 import { Collision } from "./collision";
+import { BallCollisionShape } from "./collision_shape";
 
 let c_1 = new Vector3();
 let c_2 = new Vector3();
@@ -40,6 +41,11 @@ export abstract class CollisionResponse {
 
 	/** Adjusts linear and angular velocities of the collision shapes. */
 	static solveVelocity(collision: Collision) {
+		if (collision.customVelocitySolver) {
+			collision.customVelocitySolver();
+			return;
+		}
+
 		collision.s1.getCenter(c_1);
 		collision.s2.getCenter(c_2);
 

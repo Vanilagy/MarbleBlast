@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { Marble } from "../marble";
 import { PowerUp } from "./power_up";
 
 export class MegaMarble extends PowerUp {
@@ -6,13 +6,13 @@ export class MegaMarble extends PowerUp {
 	sounds = ["pumegamarblevoice.wav", "dosuperjump.wav", "mega_bouncehard1.wav", "mega_bouncehard2.wav", "mega_bouncehard3.wav", "mega_bouncehard4.wav", "mega_roll.wav"];
 	pickUpName = "Mega Marble PowerUp";
 
-	pickUp(): boolean {
-		return this.level.pickUpPowerUp(this);
+	pickUp(marble: Marble): boolean {
+		return marble.pickUpPowerUp(this);
 	}
 
-	use() {
-		this.level.marble.enableMegaMarble(this.level.timeState);
-		this.level.deselectPowerUp();
-		AudioManager.play(this.sounds[1]);
+	use(marble: Marble) {
+		marble.enableMegaMarble();
 	}
+
+	useCosmetically() {}
 }

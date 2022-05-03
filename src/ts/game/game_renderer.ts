@@ -467,6 +467,7 @@ export class GameRenderer {
 		}
 
 		hud.displayGemCount(gemCount, this.game.totalGems);
+		hud.displayBlastMeterFullness(this.game.localPlayer.controlledMarble.blastAmount);
 		hud.displayFps();
 
 		hud.helpElement.textContent = '';

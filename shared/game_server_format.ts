@@ -20,6 +20,7 @@ export const entityStateFormat = [union, 'entityType', {
 		helicopterEnableFrame: 'varint',
 		superBounceEnableFrame: 'varint',
 		shockAbsorberEnableFrame: 'varint',
+		megaMarbleEnableFrame: 'varint',
 		orientationQuat: quaternionFormat,
 		respawnFrame: 'varint',
 		outOfBoundsFrame: 'varint',
@@ -29,7 +30,8 @@ export const entityStateFormat = [union, 'entityType', {
 			exitFrame: [nullable, 'varint']
 		}],
 		teleportEnableTime: 'f32',
-		teleportDisableTime: 'f32'
+		teleportDisableTime: 'f32',
+		blastAmount: 'f32'
 	}]
 }, {
 	entityType: 'player',
@@ -65,10 +67,6 @@ export const entityStateFormat = [union, 'entityType', {
 }, {
 	entityType: 'explosive',
 	disappearTime: 'f64'
-}, {
-	entityType: 'helpTrigger',
-	entered: ['varint'],
-	enteredFrame: 'varint'
 }, {
 	entityType: 'pushButton',
 	lastContactTime: 'f64'

@@ -15,7 +15,6 @@ import { Plane } from "./math/plane";
 import { Quaternion } from "./math/quaternion";
 import { Game } from "./game/game";
 import { Entity } from "./game/entity";
-import { EntityState } from "../../shared/game_server_format";
 import { Marble } from "./marble";
 import { GAME_UPDATE_RATE } from "../../shared/constants";
 

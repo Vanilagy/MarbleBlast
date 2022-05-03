@@ -37,6 +37,8 @@ export class Collision {
 	s1MaterialOverride: Vector3 = null;
 	s2MaterialOverride: Vector3 = null;
 
+	customVelocitySolver: () => void = null;
+
 	constructor(s1: CollisionShape, s2: CollisionShape) {
 		this.s1 = s1;
 		this.s2 = s2;
