@@ -1,4 +1,4 @@
-import { Shape } from "../shape";
+import { InternalShapeState, Shape } from "../shape";
 import { MissionElement, MissionElementItem } from "../parsing/mis_parser";
 import { Util } from "../util";
 import { EntityState } from "../../../shared/game_server_format";
@@ -13,12 +13,17 @@ const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "or
 
 type GemState = EntityState & { entityType: 'gem' };
 
+type InternalGemState = InternalShapeState & {
+	lastPickUpFrame: number
+};
+
 /** Gems need to be collected before being able to finish. */
 export class Gem extends Shape {
 	dtsPath = "shapes/items/gem.dts";
 	ambientRotate = true;
 	collideable = false;
-	pickedUpBy: number = null;
+	pickedUpBy: Marble = null;
+	lastPickUpFrame = -Infinity;
 	shareMaterials = false;
 	showSequences = false; // Gems actually have an animation for the little shiny thing, but the actual game ignores that. I get it, it was annoying as hell.
 	sounds = ['gotgem.wav', 'gotallgems.wav', 'missinggems.wav'];
@@ -44,11 +49,22 @@ export class Gem extends Shape {
 
 		if (this.pickedUpBy !== null) return;
 
-		this.pickedUpBy = marble.id;
+		this.pickedUpBy = marble;
+		this.lastPickUpFrame = this.game.state.frame;
 		this.setOpacity(0); // Hide the gem
 		this.setCollisionEnabled(false);
 		G.menu.hud.displayAlert(this.getAlertMessage.bind(this), this.game.state.frame);
 		this.playSound();
+
+		this.stateNeedsStore = true;
+		this.internalStateNeedsStore = true;
+	}
+
+	/** lmao name */
+	pickDown() {
+		this.pickedUpBy = null;
+		this.setOpacity(1); // Show the gem again
+		this.setCollisionEnabled(true);
 
 		this.stateNeedsStore = true;
 	}
@@ -56,7 +72,7 @@ export class Gem extends Shape {
 	getState(): GemState {
 		return {
 			entityType: 'gem',
-			pickedUpBy: this.pickedUpBy
+			pickedUpBy: this.pickedUpBy?.id ?? null
 		};
 	}
 
@@ -68,15 +84,33 @@ export class Gem extends Shape {
 	}
 
 	loadState(state: GemState, { frame }: { frame: number }) {
-		this.pickedUpBy = state.pickedUpBy;
+		let prevLastPickUpFrame = this.lastPickUpFrame;
+
+		this.pickedUpBy = this.game.getEntityById(state.pickedUpBy) as Marble;
+		if (this.pickedUpBy) {
+			this.lastPickUpFrame = frame;
+			this.internalStateNeedsStore = true;
+		}
 
 		this.setOpacity(Number(this.pickedUpBy === null));
 		this.setCollisionEnabled(this.pickedUpBy === null);
 
-		if (state.pickedUpBy !== null) {
+		if (this.lastPickUpFrame > prevLastPickUpFrame) {
 			G.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
 			this.playSound();
 		}
+	}
+
+	getInternalState(): InternalGemState {
+		return {
+			...super.getInternalState(),
+			lastPickUpFrame: this.lastPickUpFrame
+		};
+	}
+
+	loadInternalState(state: InternalGemState) {
+		super.loadInternalState(state);
+		this.lastPickUpFrame = state.lastPickUpFrame;
 	}
 
 	getAlertMessage() {
@@ -96,7 +130,7 @@ export class Gem extends Shape {
 			}*/
 		} else {
 			let subject: string;
-			let marble = this.game.getEntityById(this.pickedUpBy) as Marble;
+			let marble = this.pickedUpBy;
 			if (!marble || !marble.controllingPlayer) {
 				subject = 'A marble';
 			} else {
@@ -112,8 +146,6 @@ export class Gem extends Shape {
 			} else {
 				string += `${remaining} ${gemWord}s to go!`;
 			}
-
-			//AudioManager.play('gotgem.wav');
 		}
 
 		return string;
@@ -121,7 +153,7 @@ export class Gem extends Shape {
 
 	playSound() {
 		this.game.simulator.executeNonDuplicatableEvent(() => {
-			AudioManager.play(this.pickedUpBy === this.game.localPlayer.controlledMarble.id ? this.sounds[0] : this.sounds[3]);
+			AudioManager.play(this.pickedUpBy === this.game.localPlayer.controlledMarble ? this.sounds[0] : this.sounds[3]);
 		}, `${this.id}sound`, true);
 	}
 

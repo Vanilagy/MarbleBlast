@@ -1000,10 +1000,6 @@ export class Shape extends Entity {
 		}
 	}
 
-	reset() {
-		this.currentlyColliding.clear();
-	}
-
 	stop() {}
 
 	getInternalState(): InternalShapeState {

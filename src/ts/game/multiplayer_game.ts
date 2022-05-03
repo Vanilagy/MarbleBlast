@@ -1,8 +1,8 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { DefaultMap } from "../../../shared/default_map";
-import { FixedFormatBinarySerializer } from "../../../shared/fixed_format_binary_serializer";
+import { FixedFormatBinarySerializer, FormatToType } from "../../../shared/fixed_format_binary_serializer";
 import { GameServerConnection } from "../../../shared/game_server_connection";
-import { CommandToData, entityStateFormat, EntityUpdate } from "../../../shared/game_server_format";
+import { CommandToData, entityStateFormat, EntityUpdate, playerFormat } from "../../../shared/game_server_format";
 import { Marble } from "../marble";
 import { Mission } from "../mission";
 import { GameServer } from "../net/game_server";
@@ -81,7 +81,7 @@ export class MultiplayerGame extends Game {
 		});
 
 		this.connection.on('playerJoin', data => {
-			this.addPlayer(data.id, data.marbleId);
+			this.addPlayer(data);
 		});
 
 		setInterval(() => {
@@ -111,7 +111,7 @@ export class MultiplayerGame extends Game {
 		this.state.supplyServerTimeState(response.serverFrame, response.clientFrame);
 
 		for (let playerData of response.players) {
-			await this.addPlayer(playerData.id, playerData.marbleId);
+			await this.addPlayer(playerData);
 		}
 
 		this.localPlayer = this.players.find(x => x.id === response.localPlayerId);
@@ -129,9 +129,9 @@ export class MultiplayerGame extends Game {
 		super.start();
 	}
 
-	async addPlayer(playerId: number, marbleId: number) {
-		let player = new Player(this, playerId);
-		let marble = new Marble(this, marbleId);
+	async addPlayer(data: FormatToType<typeof playerFormat>) {
+		let player = new Player(this, data.id);
+		let marble = new Marble(this, data.marbleId, data.checkpointStateId);
 
 		this.players.push(player);
 		this.addEntity(player);
@@ -139,6 +139,7 @@ export class MultiplayerGame extends Game {
 		await marble.init();
 		this.marbles.push(marble);
 		this.addEntity(marble);
+		this.addEntity(marble.checkpointState);
 
 		player.controlledMarble = marble;
 		marble.controllingPlayer = player;

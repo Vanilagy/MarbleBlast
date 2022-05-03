@@ -1,3 +1,4 @@
+import { Marble } from "../marble";
 import { Shape } from "../shape";
 import { Trigger } from "./trigger";
 
@@ -5,12 +6,11 @@ import { Trigger } from "./trigger";
 export class CheckpointTrigger extends Trigger {
 	sounds = ['checkpoint.wav'];
 
-	onMarbleEnter() {
+	onMarbleEnter(marble: Marble) {
 		// Shape can be anything, doesn't necessarily have to be a checkpoint
-		let respawnShape = this.level.shapes.find(x => x.srcElement?._name.toLowerCase() === this.element.respawnpoint?.toLowerCase()) as Shape;
+		let respawnShape = this.game.shapes.find(x => x.srcElement?._name.toLowerCase() === this.element.respawnpoint?.toLowerCase()) as Shape;
 		if (!respawnShape) return;
 
-		this.level.saveCheckpointState(respawnShape, this);
-		this.level.replay.recordMarbleEnter(this);
+		marble.checkpointState.save(respawnShape, this);
 	}
 }

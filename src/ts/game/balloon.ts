@@ -67,8 +67,6 @@ export class Balloon extends Entity {
 		this.mesh.recomputeTransform();
 	}
 
-	stop() {}
-
 	getState(): BalloonState {
 		return {
 			entityType: 'balloon',

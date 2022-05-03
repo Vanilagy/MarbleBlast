@@ -1,9 +1,12 @@
 import { AudioManager } from "../audio";
 import { TimeState } from "../level";
+import { Marble } from "../marble";
 import { Vector3 } from "../math/vector3";
+import { Collision } from "../physics/collision";
 import { BlendingType } from "../rendering/renderer";
 import { Shape } from "../shape";
 import { Util } from "../util";
+import { ExplosiveState } from "./land_mine";
 
 /** Nukes explode on contact and knock the marble away even more than mines do. */
 export class Nuke extends Shape {
@@ -12,26 +15,27 @@ export class Nuke extends Shape {
 	sounds = ['nukeexplode.wav'];
 	shareMaterials = false;
 
-	onMarbleContact() {
-		let time = this.level.timeState;
-
-		let marble = this.level.marble;
+	onMarbleContact(collision: Collision, marble: Marble) {
 		let nukePos = this.worldPosition;
 
-		// Add velocity to the marble
-		let explosionForce = this.computeExplosionForce(marble.body.position.clone().sub(nukePos));
-		marble.body.linearVelocity.add(explosionForce);
-		marble.slidingTimeout = 2;
-		this.disappearTime = time.timeSinceLoad;
+		for (let marble of this.game.marbles) {
+			let explosionForce = this.computeExplosionForce(marble.body.position.clone().sub(nukePos));
+			if (explosionForce.length() === 0) continue;
+
+			// Add velocity to the marble
+			marble.body.linearVelocity.add(explosionForce);
+			marble.slidingTimeout = 2;
+
+			this.interactWith(marble);
+		}
+
+		this.disappearTime = this.game.state.time;
 		this.setCollisionEnabled(false);
+		this.stateNeedsStore = true;
 
-		AudioManager.play(this.sounds[0]);
-		this.level.particles.createEmitter(nukeParticle, this.worldPosition);
-		this.level.particles.createEmitter(nukeSmokeParticle, this.worldPosition);
-		this.level.particles.createEmitter(nukeSparksParticle, this.worldPosition);
-		// Normally, we would add a light here, but eh
+		marble.interactWith(this);
 
-		this.level.replay.recordMarbleContact(this);
+		this.applyCosmeticEffects();
 	}
 
 	/** Computes the force of the explosion based on the vector to the nuke. Ported from decompiled MBG. */
@@ -43,24 +47,55 @@ export class Nuke extends Shape {
 		if (dist < range) {
 			let scalar = (1 - dist/range) * power;
 			distVec.multiplyScalar(scalar);
+		} else {
+			distVec.setScalar(0);
 		}
 
 		return distVec;
 	}
 
-	tick(time: TimeState, onlyVisual: boolean) {
+	update(onlyVisual?: boolean) {
 		if (onlyVisual) return;
 
 		// Enable or disable the collision based on disappear time
-		let visible = time.timeSinceLoad >= this.disappearTime + 15000;
+		let visible = this.game.state.time >= this.disappearTime + 5;
 		this.setCollisionEnabled(visible);
 	}
 
 	render() {
-		let opacity = Util.clamp((this.game.state.time - (this.disappearTime + 15000)) / 1000, 0, 1);
+		let opacity = Util.clamp(this.game.state.time - (this.disappearTime + 15), 0, 1);
 		this.setOpacity(opacity);
 
 		super.render();
+	}
+
+	getState(): ExplosiveState {
+		return {
+			entityType: 'explosive',
+			disappearTime: this.disappearTime
+		};
+	}
+
+	getInitialState(): ExplosiveState {
+		return {
+			entityType: 'explosive',
+			disappearTime: -Infinity
+		};
+	}
+
+	loadState(state: ExplosiveState) {
+		if (state.disappearTime > this.disappearTime) this.applyCosmeticEffects();
+		this.disappearTime = state.disappearTime;
+	}
+
+	applyCosmeticEffects() {
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(this.sounds[0], undefined, undefined, this.worldPosition);
+
+			this.game.renderer.particles.createEmitter(nukeParticle, this.worldPosition);
+			this.game.renderer.particles.createEmitter(nukeSmokeParticle, this.worldPosition);
+			this.game.renderer.particles.createEmitter(nukeSparksParticle, this.worldPosition);
+		}, `${this.id}sound`, true);
 	}
 }
 

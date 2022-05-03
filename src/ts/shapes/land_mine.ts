@@ -17,7 +17,6 @@ export class LandMine extends Shape {
 	shareMaterials = false;
 
 	onMarbleContact(collision: Collision, marble: Marble) {
-		let time = this.game.state.time;
 		let minePos = this.worldPosition;
 
 		for (let marble of this.game.marbles) {
@@ -33,7 +32,7 @@ export class LandMine extends Shape {
 			this.interactWith(marble);
 		}
 
-		this.disappearTime = time;
+		this.disappearTime = this.game.state.time;
 		this.setCollisionEnabled(false);
 		this.stateNeedsStore = true;
 

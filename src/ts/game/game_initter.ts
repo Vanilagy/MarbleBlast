@@ -56,31 +56,6 @@ import { Game } from "./game";
 
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
-/** The map used to get particle emitter options for a ParticleEmitterNode. */
-const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
-	MarbleBounceEmitter: bounceParticleOptions,
-	MarbleTrailEmitter: particleNodeEmittersEmitterOptions.MarbleTrailEmitter,
-	MarbleSuperJumpEmitter: Object.assign(ParticleEmitter.cloneOptions(superJumpParticleOptions), {
-		emitterLifetime: 5000,
-		ambientVelocity: new Vector3(-0.3, 0, -0.5)
-	}),
-	MarbleSuperSpeedEmitter: Object.assign(ParticleEmitter.cloneOptions(superSpeedParticleOptions), {
-		emitterLifetime: 5000,
-		ambientVelocity: new Vector3(-0.5, 0, -0.5)
-	}),
-	LandMineEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter,
-	LandMineSmokeEmitter: landMineSmokeParticle,
-	LandMineSparkEmitter: landMineSparksParticle,
-	NukeEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter, // It ain't any different
-	NukeSmokeEmitter: nukeSmokeParticle,
-	NukeSparkEmitter: nukeSparksParticle,
-	FireWorkSmokeEmitter: fireworkSmoke,
-	RedFireWorkSparkEmitter: redSpark,
-	RedFireWorkTrailEmitter: redTrail,
-	BlueFireWorkSparkEmitter: blueSpark,
-	BlueFireWorkTrailEmitter: blueTrail
-};
-
 interface LoadingState {
 	/** How many things have loaded */
 	loaded: number,
@@ -414,6 +389,31 @@ export class GameInitter {
 
 	/** Adds a ParticleEmitterNode to the world. */
 	addParticleEmitterNode(element: MissionElementParticleEmitterNode) {
+		// Yeah I know I could define it outside but Rollup was having a moment
+		const particleEmitterMap: Record<string, ParticleEmitterOptions> = {
+			MarbleBounceEmitter: bounceParticleOptions,
+			MarbleTrailEmitter: particleNodeEmittersEmitterOptions.MarbleTrailEmitter,
+			MarbleSuperJumpEmitter: Object.assign(ParticleEmitter.cloneOptions(superJumpParticleOptions), {
+				emitterLifetime: 5000,
+				ambientVelocity: new Vector3(-0.3, 0, -0.5)
+			}),
+			MarbleSuperSpeedEmitter: Object.assign(ParticleEmitter.cloneOptions(superSpeedParticleOptions), {
+				emitterLifetime: 5000,
+				ambientVelocity: new Vector3(-0.5, 0, -0.5)
+			}),
+			LandMineEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter,
+			LandMineSmokeEmitter: landMineSmokeParticle,
+			LandMineSparkEmitter: landMineSparksParticle,
+			NukeEmitter: particleNodeEmittersEmitterOptions.LandMineEmitter, // It ain't any different
+			NukeSmokeEmitter: nukeSmokeParticle,
+			NukeSparkEmitter: nukeSparksParticle,
+			FireWorkSmokeEmitter: fireworkSmoke,
+			RedFireWorkSparkEmitter: redSpark,
+			RedFireWorkTrailEmitter: redTrail,
+			BlueFireWorkSparkEmitter: blueSpark,
+			BlueFireWorkTrailEmitter: blueTrail
+		};
+
 		let emitterOptions = particleEmitterMap[element.emitter];
 		if (!emitterOptions) return;
 

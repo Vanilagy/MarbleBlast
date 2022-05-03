@@ -51,10 +51,11 @@ export class Game {
 	}
 
 	addPlayer(connection: GameServerConnection) {
-		let playerId = -(1 + this.players.length * 2);
-		let marbleId = -(1 + this.players.length * 2 + 1);
+		let playerId = -(1 + this.players.length * 3);
+		let marbleId = -(1 + this.players.length * 3 + 1);
+		let checkpointStateId = -(1 + this.players.length * 3 + 2);
 
-		let player = new Player(connection, this, playerId, marbleId);
+		let player = new Player(connection, this, playerId, marbleId, checkpointStateId);
 		this.players.push(player);
 
 		//connection.addedOneWayLatency = 25;
@@ -65,7 +66,8 @@ export class Game {
 			clientFrame: this.frame + UPDATE_BUFFER_SIZE, // No better guess yet
 			players: this.players.map(x => ({
 				id: x.id,
-				marbleId: x.marbleId
+				marbleId: x.marbleId,
+				checkpointStateId: x.checkpointStateId
 			})),
 			localPlayerId: player.id,
 			entityStates: []/* ?? [...this.entities].map(([, entity]) => ({
@@ -89,7 +91,8 @@ export class Game {
 			otherPlayer.connection.queueCommand({
 				command: 'playerJoin',
 				id: player.id,
-				marbleId: player.marbleId
+				marbleId: player.marbleId,
+				checkpointStateId: player.checkpointStateId
 			}, true);
 		}
 	}
@@ -292,6 +295,7 @@ class Player {
 	game: Game;
 	id: number;
 	marbleId: number;
+	checkpointStateId: number;
 
 	estimatedRttHistory: number[] = [6]; // 6 frames are 50 ms, reasonable starting value innit
 	maxReceivedClientUpdateFrame = -1;
@@ -299,11 +303,12 @@ class Player {
 	queuedEntityUpdates: EntityUpdate[] = [];
 	serverBundleBudget = 0;
 
-	constructor(connection: GameServerConnection, game: Game, id: number, marbleId: number) {
+	constructor(connection: GameServerConnection, game: Game, id: number, marbleId: number, checkpointStateId: number) {
 		this.connection = connection;
 		this.game = game;
 		this.id = id;
 		this.marbleId = marbleId;
+		this.checkpointStateId = checkpointStateId;
 	}
 
 	cleanUpQueuedUpdates() {

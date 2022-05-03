@@ -34,6 +34,8 @@ import { Player } from "./game/player";
 import { FixedFormatBinarySerializer } from "../../shared/fixed_format_binary_serializer";
 import { TeleportTrigger } from "./triggers/teleport_trigger";
 import { DefaultMap } from "../../shared/default_map";
+import { CheckpointState } from "./game/checkpoint_state";
+import { Gem } from "./shapes/gem";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -194,6 +196,8 @@ export class Marble extends Entity {
 	heldPowerUp: PowerUp = null;
 	blastAmount = 0;
 
+	checkpointState: CheckpointState;
+
 	reconciliationPosition = new Vector3();
 	reconciliationLinearVelocity = new Vector3();
 
@@ -209,10 +213,11 @@ export class Marble extends Entity {
 	}[] = [];
 	teleportSounds = new DefaultMap<TeleportTrigger, AudioSource[]>(() => []);
 
-	constructor(game: Game, id: number) {
+	constructor(game: Game, id: number, checkpointStateId: number) {
 		super(game);
 
 		this.id = id;
+		this.checkpointState = new CheckpointState(game, checkpointStateId, this);
 	}
 
 	async init() {
@@ -1106,14 +1111,16 @@ export class Marble extends Entity {
 	goOutOfBounds(frame = this.game.state.frame) {
 		if (this.outOfBoundsFrame !== null /* todo || this.finishTime*/) return;
 
-		G.menu.hud.setPowerupButtonState(true);
-		this.game.renderer.updateCamera(); // Update the camera at the point of OOB-ing
-		this.outOfBoundsCameraPosition = this.game.renderer.camera.position.clone();
-		this.outOfBoundsFrame = frame;
-
+		// I guess this is fine?
 		this.game.simulator.executeNonDuplicatableEvent(() => {
+			this.game.renderer.updateCamera(); // Update the camera at the point of OOB-ing
+			this.outOfBoundsCameraPosition = this.game.renderer.camera.position.clone();
+
 			AudioManager.play('whoosh.wav', undefined, undefined, this.body.position.clone());
 		}, `${this.id}whoosh`, true);
+
+		G.menu.hud.setPowerupButtonState(true);
+		this.outOfBoundsFrame = frame;
 	}
 
 	useBlast() {
@@ -1185,6 +1192,21 @@ export class Marble extends Entity {
 	}
 
 	respawn() {
+		if (this.checkpointState.currentCheckpoint) {
+			// There's a checkpoint, so load its state instead
+			this.checkpointState.load();
+			return;
+		}
+
+		// Unpickup all gems picked up by this marble
+		for (let shape of this.game.shapes) {
+			if (!(shape instanceof Gem)) continue;
+			if (shape.pickedUpBy === this) {
+				shape.pickDown();
+				this.interactWith(shape);
+			}
+		}
+
 		let { position: startPosition, euler } = this.game.state.getStartPositionAndOrientation();
 
 		// Place the marble a bit above the start pad position

@@ -74,6 +74,14 @@ export const entityStateFormat = [union, 'entityType', {
 	orientation: quaternionFormat,
 	linearVelocity: vector3Format,
 	angularVelocity: vector3Format
+}, {
+	entityType: 'checkpointState',
+	currentCheckpoint: [nullable, 'varint'],
+	currentCheckpointTrigger: [nullable, 'varint'],
+	checkpointCollectedGems: ['varint'],
+	checkpointHeldPowerUp: [nullable, 'varint'],
+	checkpointUp: [nullable, vector3Format],
+	checkpointBlast: [nullable, 'f32']
 }] as const;
 
 export const entityUpdateFormat = {
@@ -84,6 +92,12 @@ export const entityUpdateFormat = {
 } as const;
 
 export type EntityState = FormatToType<typeof entityStateFormat>;
+
+export const playerFormat = {
+	id: 'varint',
+	marbleId: 'varint',
+	checkpointStateId: 'varint'
+} as const;
 
 export const gameServerCommandFormat = [union, 'command', {
 	command: 'ping',
@@ -130,16 +144,12 @@ export const gameServerCommandFormat = [union, 'command', {
 	command: 'gameJoinInfo',
 	serverFrame: 'varint',
 	clientFrame: 'varint',
-	players: [{
-		id: 'varint',
-		marbleId: 'varint'
-	}],
+	players: [playerFormat],
 	localPlayerId: 'varint',
 	entityStates: [entityUpdateFormat]
 }, {
 	command: 'playerJoin',
-	id: 'varint',
-	marbleId: 'varint'
+	...playerFormat
 }] as const;
 
 export const gameServerMessageFormat = FixedFormatBinarySerializer.format({
