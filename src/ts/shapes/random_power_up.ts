@@ -1,3 +1,6 @@
+import { EntityState } from "../../../shared/game_server_format";
+import { Marble } from "../marble";
+import { Util } from "../util";
 import { Helicopter } from "./helicopter";
 import { PowerUp } from "./power_up";
 import { ShockAbsorber } from "./shock_absorber";
@@ -11,59 +14,77 @@ interface Type<T> extends Function {
     new (...args: any[]): T;
 }
 
-export const POSSIBLE_POWERUPS: Type<PowerUp>[] = [SuperJump, SuperSpeed, Helicopter, SuperBounce, ShockAbsorber, TimeTravel];
+export const POSSIBLE_RANDOM_POWER_UPS: Type<PowerUp>[] = [SuperJump, SuperSpeed, Helicopter, SuperBounce, ShockAbsorber, TimeTravel];
+
+type RandomPowerUpState = EntityState & { entityType: 'randomPowerUp' };
 
 /** A random power-up decides which power-up it acts like once it is picked up. */
 export class RandomPowerUp extends PowerUp {
 	dtsPath = "shapes/items/random.dts";
-	sounds = POSSIBLE_POWERUPS.map(x => new x(this.element).sounds).flat(); // Can play all the power-ups' sounds
-	lastInstance: PowerUp;
-	pickedUpCount = 0;
 	pickUpName = '';
+	lastInstance: PowerUp = null;
+	probeCount = 0;
 
-	pickUp() {
+	pickUp(marble: Marble) {
 		// Loop until a power-up is found that can be picked up
 		while (true) {
-			let Random: Type<PowerUp>;
-			if (this.level.replay.mode === 'record') Random = POSSIBLE_POWERUPS[Math.floor(Math.random() * 6)]; // Choose a random power-up
-			else Random = POSSIBLE_POWERUPS[this.level.replay.randomPowerUpChoices.get(this.id)[this.pickedUpCount]]; // Select the one stored in the replay
+			// Choose a random power-up
+			let instance = this.game.randomPowerUpInstances[
+				Math.floor(Util.seededRandom(this.game.seed + this.id, this.probeCount++) * this.game.randomPowerUpInstances.length)
+			];
 
-			let instance = new Random(this.element);
-			instance.level = this.level; // Prevent having to init()
-			instance.id = this.id;
-
-			if (instance.pickUp()) {
-				// We pretend we're them
-				this.pickUpName = instance.pickUpName;
-				this.customPickUpAlert = instance.customPickUpAlert;
-				this.an = instance.an;
-				this.autoUse = instance.autoUse;
-				this.cooldownDuration = instance.cooldownDuration;
+			if (instance.pickUp(marble)) {
 				this.lastInstance = instance;
-				this.pickedUpCount++;
+				this.imitatePowerUp(instance);
 
-				if (this.level.replay.mode === 'record') {
-					// Save the random choice to the replay
-					let arr = this.level.replay.randomPowerUpChoices.get(this.id);
-					if (!arr) arr = [], this.level.replay.randomPowerUpChoices.set(this.id, arr);
-					arr.push(POSSIBLE_POWERUPS.indexOf(Random));
-				}
+				marble.interactWith(instance);
 
 				return true;
 			}
 		}
 	}
 
-	use(t: number) {
-		this.lastInstance.use(t);
+	use(marble: Marble, t: number) {
+		this.lastInstance.use(marble, t);
 	}
 
-	getAllDtsPaths() {
-		return POSSIBLE_POWERUPS.map(x => new x(this.element).dtsPath);
+	useCosmetically(marble: Marble) {
+		this.lastInstance.useCosmetically(marble);
 	}
 
-	reset() {
-		super.reset();
-		this.pickedUpCount = 0;
+	imitatePowerUp(instance: PowerUp) {
+		this.pickUpName = instance.pickUpName;
+		this.customPickUpAlert = instance.customPickUpAlert;
+		this.an = instance.an;
+		this.autoUse = instance.autoUse;
+		this.cooldownDuration = instance.cooldownDuration;
+		this.sounds = instance.sounds;
+	}
+
+	getState(): RandomPowerUpState {
+		return {
+			...super.getState(),
+			entityType: 'randomPowerUp',
+			probeCount: this.probeCount,
+			lastInstance: this.lastInstance?.id ?? null
+		};
+	}
+
+	getInitialState(): RandomPowerUpState {
+		return {
+			...super.getInitialState(),
+			entityType: 'randomPowerUp',
+			probeCount: 0,
+			lastInstance: null
+		};
+	}
+
+	loadState(state: RandomPowerUpState, meta: { frame: number, remote: boolean }) {
+		this.probeCount = state.probeCount;
+
+		this.lastInstance = this.game.getEntityById(state.lastInstance) as PowerUp;
+		if (this.lastInstance) this.imitatePowerUp(this.lastInstance);
+
+		super.loadState(state, meta);
 	}
 }

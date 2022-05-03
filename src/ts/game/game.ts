@@ -17,6 +17,7 @@ import { G } from "../global";
 import { workerClearTimeoutOrInterval, workerSetInterval } from "../worker";
 import { Player } from "./player";
 import { Clock } from "./clock";
+import { PowerUp } from "../shapes/power_up";
 
 export class Game {
 	state: GameState;
@@ -25,6 +26,7 @@ export class Game {
 	renderer: GameRenderer;
 
 	mission: Mission;
+	seed = Math.floor(Math.random() * 2**32);
 
 	entities: Entity[] = [];
 	entityMap = new Map<number, Entity>();
@@ -37,6 +39,7 @@ export class Game {
 	localPlayer: Player = null;
 
 	clock: Clock;
+	randomPowerUpInstances: PowerUp[];
 
 	totalGems = 0;
 

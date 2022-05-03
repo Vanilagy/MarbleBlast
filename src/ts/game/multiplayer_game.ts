@@ -108,6 +108,8 @@ export class MultiplayerGame extends Game {
 
 		console.log(response);
 
+		this.seed = response.seed; // Todo: Sync this even before initting
+
 		this.state.supplyServerTimeState(response.serverFrame, response.clientFrame);
 
 		for (let playerData of response.players) {

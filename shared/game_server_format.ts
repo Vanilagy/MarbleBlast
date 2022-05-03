@@ -4,6 +4,11 @@ const vector2Format = { x: 'f32', y: 'f32' } as const;
 const vector3Format = { x: 'f32', y: 'f32', z: 'f32' } as const;
 const quaternionFormat = { x: 'f32', y: 'f32', z: 'f32', w: 'f32' } as const;
 
+const powerUpStateFormat = {
+	lastPickUpTime: [nullable, 'f64'],
+	pickedUpBy: [nullable, 'varint']
+} as const;
+
 export const entityStateFormat = [union, 'entityType', {
 	entityType: 'marble',
 	position: vector3Format,
@@ -50,8 +55,7 @@ export const entityStateFormat = [union, 'entityType', {
 	pickedUpBy: [nullable, 'varint']
 }, {
 	entityType: 'powerUp',
-	lastPickUpTime: [nullable, 'f64'],
-	pickedUpBy: [nullable, 'varint']
+	...powerUpStateFormat
 }, {
 	entityType: 'bumper',
 	lastContactTime: 'f64'
@@ -82,6 +86,11 @@ export const entityStateFormat = [union, 'entityType', {
 	checkpointHeldPowerUp: [nullable, 'varint'],
 	checkpointUp: [nullable, vector3Format],
 	checkpointBlast: [nullable, 'f32']
+}, {
+	entityType: 'randomPowerUp',
+	...powerUpStateFormat,
+	probeCount: 'varint',
+	lastInstance: [nullable, 'varint']
 }] as const;
 
 export const entityUpdateFormat = {
@@ -146,7 +155,8 @@ export const gameServerCommandFormat = [union, 'command', {
 	clientFrame: 'varint',
 	players: [playerFormat],
 	localPlayerId: 'varint',
-	entityStates: [entityUpdateFormat]
+	entityStates: [entityUpdateFormat],
+	seed: 'u32'
 }, {
 	command: 'playerJoin',
 	...playerFormat

@@ -158,6 +158,7 @@ export class Gem extends Shape {
 	}
 
 	static pickRandomColor() {
+		// todo: make this synced across clients
 		return Util.randomFromArray(GEM_COLORS);
 	}
 }

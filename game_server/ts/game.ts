@@ -19,6 +19,7 @@ interface BaseStateRequest {
 
 export class Game {
 	missionPath: string;
+	seed = Math.floor(Math.random() * 2**32);
 	players: Player[] = [];
 
 	startTime: number;
@@ -73,7 +74,8 @@ export class Game {
 			entityStates: []/* ?? [...this.entities].map(([, entity]) => ({
 				...entity.getTrueUpdate(),
 				version: entity.versions.get(player.id)
-			}))*/
+			}))*/,
+			seed: this.seed
 		}, true);
 
 		connection.on('clientStateBundle', data => {

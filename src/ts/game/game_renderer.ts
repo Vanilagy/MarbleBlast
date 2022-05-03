@@ -212,20 +212,6 @@ export class GameRenderer {
 
 		// Set up the HUD overlay
 
-		let hudOverlayShapePaths = new Set<string>();
-		for (let shape of game.shapes) {
-			if (shape instanceof PowerUp || shape instanceof Gem) {
-				if (shape instanceof PowerUp && shape.autoUse) continue; // Can't collect these aye
-
-				// We need to display the gem and powerup shapes in the HUD
-				if (shape instanceof RandomPowerUp) {
-					for (let path of shape.getAllDtsPaths()) hudOverlayShapePaths.add(path);
-				} else {
-					hudOverlayShapePaths.add(shape.dtsPath);
-				}
-			}
-		}
-
 		this.overlayScene = new Scene(mainRenderer);
 		let overlayLight = new AmbientLight(new Vector3().setScalar(1));
 		this.overlayScene.addAmbientLight(overlayLight);
@@ -240,6 +226,18 @@ export class GameRenderer {
 		);
 		this.overlayCamera.up.set(0, 0, -1);
 		this.overlayCamera.lookAt(new Vector3(1, 0, 0));
+
+		let hudOverlayShapePaths = new Set<string>();
+		for (let shape of game.shapes) {
+			if (shape instanceof PowerUp || shape instanceof Gem) {
+				if (shape instanceof PowerUp && shape.autoUse) continue; // Can't collect these aye
+
+				// We need to display the gem and powerup shapes in the HUD
+				if (!(shape instanceof RandomPowerUp)) {
+					hudOverlayShapePaths.add(shape.dtsPath);
+				}
+			}
+		}
 
 		for (let path of hudOverlayShapePaths) {
 			let shape = new Shape();
@@ -278,7 +276,6 @@ export class GameRenderer {
 
 	render() {
 		let { game } = this;
-		let { simulator } = game;
 
 		if (game.stopped) return;
 

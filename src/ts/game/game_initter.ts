@@ -24,7 +24,7 @@ import { MegaMarble } from "../shapes/mega_marble";
 import { Nuke, nukeSmokeParticle, nukeSparksParticle } from "../shapes/nuke";
 import { Oilslick } from "../shapes/oilslick";
 import { PushButton } from "../shapes/push_button";
-import { RandomPowerUp } from "../shapes/random_power_up";
+import { POSSIBLE_RANDOM_POWER_UPS, RandomPowerUp } from "../shapes/random_power_up";
 import { RoundBumper } from "../shapes/round_bumper";
 import { ShockAbsorber } from "../shapes/shock_absorber";
 import { Sign } from "../shapes/sign";
@@ -72,7 +72,7 @@ export class GameInitter {
 	/** Holds data shared between multiple shapes with the same constructor and .dts path. */
 	sharedShapeData = new Map<string, Promise<SharedShapeData>>();
 
-	auxEntityIdStart: number;
+	auxEntityId: number;
 
 	constructor(game: Game) {
 		this.game = game;
@@ -115,10 +115,13 @@ export class GameInitter {
 		for (let trigger of game.triggers) game.addEntity(trigger);
 
 		let maxEntityId = Math.max(...game.entities.map(x => x.id));
-		this.auxEntityIdStart = maxEntityId + 1;
+		this.auxEntityId = maxEntityId + 1;
 
-		game.clock = new Clock(game, this.auxEntityIdStart);
+		game.clock = new Clock(game, this.auxEntityId++);
 		game.addEntity(game.clock);
+
+		if (game.shapes.some(x => x instanceof RandomPowerUp))
+			await this.initRandomPowerUpInstances();
 
 		await renderer.initHud();
 		this.loadingState.loaded += 3;
@@ -322,6 +325,20 @@ export class GameInitter {
 		for (let collider of shape.colliders) simulator.world.add(collider.body);
 	}
 
+	/** Initiates all power-ups that can possibly be spawned by a Random PowerUp. */
+	async initRandomPowerUpInstances() {
+		this.game.randomPowerUpInstances = [];
+
+		for (let Class of POSSIBLE_RANDOM_POWER_UPS) {
+			let instance = new Class({});
+			await instance.init(this.game, { _id: this.auxEntityId++ } as MissionElementItem);
+
+			this.game.randomPowerUpInstances.push(instance);
+			this.game.addEntity(instance);
+			this.game.shapes.push(instance);
+		}
+	}
+
 	async addTrigger(element: MissionElementTrigger) {
 		let { game } = this;
 		let { simulator } = game;
@@ -422,7 +439,7 @@ export class GameInitter {
 
 	/** Adds a Balloon entity to the world. They're just a testing entity, fun to play around with. */
 	async addBalloon() {
-		let balloon = new Balloon(this.game, this.auxEntityIdStart + 1);
+		let balloon = new Balloon(this.game, this.auxEntityId + 1);
 		await balloon.init();
 		this.game.addEntity(balloon);
 	}

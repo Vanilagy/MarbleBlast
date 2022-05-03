@@ -8,7 +8,7 @@ import { AudioManager } from "../audio";
 
 export const DEFAULT_COOLDOWN_DURATION = 7;
 
-export type PowerUpState = EntityState & { entityType: 'powerUp' };
+export type PowerUpState = EntityState & { entityType: 'powerUp' | 'randomPowerUp' /* <- hacky but now TS happi */ };
 
 /** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
