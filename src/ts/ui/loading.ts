@@ -6,6 +6,7 @@ import { Menu } from "./menu";
 import { Game } from "../game/game";
 import { MultiplayerGame } from "../game/multiplayer_game";
 import { gameServers } from "../net/game_server";
+import { SingleplayerGame } from "../game/singleplayer_game";
 
 export abstract class LoadingScreen {
 	menu: Menu;
@@ -61,7 +62,7 @@ export abstract class LoadingScreen {
 				this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
 			}) as unknown as number;
 
-			let game = new MultiplayerGame(mission, gameServers[0]);
+			let game = new SingleplayerGame(mission);
 			G.game = game;
 			await game.init();
 

@@ -19,7 +19,9 @@ interface AffectionEdge {
 	frame: number
 }
 
-export const GO_TIME = 0 ?? 3.5; // fixme
+export const READY_TIME = 0.5;
+export const SET_TIME = 2.0;
+export const GO_TIME = 3.5;
 
 export class GameState {
 	game: Game;
@@ -36,10 +38,6 @@ export class GameState {
 
 	stateHistory = new DefaultMap<number, EntityUpdate[]>(() => []);
 	internalStateHistory = new DefaultMap<number, { frame: number, state: any }[]>(() => []);
-
-	collectedGems = 0;
-	currentTimeTravelBonus = 0;
-
 	affectionGraph: AffectionEdge[] = [];
 
 	nextUpdateId = 0;
@@ -74,18 +72,10 @@ export class GameState {
 
 	restart() {
 		let { game } = this;
-		let hud = G.menu.hud;
 
-		this.currentTimeTravelBonus = 0;
+		game.clock.restart();
 
-		if (game.totalGems > 0) {
-			this.collectedGems = 0;
-			hud.displayGemCount(this.collectedGems, game.totalGems);
-		}
-
-		game.localPlayer.controlledMarble.respawn();
-
-		//for (let entity of game.entities) entity.reset();
+		for (let marble of game.marbles) marble.respawn();
 
 		game.timeTravelSound?.stop();
 		game.timeTravelSound = null;
@@ -126,34 +116,6 @@ export class GameState {
 				entity.internalStateNeedsStore = false;
 			}
 		}
-	}
-
-	/** Gets the position and orientation of the player spawn point. */
-	getStartPositionAndOrientation() {
-		let { game } = this;
-
-		// The player is spawned at the last start pad in the mission file.
-		let startPad = Util.findLast(game.shapes, (shape) => shape instanceof StartPad);
-		let position: Vector3;
-		let euler = new Euler();
-
-		if (startPad) {
-			// If there's a start pad, start there
-			position = startPad.worldPosition;
-			euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
-		} else {
-			// Search for spawn points used for multiplayer
-			let spawnPoints = game.mission.allElements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
-			if (spawnPoints) {
-				let first = spawnPoints.elements[0] as MissionElementTrigger;
-				position = MisParser.parseVector3(first.position);
-			} else {
-				// If there isn't anything, start at this weird point
-				position = new Vector3(0, 0, 300);
-			}
-		}
-
-		return { position, euler };
 	}
 
 	rollBackToFrame(target: number) {

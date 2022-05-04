@@ -18,8 +18,10 @@ import { workerClearTimeoutOrInterval, workerSetInterval } from "../worker";
 import { Player } from "./player";
 import { Clock } from "./clock";
 import { PowerUp } from "../shapes/power_up";
+import { FormatToType } from "../../../shared/fixed_format_binary_serializer";
+import { playerFormat } from "../../../shared/game_server_format";
 
-export class Game {
+export abstract class Game {
 	state: GameState;
 	initter: GameInitter;
 	simulator: GameSimulator;
@@ -52,6 +54,7 @@ export class Game {
 	paused = false;
 	/** If the game is stopped, it shouldn't be used anymore. */
 	stopped = false;
+	pausable = true;
 
 	tickInterval: number;
 	lastGameUpdateTime: number = null;
@@ -86,6 +89,22 @@ export class Game {
 		return this.entityMap.get(id) ?? null;
 	}
 
+	async addPlayer(data: FormatToType<typeof playerFormat>) {
+		let player = new Player(this, data.id);
+		let marble = new Marble(this, data.marbleId, data.checkpointStateId);
+
+		this.players.push(player);
+		this.addEntity(player);
+
+		await marble.init();
+		this.marbles.push(marble);
+		this.addEntity(marble);
+		this.addEntity(marble.checkpointState);
+
+		player.controlledMarble = marble;
+		marble.controllingPlayer = player;
+	}
+
 	async init() {
 		await this.initter.init();
 	}
@@ -97,8 +116,6 @@ export class Game {
 
 		for (let interior of this.interiors) await interior.onLevelStart();
 		for (let shape of this.shapes) await shape.onLevelStart();
-
-		this.state.restart();
 
 		resize(false); // To update renderer
 		mainCanvas.classList.remove('hidden');
@@ -118,7 +135,7 @@ export class Game {
 
 	tick(time?: number, gameUpdateRate = GAME_UPDATE_RATE) {
 		if (this.stopped) return;
-		//if (this.paused) return; // fixme
+		if (this.paused && this.pausable) return;
 
 		if (time === undefined) time = performance.now();
 

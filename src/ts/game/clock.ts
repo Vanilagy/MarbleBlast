@@ -5,6 +5,7 @@ import { G } from "../global";
 import { Entity } from "./entity";
 import { Game } from "./game";
 import { MAX_TIME } from "./game_simulator";
+import { GO_TIME } from "./game_state";
 
 type ClockState = EntityState & { entityType: 'clock' };
 
@@ -16,6 +17,7 @@ interface InternalClockState {
 export class Clock extends Entity {
 	time = 0;
 	timeTravelBonus = 0;
+	restartFrame = 0;
 	updateOrder = -1;
 	timeTravelSound: AudioSource = null;
 	alarmSound: AudioSource = null;
@@ -70,6 +72,9 @@ export class Clock extends Entity {
 	}
 
 	advanceTime() {
+		if (this.game.state.frame - this.restartFrame < GO_TIME * GAME_UPDATE_RATE)
+			return;
+
 		if (this.timeTravelBonus > 0) {
 			// Subtract remaining time travel time
 			this.timeTravelBonus -= 1 / GAME_UPDATE_RATE;
@@ -93,6 +98,14 @@ export class Clock extends Entity {
 		}
 
 		this.timeTravelBonus += bonus;
+
+		this.stateNeedsStore = true;
+	}
+
+	restart() {
+		this.timeTravelBonus = 0;
+		this.time = 0;
+		this.restartFrame = this.game.state.frame;
 
 		this.stateNeedsStore = true;
 	}

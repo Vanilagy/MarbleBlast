@@ -91,7 +91,7 @@ const SHAPE_OVERLAY_SCALES = {
 	"shapes/items/megamarble.dts": 60,
 };
 /** The time in milliseconds when the marble is released from the start pad. */
-export const GO_TIME = 3500;
+export const GO_TIMdE = 3500;
 /** Default camera pitch */
 export const DEFAULT_PITCH = 0.45;
 const BLAST_CHARGE_TIME = 25000;

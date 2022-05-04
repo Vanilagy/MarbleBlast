@@ -1,7 +1,6 @@
 import { AudioManager } from "../audio";
 import { isPressedByGamepad, getPressedFlag, resetPressedFlag } from "../input";
 import { Leaderboard } from "../leaderboard";
-import { GO_TIME } from "../level";
 import { Replay } from "../replay";
 import { G } from "../global";
 import { BestTimes, StorageManager } from "../storage";

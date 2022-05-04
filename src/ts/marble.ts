@@ -4,7 +4,7 @@ import { Shape } from "./shape";
 import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
-import { MisParser, MissionElementType } from "./parsing/mis_parser";
+import { MisParser, MissionElementSimGroup, MissionElementTrigger, MissionElementType } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
 import { G } from "./global";
 import { Group } from "./rendering/group";
@@ -26,7 +26,7 @@ import { Entity } from "./game/entity";
 import { Game } from "./game/game";
 import { PowerUp } from "./shapes/power_up";
 import { GAME_UPDATE_RATE } from "../../shared/constants";
-import { GO_TIME } from "./game/game_state";
+import { GO_TIME, READY_TIME, SET_TIME } from "./game/game_state";
 import { Vector2 } from "./math/vector2";
 import { MultiplayerGame } from "./game/multiplayer_game";
 import { EntityState, entityStateFormat } from "../../shared/game_server_format";
@@ -36,6 +36,7 @@ import { TeleportTrigger } from "./triggers/teleport_trigger";
 import { DefaultMap } from "../../shared/default_map";
 import { CheckpointState } from "./game/checkpoint_state";
 import { Gem } from "./shapes/gem";
+import { StartPad } from "./shapes/start_pad";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -612,9 +613,9 @@ export class Marble extends Entity {
 		if (this === this.game.localPlayer.controlledMarble && !reconciling) {
 			let timeSinceRespawn = (this.game.state.frame - this.respawnFrame) / GAME_UPDATE_RATE;
 
-			if (timeSinceRespawn === 0.5) AudioManager.play('ready.wav');
-			if (timeSinceRespawn === 2.0) AudioManager.play('set.wav');
-			if (timeSinceRespawn === 3.5) AudioManager.play('go.wav');
+			if (timeSinceRespawn === READY_TIME) AudioManager.play('ready.wav');
+			if (timeSinceRespawn === SET_TIME) AudioManager.play('set.wav');
+			if (timeSinceRespawn === GO_TIME) AudioManager.play('go.wav');
 		}
 
 		// Handle teleporting
@@ -771,7 +772,7 @@ export class Marble extends Entity {
 		if (this.game.state.frame - this.respawnFrame < 3.5 * GAME_UPDATE_RATE) {
 			// Lock the marble to the space above the start pad
 
-			let { position: startPosition } = this.game.state.getStartPositionAndOrientation();
+			let { position: startPosition } = this.getStartPositionAndOrientation();
 			let position = this.body.position;
 			position.x = startPosition.x;
 			position.y = startPosition.y;
@@ -1261,10 +1262,10 @@ export class Marble extends Entity {
 			}
 		}
 
-		let { position: startPosition, euler } = this.game.state.getStartPositionAndOrientation();
+		let { position: startPosition, euler } = this.getStartPositionAndOrientation();
 
 		// Place the marble a bit above the start pad position
-		this.body.position.set(startPosition.x, startPosition.y, startPosition.z + 3);
+		this.body.position.copy(startPosition);
 		this.group.position.copy(this.body.position);
 		this.group.recomputeTransform();
 		this.reset();
@@ -1286,6 +1287,34 @@ export class Marble extends Entity {
 			if (this.controllingPlayer !== this.game.localPlayer) return null;
 			return this.game.mission.missionInfo.starthelptext ?? null;
 		}, this.game.state.frame, false);
+	}
+
+	/** Gets the position and orientation of the player spawn point. */
+	getStartPositionAndOrientation() {
+		let { game } = this;
+
+		// The player is spawned at the last start pad in the mission file.
+		let startPad = Util.findLast(game.shapes, (shape) => shape instanceof StartPad);
+		let position: Vector3;
+		let euler = new Euler();
+
+		if (startPad) {
+			// If there's a start pad, start there
+			position = startPad.worldPosition.clone().add(new Vector3(0, 0, 3));
+			euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
+		} else {
+			// Search for spawn points used for multiplayer
+			let spawnPoints = game.mission.allElements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
+			if (spawnPoints) {
+				let first = spawnPoints.elements[0] as MissionElementTrigger;
+				position = MisParser.parseVector3(first.position);
+			} else {
+				// If there isn't anything, start at this weird point
+				position = new Vector3(0, 0, 300);
+			}
+		}
+
+		return { position, euler };
 	}
 
 	stop() {

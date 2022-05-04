@@ -7,7 +7,6 @@ export abstract class Entity {
 	id: number;
 
 	game: Game;
-	owned = false;
 	/** Entities with lower update order will be updated first. */
 	updateOrder = 0;
 	applyUpdatesBeforeAdvance = false;

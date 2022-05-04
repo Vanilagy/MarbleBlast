@@ -26,6 +26,7 @@ window.addEventListener('keydown', e => {
 });
 
 export class MultiplayerGame extends Game {
+	pausable = false;
 	state: MultiplayerGameState;
 	simulator: MultiplayerGameSimulator;
 
@@ -129,22 +130,6 @@ export class MultiplayerGame extends Game {
 		}
 
 		super.start();
-	}
-
-	async addPlayer(data: FormatToType<typeof playerFormat>) {
-		let player = new Player(this, data.id);
-		let marble = new Marble(this, data.marbleId, data.checkpointStateId);
-
-		this.players.push(player);
-		this.addEntity(player);
-
-		await marble.init();
-		this.marbles.push(marble);
-		this.addEntity(marble);
-		this.addEntity(marble.checkpointState);
-
-		player.controlledMarble = marble;
-		marble.controllingPlayer = player;
 	}
 
 	tick() {

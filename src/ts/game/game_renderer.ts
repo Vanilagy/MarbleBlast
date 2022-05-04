@@ -29,6 +29,7 @@ import { MbpPauseScreen } from "../ui/pause_screen_mbp";
 import { Util } from "../util";
 import { Game } from "./game";
 import { GAME_PLAYBACK_SPEED } from "./game_simulator";
+import { GO_TIME, READY_TIME, SET_TIME } from "./game_state";
 
 // Used for frame rate limiting working correctly
 const decoyCanvas = document.querySelector('#decoy-canvas') as HTMLCanvasElement;
@@ -449,11 +450,11 @@ export class GameRenderer {
 			hud.setCenterText('outofbounds');
 		} else {
 			let timeSinceRespawn = (game.state.frame - game.localPlayer.controlledMarble.respawnFrame) / GAME_UPDATE_RATE;
-			if (timeSinceRespawn < 0.5 || timeSinceRespawn > 5.5) {
+			if (timeSinceRespawn < READY_TIME || timeSinceRespawn > 5.5) {
 				hud.setCenterText('none');
-			} else if (timeSinceRespawn > 3.5) {
+			} else if (timeSinceRespawn > GO_TIME) {
 				hud.setCenterText('go');
-			} else if (timeSinceRespawn > 2) {
+			} else if (timeSinceRespawn > SET_TIME) {
 				hud.setCenterText('set');
 			} else {
 				hud.setCenterText('ready');

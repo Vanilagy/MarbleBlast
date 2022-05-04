@@ -13,6 +13,7 @@ export class GameSimulator {
 	advanceTimes: number[] = [];
 	nonDuplicatableEventFrames = new DefaultMap<string, number>(() => -1);
 	isReconciling = false;
+	started = false;
 
 	constructor(game: Game) {
 		this.game = game;
@@ -30,12 +31,12 @@ export class GameSimulator {
 		game.state.frame++;
 		game.state.maxFrame = Math.max(game.state.frame, game.state.maxFrame);
 
-		//if (this.mission.hasBlast && this.blastAmount < 1) this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / PHYSICS_TICK_RATE, 0, 1);
-
-		for (let entity of game.entities) {
-			entity.owned = false;
-			entity.update();
+		if (!this.started) {
+			this.started = true;
+			game.state.restart();
 		}
+
+		for (let entity of game.entities) entity.update();
 
 		let playReplay = false;
 		if (!playReplay) {
