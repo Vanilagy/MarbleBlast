@@ -13,9 +13,7 @@ export class MustChangeTrigger extends Trigger {
 	}
 
 	onMarbleEnter(marble: Marble) {
-		let time = this.game.state.time;
-
-		this.interior.setTargetTime(time, MisParser.parseNumber(this.element.targettime));
+		this.interior.setTargetTime(MisParser.parseNumber(this.element.targettime));
 
 		if (this.element.instant === "1") {
 			if (this.element.icontinuetottime && this.element.icontinuetottime !== "0") {
@@ -26,8 +24,6 @@ export class MustChangeTrigger extends Trigger {
 				this.interior.changeTime = -Infinity; // "If instant is 1, the MP will warp to targetTime instantly."
 			}
 		}
-
-		//this.level.replay.recordMarbleEnter(this);
 
 		marble.affect(this.interior);
 	}

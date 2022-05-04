@@ -2,6 +2,8 @@ import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { EntityState } from "../../../shared/game_server_format";
 import { AudioManager, AudioSource } from "../audio";
 import { G } from "../global";
+import { Gem } from "../shapes/gem";
+import { PowerUp } from "../shapes/power_up";
 import { Entity } from "./entity";
 import { Game } from "./game";
 import { MAX_TIME } from "./game_simulator";
@@ -106,6 +108,11 @@ export class Clock extends Entity {
 		this.timeTravelBonus = 0;
 		this.time = 0;
 		this.restartFrame = this.game.state.frame;
+
+		// todo see if we really need this
+		for (let entity of this.game.shapes.filter(x => x instanceof Gem || x instanceof PowerUp)) {
+			this.affect(entity);
+		}
 
 		this.stateNeedsStore = true;
 	}

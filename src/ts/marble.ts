@@ -119,7 +119,6 @@ export interface MarbleControlState {
 	blasting: boolean
 }
 
-/** Controls marble behavior and responds to player input. */
 export class Marble extends Entity {
 	group: Group;
 	innerGroup: Group;
@@ -1246,12 +1245,15 @@ export class Marble extends Entity {
 		this.setUp(new Vector3(0, 0, 1), true);
 	}
 
-	respawn() {
-		if (this.checkpointState.currentCheckpoint) {
+	respawn(ignoreCheckpointState: boolean) {
+		if (this.checkpointState.currentCheckpoint && !ignoreCheckpointState) {
 			// There's a checkpoint, so load its state instead
 			this.checkpointState.load();
 			return;
 		}
+
+		this.checkpointState.reset();
+		this.affect(this.checkpointState);
 
 		// Unpickup all gems picked up by this marble
 		for (let shape of this.game.shapes) {

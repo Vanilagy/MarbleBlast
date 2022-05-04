@@ -11,6 +11,7 @@ import { Util } from "../util";
 import { Game } from "./game";
 import { Entity } from "./entity";
 import { PowerUp } from "../shapes/power_up";
+import { PathedInterior } from "../pathed_interior";
 
 interface AffectionEdge {
 	id: number,
@@ -74,15 +75,15 @@ export class GameState {
 		let { game } = this;
 
 		game.clock.restart();
+		for (let marble of game.marbles) marble.respawn(true);
 
-		for (let marble of game.marbles) marble.respawn();
+		for (let interior of game.interiors) {
+			if (!(interior instanceof PathedInterior)) continue;
 
-		game.timeTravelSound?.stop();
-		game.timeTravelSound = null;
-		game.alarmSound?.stop();
-		game.alarmSound = null;
-
-		AudioManager.play('spawn.wav');
+			let state = interior.getInitialState();
+			state.changeTime = 1000 * this.time;
+			interior.loadState(state);
+		}
 	}
 
 	saveStates() {

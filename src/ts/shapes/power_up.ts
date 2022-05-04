@@ -5,6 +5,7 @@ import { G } from "../global";
 import { Marble } from "../marble";
 import { EntityState } from "../../../shared/game_server_format";
 import { AudioManager } from "../audio";
+import { GAME_UPDATE_RATE } from "../../../shared/constants";
 
 export const DEFAULT_COOLDOWN_DURATION = 7;
 
@@ -13,8 +14,6 @@ export type PowerUpState = EntityState & { entityType: 'powerUp' | 'randomPowerU
 /** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
 	element: MissionElementItem;
-	lastPickUpTime: number = null;
-	pickedUpBy: Marble = null;
 	/** Reappears after this time. */
 	cooldownDuration: number = DEFAULT_COOLDOWN_DURATION;
 	/** Whether or not to automatically use the powerup instantly on pickup. */
@@ -29,23 +28,27 @@ export abstract class PowerUp extends Shape {
 	/** If 'an' should be used instead of 'a' in the pickup alert. */
 	an = false;
 
+	pickUpFrame = -Infinity;
+	pickedUpBy: Marble = null;
+
 	constructor(element: MissionElementItem) {
 		super();
 		this.element = element;
 	}
 
-	onMarbleInside(t: number, marble: Marble) {
-		let time = this.game.state.time;
+	get pickupable() {
+		return this.game.state.frame - this.pickUpFrame >= this.cooldownDuration * GAME_UPDATE_RATE || this.game.clock.restartFrame > this.pickUpFrame;
+	}
 
+	onMarbleInside(t: number, marble: Marble) {
 		marble.affect(this);
 		//this.interactWith(marble);
 		//this.stateNeedsStore = true;
 
-		let pickupable = this.lastPickUpTime === null || (time - this.lastPickUpTime) >= this.cooldownDuration;
-		if (!pickupable) return;
+		if (!this.pickupable) return;
 
 		if (this.pickUp(marble)) {
-			this.lastPickUpTime = time;
+			this.pickUpFrame = this.game.state.frame;
 			this.pickedUpBy = marble;
 
 			this.affect(marble);
@@ -64,17 +67,16 @@ export abstract class PowerUp extends Shape {
 	update(onlyVisual?: boolean) {
 		if (onlyVisual) return;
 
-		// Enable or disable the collision based on the last pick-up time time
-		let pickupable = this.lastPickUpTime === null || (this.game.state.time - this.lastPickUpTime) >= this.cooldownDuration;
-		//this.setCollisionEnabled(pickupable);
+		// Enable or disable the collision based on pickupability
+		//this.setCollisionEnabled(this.pickupable);
 	}
 
 	render() {
 		super.render();
 
 		let opacity = 1;
-		if (this.lastPickUpTime && this.cooldownDuration > 0) {
-			let availableTime = this.lastPickUpTime + this.cooldownDuration;
+		if (this.pickUpFrame >= this.game.clock.restartFrame && this.cooldownDuration > 0) {
+			let availableTime = this.pickUpFrame / GAME_UPDATE_RATE + this.cooldownDuration;
 			opacity = Util.clamp(this.game.state.time - availableTime, 0, 1);
 		}
 
@@ -105,7 +107,7 @@ export abstract class PowerUp extends Shape {
 	getState(): PowerUpState {
 		return {
 			entityType: 'powerUp',
-			lastPickUpTime: this.lastPickUpTime,
+			pickUpFrame: isFinite(this.pickUpFrame) ? this.pickUpFrame : null,
 			pickedUpBy: this.pickedUpBy?.id ?? null
 		};
 	}
@@ -113,18 +115,18 @@ export abstract class PowerUp extends Shape {
 	getInitialState(): PowerUpState {
 		return {
 			entityType: 'powerUp',
-			lastPickUpTime: null,
+			pickUpFrame: null,
 			pickedUpBy: null
 		};
 	}
 
 	loadState(state: PowerUpState, { frame }: { frame: number }) {
-		let prevLastPickUpTime = this.lastPickUpTime;
+		let prevPickUpFrame = this.pickUpFrame;
 
-		this.lastPickUpTime = state.lastPickUpTime;
+		this.pickUpFrame = state.pickUpFrame ?? -Infinity;
 		this.pickedUpBy = this.game.getEntityById(state.pickedUpBy) as Marble;
 
-		if (this.pickedUpBy && prevLastPickUpTime < this.lastPickUpTime)
+		if (this.pickedUpBy && prevPickUpFrame < this.pickUpFrame)
 			this.pickUpCosmetically(this.pickedUpBy, frame);
 	}
 

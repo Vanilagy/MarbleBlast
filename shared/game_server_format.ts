@@ -5,7 +5,7 @@ const vector3Format = { x: 'f32', y: 'f32', z: 'f32' } as const;
 const quaternionFormat = { x: 'f32', y: 'f32', z: 'f32', w: 'f32' } as const;
 
 const powerUpStateFormat = {
-	lastPickUpTime: [nullable, 'f64'],
+	pickUpFrame: [nullable, 'varint'],
 	pickedUpBy: [nullable, 'varint']
 } as const;
 
@@ -54,7 +54,8 @@ export const entityStateFormat = [union, 'entityType', {
 	changeTime: 'f64'
 }, {
 	entityType: 'gem',
-	pickedUpBy: [nullable, 'varint']
+	pickedUpBy: [nullable, 'varint'],
+	pickUpFrame: [nullable, 'varint']
 }, {
 	entityType: 'powerUp',
 	...powerUpStateFormat

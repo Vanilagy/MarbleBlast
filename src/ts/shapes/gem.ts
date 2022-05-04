@@ -1,4 +1,4 @@
-import { InternalShapeState, Shape } from "../shape";
+import { Shape } from "../shape";
 import { MissionElement, MissionElementItem } from "../parsing/mis_parser";
 import { Util } from "../util";
 import { EntityState } from "../../../shared/game_server_format";
@@ -13,20 +13,17 @@ const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "or
 
 type GemState = EntityState & { entityType: 'gem' };
 
-type InternalGemState = InternalShapeState & {
-	lastPickUpFrame: number
-};
-
 /** Gems need to be collected before being able to finish. */
 export class Gem extends Shape {
 	dtsPath = "shapes/items/gem.dts";
 	ambientRotate = true;
 	collideable = false;
-	pickedUpBy: Marble = null;
-	lastPickUpFrame = -Infinity;
 	shareMaterials = false;
 	showSequences = false; // Gems actually have an animation for the little shiny thing, but the actual game ignores that. I get it, it was annoying as hell.
 	sounds = ['gotgem.wav', 'gotallgems.wav', 'missinggems.wav'];
+
+	pickedUpBy: Marble = null;
+	pickUpFrame = -Infinity;
 
 	constructor(element: MissionElementItem) {
 		super();
@@ -44,73 +41,71 @@ export class Gem extends Shape {
 		return super.init(game, srcElement);
 	}
 
+	get pickupable() {
+		return this.game.clock.restartFrame > this.pickUpFrame || !this.pickedUpBy;
+	}
+
 	onMarbleInside(t: number, marble: Marble) {
 		marble.affect(this);
 
-		if (this.pickedUpBy !== null) return;
+		if (!this.pickupable) return;
 
 		this.pickedUpBy = marble;
-		this.lastPickUpFrame = this.game.state.frame;
-		this.setOpacity(0); // Hide the gem
-		this.setCollisionEnabled(false);
+		this.pickUpFrame = this.game.state.frame;
+
 		G.menu.hud.displayAlert(this.getAlertMessage.bind(this), this.game.state.frame);
 		this.playSound();
 
 		this.stateNeedsStore = true;
-		this.internalStateNeedsStore = true;
 	}
 
 	/** lmao name */
 	pickDown() {
 		this.pickedUpBy = null;
-		this.setOpacity(1); // Show the gem again
-		this.setCollisionEnabled(true);
-
 		this.stateNeedsStore = true;
+	}
+
+	update(onlyVisual?: boolean) {
+		if (onlyVisual) return;
+
+		this.setCollisionEnabled(this.pickupable);
+	}
+
+	render() {
+		super.render();
+
+		this.setOpacity(Number(this.pickupable));
 	}
 
 	getState(): GemState {
 		return {
 			entityType: 'gem',
-			pickedUpBy: this.pickedUpBy?.id ?? null
+			pickedUpBy: this.pickedUpBy?.id ?? null,
+			pickUpFrame: isFinite(this.pickUpFrame) ? this.pickUpFrame : null
 		};
 	}
 
 	getInitialState(): GemState {
 		return {
 			entityType: 'gem',
-			pickedUpBy: null
+			pickedUpBy: null,
+			pickUpFrame: null
 		};
 	}
 
 	loadState(state: GemState, { frame }: { frame: number }) {
-		let prevLastPickUpFrame = this.lastPickUpFrame;
+		let prevPickUpFrame = this.pickUpFrame;
 
 		this.pickedUpBy = this.game.getEntityById(state.pickedUpBy) as Marble;
-		if (this.pickedUpBy) {
-			this.lastPickUpFrame = frame;
-			this.internalStateNeedsStore = true;
-		}
+		this.pickUpFrame = state.pickUpFrame ?? -Infinity;
 
 		this.setOpacity(Number(this.pickedUpBy === null));
 		this.setCollisionEnabled(this.pickedUpBy === null);
 
-		if (this.lastPickUpFrame > prevLastPickUpFrame) {
+		if (this.pickUpFrame > prevPickUpFrame) {
 			G.menu.hud.displayAlert(this.getAlertMessage.bind(this), frame);
 			this.playSound();
 		}
-	}
-
-	getInternalState(): InternalGemState {
-		return {
-			...super.getInternalState(),
-			lastPickUpFrame: this.lastPickUpFrame
-		};
-	}
-
-	loadInternalState(state: InternalGemState) {
-		super.loadInternalState(state);
-		this.lastPickUpFrame = state.lastPickUpFrame;
 	}
 
 	getAlertMessage() {

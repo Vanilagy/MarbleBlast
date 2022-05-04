@@ -41,11 +41,11 @@ export class PathedInterior extends Interior {
 
 	/** The total duration of the path. */
 	duration: number;
-	/** The source time */
+	/** The source time (internal) */
 	currentTime = 0;
-	/** The destination time */
+	/** The destination time (internal) */
 	targetTime = 0;
-	/** The start reference point in time of interior interpolation */
+	/** The start reference point in time (external) of interior interpolation */
 	changeTime = 0;
 
 	basePosition: Vector3;
@@ -142,11 +142,11 @@ export class PathedInterior extends Interior {
 		this.duration = total;
 	}
 
-	setTargetTime(time: number, target: number) {
-		let currentInternalTime = this.getInternalTime(time);
+	setTargetTime(target: number) {
+		let currentInternalTime = this.getInternalTime(this.game.state.time);
 		this.currentTime = currentInternalTime; // Start where the interior currently is
 		this.targetTime = target;
-		this.changeTime = 1000 * time;
+		this.changeTime = 1000 * this.game.state.time;
 
 		this.stateNeedsStore = true;
 	}

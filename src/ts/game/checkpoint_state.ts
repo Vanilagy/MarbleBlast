@@ -165,6 +165,11 @@ export class CheckpointState extends Entity {
 		}
 	}
 
+	reset() {
+		this.loadState(this.getInitialState());
+		this.stateNeedsStore = true;
+	}
+
 	render() {}
 
 	getState(): CheckpointStateState {

@@ -47,8 +47,6 @@ export abstract class Game {
 
 	music: AudioSource;
 	originalMusicName: string;
-	timeTravelSound: AudioSource;
-	alarmSound: AudioSource;
 
 	started = false;
 	paused = false;
