@@ -6,7 +6,6 @@ import { Gem } from "../shapes/gem";
 import { PowerUp } from "../shapes/power_up";
 import { Entity } from "./entity";
 import { Game } from "./game";
-import { MAX_TIME } from "./game_simulator";
 import { GO_TIME } from "./game_state";
 
 type ClockState = EntityState & { entityType: 'clock' };
@@ -16,8 +15,11 @@ interface InternalClockState {
 	timeTravelBonus: number
 }
 
+export const MAX_TIME = 999 * 60 + 59 + 0.999; // 999:59.99, should be large enough
+
 export class Clock extends Entity {
 	time = 0;
+	elapsedTime = 0;
 	timeTravelBonus = 0;
 	restartFrame = 0;
 	updateOrder = -1;
@@ -37,20 +39,20 @@ export class Clock extends Entity {
 
 		if (this.game.simulator.isReconciling) return;
 
-		if (this.timeTravelBonus > 0 && !this.timeTravelSound) {
+		if (this.timeTravelBonus > 0 && !this.timeTravelSound && !this.game.finishState.finished) {
 			this.timeTravelSound = AudioManager.createAudioSource('timetravelactive.wav');
 			this.timeTravelSound.setLoop(true);
 			this.timeTravelSound.play();
-		} else if (this.timeTravelBonus === 0) {
+		} else if (this.timeTravelBonus === 0 || this.game.finishState.finished) {
 			this.timeTravelSound?.stop();
 			this.timeTravelSound = null;
 		}
 
 		// Handle alarm warnings (that the user is about to exceed the par time)
-		if (isFinite(this.game.mission.qualifyTime) && G.modification === 'platinum'/* todo && !this.finishTime*/) {
+		if (isFinite(this.game.mission.qualifyTime) && G.modification === 'platinum') {
 			let alarmStart = this.game.mission.computeAlarmStartTime();
 
-			if (this.time > 0 && 1000 * this.time >= alarmStart) {
+			if (this.time > 0 && 1000 * this.time >= alarmStart && !this.game.finishState.finished) {
 				if (1000 * this.time < this.game.mission.qualifyTime && !this.alarmSound) {
 					// Start the alarm
 					this.alarmSound = AudioManager.createAudioSource('alarm.wav');
@@ -90,9 +92,13 @@ export class Clock extends Entity {
 			this.time += -this.timeTravelBonus;
 			this.timeTravelBonus = 0;
 		}
+
+		this.elapsedTime += 1 / GAME_UPDATE_RATE; // Siempre
 	}
 
 	addTimeTravelBonus(bonus: number, timeToRevert: number) {
+		if (this.game.finishState.finished) return;
+
 		if (this.timeTravelBonus === 0) {
 			this.time -= timeToRevert;
 			if (this.time < 0) this.time = 0;
@@ -105,8 +111,9 @@ export class Clock extends Entity {
 	}
 
 	restart() {
-		this.timeTravelBonus = 0;
 		this.time = 0;
+		this.elapsedTime = 0;
+		this.timeTravelBonus = 0;
 		this.restartFrame = this.game.state.frame;
 
 		// todo see if we really need this
@@ -118,7 +125,7 @@ export class Clock extends Entity {
 	}
 
 	render() {
-		let timeToDisplay = this.time; // fixme not visually smoothed
+		let timeToDisplay = this.game.finishState.time ?? this.time; // fixme not visually smoothed
 		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
 
 		G.menu.hud.displayTime(timeToDisplay, this.determineClockColor(timeToDisplay));
@@ -129,7 +136,7 @@ export class Clock extends Entity {
 
 		if (G.modification === 'gold') return;
 
-		// todo if (simulator.finishTime) return 'green'; // Even if not qualified
+		if (this.game.finishState.finished) return 'green'; // Even if not qualified
 		if (this.time === 0 || game.clock.timeTravelBonus > 0) return 'green';
 		if (1000 * timeToDisplay >= game.mission.qualifyTime) return 'red';
 
@@ -148,6 +155,7 @@ export class Clock extends Entity {
 		return {
 			entityType: 'clock',
 			time: this.time,
+			elapsedTime: this.elapsedTime,
 			timeTravelBonus: this.timeTravelBonus
 		};
 	}
@@ -156,12 +164,14 @@ export class Clock extends Entity {
 		return {
 			entityType: 'clock',
 			time: 0,
+			elapsedTime: 0,
 			timeTravelBonus: 0
 		};
 	}
 
 	loadState(state: ClockState, meta: { frame: number, remote: boolean }) {
 		this.time = state.time;
+		this.elapsedTime = state.elapsedTime;
 		this.timeTravelBonus = state.timeTravelBonus;
 
 		// Catch up to the now

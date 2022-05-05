@@ -30,6 +30,7 @@ export class GameState {
 
 	frame = -1;
 	maxFrame = -1;
+	needsRestart = true;
 
 	get time() {
 		return (this.frame + this.subframeCompletion) / GAME_UPDATE_RATE;
@@ -75,6 +76,7 @@ export class GameState {
 		let { game } = this;
 
 		game.clock.restart();
+		game.finishState.reset();
 		for (let marble of game.marbles) marble.respawn(true);
 
 		for (let interior of game.interiors) {
@@ -84,6 +86,8 @@ export class GameState {
 			state.changeTime = 1000 * this.time;
 			interior.loadState(state);
 		}
+
+		this.needsRestart = false;
 	}
 
 	saveStates() {

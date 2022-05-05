@@ -1,6 +1,8 @@
 import { Game } from "./game";
 
 export class SingleplayerGame extends Game {
+	type = 'singleplayer' as const;
+
 	async init() {
 		await super.init();
 

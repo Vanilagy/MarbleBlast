@@ -31,7 +31,9 @@ export const entityStateFormat = [union, 'entityType', {
 		}],
 		teleportEnableTime: 'f32',
 		teleportDisableTime: 'f32',
-		blastAmount: 'f32'
+		blastAmount: 'f32',
+		finishYaw: 'f32',
+		finishPitch: 'f32'
 	}]
 }, {
 	entityType: 'player',
@@ -46,6 +48,7 @@ export const entityStateFormat = [union, 'entityType', {
 }, {
 	entityType: 'clock',
 	time: 'f64',
+	elapsedTime: 'f64',
 	timeTravelBonus: 'f64'
 }, {
 	entityType: 'pathedInterior',
@@ -90,6 +93,12 @@ export const entityStateFormat = [union, 'entityType', {
 	...powerUpStateFormat,
 	probeCount: 'varint',
 	lastInstance: [nullable, 'varint']
+}, {
+	entityType: 'finishState',
+	finishFrame: [nullable, 'varint'],
+	finishTime: [nullable, 'f64'],
+	finishElapsedTime: [nullable, 'f64'],
+	isLegal: 'boolean'
 }] as const;
 
 export const entityUpdateFormat = {

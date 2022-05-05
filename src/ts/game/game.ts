@@ -20,8 +20,11 @@ import { Clock } from "./clock";
 import { PowerUp } from "../shapes/power_up";
 import { FormatToType } from "../../../shared/fixed_format_binary_serializer";
 import { playerFormat } from "../../../shared/game_server_format";
+import { FinishState } from "./finish_state";
 
 export abstract class Game {
+	abstract type: 'singleplayer' | 'multiplayer'; // For the record, I do know that it's spelled "single-player", but I also know that English can suck my
+
 	state: GameState;
 	initter: GameInitter;
 	simulator: GameSimulator;
@@ -41,6 +44,7 @@ export abstract class Game {
 	localPlayer: Player = null;
 
 	clock: Clock;
+	finishState: FinishState;
 	randomPowerUpInstances: PowerUp[];
 
 	totalGems = 0;
@@ -180,7 +184,7 @@ export abstract class Game {
 
 	/** Pauses the game. */
 	pause() {
-		if (this.paused/* || (state.level.finishTime && state.level.replay.mode === 'record')*/) return; // fixme
+		if (this.paused || (this.finishState.finished && this.finishState.isLegal)) return;
 
 		document.exitPointerLock?.();
 		releaseAllButtons(); // Safety measure to prevent keys from getting stuck

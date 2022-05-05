@@ -4,7 +4,6 @@ import { World } from "../physics/world";
 import { Game } from "./game";
 
 export const GAME_PLAYBACK_SPEED = 1; // Major attack surface for cheaters here 😟
-export const MAX_TIME = 999 * 60 + 59 + 0.999; // 999:59.99, should be large enough
 
 export class GameSimulator {
 	game: Game;
@@ -13,7 +12,6 @@ export class GameSimulator {
 	advanceTimes: number[] = [];
 	nonDuplicatableEventFrames = new DefaultMap<string, number>(() => -1);
 	isReconciling = false;
-	started = false;
 
 	constructor(game: Game) {
 		this.game = game;
@@ -31,24 +29,16 @@ export class GameSimulator {
 		game.state.frame++;
 		game.state.maxFrame = Math.max(game.state.frame, game.state.maxFrame);
 
-		if (!this.started) {
-			this.started = true;
+		if (game.state.needsRestart) {
 			game.state.restart();
 		}
 
 		for (let entity of game.entities) entity.update();
 
 		let playReplay = false;
-		if (!playReplay) {
-			//let gravityBefore = this.world.gravity.clone();
-			//if (this.finishTime) this.world.gravity.setScalar(0);
-			this.world.step(1 / GAME_UPDATE_RATE);
-			//this.world.gravity.copy(gravityBefore);
-		}
+		if (!playReplay) this.world.step(1 / GAME_UPDATE_RATE);
 
 		for (let entity of game.entities) entity.postUpdate();
-
-		for (let marble of game.marbles) marble.calculatePredictiveTransforms();
 
 		game.state.saveStates();
 

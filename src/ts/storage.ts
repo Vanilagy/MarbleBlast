@@ -273,18 +273,18 @@ export abstract class StorageManager {
 	}
 
 	static maxScoresPerLevel = 5;
-	/** Register a new time for a mission.
+	/** Register a new time for a mission. Note that time must be in milliseconds.
 	 * @returns The inserted score and the index at which at was inserted. Returns null, if the score wasn't inserted (so, not in the top maxScoresPerLevel best times).
 	 */
-	static insertNewTime(path: string, name: string, time: number) {
+	static insertNewTime(path: string, name: string, timeInMs: number) {
 		let stored = this.data.bestTimes[path] ?? [];
 		let scoreId = Util.uuid();
-		let toInsert: BestTimes[number] = [name, time, scoreId, Date.now()];
+		let toInsert: BestTimes[number] = [name, timeInMs, scoreId, Date.now()];
 
 		// Determine the correct index to insert the time at
 		let index: number;
 		for (index = 0; index < stored.length; index++) {
-			if (stored[index][1] > time) break;
+			if (stored[index][1] > timeInMs) break;
 		}
 		stored.splice(index, 0, toInsert);
 

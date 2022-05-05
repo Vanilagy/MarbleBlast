@@ -26,6 +26,8 @@ window.addEventListener('keydown', e => {
 });
 
 export class MultiplayerGame extends Game {
+	type = 'singleplayer' as const;
+
 	pausable = false;
 	state: MultiplayerGameState;
 	simulator: MultiplayerGameSimulator;

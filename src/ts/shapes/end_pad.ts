@@ -1,13 +1,14 @@
 import { Shape } from "../shape";
 import { Util, Scheduler } from "../util";
-import { ParticleEmitter } from "../particles";
-import { Level, TimeState } from "../level";
+import { ParticleEmitter, ParticleManager } from "../particles";
 import { AudioManager } from "../audio";
 import { Matrix4 } from "../math/matrix4";
 import { Vector3 } from "../math/vector3";
 import { Quaternion } from "../math/quaternion";
 import { Euler } from "../math/euler";
 import { BlendingType } from "../rendering/renderer";
+import { Game } from "../game/game";
+import { Marble } from "../marble";
 
 /** The finish pad. */
 export class EndPad extends Shape {
@@ -35,32 +36,35 @@ export class EndPad extends Shape {
 			finishArea.margin = 0.005; // OIMO had a margin of 0.005 on every shape. We somewhat try to correct for that by adding it back here.
 
 			return finishArea;
-		}, (t: number) => {
+		}, (t: number, dt: number, marble: Marble) => {
 			// These checks are to make sure touchFinish is only called once per contact with the collider. For it to be called again, the marble must leave the area again.
 			let exit = this.inArea > 0;
 			this.inArea = 2;
 			if (exit) return;
 
-			this.level.touchFinish(t);
+			this.game.finishState.tryFinish(marble, t);
 		}, transform);
 	}
 
 	/** Starts the finish celebration firework at a given time. */
-	spawnFirework(time: TimeState) {
-		let firework = new Firework(this.level, this.worldPosition, time.timeSinceLoad);
-		this.fireworks.push(firework);
+	spawnFirework() {
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			let firework = new Firework(this.game, this.worldPosition, this.game.state.time);
+			this.fireworks.push(firework);
 
-		AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
+			AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
+		}, `${this.id}firework`, true);
 	}
 
-	tick(time: TimeState, onlyVisual: boolean) {
+	update(onlyVisual?: boolean) {
 		if (onlyVisual) return;
-		super.tick(time);
+		super.update(onlyVisual);
 
 		// Tick the firework
 		for (let firework of this.fireworks.slice()) {
-			firework.tick(time.timeSinceLoad);
-			if (time.timeSinceLoad - firework.spawnTime >= 10000) Util.removeFromArray(this.fireworks, firework); // We can safely remove the firework
+			firework.tick(this.game.state.time);
+			if (this.game.state.time - firework.spawnTime >= 10)
+				Util.removeFromArray(this.fireworks, firework); // We can safely remove the firework
 		}
 
 		this.inArea--;
@@ -201,21 +205,21 @@ interface Trail {
 
 /** Handles the firework animation that plays on the finish pad upon level completion. */
 class Firework extends Scheduler {
-	level: Level;
+	particleManager: ParticleManager;
 	pos: Vector3;
 	spawnTime: number;
 	trails: Trail[] = [];
 	/** The fireworks are spawned in waves, this controls how many are left. */
 	wavesLeft = 4;
 
-	constructor(level: Level, pos: Vector3, spawnTime: number) {
+	constructor(game: Game, pos: Vector3, spawnTime: number) {
 		super();
 
-		this.level = level;
+		this.particleManager = game.renderer.particles;
 		this.pos = pos;
 		this.spawnTime = spawnTime;
 
-		this.level.particles.createEmitter(fireworkSmoke, this.pos); // Start the smoke
+		this.particleManager.createEmitter(fireworkSmoke, this.pos); // Start the smoke
 		this.doWave(this.spawnTime); // Start the first wave
 	}
 
@@ -234,14 +238,10 @@ class Firework extends Scheduler {
 
 			if (completion === 1) {
 				// The trail has reached its end, remove the emitter and spawn the explosion.
-				this.level.particles.removeEmitter(trail.smokeEmitter);
+				this.particleManager.removeEmitter(trail.smokeEmitter);
 				Util.removeFromArray(this.trails, trail);
 
-				if (trail.type === 'red') {
-					this.level.particles.createEmitter(redSpark, pos);
-				} else {
-					this.level.particles.createEmitter(blueSpark, pos);
-				}
+				this.particleManager.createEmitter(trail.type === 'red' ? redSpark : blueSpark, pos);
 			}
 		}
 	}
@@ -253,7 +253,7 @@ class Firework extends Scheduler {
 
 		this.wavesLeft--;
 		if (this.wavesLeft > 0) {
-			let nextWaveTime = time + 500 + 1000 * Math.random();
+			let nextWaveTime = time + 0.5 + 1 * Math.random();
 			this.schedule(nextWaveTime, () => this.doWave(nextWaveTime));
 		}
 	}
@@ -262,9 +262,9 @@ class Firework extends Scheduler {
 	spawnTrail(time: number) {
 		let type: 'red' | 'blue' = (Math.random() < 0.5)? 'red' : 'blue';
 
-		let lifetime = 250 + Math.random() * 2000;
-		let distanceFac = 0.5 + lifetime / 5000; // Make sure the firework doesn't travel a great distance way too quickly
-		let emitter = this.level.particles.createEmitter((type === 'red')? redTrail : blueTrail, this.pos);
+		let lifetime = 0.25 + 2 * Math.random();
+		let distanceFac = 0.5 + lifetime / 5; // Make sure the firework doesn't travel a great distance way too quickly
+		let emitter = this.particleManager.createEmitter(type === 'red' ? redTrail : blueTrail, this.pos);
 		let randomPointInCircle = Util.randomPointInUnitCircle();
 		let targetPos = new Vector3(randomPointInCircle.x * 3, randomPointInCircle.y * 3, 1 + Math.sqrt(Math.random()) * 3).multiplyScalar(distanceFac).add(this.pos);
 

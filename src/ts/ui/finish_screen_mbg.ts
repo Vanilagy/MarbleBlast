@@ -61,15 +61,15 @@ export class MbgFinishScreen extends FinishScreen {
 	}
 
 	updateTimeElements(elapsedTime: number, bonusTime: number, failedToQualify: boolean) {
-		let level = G.level;
+		let game = G.game;
 
-		this.time.textContent = Util.secondsToTimeString(level.finishTime.gameplayClock / 1000);
-		this.qualifyTimeElement.textContent = isFinite(level.mission.qualifyTime)? Util.secondsToTimeString(level.mission.qualifyTime / 1000) : Util.secondsToTimeString(5999.999);
+		this.time.textContent = Util.secondsToTimeString(game.finishState.time);
+		this.qualifyTimeElement.textContent = isFinite(game.mission.qualifyTime)? Util.secondsToTimeString(game.mission.qualifyTime / 1000) : Util.secondsToTimeString(5999.999);
 		this.qualifyTimeElement.style.color = failedToQualify? 'red' : '';
 		this.qualifyTimeElement.style.textShadow = failedToQualify? '1px 1px 0px black' : '';
 		Util.monospaceNumbers(this.qualifyTimeElement);
 
-		let goldTime = level.mission.goldTime;
+		let goldTime = game.mission.goldTime;
 		this.goldTimeElement.textContent = Util.secondsToTimeString(goldTime / 1000);
 		this.goldTimeElement.parentElement.style.display = (goldTime !== -Infinity)? '' : 'none';
 		Util.monospaceNumbers(this.goldTimeElement);
@@ -89,7 +89,7 @@ export class MbgFinishScreen extends FinishScreen {
 	}
 
 	updateBestTimeElement(element: HTMLDivElement, score: BestTimes[number], rank: number) {
-		let goldTime = G.level.mission.goldTime;
+		let goldTime = G.game.mission.goldTime;
 
 		element.children[0].textContent = rank + '. ' + score[0];
 		element.children[1].textContent = Util.secondsToTimeString(score[1] / 1000);

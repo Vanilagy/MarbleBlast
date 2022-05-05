@@ -146,7 +146,7 @@ export class Marble extends Entity {
 	bounceRestitution = 0.5;
 
 	controllingPlayer: Player;
-	currentControlState: MarbleControlState = Marble.getPassiveControlState();
+	currentControlState = Marble.getPassiveControlState();
 
 	get speedFac() {
 		return DEFAULT_RADIUS / this.radius;
@@ -179,8 +179,10 @@ export class Marble extends Entity {
 	cubeMap: CubeTexture;
 	cubeCamera: CubeCamera;
 
+	inFinishState = false;
 	finishYaw: number;
 	finishPitch: number;
+
 	outOfBoundsFrame: number = null;
 	outOfBoundsCameraPosition: Vector3 = null;
 	respawnFrame = 0;
@@ -407,7 +409,9 @@ export class Marble extends Entity {
 				})) : undefined,
 				teleportEnableTime: this.teleportEnableTime ?? undefined,
 				teleportDisableTime: this.teleportDisableTime !== null && this.game.state.time - this.teleportDisableTime < TELEPORT_FADE_DURATION ? this.teleportDisableTime : undefined,
-				blastAmount: this.blastAmount || undefined
+				blastAmount: this.blastAmount || undefined,
+				finishYaw: this.inFinishState ? this.finishYaw : undefined,
+				finishPitch: this.inFinishState ? this.finishPitch : undefined
 			}
 		};
 	}
@@ -486,6 +490,10 @@ export class Marble extends Entity {
 		this.teleportDisableTime = state.extras.teleportDisableTime ?? null;
 
 		this.blastAmount = state.extras.blastAmount || 0;
+
+		this.inFinishState = state.extras.finishYaw !== undefined;
+		this.finishYaw = state.extras.finishYaw;
+		this.finishPitch = state.extras.finishPitch;
 	}
 
 	getInternalState(): InternalMarbleState {
@@ -519,12 +527,16 @@ export class Marble extends Entity {
 
 		this.controllingPlayer?.applyControlState();
 
-		if (this.outOfBoundsFrame !== null && (this.currentControlState.using || this.game.state.frame - this.outOfBoundsFrame >= 2 * GAME_UPDATE_RATE)) {
+		if (
+			this.outOfBoundsFrame !== null &&
+			(this.currentControlState.using || this.game.state.frame - this.outOfBoundsFrame >= 2 * GAME_UPDATE_RATE) &&
+			!(this.game.finishState.finished && this.game.finishState.isLegal)
+		) {
 			// Respawn the marble two seconds after having gone out of bounds
-			this.respawn();
+			if (this.game.type === 'singleplayer' && !this.checkpointState.currentCheckpoint) this.game.state.needsRestart = true;
+			else this.respawn(false);
 		}
 
-		let time = this.game.state.time;
 		let reconciling = this.game.simulator.isReconciling;
 
 		if (this.shockAbsorberIsActive()) {
@@ -641,6 +653,8 @@ export class Marble extends Entity {
 		if (this.game.mission.hasBlast && this.blastAmount < 1)
 			this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / GAME_UPDATE_RATE, 0, 1);
 
+		if (this.inFinishState) this.body.gravity.multiplyScalar(0);
+
 		Util.filterInPlace(this.teleportStates, x => x.entryFrame !== null || x.exitFrame !== null);
 	}
 
@@ -738,7 +752,7 @@ export class Marble extends Entity {
 
 			let airMovementVector = movementVec.clone();
 			let airVelocity = this.helicopterIsActive()? 5 : 3.2; // Change air velocity for the helicopter
-			//if (this.game.simulator.finishTime) airVelocity = 0;
+			if (this.inFinishState) airVelocity = 0;
 			airMovementVector.multiplyScalar(airVelocity * dt);
 			this.body.linearVelocity.add(airMovementVector);
 
@@ -753,7 +767,7 @@ export class Marble extends Entity {
 		// Apply angular acceleration, but make sure the angular velocity doesn't exceed some maximum
 		Util.addToVectorCapped(this.body.angularVelocity, movementRotationAxis, 120 * this.speedFac);
 
-		//if (this.game.simulator.finishTime) this.body.linearVelocity.multiplyScalar(0.9);
+		if (this.inFinishState) this.body.linearVelocity.multiplyScalar(dt / (1 / GAME_UPDATE_RATE) * 0.9);
 
 		if (controlState.using && this.heldPowerUp) {
 			this.heldPowerUp.use(this, 0);
@@ -911,6 +925,8 @@ export class Marble extends Entity {
 
 				this.interpolatedOrientation.slerp(this.body.orientation, this.interpolationStrength);
 			}
+
+			this.calculatePredictiveTransforms();
 		}
 	}
 
@@ -1145,7 +1161,7 @@ export class Marble extends Entity {
 	}
 
 	goOutOfBounds(frame = this.game.state.frame) {
-		if (this.outOfBoundsFrame !== null /* todo || this.finishTime*/) return;
+		if (this.outOfBoundsFrame !== null || this.inFinishState) return;
 
 		// I guess this is fine?
 		this.game.simulator.executeNonDuplicatableEvent(() => {
@@ -1157,6 +1173,14 @@ export class Marble extends Entity {
 
 		G.menu.hud.setPowerupButtonState(true);
 		this.outOfBoundsFrame = frame;
+	}
+
+	enableFinishState() {
+		if (this.inFinishState) return;
+
+		this.inFinishState = true;
+		this.finishYaw = this.currentControlState.yaw;
+		this.finishPitch = this.currentControlState.pitch;
 	}
 
 	useBlast() {
@@ -1226,25 +1250,6 @@ export class Marble extends Entity {
 		this.forcefield.group.recomputeTransform();
 	}
 
-	reset() {
-		this.body.linearVelocity.setScalar(0);
-		this.body.angularVelocity.setScalar(0);
-		this.superBounceEnableFrame = -Infinity;
-		this.shockAbsorberEnableFrame = -Infinity;
-		this.helicopterEnableFrame = -Infinity;
-		this.megaMarbleEnableFrame = -Infinity;
-		this.teleportEnableTime = null;
-		this.teleportDisableTime = null;
-		this.lastContactNormal.set(0, 0, 0);
-		this.beforeVel.set(0, 0, 0);
-		this.beforeAngVel.set(0, 0, 0);
-		this.slidingTimeout = 0;
-		this.predictedPosition.copy(this.body.position);
-		this.predictedOrientation.copy(this.body.orientation);
-		this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
-		this.setUp(new Vector3(0, 0, 1), true);
-	}
-
 	respawn(ignoreCheckpointState: boolean) {
 		if (this.checkpointState.currentCheckpoint && !ignoreCheckpointState) {
 			// There's a checkpoint, so load its state instead
@@ -1270,10 +1275,26 @@ export class Marble extends Entity {
 		this.body.position.copy(startPosition);
 		this.group.position.copy(this.body.position);
 		this.group.recomputeTransform();
-		this.reset();
+		this.body.linearVelocity.setScalar(0);
+		this.body.angularVelocity.setScalar(0);
+		this.superBounceEnableFrame = -Infinity;
+		this.shockAbsorberEnableFrame = -Infinity;
+		this.helicopterEnableFrame = -Infinity;
+		this.megaMarbleEnableFrame = -Infinity;
+		this.teleportEnableTime = null;
+		this.teleportDisableTime = null;
+		this.lastContactNormal.set(0, 0, 0);
+		this.beforeVel.set(0, 0, 0);
+		this.beforeAngVel.set(0, 0, 0);
+		this.slidingTimeout = 0;
+		this.predictedPosition.copy(this.body.position);
+		this.predictedOrientation.copy(this.body.orientation);
+		this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
+		this.setUp(new Vector3(0, 0, 1), true);
 		this.calculatePredictiveTransforms();
 		this.respawnFrame = this.game.state.frame;
 		this.outOfBoundsFrame = null;
+		this.inFinishState = false;
 		this.cancelInterpolation();
 
 		this.game.simulator.executeNonDuplicatableEvent(() => {

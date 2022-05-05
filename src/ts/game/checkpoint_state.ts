@@ -143,7 +143,7 @@ export class CheckpointState extends Entity {
 		this.scheduledPickUpFrame = null;
 		marble.outOfBoundsFrame = null;
 		marble.blastAmount = this.checkpointBlast;
-		// todo this.finishTime = null; // For those very, very rare cases where the player touched the finish while OOB, but not fast enough, so they get respawned at the checkpoint and we need to remove the "finish lock".
+		marble.inFinishState = false; // For those very, very rare cases where the player touched the finish while OOB, but not fast enough, so they get respawned at the checkpoint and we need to remove the "finish lock".
 
 		marble.unequipPowerUp(); // Always deselect first
 		// Wait a bit to select the powerup to prevent immediately using it incase the user skipped the OOB screen by clicking

@@ -360,13 +360,12 @@ export class GameRenderer {
 		}
 		*/
 
-		/*
-		if (simulator.finishTime) {
+		if (marble.inFinishState) {
 			// Make the camera spin around slowly
-			pitch = Util.lerp(game.marble.finishPitch, DEFAULT_PITCH, Util.clamp((timeState.currentAttemptTime - simulator.finishTime.currentAttemptTime) / 333, 0, 1));
-			yaw = game.marble.finishYaw - (timeState.currentAttemptTime - simulator.finishTime.currentAttemptTime) / 1000 * 0.6;
+			let timeElapsed = this.game.state.time - this.game.finishState.frame / GAME_UPDATE_RATE;
+			pitch = Util.lerp(marble.finishPitch, DEFAULT_PITCH, Util.clamp(timeElapsed / 0.333, 0, 1));
+			yaw = marble.finishYaw - timeElapsed * 0.6;
 		}
-		*/
 
 		if (marble.outOfBoundsFrame === null) {
 			directionVector.applyAxisAngle(new Vector3(0, 1, 0), pitch);
@@ -464,7 +463,7 @@ export class GameRenderer {
 		let gemCount = 0;
 		for (let i = 0; i < this.game.entities.length; i++) {
 			let entity = this.game.entities[i];
-			if (entity instanceof Gem && entity.pickedUpBy) gemCount++;
+			if (entity instanceof Gem && !entity.pickupable) gemCount++;
 		}
 
 		hud.displayGemCount(gemCount, this.game.totalGems);

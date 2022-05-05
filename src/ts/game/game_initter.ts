@@ -53,6 +53,7 @@ import { Util } from "../util";
 import { Balloon } from "./balloon";
 import { Clock } from "./clock";
 import { Game } from "./game";
+import { FinishState } from "./finish_state";
 
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
@@ -119,6 +120,9 @@ export class GameInitter {
 
 		game.clock = new Clock(game, this.auxEntityId++);
 		game.addEntity(game.clock);
+
+		game.finishState = new FinishState(game, this.auxEntityId++);
+		game.addEntity(game.finishState);
 
 		if (game.shapes.some(x => x instanceof RandomPowerUp))
 			await this.initRandomPowerUpInstances();

@@ -36,10 +36,10 @@ export abstract class FinishScreen {
 		menu.setupButton(this.replayButton, 'endgame/replay', () => {
 			// Restart the level
 			this.div.classList.add('hidden');
-			G.level.restart(true);
+			G.game.state.restart();
 			if (!Util.isTouchDevice) Util.requestPointerLock();
 		});
-		menu.setupButton(this.continueButton, 'endgame/continue', () => G.level.stopAndExit());
+		menu.setupButton(this.continueButton, 'endgame/continue', () => G.game.stopAndExit());
 
 		menu.setupButton(this.nameEntryButton, this.nameEntryButtonSrc, async () => {
 			let trimmed = this.nameEntryInput.value.trim().slice(0, 16);
@@ -58,8 +58,8 @@ export abstract class FinishScreen {
 			StorageManager.store();
 
 			// Store the time and close the dialog.
-			let level = G.level;
-			let inserted = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
+			let game = G.game;
+			let inserted = StorageManager.insertNewTime(game.mission.path, trimmed, 1000 * game.finishState.time);
 
 			this.nameEntryScreenDiv.classList.add('hidden');
 			this.div.style.pointerEvents = '';
@@ -67,19 +67,21 @@ export abstract class FinishScreen {
 
 			if (inserted) {
 				// Store the replay
-				if (level.replay.mode === 'record' && !level.replay.isInvalid) {
-					level.replay.canStore = false;
-					let serialized = await level.replay.serialize();
+				/* todo
+				if (game.replay.mode === 'record' && !game.replay.isInvalid) {
+					game.replay.canStore = false;
+					let serialized = await game.replay.serialize();
 					await StorageManager.databasePut('replays', serialized, inserted.score[2]);
-				}
+				}*/
 
 				// Submit the score to the leaderboard but only if it's the local top time and qualified
-				if (inserted.index === 0 && level.finishTime.gameplayClock <= level.mission.qualifyTime) Leaderboard.submitBestTime(level.mission.path, inserted.score);
+				if (inserted.index === 0 && 1000 * game.finishState.time <= game.mission.qualifyTime)
+					Leaderboard.submitBestTime(game.mission.path, inserted.score);
 			}
 		}, undefined, undefined, G.modification === 'gold');
 
 		window.addEventListener('keydown', (e) => {
-			if (!G.level) return;
+			if (!G.game) return;
 			if (G.menu !== menu) return;
 
 			if (e.key === 'Enter') {
@@ -91,7 +93,7 @@ export abstract class FinishScreen {
 			}
 		});
 		window.addEventListener('keyup', (e) => {
-			if (!G.level) return;
+			if (!G.game) return;
 			if (G.menu !== menu) return;
 
 			if (e.key === 'Enter') {
@@ -119,20 +121,22 @@ export abstract class FinishScreen {
 	abstract generateNameEntryText(place: number): string;
 
 	show() {
-		let level = G.level;
+		let game = G.game;
 		this.div.classList.remove('hidden');
 
-		let elapsedTime = Math.max(level.finishTime.currentAttemptTime - GO_TIME, 0);
-		let bonusTime = Util.roundToMultiple(Math.max(0, elapsedTime - level.finishTime.gameplayClock), 1e-8); // Fix 4999 bullshit
+		let time = game.finishState.time;
+		let elapsedTime = game.finishState.elapsedTime;
+
+		let bonusTime = Util.roundToMultiple(Math.max(0, elapsedTime - time), 1e-8); // Fix 4999 bullshit
 		let failedToQualify = false;
 
 		// Change the message based on having achieve gold time, qualified time or not having qualified.
-		if (level.finishTime.gameplayClock > level.mission.qualifyTime) {
+		if (1000 * time > game.mission.qualifyTime) {
 			this.showMessage('failed');
 			failedToQualify = true;
-		} else if (level.finishTime.gameplayClock <= level.mission.ultimateTime) {
+		} else if (1000 * time <= game.mission.ultimateTime) {
 			this.showMessage('ultimate');
-		} else if (level.finishTime.gameplayClock <= level.mission.goldTime) {
+		} else if (1000 * time <= game.mission.goldTime) {
 			this.showMessage('gold');
 		} else {
 			this.showMessage('qualified');
@@ -142,8 +146,8 @@ export abstract class FinishScreen {
 
 		this.drawBestTimes();
 
-		let bestTimes = StorageManager.getBestTimesForMission(level.mission.path, this.bestTimeCount, this.scorePlaceholderName);
-		let place = bestTimes.filter((time) => time[1] <= level.finishTime.gameplayClock).length; // The place is determined by seeing how many scores there currently are faster than the achieved time.
+		let bestTimes = StorageManager.getBestTimesForMission(game.mission.path, this.bestTimeCount, this.scorePlaceholderName);
+		let place = bestTimes.filter(x => x[1] <= 1000 * time).length; // The place is determined by seeing how many scores there currently are faster than the achieved time.
 
 		if (place < this.bestTimeCount && (!failedToQualify || this.storeNotQualified)) {
 			// Prompt the user to enter their name
@@ -157,13 +161,13 @@ export abstract class FinishScreen {
 			this.div.style.pointerEvents = '';
 		}
 
-		if (!failedToQualify && level.mission.type !== 'custom') {
+		if (!failedToQualify && game.mission.type !== 'custom') {
 			let levelSelect = G.menu.levelSelect;
-			if (levelSelect.currentMission === level.mission) levelSelect.cycleMission(1); // Cycle to that next level, but only if it isn't already selected
+			if (levelSelect.currentMission === game.mission) levelSelect.cycleMission(1); // Cycle to that next level, but only if it isn't already selected
 		}
 
-		// Hide the replay button if the replay's invalid
-		this.viewReplayButton.style.display = level.replay.isInvalid? 'none' : '';
+		// todo Hide the replay button if the replay's invalid
+		//this.viewReplayButton.style.display = game.replay.isInvalid? 'none' : '';
 	}
 
 	hide() {
@@ -172,24 +176,26 @@ export abstract class FinishScreen {
 
 	/** Updates the best times. */
 	drawBestTimes() {
-		let bestTimes = StorageManager.getBestTimesForMission(G.level.mission.path, this.bestTimeCount, this.scorePlaceholderName);
+		let bestTimes = StorageManager.getBestTimesForMission(G.game.mission.path, this.bestTimeCount, this.scorePlaceholderName);
 		for (let i = 0; i < this.bestTimeCount; i++) {
 			this.updateBestTimeElement(this.bestTimeContainer.children[i] as HTMLDivElement, bestTimes[i], i+1);
 		}
 	}
 
 	async onViewReplayButtonClick(download: boolean) {
-		let level = G.level;
+		let game = G.game;
+
+		// todo
 
 		if (download) {
-			let serialized = await level.replay.serialize();
-			Replay.download(serialized, level.mission, false);
+			let serialized = await game.replay.serialize();
+			Replay.download(serialized, game.mission, false);
 			if (Util.isTouchDevice && Util.isInFullscreen()) G.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
 		} else {
 			let confirmed = await G.menu.showConfirmPopup('Confirm', `Do you want to start the replay for the last playthrough? This can be done only once if this isn't one of your top ${this.bestTimeCount} local scores.`);
 			if (!confirmed) return;
 
-			level.replay.mode = 'playback';
+			game.replay.mode = 'playback';
 			this.replayButton.click();
 		}
 	}
