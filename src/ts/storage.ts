@@ -67,7 +67,8 @@ export interface StorageData {
 	/** Mission paths whose eggs have been collected. */
 	collectedEggs: string[],
 	/** Which modification was last used. */
-	modification: 'gold' | 'platinum'
+	modification: 'gold' | 'platinum',
+	username: string
 }
 
 const DEFAULT_STORAGE_DATA: StorageData = {
@@ -124,7 +125,8 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	bestTimeSubmissionQueue: {},
 	lastSeenVersion: null,
 	collectedEggs: [],
-	modification: 'platinum'
+	modification: 'platinum',
+	username: null
 };
 
 const VERSION_UPGRADE_PROCEDURES: Record<string, () => Promise<any>> = {

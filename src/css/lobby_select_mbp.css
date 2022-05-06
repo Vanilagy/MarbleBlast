@@ -1,0 +1,58 @@
+#mbp-lobby-select {
+	position: absolute;
+	margin: auto;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	width: 709px;
+	height: 469px;
+}
+
+#mbp-lobby-select-close {
+	position: absolute;
+	display: block;
+	top: 380px;
+	left: 250px;
+}
+
+#mbp-lobby-select-create {
+	position: absolute;
+	display: block;
+	top: 380px;
+	left: 360px;
+}
+
+#mbp-lobby-select-list {
+	position: absolute;
+	top: 25px;
+	left: 37px;
+	width: 634px;
+	height: 347px;
+	overflow: auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#mbp-lobby-select-list::-webkit-scrollbar {
+	width: 5px;
+}
+
+#mbp-lobby-select-list::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#mbp-lobby-select-list::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+#mbp-lobby-select-list > div {
+	padding: 15px 5px;
+	font-family: MarkerFelt;
+	color: white;
+	cursor: pointer;
+}
+
+#mbp-lobby-select-list > div:hover {
+	background-color: rgba(0, 0, 0, 0.11);
+}

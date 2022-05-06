@@ -22,6 +22,8 @@ export abstract class MissionLibrary {
 	static ultraAdvanced: Mission[] = [];
 	static ultraCustom: Mission[] = [];
 
+	static allMissionArrays: Mission[][] = [];
+
 	/** Loads all missions. */
 	static async init() {
 		let mbgMissionFilenames: string[] = [];
@@ -175,6 +177,8 @@ export abstract class MissionLibrary {
 		for (let i = 0; i < this.ultraIntermediate.length; i++) this.ultraIntermediate[i].initSearchString(i);
 		for (let i = 0; i < this.ultraAdvanced.length; i++) this.ultraAdvanced[i].initSearchString(i);
 		for (let i = 0; i < this.ultraCustom.length; i++) this.ultraCustom[i].initSearchString(i);
+
+		this.allMissionArrays.push(this.goldBeginner, this.goldIntermediate, this.goldAdvanced, this.goldCustom, this.platinumBeginner, this.platinumIntermediate, this.platinumAdvanced, this.platinumExpert, this.platinumCustom, this.ultraBeginner, this.ultraIntermediate, this.ultraAdvanced, this.ultraCustom);
 	}
 
 	static getModification(arr: Mission[]) {

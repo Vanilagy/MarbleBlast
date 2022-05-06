@@ -8,6 +8,7 @@ export class Socket {
 	commandHandlers: Record<keyof SocketCommands, ((data: any) => void)[]> = {} as any;
 	onClose: () => void = null;
 	sessionId: string = null;
+	username: string = null;
 
 	constructor(ws: WebSocketType) {
 		this.ws = ws;

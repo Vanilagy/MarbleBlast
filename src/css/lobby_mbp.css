@@ -1,0 +1,201 @@
+#mbp-lobby {
+	position: absolute;
+	margin: auto;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+	width: 800px;
+	height: 600px;
+	font-family: MarkerFelt;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+}
+
+#mbp-lobby-leave {
+	position: absolute;
+	display: block;
+	top: 516px;
+	left: 46px;
+}
+
+#mbp-lobby-image-container {
+	position: absolute;
+	display: block;
+	top: 38px;
+	left: 481px;
+	width: 248px;
+	height: 186px;	
+}
+
+#mbp-lobby-image {
+	position: absolute;
+	display: block;
+	top: 0px;
+	left: 0px;
+	width: 248px;
+	height: 186px;
+	object-fit: cover;
+}
+
+#mbp-lobby-image-frame {
+	position: absolute;
+	display: block;
+	top: 0px;
+	left: 0px;
+}
+
+#mbp-lobby-image-container:hover #mbp-lobby-image {
+	filter: brightness(0.666);
+}
+
+#mbp-lobby-image-container p {
+	position: absolute;
+	top: 73px;
+	left: 0;
+	width: 100%;
+	text-align: center;
+	margin: 0;
+	font-size: 30px;
+	text-shadow: 1px 1px 5px black;
+	display: none;
+}
+
+#mbp-lobby-image-container:hover p {
+	display: initial;
+}
+
+#mbp-lobby-level-title {
+	position: absolute;
+	top: 228px;
+	left: 454px;
+	text-align: center;
+	font-size: 22px;
+	width: 300px;
+	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#mbp-lobby-player-list-heading {
+	position: absolute;
+	top: 282px;
+	left: 475px;
+	font-size: 22px;
+	opacity: 0.9;
+}
+
+#mbp-lobby-player-list-heading > span:first-child {
+	width: 150px;
+	display: inline-block;
+}
+
+#mbp-lobby-player-list {
+	position: absolute;
+	top: 313px;
+	left: 475px;
+	font-size: 18px;
+	width: 277px;
+	height: 198px;
+	overflow: auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#mbp-lobby-player-list::-webkit-scrollbar {
+	width: 5px;
+}
+
+#mbp-lobby-player-list::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#mbp-lobby-player-list::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+#mbp-lobby-player-list > div {
+	padding: 5px 0px;
+}
+
+#mbp-lobby-player-list > div > span:first-child {
+	width: 150px;
+	display: inline-block;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	vertical-align: top;
+}
+
+#mbp-lobby-play {
+	position: absolute;
+	display: block;
+	top: 516px;
+	left: 565px;
+}
+
+#mbp-lobby-chat-input {
+	position: absolute;
+	top: 475px;
+	left: 48px;
+	border: none;
+	width: 392px;
+	background: #000a741c;
+	color: inherit;
+	padding: 6px;
+	padding-left: 8px;
+	box-sizing: border-box;
+	font-family: Nunito;
+	border-radius: 5px;
+	font-size: 14px;
+	text-shadow: 1px 1px 0px black;
+}
+
+#mbp-lobby-chat-input:focus {
+	outline: none;
+	background: #000a743a;
+}
+
+#mbp-lobby-chat-input::placeholder {
+	color: white;
+	opacity: 0.7;
+}
+
+#mbp-lobby-chat-container {
+	position: absolute;
+	top: 284px;
+	left: 49px;
+	width: 391px;
+	height: 183px;
+	overflow: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#mbp-lobby-chat-container::-webkit-scrollbar {
+	width: 5px;
+}
+
+#mbp-lobby-chat-container::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#mbp-lobby-chat-container::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+#mbp-lobby-chat-container * {
+	user-select: text;
+	-webkit-user-select: text; /* iOS Safari */
+	-khtml-user-select: text; /* Konqueror HTML */
+	-moz-user-select: text; /* Old versions of Firefox */
+	-ms-user-select: text; /* Internet Explorer/Edge */
+}
+
+#mbp-lobby-chat-container > div {
+	font-size: 14px;
+	font-family: Nunito;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}

@@ -91,3 +91,8 @@ window.addEventListener('dragstart', (e) => {
 		e.preventDefault();
 	}
 });
+
+// Assist with deselecting text because most things are user-select: none so they don't allow you to deselect selected text anymo'
+window.addEventListener('pointerdown', () => {
+	document.getSelection().empty();
+});

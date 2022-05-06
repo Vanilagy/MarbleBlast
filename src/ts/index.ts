@@ -9,6 +9,7 @@ import { G } from './global';
 import { setMenu } from './ui/menu_setter';
 import { initMainRenderer } from './ui/misc';
 import { Connectivity } from './net/connectivity';
+import { Socket } from '../../shared/socket';
 
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
 const loadingDetail = document.querySelector('#loading-detail') as HTMLDivElement;
@@ -56,6 +57,12 @@ const init = async () => {
 
 	let started = false;
 	const start = async () => {
+		while (!StorageManager.data.username) {
+			StorageManager.data.username = prompt("Please choose a username:").trim();
+			StorageManager.store();
+		}
+		Socket.send('setUsername', StorageManager.data.username);
+
 		started = true;
 		startGameDialog.style.display = 'none';
 		AudioManager.context.resume();

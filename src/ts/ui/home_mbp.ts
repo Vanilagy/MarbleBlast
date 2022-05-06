@@ -30,7 +30,12 @@ export class MbpHomeScreen extends HomeScreen {
 	constructor(menu: Menu) {
 		super(menu);
 
-		this.onlineButton = document.querySelector('#mbp-home-online'); // Doesn't do anything yet :)
+		this.onlineButton = document.querySelector('#mbp-home-online');
+
+		menu.setupButton(this.onlineButton, 'menu/online', () => {
+			this.hide();
+			(menu as MbpMenu).lobbySelectScreen.show();
+		});
 	}
 
 	show() {

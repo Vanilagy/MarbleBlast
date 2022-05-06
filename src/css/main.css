@@ -23,6 +23,17 @@
 	src: url("../assets/font/MarkerFelt/Marker Felt.ttf");
 }
 
+@font-face {
+	font-family: "Nunito";
+	src: url("../assets/font/Nunito/Nunito-Medium.ttf");
+}
+
+@font-face {
+	font-family: "Nunito";
+	src: url("../assets/font/Nunito/Nunito-ExtraBold.ttf");
+	font-weight: bold;
+}
+
 @keyframes pulse-opacity {
 	0% { opacity: 1; }
 	50% { opacity: 0.666; }
@@ -38,6 +49,14 @@
 	-ms-user-select: none; /* Internet Explorer/Edge */
 	-webkit-user-drag: none;
 	user-drag: none;
+}
+
+::-moz-selection {
+	background: rgba(0, 0, 0, 0.39);
+}
+
+::selection {
+	background: rgba(0, 0, 0, 0.39);
 }
 
 /** Necessary to not fuck up the iOS Safari keyboard: */

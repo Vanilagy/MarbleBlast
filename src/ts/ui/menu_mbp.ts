@@ -17,6 +17,8 @@ import { MbpOptionsScreen } from "./options_mbp";
 import { MbpHelpScreen } from "./help_mbp";
 import { Util } from "../util";
 import { ResourceManager } from "../resources";
+import { LobbySelectScreen } from "./lobby_select_screen";
+import { LobbyScreen } from "./lobby_screen";
 
 const BACKGROUNDS = {
 	'gold': 12,
@@ -36,10 +38,14 @@ export class MbpMenu extends Menu {
 	popupNoSrc = 'exit/no';
 	popupYesSrc = 'exit/yes';
 
+	lobbySelectScreen: LobbySelectScreen;
+	lobbyScreen: LobbyScreen;
+
 	homeBg: string;
 	mbgBg: string;
 	mbpBg: string;
 	mbuBg: string;
+	multiplayerBg: string;
 
 	createHome(): HomeScreen {
 		return new MbpHomeScreen(this);
@@ -81,6 +87,13 @@ export class MbpMenu extends Menu {
 		return document.querySelector('#mbp-background-image') as HTMLImageElement;
 	}
 
+	constructor() {
+		super();
+
+		this.lobbySelectScreen = new LobbySelectScreen(this);
+		this.lobbyScreen = new LobbyScreen(this);
+	}
+
 	async init() {
 		// Preselect random backgrounds and load them
 		let homeCategory = Util.randomFromArray(Object.keys(BACKGROUNDS));
@@ -88,20 +101,23 @@ export class MbpMenu extends Menu {
 		let mbgIndex = Math.floor(Math.random() * BACKGROUNDS['gold']) + 1;
 		let mbpIndex = Math.floor(Math.random() * BACKGROUNDS['platinum']) + 1;
 		let mbuIndex = Math.floor(Math.random() * BACKGROUNDS['ultra']) + 1;
+		let multiplayerIndex = Math.floor(Math.random() * BACKGROUNDS['multi']) + 1;
 
 		this.homeBg = './assets/ui_mbp/backgrounds/' + homeCategory + '/' + homeIndex + '.jpg';
 		this.mbgBg = './assets/ui_mbp/backgrounds/' + 'gold/' + mbgIndex + '.jpg';
 		this.mbpBg = './assets/ui_mbp/backgrounds/' + 'platinum/' + mbpIndex + '.jpg';
 		this.mbuBg = './assets/ui_mbp/backgrounds/' + 'ultra/' + mbuIndex + '.jpg';
+		this.multiplayerBg = './assets/ui_mbp/backgrounds/' + 'multi/' + multiplayerIndex + '.jpg';
 
 		if (Util.isWeeb) {
 			this.homeBg = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
 			this.mbgBg = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
 			this.mbpBg = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
 			this.mbuBg = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
+			this.multiplayerBg = `./assets/img/weeb${Math.floor(4*Math.random() + 1)}.jpg`;
 		}
 
-		await ResourceManager.loadImages([this.homeBg, this.mbgBg, this.mbpBg, this.mbuBg]);
+		await ResourceManager.loadImages([this.homeBg, this.mbgBg, this.mbpBg, this.mbuBg, this.multiplayerBg]);
 
 		await super.init();
 	}

@@ -1,5 +1,6 @@
 import express from 'express';
 import { gameServers, sendGameServerList } from "./game_server";
+import { addLobbyListSubscriber, lobbies, Lobby, onLobbiesChanged, removeLobbyListSubscriber } from './lobby';
 import { Socket, WebSocketType } from "./socket";
 import { removeFromArray } from './util';
 
@@ -41,5 +42,53 @@ const initUserSocket = (socket: Socket) => {
 			sdp: data.sdp,
 			sessionId: socket.sessionId
 		});
+	});
+
+	socket.on('setUsername', username => {
+		socket.username = username;
+	});
+
+	socket.on('subscribeToLobbyList', () => {
+		addLobbyListSubscriber(socket);
+	});
+
+	socket.on('unsubscribeFromLobbyList', () => {
+		removeLobbyListSubscriber(socket);
+	});
+
+	socket.on('createLobbyRequest', data => {
+		let lobby = new Lobby('Wow nice name 🍇 ' + lobbies.length);
+		lobbies.push(lobby);
+		lobby.join(socket);
+
+		onLobbiesChanged();
+	});
+
+	socket.on('joinLobbyRequest', id => {
+		let lobby = lobbies.find(x => x.id === id);
+		if (!lobby) return;
+
+		lobby.join(socket);
+	});
+
+	socket.on('leaveLobby', () => {
+		let lobby = lobbies.find(x => x.players.includes(socket));
+		if (!lobby) return;
+
+		lobby.leave(socket);
+	});
+
+	socket.on('setLobbySettings', newSettings => {
+		let lobby = lobbies.find(x => x.players.includes(socket));
+		if (!lobby) return;
+
+		lobby.setSettings(newSettings, socket);
+	});
+
+	socket.on('sendLobbyTextMessage', body => {
+		let lobby = lobbies.find(x => x.players.includes(socket));
+		if (!lobby) return;
+
+		lobby.sendTextMessage(socket, body);
 	});
 };

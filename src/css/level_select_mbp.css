@@ -18,11 +18,18 @@
 	left: 119px;
 }
 
+#mbp-level-select-cancel {
+	position: absolute;
+	display: block;
+	top: 325px;
+	left: 119px;
+}
+
 #mbp-level-select-view-toggle {
 	position: absolute;
 	display: block;
 	top: 325px;
-	left: 216px;
+	left: 266px;
 	filter: hue-rotate(79deg) saturate(0.6) brightness(0.97);
 }
 
@@ -30,14 +37,14 @@
 	position: absolute;
 	display: block;
 	top: 325px;
-	left: 266px;
+	left: 314px;
 }
 
 #mbp-shuffle-button {
 	position: absolute;
 	display: block;
 	top: 325px;
-	left: 314px;
+	left: 216px;
 }
 
 #mbp-level-select-next {
@@ -48,6 +55,13 @@
 }
 
 #mbp-level-select-play {
+	position: absolute;
+	display: block;
+	top: 325px;
+	left: 511px;
+}
+
+#mbp-level-select-choose {
 	position: absolute;
 	display: block;
 	top: 325px;

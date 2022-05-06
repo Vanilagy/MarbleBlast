@@ -17,6 +17,11 @@ export class MbpLevelSelect extends LevelSelect {
 	scoresContainer = document.querySelector('#mbp-level-scores') as HTMLDivElement;
 	easterEggIcon = document.querySelector('#mbp-level-select-egg') as HTMLImageElement;
 
+	background = document.querySelector('#mbp-level-select-background') as HTMLImageElement;
+	imageFrame = document.querySelector('#mbp-level-select-frame') as HTMLImageElement;
+	chooseLevelButton = document.querySelector('#mbp-level-select-choose') as HTMLImageElement;
+	cancelButton = document.querySelector('#mbp-level-select-cancel') as HTMLImageElement;
+
 	difficultySelectorCollapsed = document.querySelector('#mbp-difficulty-selector-collapsed') as HTMLImageElement;
 	difficultySelectorModificationIcon = document.querySelector('#mbp-difficulty-selector-modification-icon') as HTMLImageElement;
 	difficultySelectorWindow = document.querySelector('#mbp-difficulty-selector-window') as HTMLDivElement;
@@ -131,6 +136,18 @@ export class MbpLevelSelect extends LevelSelect {
 		this.setMissionArray(Util.randomFromArray([MissionLibrary.goldBeginner/*, MissionLibrary.platinumBeginner, MissionLibrary.ultraBeginner*/]), false); // fixme
 
 		await ResourceManager.loadImages(['play/eggnotfound.png', 'play/eggfound.png', 'play/marble_gold.png', 'play/marble_platinum.png', 'play/marble_ultra.png', 'mp/menu/brown/joined.png', 'mp/menu/brown/divider-orange-joined.png', 'options/textentry.png'].map(x => './assets/ui_mbp/' + x));
+
+		this.menu.setupButton(this.chooseLevelButton, 'mp/play/choose', () => {
+			this.hide();
+			G.lobby.settings.missionPath = this.currentMission.path;
+			G.lobby.onSettingsChanged();
+			(this.menu as MbpMenu).lobbyScreen.show();
+		}, undefined, undefined, false);
+
+		this.menu.setupButton(this.cancelButton, 'mp/search/cancel', () => {
+			this.hide();
+			(this.menu as MbpMenu).lobbyScreen.show();
+		});
 	}
 
 	/** Creates a vertical section for the difficulty picker. */
@@ -237,9 +254,34 @@ export class MbpLevelSelect extends LevelSelect {
 		if (score[1] <= this.currentMission.ultimateTime) element.style.color = MBP_ULTIMATE_COLOR;
 	}
 
-	show() {
+	show(lobbyLevelSelect = false) {
 		super.show();
 		this.updateBackground();
+
+		if (lobbyLevelSelect) {
+			this.playButton.style.display = 'none';
+			this.chooseLevelButton.style.display = '';
+			this.cancelButton.style.display = '';
+			this.viewToggleButton.style.display = 'none';
+			this.loadReplayButton.style.display = 'none';
+			this.background.style.filter = this.imageFrame.style.filter = 'hue-rotate(180deg) saturate(0.7)';
+
+			if (!this.scoresContainer.classList.contains('hidden'))
+				this.viewToggleButton.click();
+
+			if (this.currentMission.path !== G.lobby.settings.missionPath) {
+				this.setMissionArray(MissionLibrary.allMissionArrays.find(x => x.some(y => y.path === G.lobby.settings.missionPath)));
+				this.currentMissionIndex = this.currentMissionArray.findIndex(x => x.path === G.lobby.settings.missionPath);
+				this.displayMission();
+			}
+		} else {
+			this.playButton.style.display = '';
+			this.chooseLevelButton.style.display = 'none';
+			this.cancelButton.style.display = 'none';
+			this.viewToggleButton.style.display = '';
+			this.loadReplayButton.style.display = '';
+			this.background.style.filter = this.imageFrame.style.filter = '';
+		}
 	}
 
 	/** Sets the background image based on the modification. */

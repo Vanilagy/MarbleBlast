@@ -35,6 +35,8 @@
 		<link rel="stylesheet" href="./css/pause_screen_mbp.css">
 		<link rel="stylesheet" href="./css/finish_screen.css">
 		<link rel="stylesheet" href="./css/finish_screen_mbp.css">
+		<link rel="stylesheet" href="./css/lobby_select_mbp.css">
+		<link rel="stylesheet" href="./css/lobby_mbp.css">
 	</head>
 	<body>
 		<!-- https://stackoverflow.com/questions/18524177/strange-click-event-bubble-on-iphone-safari-that-it-stop-before-bubbling-to-docu -->
@@ -197,7 +199,7 @@
 				<div class="_inner">
 					<img id="mbp-home-quit">
 					<img id="mbp-home-options">
-					<img src="./assets/ui_mbp/menu/online_i.png" id="mbp-home-online">
+					<img id="mbp-home-online">
 					<img id="mbp-home-play">
 					<img id="mbp-show-changelog">
 					<img id="mbp-home-help">
@@ -214,13 +216,15 @@
 			</div>
 
 			<div id="mbp-level-select" class="hidden">
-				<img src="./assets/ui_mbp/play/window.png" style="pointer-events: none; display: block;">
+				<img src="./assets/ui_mbp/play/window.png" style="pointer-events: none; display: block;" id="mbp-level-select-background">
 				<img id="mbp-level-select-home-button">
+				<img id="mbp-level-select-cancel">
 				<img id="mbp-level-select-view-toggle" title="Show scores">
 				<img id="mbp-load-replay-button" title="Load replay from file">
 				<img id="mbp-shuffle-button" title="Go to random level">
 				<img id="mbp-level-select-prev">
 				<img id="mbp-level-select-play">
+				<img id="mbp-level-select-choose">
 				<img id="mbp-level-select-next">
 
 				<img id="mbp-level-image">
@@ -292,6 +296,39 @@
 				<img src="./assets/ui_mbp/manual/window.png">
 				<img id="mbp-help-home">
 				<div id="mbp-help-picker"></div>
+			</div>
+
+			<div id="mbp-lobby-select" class="hidden">
+				<img src="./assets/ui_mbp/mp/join/window3.png">
+				<img id="mbp-lobby-select-close">
+				<img id="mbp-lobby-select-create">
+				<div id="mbp-lobby-select-list"></div>
+			</div>
+
+			<div id="mbp-lobby" class="hidden">
+				<img src="./assets/ui_mbp/mp/play/window.png">
+				<img id="mbp-lobby-leave">
+
+				<div id="mbp-lobby-image-container">
+					<img id="mbp-lobby-image" src="./assets/data_mbp/missions_mbu/intermediate/aroundtheworld_ultra.jpg">
+					<img id="mbp-lobby-image-frame" src="./assets/ui_mbp/mp/play/levelframe.png">
+					<p>Select Level</p>
+				</div>
+				<p id="mbp-lobby-level-title">Learning to Roll</p>
+				
+				<div id="mbp-lobby-player-list-heading"><span>Player</span><span>Status</span></div>
+				<div id="mbp-lobby-player-list"></div>
+
+				<img id="mbp-lobby-play">
+
+				<div id="mbp-lobby-chat-container">
+					<div><b>Me: </b>this is a message i wrote</div>
+					<div><b>Me: </b>this is another message i wrote and if everything works as intended this should span multiple lines 😂😂💯</div>
+				</div>
+				<form>
+					<input type="text" id="mbp-lobby-chat-input" placeholder="Write a message" autocomplete="off" autocorrect="off" spellcheck="false" maxlength="250">
+					<input type="submit" hidden>
+				</form>
 			</div>
 		</div>
 

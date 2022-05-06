@@ -41,3 +41,16 @@ export const removeFromArray = <T>(arr: T[], item: T) => {
 	let index = arr.indexOf(item);
 	if (index !== -1) arr.splice(index, 1);
 };
+
+const base62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+/** Generates a (probably universally-unique) identifier. Uses its own format, not the standard cringe. */
+export const uuid = () => {
+	let res = '';
+	for (let i = 0; i < 12; i++) {
+		let char = base62[Math.floor(Math.random() * base62.length)];
+		res += char;
+	}
+
+	return res;
+};
