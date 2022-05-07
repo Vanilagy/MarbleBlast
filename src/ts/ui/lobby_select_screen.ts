@@ -49,6 +49,7 @@ export class LobbySelectScreen {
 
 			let newLobby = new Lobby(data.id, data.name, data.settings);
 			G.lobby = newLobby;
+			newLobby.join();
 			this.menu.lobbyScreen.show();
 		});
 	}

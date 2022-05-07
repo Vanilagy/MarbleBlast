@@ -53,6 +53,7 @@ export class GameRenderer {
 
 	scene: Scene;
 	camera: PerspectiveCamera;
+	originalCameraFar: number;
 	envMap: CubeTexture;
 
 	particles: ParticleManager;
@@ -139,6 +140,7 @@ export class GameRenderer {
 			0.01,
 			MisParser.parseNumber(skyElement.visibledistance)
 		);
+		this.originalCameraFar = this.camera.far;
 
 		if (skyElement.useskytextures === "1") {
 			// Create the skybox
@@ -336,6 +338,25 @@ export class GameRenderer {
 	updateCamera() {
 		let { game } = this;
 		let { simulator } = game;
+
+		if (game.orbitSphere) {
+			let pos = new Vector3(game.orbitSphere.radius * 2, 0, 0);
+			pos.applyAxisAngle(new Vector3(0, 1, 0), -Math.PI / 6);
+			pos.applyAxisAngle(new Vector3(0, 0, 1), -game.state.time / 10);
+			pos.add(game.orbitSphere.center);
+
+			this.camera.up.set(0, 0, 1);
+			this.camera.position.copy(pos);
+			this.camera.lookAt(game.orbitSphere.center);
+
+			this.camera.far = Math.max(game.orbitSphere.radius * 4, this.originalCameraFar);
+			this.camera.updateProjectionMatrix();
+
+			return;
+		}
+
+		this.camera.far = this.originalCameraFar;
+		this.camera.updateProjectionMatrix();
 
 		let marble = game.localPlayer.controlledMarble;
 
@@ -539,7 +560,6 @@ export class GameRenderer {
 		if (!this.camera || !this.overlayCamera) return;
 
 		this.camera.aspect = window.innerWidth / window.innerHeight;
-		this.camera.updateProjectionMatrix();
 
 		this.overlayCamera.left = 0;
 		this.overlayCamera.right = window.innerWidth;

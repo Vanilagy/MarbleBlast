@@ -28,9 +28,11 @@ const initUserSocket = (socket: Socket) => {
 		let gameServer = gameServers.find(x => x.id === data.gameServerId);
 		if (!gameServer) return; // todo probably do something more elaborate here? like send an error
 
+		socket.rtcConnectionIds.add(data.connectionId);
+
 		gameServer.socket.send('rtcIceGameServer', {
 			ice: data.ice,
-			sessionId: socket.sessionId
+			connectionId: data.connectionId
 		});
 	});
 
@@ -38,9 +40,11 @@ const initUserSocket = (socket: Socket) => {
 		let gameServer = gameServers.find(x => x.id === data.gameServerId);
 		if (!gameServer) return; // todo probably do something more elaborate here? like send an error
 
+		socket.rtcConnectionIds.add(data.connectionId);
+
 		gameServer.socket.send('rtcSdpGameServer', {
 			sdp: data.sdp,
-			sessionId: socket.sessionId
+			connectionId: data.connectionId
 		});
 	});
 
@@ -72,23 +76,30 @@ const initUserSocket = (socket: Socket) => {
 	});
 
 	socket.on('leaveLobby', () => {
-		let lobby = lobbies.find(x => x.players.includes(socket));
+		let lobby = lobbies.find(x => x.sockets.includes(socket));
 		if (!lobby) return;
 
 		lobby.leave(socket);
 	});
 
 	socket.on('setLobbySettings', newSettings => {
-		let lobby = lobbies.find(x => x.players.includes(socket));
+		let lobby = lobbies.find(x => x.sockets.includes(socket));
 		if (!lobby) return;
 
 		lobby.setSettings(newSettings, socket);
 	});
 
 	socket.on('sendLobbyTextMessage', body => {
-		let lobby = lobbies.find(x => x.players.includes(socket));
+		let lobby = lobbies.find(x => x.sockets.includes(socket));
 		if (!lobby) return;
 
 		lobby.sendTextMessage(socket, body);
+	});
+
+	socket.on('connectionStatus', status => {
+		let lobby = lobbies.find(x => x.sockets.includes(socket));
+		if (!lobby) return;
+
+		lobby.setConnectionStatus(socket, status);
 	});
 };

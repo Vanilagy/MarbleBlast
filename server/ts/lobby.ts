@@ -7,14 +7,18 @@ export const lobbies: Lobby[] = [];
 const lobbyListSubscribers = new Set<Socket>();
 
 const DEFAULT_LOBBY_SETTINGS: LobbySettings = {
-	missionPath: 'beginner/movement.mis'
+	missionPath: 'beginner/movement.mis',
+	gameServer: null
 };
 
 export class Lobby {
 	id: string;
 	name: string;
-	players: Socket[] = [];
+	sockets: Socket[] = [];
 	settings: LobbySettings = { ...DEFAULT_LOBBY_SETTINGS };
+	gameServerConnectionInfo = new WeakMap<Socket, {
+		status: 'connecting' | 'connected'
+	}>();
 
 	constructor(name: string) {
 		this.id = uuid();
@@ -22,36 +26,38 @@ export class Lobby {
 	}
 
 	join(socket: Socket) {
-		this.players.push(socket);
+		this.sockets.push(socket);
 
 		socket.send('joinLobbyResponse', {
 			id: this.id,
 			name: this.name,
 			settings: this.settings
 		});
-		this.sendPlayerList();
+		this.sendSocketList();
 	}
 
 	leave(socket: Socket) {
-		this.players = this.players.filter(x => x !== socket);
+		this.sockets = this.sockets.filter(x => x !== socket);
 
-		this.sendPlayerList();
+		this.sendSocketList();
 	}
 
-	sendPlayerList() {
-		let list = this.players.map(x => ({
-			name: x.username
+	sendSocketList() {
+		let list = this.sockets.map(x => ({
+			id: x.sessionId,
+			name: x.username,
+			connectionStatus: this.gameServerConnectionInfo.get(x)?.status ?? null
 		}));
 
-		for (let socket of this.players) {
-			socket.send('lobbyPlayerList', list);
+		for (let socket of this.sockets) {
+			socket.send('lobbySocketList', list);
 		}
 	}
 
 	setSettings(newSettings: LobbySettings, setter: Socket) {
 		this.settings = newSettings;
 
-		for (let socket of this.players) {
+		for (let socket of this.sockets) {
 			if (socket === setter) continue;
 
 			socket.send('lobbySettingsChange', this.settings);
@@ -61,7 +67,7 @@ export class Lobby {
 	sendTextMessage(sender: Socket, messageBody: string) {
 		if (messageBody.length > 250) return; // Why do you gotta be a dick
 
-		for (let socket of this.players) {
+		for (let socket of this.sockets) {
 			if (socket === sender) continue;
 
 			socket.send('lobbyTextMessage', {
@@ -69,6 +75,18 @@ export class Lobby {
 				body: messageBody
 			});
 		}
+	}
+
+	setConnectionStatus(socket: Socket, status: 'connected' | 'connecting') {
+		let info = this.gameServerConnectionInfo.get(socket);
+		if (!info) {
+			info = { status: null };
+			this.gameServerConnectionInfo.set(socket, info);
+		}
+
+		info.status = status;
+
+		this.sendSocketList();
 	}
 }
 

@@ -35,6 +35,15 @@ class WebSocketGameServerSocket implements GameServerSocket {
 	canSend() {
 		return this.ws.readyState === this.ws.OPEN;
 	}
+
+	getStatus() {
+		if (this.ws.readyState === 1) return 'connected' as const;
+		return 'connecting' as const;
+	}
+
+	close() {
+		this.ws.close();
+	}
 }
 
 wss.on('connection', ws => {
@@ -59,8 +68,8 @@ wss.on('connection', ws => {
 
 let rtcSockets: GameClientRTCConnection[] = [];
 
-const createRTCSocket = (sessionId: string) => {
-	let rtcSocket = new GameClientRTCConnection(sessionId);
+const createRTCSocket = (connectionId: string) => {
+	let rtcSocket = new GameClientRTCConnection(connectionId);
 	let connection = new GameServerConnection(rtcSocket);
 
 	connection.on('joinMission', data => {
@@ -84,26 +93,26 @@ const createRTCSocket = (sessionId: string) => {
 Socket.init(URL, NodeWebSocket as any);
 
 Socket.on('rtcIceGameServer', data => {
-	let rtcSocket = rtcSockets.find(x => x.sessionId === data.sessionId);
-	if (!rtcSocket) rtcSocket = createRTCSocket(data.sessionId);
+	let rtcSocket = rtcSockets.find(x => x.connectionId === data.connectionId);
+	if (!rtcSocket) rtcSocket = createRTCSocket(data.connectionId);
 
 	rtcSocket.gotIceFromServer(new RTCIceCandidate(data.ice));
 });
 
 Socket.on('rtcSdpGameServer', data => {
-	let rtcSocket = rtcSockets.find(x => x.sessionId === data.sessionId);
-	if (!rtcSocket) rtcSocket = createRTCSocket(data.sessionId);
+	let rtcSocket = rtcSockets.find(x => x.connectionId === data.connectionId);
+	if (!rtcSocket) rtcSocket = createRTCSocket(data.connectionId);
 
 	rtcSocket.gotSdpFromServer(new RTCSessionDescription(data.sdp));
 });
 
 class GameClientRTCConnection extends RTCConnection {
-	sessionId: string;
+	connectionId: string;
 
-	constructor(sessionId: string) {
+	constructor(connectionId: string) {
 		super(WRTCPeerConnection);
 
-		this.sessionId = sessionId;
+		this.connectionId = connectionId;
 	}
 
 	gotIceCandidate(candidate: RTCIceCandidate) {
@@ -111,7 +120,7 @@ class GameClientRTCConnection extends RTCConnection {
 
 		Socket.send('rtcIceGameServer', {
 			ice: candidate,
-			sessionId: this.sessionId
+			connectionId: this.connectionId
 		});
 	}
 
@@ -120,7 +129,7 @@ class GameClientRTCConnection extends RTCConnection {
 
 		Socket.send('rtcSdpGameServer', {
 			sdp: this.rtc.localDescription,
-			sessionId: this.sessionId
+			connectionId: this.connectionId
 		});
 	}
 }

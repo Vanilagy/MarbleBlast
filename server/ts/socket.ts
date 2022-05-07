@@ -9,6 +9,7 @@ export class Socket {
 	onClose: () => void = null;
 	sessionId: string = null;
 	username: string = null;
+	rtcConnectionIds = new Set<string>();
 
 	constructor(ws: WebSocketType) {
 		this.ws = ws;

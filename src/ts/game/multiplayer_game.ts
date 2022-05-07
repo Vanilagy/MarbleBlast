@@ -19,6 +19,7 @@ let sendTimeout = 0;
 
 // todo make sure to remove this eventually
 window.addEventListener('keydown', e => {
+	return;
 	if (e.code === 'KeyG') {
 		sendTimeout = 200;
 		console.log("activated timeout");

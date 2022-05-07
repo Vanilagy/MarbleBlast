@@ -1,3 +1,4 @@
 export interface LobbySettings {
-	missionPath: string
+	missionPath: string,
+	gameServer: string
 }

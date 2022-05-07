@@ -51,22 +51,24 @@ class GameServer {
 		};
 
 		this.socket.on('rtcIceGameServer', data => {
-			let socket = sockets.find(x => x.sessionId === data.sessionId);
+			let socket = sockets.find(x => x.rtcConnectionIds.has(data.connectionId));
 			if (!socket) return;
 
 			socket.send('rtcIce', {
 				ice: data.ice,
-				gameServerId: this.id
+				gameServerId: this.id,
+				connectionId: data.connectionId
 			});
 		});
 
 		this.socket.on('rtcSdpGameServer', data => {
-			let socket = sockets.find(x => x.sessionId === data.sessionId);
+			let socket = sockets.find(x => x.rtcConnectionIds.has(data.connectionId));
 			if (!socket) return;
 
 			socket.send('rtcSdp', {
 				sdp: data.sdp,
-				gameServerId: this.id
+				gameServerId: this.id,
+				connectionId: data.connectionId
 			});
 		});
 	}

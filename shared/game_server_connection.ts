@@ -11,6 +11,8 @@ export interface GameServerSocket {
 	send(data: ArrayBuffer): void;
 	receive: (data: ArrayBuffer) => void;
 	canSend(): boolean;
+	getStatus(): 'connecting' | 'connected';
+	close(): void;
 }
 
 export class GameServerConnection {
@@ -129,5 +131,9 @@ export class GameServerConnection {
 
 	clearAllHandlers() {
 		this.commandHandlers.clear();
+	}
+
+	disconnect() {
+
 	}
 }

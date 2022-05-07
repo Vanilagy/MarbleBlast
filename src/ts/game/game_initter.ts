@@ -54,6 +54,7 @@ import { Balloon } from "./balloon";
 import { Clock } from "./clock";
 import { Game } from "./game";
 import { FinishState } from "./finish_state";
+import { Box3 } from "../math/box3";
 
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
@@ -135,6 +136,8 @@ export class GameInitter {
 
 		renderer.scene.compile();
 		this.loadingState.loaded += 1;
+
+		game.orbitSphere = this.computeOrbitSphere();
 	}
 
 	async initSounds() {
@@ -446,5 +449,41 @@ export class GameInitter {
 		let balloon = new Balloon(this.game, this.auxEntityId + 1);
 		await balloon.init();
 		this.game.addEntity(balloon);
+	}
+
+	computeOrbitSphere() {
+		let triggerAabb = new Box3();
+		let nonTriggerAabb = new Box3();
+
+		for (let body of this.game.simulator.world.bodies) {
+			if (this.game.shapes.some(x => x instanceof Sky && x.bodies.includes(body)))
+				continue;
+
+			for (let shape of body.shapes) {
+				let trigger = this.game.triggers.find(x => x.body === body);
+				if (!trigger) {
+					nonTriggerAabb.expandByPoint(shape.boundingBox.min);
+					nonTriggerAabb.expandByPoint(shape.boundingBox.max);
+				} else if (trigger instanceof InBoundsTrigger) {
+					triggerAabb.expandByPoint(shape.boundingBox.min);
+					triggerAabb.expandByPoint(shape.boundingBox.max);
+				}
+			}
+		}
+
+		let aabb = triggerAabb.isEmpty() ? nonTriggerAabb : triggerAabb.intersect(nonTriggerAabb);
+
+		if (aabb.isEmpty()) {
+			aabb = nonTriggerAabb;
+
+			if (aabb.isEmpty()) {
+				return { center: new Vector3(), radius: 1 };
+			}
+		}
+
+		return {
+			center: aabb.getCenter(new Vector3()),
+			radius: aabb.getSize(new Vector3()).length() / 2
+		};
 	}
 }

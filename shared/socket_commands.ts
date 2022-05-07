@@ -10,19 +10,21 @@ export type SocketCommands = {
 
 	rtcIce: {
 		ice: RTCIceCandidate,
-		gameServerId: string
+		gameServerId: string,
+		connectionId: string
 	},
 	rtcSdp: {
 		sdp: RTCSessionDescription,
-		gameServerId: string
+		gameServerId: string,
+		connectionId: string
 	},
 	rtcIceGameServer: {
 		ice: RTCIceCandidate,
-		sessionId: string
+		connectionId: string
 	},
 	rtcSdpGameServer: {
 		sdp: RTCSessionDescription,
-		sessionId: string
+		connectionId: string
 	},
 
 	setUsername: string,
@@ -42,14 +44,17 @@ export type SocketCommands = {
 		username: string,
 		body: string
 	},
+	lobbySocketList: {
+		id: string,
+		name: string,
+		connectionStatus: 'connecting' | 'connected'
+	}[],
+	connectionStatus: 'connecting' | 'connected',
 
 	lobbyList: {
 		id: string,
 		name: string
 	}[],
 	subscribeToLobbyList: null,
-	unsubscribeFromLobbyList: null,
-	lobbyPlayerList: {
-		name: string
-	}[]
+	unsubscribeFromLobbyList: null
 };

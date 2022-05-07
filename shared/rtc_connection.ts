@@ -74,4 +74,13 @@ export abstract class RTCConnection implements GameServerSocket {
 	canSend() {
 		return this.dataChannel?.readyState === 'open';
 	}
+
+	getStatus() {
+		// todo is this suffish
+		return this.canSend() ? 'connected' as const : 'connecting' as const;
+	}
+
+	close() {
+		this.rtc.close();
+	}
 }

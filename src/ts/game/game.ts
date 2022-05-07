@@ -21,6 +21,7 @@ import { PowerUp } from "../shapes/power_up";
 import { FormatToType } from "../../../shared/fixed_format_binary_serializer";
 import { playerFormat } from "../../../shared/game_server_format";
 import { FinishState } from "./finish_state";
+import { Vector3 } from "../math/vector3";
 
 export abstract class Game {
 	abstract type: 'singleplayer' | 'multiplayer'; // For the record, I do know that it's spelled "single-player", but I also know that English can suck my
@@ -48,6 +49,7 @@ export abstract class Game {
 	randomPowerUpInstances: PowerUp[];
 
 	totalGems = 0;
+	orbitSphere: { center: Vector3, radius: number };
 
 	music: AudioSource;
 	originalMusicName: string;

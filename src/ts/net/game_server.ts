@@ -2,12 +2,16 @@ import { Socket } from "../../../shared/socket";
 import { RTCConnection } from "../../../shared/rtc_connection";
 import { workerSetInterval } from "../worker";
 import { GameServerConnection, GameServerSocket } from "../../../shared/game_server_connection";
+import { G } from "../global";
+import { MbpMenu } from "../ui/menu_mbp";
+import { Util } from "../util";
 
 export let gameServers: GameServer[] = [];
 const TICK_FREQUENCY = 30;
 
 class GameServerRTCConnection extends RTCConnection {
 	gameServerId: string;
+	connectionId = Util.uuid();
 
 	constructor(gameServerId: string) {
 		super(RTCPeerConnection);
@@ -20,7 +24,8 @@ class GameServerRTCConnection extends RTCConnection {
 
 		Socket.send('rtcIce', {
 			ice: candidate,
-			gameServerId: this.gameServerId
+			gameServerId: this.gameServerId,
+			connectionId: this.connectionId
 		});
 	}
 
@@ -29,7 +34,8 @@ class GameServerRTCConnection extends RTCConnection {
 
 		Socket.send('rtcSdp', {
 			sdp: this.rtc.localDescription,
-			gameServerId: this.gameServerId
+			gameServerId: this.gameServerId,
+			connectionId: this.connectionId
 		});
 	}
 }
@@ -58,13 +64,22 @@ class WebSocketGameServerSocket implements GameServerSocket {
 	canSend() {
 		return this.ws.readyState === this.ws.OPEN;
 	}
+
+	getStatus() {
+		if (this.ws.readyState === 1) return 'connected' as const;
+		return 'connecting' as const;
+	}
+
+	close() {
+		this.ws.close();
+	}
 }
 
 export class GameServer {
 	id: string;
 	wsUrl: string;
 	rtcSocket: GameServerRTCConnection;
-	connection: GameServerConnection;
+	connection: GameServerConnection = null;
 
 	static init() {
 		Socket.on('updateGameServerList', list => {
@@ -76,9 +91,7 @@ export class GameServer {
 				gameServers.push(gameServer);
 			}
 
-			console.log(gameServers);
-
-			gameServers[0]?.connect('rtc' ?? 'websocket');
+			(G.menu as MbpMenu)?.lobbyScreen?.updateGameServerList();
 		});
 
 		Socket.on('rtcIce', data => {
@@ -99,10 +112,12 @@ export class GameServer {
 		this.wsUrl = wsUrl;
 	}
 
-	async connect(type: 'rtc' | 'websocket') {
+	connect(type: 'rtc' | 'websocket') {
 		if (type === 'rtc') {
 			this.rtcSocket = new GameServerRTCConnection(this.id);
 			this.rtcSocket.createOffer();
+
+			console.log("offered");
 
 			this.connection = new GameServerConnection(this.rtcSocket);
 		} else {
@@ -111,5 +126,14 @@ export class GameServer {
 
 			this.connection = new GameServerConnection(socket);
 		}
+	}
+
+	disconnect() {
+		if (!this.connection) return;
+
+		this.connection.disconnect();
+		this.connection = null;
+
+		console.log("Guubai 🚪");
 	}
 }

@@ -183,7 +183,7 @@ export abstract class LevelSelect {
 		let currentMission = this.currentMission;
 		if (!currentMission) return;
 
-		this.div.classList.add('hidden');
+		this.hide();
 		this.menu.loadingScreen.loadLevel(currentMission, replayData? () => Replay.fromSerialized(replayData) : undefined); // Initiate level loading
 	}
 
