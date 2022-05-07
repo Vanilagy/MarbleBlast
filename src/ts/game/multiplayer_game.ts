@@ -3,8 +3,10 @@ import { DefaultMap } from "../../../shared/default_map";
 import { FixedFormatBinarySerializer, FormatToType } from "../../../shared/fixed_format_binary_serializer";
 import { GameServerConnection } from "../../../shared/game_server_connection";
 import { CommandToData, entityStateFormat, EntityUpdate, playerFormat } from "../../../shared/game_server_format";
+import { Socket } from "../../../shared/socket";
 import { Marble } from "../marble";
 import { Mission } from "../mission";
+import { Connectivity } from "../net/connectivity";
 import { GameServer } from "../net/game_server";
 import { Util } from "../util";
 import { Entity } from "./entity";
@@ -27,7 +29,7 @@ window.addEventListener('keydown', e => {
 });
 
 export class MultiplayerGame extends Game {
-	type = 'singleplayer' as const;
+	type = 'multiplayer' as const;
 
 	pausable = false;
 	state: MultiplayerGameState;
@@ -88,6 +90,14 @@ export class MultiplayerGame extends Game {
 			this.addPlayer(data);
 		});
 
+		this.connection.on('scheduleRestart', data => {
+			this.state.scheduledRestartFrame = data.frame;
+		});
+
+		this.connection.on('playerRestartIntentState', data => {
+			this.players.find(x => x.id === data.playerId).hasRestartIntent = data.state;
+		});
+
 		setInterval(() => {
 			this.displayNetworkStats();
 		}, 1000 / 20);
@@ -98,8 +108,8 @@ export class MultiplayerGame extends Game {
 
 	async start() {
 		this.connection.queueCommand({
-			command: 'joinMission',
-			missionPath: this.mission.path
+			command: 'join',
+			sessionId: Connectivity.sessionId
 		}, true);
 
 		let response = await new Promise<CommandToData<'gameJoinInfo'>>(resolve => {
@@ -112,8 +122,6 @@ export class MultiplayerGame extends Game {
 
 		console.log(response);
 
-		this.seed = response.seed; // Todo: Sync this even before initting
-
 		this.state.supplyServerTimeState(response.serverFrame, response.clientFrame);
 
 		for (let playerData of response.players) {
@@ -121,7 +129,7 @@ export class MultiplayerGame extends Game {
 		}
 
 		this.localPlayer = this.players.find(x => x.id === response.localPlayerId);
-		this.localPlayer.controlledMarble.addToGame();
+		//this.localPlayer.controlledMarble.addToGame();
 
 		for (let entity of this.entities) {
 			// temp this is probably temp
@@ -132,7 +140,10 @@ export class MultiplayerGame extends Game {
 			this.applyRemoteEntityUpdate(update);
 		}
 
-		super.start();
+		await super.start();
+
+		Socket.send('loadingCompletion', 1);
+		this.connection.queueCommand({ command: 'running' }, true);
 	}
 
 	tick() {
@@ -300,6 +311,11 @@ export class MultiplayerGame extends Game {
 		entity.loadState(update.state ?? entity.getInitialState(), { frame: update.frame, remote: true });
 
 		history.push(update);
+	}
+
+	signalRestartIntent() {
+		this.connection.queueCommand({ command: 'restartIntent' }, true);
+		this.localPlayer.hasRestartIntent = true;
 	}
 
 	displayNetworkStats() {

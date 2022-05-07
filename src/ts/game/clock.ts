@@ -6,7 +6,7 @@ import { Gem } from "../shapes/gem";
 import { PowerUp } from "../shapes/power_up";
 import { Entity } from "./entity";
 import { Game } from "./game";
-import { GO_TIME } from "./game_state";
+import { GO_TIME, READY_TIME, SET_TIME } from "./game_state";
 
 type ClockState = EntityState & { entityType: 'clock' };
 
@@ -21,7 +21,7 @@ export class Clock extends Entity {
 	time = 0;
 	elapsedTime = 0;
 	timeTravelBonus = 0;
-	restartFrame = 0;
+	restartFrame: number = null; // Todo: Does it make sense to store this in the clock?
 	updateOrder = -1;
 	timeTravelSound: AudioSource = null;
 	alarmSound: AudioSource = null;
@@ -38,6 +38,14 @@ export class Clock extends Entity {
 		this.internalStateNeedsStore = true;
 
 		if (this.game.simulator.isReconciling) return;
+
+		if (this.restartFrame !== null) {
+			let timeSinceRestart = (this.game.state.frame - this.restartFrame) / GAME_UPDATE_RATE;
+
+			if (timeSinceRestart === READY_TIME) AudioManager.play('ready.wav');
+			if (timeSinceRestart === SET_TIME) AudioManager.play('set.wav');
+			if (timeSinceRestart === GO_TIME) AudioManager.play('go.wav');
+		}
 
 		if (this.timeTravelBonus > 0 && !this.timeTravelSound && !this.game.finishState.finished) {
 			this.timeTravelSound = AudioManager.createAudioSource('timetravelactive.wav');
@@ -76,7 +84,7 @@ export class Clock extends Entity {
 	}
 
 	advanceTime() {
-		if (this.game.state.frame - this.restartFrame < GO_TIME * GAME_UPDATE_RATE)
+		if (this.restartFrame === null || this.game.state.frame - this.restartFrame < GO_TIME * GAME_UPDATE_RATE)
 			return;
 
 		if (this.timeTravelBonus > 0) {

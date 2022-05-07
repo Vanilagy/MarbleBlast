@@ -4,6 +4,7 @@ import { CommandToData, EntityUpdate } from "../../shared/game_server_format";
 import { Util } from "./util";
 import { GAME_UPDATE_RATE } from '../../shared/constants';
 import { performance } from 'perf_hooks';
+import { LobbySettings } from "../../shared/types";
 
 const UPDATE_BUFFER_SIZE = 4 + 1; // In frames
 
@@ -18,8 +19,9 @@ interface BaseStateRequest {
 }
 
 export class Game {
-	missionPath: string;
-	seed = Math.floor(Math.random() * 2**32);
+	lobbySettings: LobbySettings;
+	sessions: string[];
+	running: string[] = [];
 	players: Player[] = [];
 
 	startTime: number;
@@ -39,9 +41,11 @@ export class Game {
 	baseStateRequests: BaseStateRequest[] = [];
 	maxReceivedBaseStateFrame = -1;
 
-	constructor(missionPath: string) {
-		this.missionPath = missionPath;
-		console.log(`GAME CREATED! ${missionPath}`);
+	constructor(lobbySettings: LobbySettings, sessions: string[]) {
+		this.lobbySettings = lobbySettings;
+		this.sessions = sessions;
+
+		console.log(`GAME CREATED!`, lobbySettings);
 
 		this.start();
 	}
@@ -51,12 +55,21 @@ export class Game {
 		this.lastAdvanceTime = this.startTime;
 	}
 
-	addPlayer(connection: GameServerConnection) {
+	addPlayer(connection: GameServerConnection, sessionId: string) {
+		// todo: Add all the players at the start of game creation and automatically schedule a restart incase some idiot doesn't connect
+
 		let playerId = -(1 + this.players.length * 3);
 		let marbleId = -(1 + this.players.length * 3 + 1);
 		let checkpointStateId = -(1 + this.players.length * 3 + 2);
 
-		let player = new Player(connection, this, playerId, marbleId, checkpointStateId);
+		let player = new Player(
+			connection,
+			sessionId,
+			this,
+			playerId,
+			marbleId,
+			checkpointStateId
+		);
 		this.players.push(player);
 
 		//connection.addedOneWayLatency = 25;
@@ -67,6 +80,7 @@ export class Game {
 			clientFrame: this.frame + UPDATE_BUFFER_SIZE, // No better guess yet
 			players: this.players.map(x => ({
 				id: x.id,
+				sessionId: x.sessionId,
 				marbleId: x.marbleId,
 				checkpointStateId: x.checkpointStateId
 			})),
@@ -74,8 +88,7 @@ export class Game {
 			entityStates: []/* ?? [...this.entities].map(([, entity]) => ({
 				...entity.getTrueUpdate(),
 				version: entity.versions.get(player.id)
-			}))*/,
-			seed: this.seed
+			}))*/
 		}, true);
 
 		connection.on('clientStateBundle', data => {
@@ -87,12 +100,50 @@ export class Game {
 			this.pendingPings.get(player).set(timestamp, now);
 		});
 
+		connection.on('running', () => {
+			this.running.push(sessionId);
+			if (this.running.length === this.sessions.length) {
+				for (let player of this.players) {
+					player.connection.queueCommand({
+						command: 'scheduleRestart',
+						frame: this.frame + 5 * GAME_UPDATE_RATE
+					}, true);
+				}
+			}
+		});
+
+		connection.on('restartIntent', () => {
+			player.hasRestartIntent = true;
+
+			for (let otherPlayer of this.players) {
+				if (player === otherPlayer) continue;
+
+				otherPlayer.connection.queueCommand({
+					command: 'playerRestartIntentState',
+					playerId: player.id,
+					state: true
+				}, true);
+			}
+
+			let quota = this.players.filter(x => x.hasRestartIntent).length / this.players.length;
+			if (quota >= 0.75) {
+				for (let player of this.players) {
+					player.hasRestartIntent = false; // todo probably set this when the actual respawn happens here
+					player.connection.queueCommand({
+						command: 'scheduleRestart',
+						frame: this.frame + 2 * GAME_UPDATE_RATE
+					}, true);
+				}
+			}
+		});
+
 		for (let otherPlayer of this.players) {
 			if (otherPlayer === player) continue;
 
 			otherPlayer.connection.queueCommand({
 				command: 'playerJoin',
 				id: player.id,
+				sessionId: player.sessionId,
 				marbleId: player.marbleId,
 				checkpointStateId: player.checkpointStateId
 			}, true);
@@ -294,6 +345,8 @@ export class Game {
 
 class Player {
 	connection: GameServerConnection;
+	sessionId: string;
+
 	game: Game;
 	id: number;
 	marbleId: number;
@@ -305,8 +358,12 @@ class Player {
 	queuedEntityUpdates: EntityUpdate[] = [];
 	serverBundleBudget = 0;
 
-	constructor(connection: GameServerConnection, game: Game, id: number, marbleId: number, checkpointStateId: number) {
+	hasRestartIntent = false;
+
+	constructor(connection: GameServerConnection, sessionId: string, game: Game, id: number, marbleId: number, checkpointStateId: number) {
 		this.connection = connection;
+		this.sessionId = sessionId;
+
 		this.game = game;
 		this.id = id;
 		this.marbleId = marbleId;

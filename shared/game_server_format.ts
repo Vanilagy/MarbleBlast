@@ -112,6 +112,7 @@ export type EntityState = FormatToType<typeof entityStateFormat>;
 
 export const playerFormat = {
 	id: 'varint',
+	sessionId: 'string',
 	marbleId: 'varint',
 	checkpointStateId: 'varint'
 } as const;
@@ -124,8 +125,8 @@ export const gameServerCommandFormat = [union, 'command', {
 	timestamp: 'f32',
 	subtract: 'f32'
 }, {
-	command: 'joinMission',
-	missionPath: 'string'
+	command: 'join',
+	sessionId: 'string'
 }, {
 	command: 'clientStateBundle',
 	serverFrame: 'varint',
@@ -163,11 +164,21 @@ export const gameServerCommandFormat = [union, 'command', {
 	clientFrame: 'varint',
 	players: [playerFormat],
 	localPlayerId: 'varint',
-	entityStates: [entityUpdateFormat],
-	seed: 'u32'
+	entityStates: [entityUpdateFormat]
 }, {
 	command: 'playerJoin',
 	...playerFormat
+}, {
+	command: 'scheduleRestart',
+	frame: 'varint'
+}, {
+	command: 'running'
+}, {
+	command: 'restartIntent'
+}, {
+	command: 'playerRestartIntentState',
+	playerId: 'varint',
+	state: 'boolean'
 }] as const;
 
 export const gameServerMessageFormat = FixedFormatBinarySerializer.format({

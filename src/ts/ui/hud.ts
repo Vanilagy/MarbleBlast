@@ -43,6 +43,7 @@ export abstract class Hud {
 	blastMeterFill: HTMLImageElement;
 	lastBlastMeterBodySrc: string = null;
 	lastBlastMeterFillSrc: string = null;
+	scoreboard: HTMLDivElement;
 
 	abstract gemCountMinDigits: number;
 	abstract showClockBackground: boolean;
@@ -50,6 +51,7 @@ export abstract class Hud {
 	abstract supportFpsMeter: boolean;
 
 	lastGemCount: string = null;
+	lastScoreboardHtml = '';
 	helpMessages: {
 		frame: number,
 		getMessage: () => string
@@ -74,6 +76,7 @@ export abstract class Hud {
 		this.blastMeter = document.querySelector('#blast-meter');
 		this.blastMeterBody = document.querySelector('#blast-meter-body');
 		this.blastMeterFill = document.querySelector('#blast-meter-fill');
+		this.scoreboard = document.querySelector('#scoreboard');
 	}
 
 	async load() {
@@ -104,6 +107,10 @@ export abstract class Hud {
 		if (G.game.mission.hasBlast) {
 			await ResourceManager.loadImages(["blastbar.png", "blastbar_charged.png", "blastbar_bargreen.png", "blastbar_bargray.png"].map(x => "./assets/ui_mbp/game/" + x));
 		}
+
+		if (G.game.type === 'singleplayer') this.scoreboard.style.display = 'none';
+		else this.scoreboard.style.display = '';
+		this.lastScoreboardHtml = '';
 
 		if (Util.isTouchDevice) this.setupTouchControls();
 
@@ -307,6 +314,39 @@ export abstract class Hud {
 		if (blastMeterFillSrc !== this.lastBlastMeterFillSrc) {
 			this.blastMeterFill.src = blastMeterFillSrc;
 			this.lastBlastMeterFillSrc = blastMeterFillSrc;
+		}
+	}
+
+	displayScoreboard() {
+		if (G.game.type === 'singleplayer') return;
+
+		let newHtml = '';
+
+		for (let socket of G.lobby.sockets) {
+			let divHtml = '';
+
+			let rhsText: string;
+			if (G.game.clock.restartFrame === null) {
+				if (socket.loadingCompletion < 1) {
+					rhsText = Math.floor(socket.loadingCompletion * 100) + '%';
+				} else {
+					rhsText = '100% ✔';
+				}
+			} else {
+				rhsText = 'Playing';
+			}
+
+			divHtml += `<span>${Util.htmlEscape(socket.name)}</span><span>${rhsText}</span>`;
+
+			let hasRestartIntent = G.game.players.some(x => x.sessionId === socket.id && x.hasRestartIntent);
+			if (hasRestartIntent) divHtml += `<img src="./assets/img/return.png">`;
+
+			newHtml += `<div>${divHtml}</div>`;
+		}
+
+		if (newHtml !== this.lastScoreboardHtml) {
+			this.scoreboard.innerHTML = newHtml;
+			this.lastScoreboardHtml = newHtml;
 		}
 	}
 

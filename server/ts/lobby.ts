@@ -2,6 +2,8 @@ import { SocketCommands } from "../../shared/socket_commands";
 import { Socket } from "./socket";
 import { uuid } from "./util";
 import { LobbySettings } from "../../shared/types";
+import { gameServers } from "./game_server";
+import { DefaultMap } from "../../shared/default_map";
 
 export const lobbies: Lobby[] = [];
 const lobbyListSubscribers = new Set<Socket>();
@@ -16,9 +18,11 @@ export class Lobby {
 	name: string;
 	sockets: Socket[] = [];
 	settings: LobbySettings = { ...DEFAULT_LOBBY_SETTINGS };
-	gameServerConnectionInfo = new WeakMap<Socket, {
-		status: 'connecting' | 'connected'
-	}>();
+	gameServerConnectionInfo = new DefaultMap<Socket, {
+		status: 'connecting' | 'connected',
+		loadingCompletion: number
+	}>(() => ({ status: null, loadingCompletion: 0 }));
+	inGame = false;
 
 	constructor(name: string) {
 		this.id = uuid();
@@ -46,7 +50,8 @@ export class Lobby {
 		let list = this.sockets.map(x => ({
 			id: x.sessionId,
 			name: x.username,
-			connectionStatus: this.gameServerConnectionInfo.get(x)?.status ?? null
+			connectionStatus: this.gameServerConnectionInfo.get(x).status,
+			loadingCompletion: this.gameServerConnectionInfo.get(x).loadingCompletion
 		}));
 
 		for (let socket of this.sockets) {
@@ -79,14 +84,45 @@ export class Lobby {
 
 	setConnectionStatus(socket: Socket, status: 'connected' | 'connecting') {
 		let info = this.gameServerConnectionInfo.get(socket);
-		if (!info) {
-			info = { status: null };
-			this.gameServerConnectionInfo.set(socket, info);
-		}
-
 		info.status = status;
 
 		this.sendSocketList();
+	}
+
+	setLoadingCompletion(socket: Socket, completion: number) {
+		let info = this.gameServerConnectionInfo.get(socket);
+		info.loadingCompletion = completion;
+
+		this.sendSocketList();
+	}
+
+	startGame() {
+		if (this.inGame) return;
+		this.inGame = true;
+
+		let gameServer = gameServers.find(x => x.id === this.settings.gameServer);
+		gameServer.socket.send('createGame', {
+			lobbyId: this.id,
+			lobbySettings: this.settings,
+			sessions: this.sockets.map(x => x.sessionId)
+		});
+
+		let callback = ({ lobbyId }) => {
+			if (lobbyId !== this.id) return;
+
+			// We got confirmation from the game server, let's start the game!
+			let gameSeed = Math.floor(Math.random() * 2**32);
+
+			for (let socket of this.sockets) {
+				socket.send('startGame', {
+					lobbySettings: this.settings,
+					seed: gameSeed
+				});
+			}
+
+			gameServer.socket.off('createGameConfirm', callback);
+		};
+		gameServer.socket.on('createGameConfirm', callback);
 	}
 }
 

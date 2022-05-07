@@ -339,7 +339,7 @@ export class GameRenderer {
 		let { game } = this;
 		let { simulator } = game;
 
-		if (game.orbitSphere) {
+		if (game.clock.restartFrame === null) {
 			let pos = new Vector3(game.orbitSphere.radius * 2, 0, 0);
 			pos.applyAxisAngle(new Vector3(0, 1, 0), -Math.PI / 6);
 			pos.applyAxisAngle(new Vector3(0, 0, 1), -game.state.time / 10);
@@ -469,12 +469,12 @@ export class GameRenderer {
 		if (game.localPlayer.controlledMarble.outOfBoundsFrame !== null) {
 			hud.setCenterText('outofbounds');
 		} else {
-			let timeSinceRespawn = (game.state.frame - game.localPlayer.controlledMarble.respawnFrame) / GAME_UPDATE_RATE;
-			if (timeSinceRespawn < READY_TIME || timeSinceRespawn > 5.5) {
+			let timeSinceRestart = (game.state.frame - game.clock.restartFrame) / GAME_UPDATE_RATE;
+			if (timeSinceRestart < READY_TIME || timeSinceRestart > 5.5 || game.clock.restartFrame === null) {
 				hud.setCenterText('none');
-			} else if (timeSinceRespawn > GO_TIME) {
+			} else if (timeSinceRestart > GO_TIME) {
 				hud.setCenterText('go');
-			} else if (timeSinceRespawn > SET_TIME) {
+			} else if (timeSinceRestart > SET_TIME) {
 				hud.setCenterText('set');
 			} else {
 				hud.setCenterText('ready');
@@ -489,22 +489,32 @@ export class GameRenderer {
 
 		hud.displayGemCount(gemCount, this.game.totalGems);
 		hud.displayBlastMeterFullness(this.game.localPlayer.controlledMarble.blastAmount);
+		hud.displayScoreboard();
 		hud.displayFps();
 
 		hud.helpElement.textContent = '';
 		hud.alertElement.textContent = '';
 
-		for (let i = hud.helpMessages.length-1; i >= 0; i--) {
-			let helpMessage = hud.helpMessages[i];
-			let message = helpMessage.getMessage();
-			if (message === null) continue;
+		if (game.state.scheduledRestartFrame !== null && game.state.frame < game.state.scheduledRestartFrame) {
+			let frameDifference = game.state.scheduledRestartFrame - game.state.frame;
+			let secondsUntil = frameDifference / GAME_UPDATE_RATE;
+			let fac = secondsUntil < 2 ? 10 : 1;
+			hud.helpElement.textContent = `${game.clock.restartFrame === null ? 'Starting' : 'Restarting'} game in ${Math.trunc(secondsUntil * fac) / fac} seconds...`;
+			hud.helpElement.style.opacity = '1';
+			hud.helpElement.style.filter = '';
+		} else {
+			for (let i = hud.helpMessages.length-1; i >= 0; i--) {
+				let helpMessage = hud.helpMessages[i];
+				let message = helpMessage.getMessage();
+				if (message === null) continue;
 
-			let completion = Util.clamp(game.state.time - helpMessage.frame/GAME_UPDATE_RATE - 3, 0, 1) ** 2;
-			hud.helpElement.textContent = Hud.processHelpMessage(message);
-			hud.helpElement.style.opacity = (1 - completion).toString();
-			hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, completion)})`;
+				let completion = Util.clamp(game.state.time - helpMessage.frame/GAME_UPDATE_RATE - 3, 0, 1) ** 2;
+				hud.helpElement.textContent = Hud.processHelpMessage(message);
+				hud.helpElement.style.opacity = (1 - completion).toString();
+				hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, completion)})`;
 
-			break;
+				break;
+			}
 		}
 
 		for (let i = hud.alerts.length-1; i >= 0; i--) {

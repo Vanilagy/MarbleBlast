@@ -7,6 +7,8 @@ import { Game } from "../game/game";
 import { MultiplayerGame } from "../game/multiplayer_game";
 import { gameServers } from "../net/game_server";
 import { SingleplayerGame } from "../game/singleplayer_game";
+import { Lobby } from "../net/lobby";
+import { Socket } from "../../../shared/socket";
 
 export abstract class LoadingScreen {
 	menu: Menu;
@@ -41,7 +43,7 @@ export abstract class LoadingScreen {
 		this.div.classList.add('hidden');
 	}
 
-	async loadLevel(mission: Mission, getReplay?: () => Replay) {
+	async loadMission(mission: Mission, createGame: () => Game) {
 		this.show();
 		let indexAtStart = this.loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
 
@@ -56,13 +58,19 @@ export abstract class LoadingScreen {
 
 			if (this.loadingIndex !== indexAtStart) return;
 
+			let lastSendTime = -Infinity;
 			this.refresher = setInterval(() => {
 				// Constantly refresh the loading bar's width
 				let completion = game.initter.getLoadingCompletion();
 				this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
+
+				if (game instanceof MultiplayerGame && performance.now() - lastSendTime > 1000) {
+					lastSendTime = performance.now();
+					Socket.send('loadingCompletion', Math.min(completion, 0.99));
+				}
 			}) as unknown as number;
 
-			let game = new SingleplayerGame(mission);
+			let game = createGame();
 			G.game = game;
 			await game.init();
 
@@ -110,5 +118,19 @@ export abstract class LoadingScreen {
 			G.game = null;
 			G.menu.showAlertPopup('Error', "There was an error due to which the level couldn't be loaded.");
 		}
+	}
+
+	loadMissionSingleplayer(mission: Mission) {
+		return this.loadMission(mission, () => new SingleplayerGame(mission));
+	}
+
+	loadMissionMultiplayer(mission: Mission, lobby: Lobby, seed: number) {
+		let gameServer = gameServers.find(x => x.id === lobby.settings.gameServer);
+		return this.loadMission(mission, () => {
+			let game = new MultiplayerGame(mission, gameServer);
+			game.seed = seed;
+
+			return game;
+		});
 	}
 }

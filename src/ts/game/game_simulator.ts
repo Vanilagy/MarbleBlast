@@ -29,7 +29,7 @@ export class GameSimulator {
 		game.state.frame++;
 		game.state.maxFrame = Math.max(game.state.frame, game.state.maxFrame);
 
-		if (game.state.needsRestart) {
+		if (game.state.scheduledRestartFrame === game.state.frame) {
 			game.state.restart();
 		}
 

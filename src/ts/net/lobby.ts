@@ -1,6 +1,7 @@
 import { Socket } from "../../../shared/socket";
 import { LobbySettings } from "../../../shared/types";
 import { G } from "../global";
+import { MissionLibrary } from "../mission_library";
 import { MbpMenu } from "../ui/menu_mbp";
 import { gameServers } from "./game_server";
 
@@ -11,7 +12,8 @@ export class Lobby {
 	sockets: {
 		id: string,
 		name: string,
-		connectionStatus: 'connecting' | 'connected'
+		connectionStatus: 'connecting' | 'connected',
+		loadingCompletion: number
 	}[] = [];
 	pollerInterval: number;
 	lastConnectionStatus: string = null;
@@ -40,6 +42,16 @@ export class Lobby {
 
 		Socket.on('lobbyTextMessage', data => {
 			(G.menu as MbpMenu).lobbyScreen.addChatMessage(data.username, data.body);
+		});
+
+		Socket.on('startGame', data => {
+			this.settings = data.lobbySettings; // Make sure we're all on the same page
+
+			let mission = MissionLibrary.allMissions.find(x => x.path === this.settings.missionPath);
+			if (!mission) return;
+
+			(G.menu as MbpMenu).lobbyScreen.hide();
+			G.menu.loadingScreen.loadMissionMultiplayer(mission, this, data.seed);
 		});
 
 		this.pollerInterval = setInterval(() => {

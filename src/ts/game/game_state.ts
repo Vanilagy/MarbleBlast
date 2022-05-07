@@ -30,7 +30,7 @@ export class GameState {
 
 	frame = -1;
 	maxFrame = -1;
-	needsRestart = true;
+	scheduledRestartFrame: number = null;
 
 	get time() {
 		return (this.frame + this.subframeCompletion) / GAME_UPDATE_RATE;
@@ -87,7 +87,9 @@ export class GameState {
 			interior.loadState(state);
 		}
 
-		this.needsRestart = false;
+		for (let player of game.players) {
+			player.hasRestartIntent = false;
+		}
 	}
 
 	saveStates() {

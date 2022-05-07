@@ -14,6 +14,7 @@ type PlayerState = EntityState & { entityType: 'player' };
 
 export class Player extends Entity {
 	controlledMarble: Marble;
+	sessionId: string = null;
 
 	updateOrder = -1;
 	applyUpdatesBeforeAdvance = true;
@@ -29,6 +30,8 @@ export class Player extends Entity {
 	inputHistory = new Map<number, MarbleControlState>();
 	lastRemoteState: PlayerState;
 	lastRemoteStateFrame = -1;
+
+	hasRestartIntent = false;
 
 	constructor(game: Game, id: number) {
 		super(game);

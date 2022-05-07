@@ -47,14 +47,30 @@ export type SocketCommands = {
 	lobbySocketList: {
 		id: string,
 		name: string,
-		connectionStatus: 'connecting' | 'connected'
+		connectionStatus: 'connecting' | 'connected',
+		loadingCompletion: number
 	}[],
 	connectionStatus: 'connecting' | 'connected',
+	startGameRequest: null,
+	startGame: {
+		lobbySettings: LobbySettings,
+		seed: number
+	},
+	loadingCompletion: number,
 
 	lobbyList: {
 		id: string,
 		name: string
 	}[],
 	subscribeToLobbyList: null,
-	unsubscribeFromLobbyList: null
+	unsubscribeFromLobbyList: null,
+
+	createGame: {
+		lobbyId: string,
+		lobbySettings: LobbySettings,
+		sessions: string[]
+	},
+	createGameConfirm: {
+		lobbyId: string
+	}
 };

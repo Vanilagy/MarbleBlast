@@ -184,7 +184,7 @@ export abstract class LevelSelect {
 		if (!currentMission) return;
 
 		this.hide();
-		this.menu.loadingScreen.loadLevel(currentMission, replayData? () => Replay.fromSerialized(replayData) : undefined); // Initiate level loading
+		this.menu.loadingScreen.loadMissionSingleplayer(currentMission/*, replayData? () => Replay.fromSerialized(replayData) : undefined*/); // Initiate level loading
 	}
 
 	/** Advance the current mission index by the specified count while respecting the search query. That count can be negative. */
@@ -528,7 +528,7 @@ export abstract class LevelSelect {
 				}
 
 				this.div.classList.add('hidden');
-				this.menu.loadingScreen.loadLevel(mission, () => replay);
+				this.menu.loadingScreen.loadMission(mission, () => replay);
 			} catch (e) {
 				G.menu.showAlertPopup('Error', "There was an error loading the replay.");
 				console.error(e);

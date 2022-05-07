@@ -95,6 +95,8 @@ export abstract class Game {
 
 	async addPlayer(data: FormatToType<typeof playerFormat>) {
 		let player = new Player(this, data.id);
+		player.sessionId = data.sessionId;
+
 		let marble = new Marble(this, data.marbleId, data.checkpointStateId);
 
 		this.players.push(player);
@@ -205,6 +207,8 @@ export abstract class Game {
 
 		this.lastGameUpdateTime = performance.now();
 	}
+
+	abstract signalRestartIntent(): void;
 
 	/** Ends the level irreversibly. */
 	stop() {

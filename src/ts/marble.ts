@@ -429,7 +429,7 @@ export class Marble extends Entity {
 	}
 
 	loadState(state: MarbleState, { remote }: { remote: boolean }) {
-		if (!this.addedToGame && remote) this.addToGame();
+		//if (!this.addedToGame && remote) this.addToGame();
 
 		this.body.position.fromObject(state.position);
 		this.body.orientation.fromObject(state.orientation);
@@ -533,7 +533,7 @@ export class Marble extends Entity {
 			!(this.game.finishState.finished && this.game.finishState.isLegal)
 		) {
 			// Respawn the marble two seconds after having gone out of bounds
-			if (this.game.type === 'singleplayer' && !this.checkpointState.currentCheckpoint) this.game.state.needsRestart = true;
+			if (this.game.type === 'singleplayer' && !this.checkpointState.currentCheckpoint) this.game.state.scheduledRestartFrame = this.game.state.frame + 1;
 			else this.respawn(false);
 		}
 
@@ -1251,6 +1251,8 @@ export class Marble extends Entity {
 	}
 
 	respawn(ignoreCheckpointState: boolean) {
+		if (!this.addedToGame) this.addToGame();
+
 		if (this.checkpointState.currentCheckpoint && !ignoreCheckpointState) {
 			// There's a checkpoint, so load its state instead
 			this.checkpointState.load();

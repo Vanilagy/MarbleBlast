@@ -31,7 +31,7 @@ export abstract class PauseScreen {
 		menu.setupButton(this.noButton, this.noSrc, () => G.game.unpause());
 		menu.setupButton(this.restartButton, this.restartSrc, () => {
 			G.game.unpause();
-			G.game.state.restart(true);
+			G.game.signalRestartIntent();
 		});
 
 		window.addEventListener('keydown', (e) => {

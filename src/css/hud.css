@@ -132,3 +132,52 @@
 	bottom: 50px;
 	white-space: pre-line;
 }
+
+#scoreboard {
+	position: absolute;
+	top: 110px;
+	left: 38px;
+	font-family: MarkerFelt;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+	font-size: 16px;
+	text-align: left;
+	width: 200px;
+	background: #00000038;
+	padding: 10px;
+	border-radius: 10px;
+}
+
+#scoreboard > div {
+	clear: both;
+	position: relative;
+}
+
+#scoreboard > div > span:nth-child(1) {
+	display: inline-block;
+	width: 150px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	vertical-align: top;
+}
+
+#scoreboard > div > span:nth-child(2) {
+	float: right;
+	color: powderblue;
+}
+
+#scoreboard > div img {
+	position: absolute;
+	top: -2px;
+	right: -36px;
+	width: 24px;
+	filter: invert(31%) sepia(26%) saturate(2754%) hue-rotate(325deg) brightness(119%) contrast(102%) drop-shadow(1px 1px 0px black);
+	animation: pop-up 0.5s;
+}
+
+@keyframes pop-up {
+	0% { transform: scale(0); }
+	20% { transform: scale(2); }
+	100% { transform: scale(1); }
+}

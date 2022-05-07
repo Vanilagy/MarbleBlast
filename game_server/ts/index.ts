@@ -51,17 +51,7 @@ wss.on('connection', ws => {
 
 	let socket = new WebSocketGameServerSocket(ws);
 	let connection = new GameServerConnection(socket);
-
-	connection.on('joinMission', data => {
-		let game = games.find(x => x.missionPath === data.missionPath);
-
-		if (!game) {
-			game = new Game(data.missionPath);
-			games.push(game);
-		}
-
-		game.addPlayer(connection);
-	});
+	onNewGameServerConnection(connection);
 
 	console.log("New WS connection!");
 });
@@ -70,24 +60,23 @@ let rtcSockets: GameClientRTCConnection[] = [];
 
 const createRTCSocket = (connectionId: string) => {
 	let rtcSocket = new GameClientRTCConnection(connectionId);
-	let connection = new GameServerConnection(rtcSocket);
-
-	connection.on('joinMission', data => {
-		let game = games.find(x => x.missionPath === data.missionPath);
-
-		if (!game) {
-			game = new Game(data.missionPath);
-			games.push(game);
-		}
-
-		game.addPlayer(connection);
-	});
-
 	rtcSockets.push(rtcSocket);
+
+	let connection = new GameServerConnection(rtcSocket);
+	onNewGameServerConnection(connection);
 
 	console.log("New RTC connection!");
 
 	return rtcSocket;
+};
+
+const onNewGameServerConnection = (connection: GameServerConnection) => {
+	connection.on('join', data => {
+		let game = games.find(x => x.sessions.includes(data.sessionId));
+		if (!game) return;
+
+		game.addPlayer(connection, data.sessionId);
+	});
 };
 
 Socket.init(URL, NodeWebSocket as any);
@@ -139,3 +128,10 @@ let games: Game[] = [];
 setDriftlessInterval(() => {
 	for (let game of games) game.tick();
 }, 1000 / TICK_FREQUENCY);
+
+Socket.on('createGame', data => {
+	let game = new Game(data.lobbySettings, data.sessions);
+	games.push(game);
+
+	Socket.send('createGameConfirm', { lobbyId: data.lobbyId });
+});

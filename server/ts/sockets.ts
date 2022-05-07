@@ -102,4 +102,18 @@ const initUserSocket = (socket: Socket) => {
 
 		lobby.setConnectionStatus(socket, status);
 	});
+
+	socket.on('startGameRequest', () => {
+		let lobby = lobbies.find(x => x.sockets.includes(socket));
+		if (!lobby) return;
+
+		lobby.startGame();
+	});
+
+	socket.on('loadingCompletion', completion => {
+		let lobby = lobbies.find(x => x.sockets.includes(socket));
+		if (!lobby) return;
+
+		lobby.setLoadingCompletion(socket, completion);
+	});
 };
