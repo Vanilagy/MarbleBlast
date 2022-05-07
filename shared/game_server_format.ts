@@ -189,15 +189,20 @@ export const gameServerCommandFormat = [union, 'command', {
 }] as const;
 
 export const gameServerMessageFormat = FixedFormatBinarySerializer.format({
-	packetId: 'varint',
-	ack: 's32',
-	commands: [gameServerCommandFormat]
+	localPacketId: 'varint',
+	lastRemotePacketId: 'varint',
+	needsAck: 'boolean',
+	acks: ['varint'],
+	commandWrappers: [{
+		packetId: 'varint',
+		command: gameServerCommandFormat
+	}]
 } as const);
 
 export type GameServerMessage = FormatToType<typeof gameServerMessageFormat>;
-export type GameServerCommands = GameServerMessage['commands'][number]['command'];
+export type GameServerCommands = GameServerMessage['commandWrappers'][number]['command']['command'];
 
-export type CommandToData<K extends GameServerCommands> = DistributeyThing<GameServerMessage['commands'][number], K>;
+export type CommandToData<K extends GameServerCommands> = DistributeyThing<GameServerMessage['commandWrappers'][number]['command'], K>;
 type DistributeyThing<U, K> = U extends { command: K } ? U : never;
 
 export type EntityUpdate = Omit<FormatToType<typeof entityUpdateFormat>, 'command'>;

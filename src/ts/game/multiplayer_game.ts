@@ -1,7 +1,7 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { DefaultMap } from "../../../shared/default_map";
 import { FixedFormatBinarySerializer, FormatToType } from "../../../shared/fixed_format_binary_serializer";
-import { GameServerConnection } from "../../../shared/game_server_connection";
+import { GameServerConnection, Reliability } from "../../../shared/game_server_connection";
 import { CommandToData, entityStateFormat, EntityUpdate, playerFormat } from "../../../shared/game_server_format";
 import { Socket } from "../../../shared/socket";
 import { G } from "../global";
@@ -117,7 +117,7 @@ export class MultiplayerGame extends Game {
 		this.connection.queueCommand({
 			command: 'join',
 			sessionId: Connectivity.sessionId
-		}, true);
+		}, Reliability.Urgent);
 
 		let response = await new Promise<CommandToData<'gameJoinInfo'>>(resolve => {
 			const callback = (data: CommandToData<'gameJoinInfo'>) => {
@@ -150,7 +150,7 @@ export class MultiplayerGame extends Game {
 		await super.start();
 
 		Socket.send('loadingCompletion', 1);
-		this.connection.queueCommand({ command: 'running' }, true);
+		this.connection.queueCommand({ command: 'running' }, Reliability.Urgent);
 	}
 
 	tick() {
@@ -205,7 +205,7 @@ export class MultiplayerGame extends Game {
 		if (!this.started) return;
 
 		let timestamp = performance.now();
-		this.connection.queueCommand({ command: 'ping', timestamp }, false);
+		this.connection.queueCommand({ command: 'ping', timestamp }, Reliability.Unreliable);
 
 		// Will contain the entities we suspect are conflicting with other players' states.
 		let conflictingEntities: Entity[] = [];
@@ -301,7 +301,7 @@ export class MultiplayerGame extends Game {
 		}
 
 		if (sendTimeout-- > 0) return;
-		this.connection.queueCommand(bundle, false);
+		this.connection.queueCommand(bundle, Reliability.Unreliable);
 	}
 
 	applyRemoteEntityUpdate(update: EntityUpdate) {
@@ -321,7 +321,7 @@ export class MultiplayerGame extends Game {
 	}
 
 	signalRestartIntent() {
-		this.connection.queueCommand({ command: 'restartIntent' }, true);
+		this.connection.queueCommand({ command: 'restartIntent' }, Reliability.Urgent);
 		this.localPlayer.hasRestartIntent = true;
 	}
 

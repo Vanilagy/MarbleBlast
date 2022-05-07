@@ -1,5 +1,5 @@
 import { DefaultMap } from "../../shared/default_map";
-import { GameServerConnection } from "../../shared/game_server_connection";
+import { GameServerConnection, Reliability } from "../../shared/game_server_connection";
 import { CommandToData, EntityUpdate } from "../../shared/game_server_format";
 import { Util } from "./util";
 import { GAME_UPDATE_RATE } from '../../shared/constants';
@@ -89,7 +89,7 @@ export class Game {
 				...entity.getTrueUpdate(),
 				version: entity.versions.get(player.id)
 			}))*/
-		}, true);
+		}, Reliability.Urgent);
 
 		connection.on('clientStateBundle', data => {
 			this.queuedPlayerBundles.push([player, data]);
@@ -107,7 +107,7 @@ export class Game {
 					player.connection.queueCommand({
 						command: 'scheduleRestart',
 						frame: this.frame + 5 * GAME_UPDATE_RATE
-					}, true);
+					}, Reliability.Urgent);
 				}
 			}
 		});
@@ -122,7 +122,7 @@ export class Game {
 					command: 'playerRestartIntentState',
 					playerId: player.id,
 					state: true
-				}, true);
+				}, Reliability.Urgent);
 			}
 
 			let quota = this.players.filter(x => x.hasRestartIntent).length / this.players.length;
@@ -132,12 +132,14 @@ export class Game {
 					player.connection.queueCommand({
 						command: 'scheduleRestart',
 						frame: this.frame + 2 * GAME_UPDATE_RATE
-					}, true);
+					}, Reliability.Urgent);
 				}
 			}
 		});
 
 		connection.on('sendTextMessage', data => {
+			if (data.body.length > 250) return;
+
 			for (let otherPlayer of this.players) {
 				if (player === otherPlayer) continue;
 
@@ -145,7 +147,7 @@ export class Game {
 					command: 'textMessage',
 					playerId: player.id,
 					body: data.body
-				}, true);
+				}, Reliability.Relaxed);
 			}
 		});
 
@@ -158,7 +160,7 @@ export class Game {
 				sessionId: player.sessionId,
 				marbleId: player.marbleId,
 				checkpointStateId: player.checkpointStateId
-			}, true);
+			}, Reliability.Urgent);
 		}
 	}
 
@@ -218,7 +220,7 @@ export class Game {
 				baseStateRequests: [...new Set(this.baseStateRequests.map(x => x.entityId))],
 				baseState: curatedBaseStateRequests,
 				maxReceivedClientUpdateFrame: player.maxReceivedClientUpdateFrame
-			}, false);
+			}, Reliability.Unreliable);
 		}
 
 		for (let player of this.players) {
@@ -228,7 +230,7 @@ export class Game {
 					command: 'pong',
 					timestamp,
 					subtract: elapsed
-				}, false);
+				}, Reliability.Unreliable);
 			}
 			this.pendingPings.get(player).clear();
 
@@ -239,7 +241,7 @@ export class Game {
 				command: 'timeState',
 				serverFrame: this.frame,
 				targetFrame: this.frame + rtt + UPDATE_BUFFER_SIZE
-			}, false);
+			}, Reliability.Unreliable);
 
 			player.connection.tick();
 		}

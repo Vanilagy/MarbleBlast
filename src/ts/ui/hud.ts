@@ -7,6 +7,7 @@ import { Util } from "../util";
 import { Menu } from "./menu";
 import { FRAME_RATE_OPTIONS } from "./options_mbp";
 import { MultiplayerGame } from "../game/multiplayer_game";
+import { Reliability } from "../../../shared/game_server_connection";
 
 const numberSources = {
 	"0": "0.png",
@@ -96,7 +97,7 @@ export abstract class Hud {
 				(G.game as MultiplayerGame).connection.queueCommand({
 					command: 'sendTextMessage',
 					body: body
-				}, true);
+				}, Reliability.Relaxed);
 			}
 
 			this.chatInput.value = '';

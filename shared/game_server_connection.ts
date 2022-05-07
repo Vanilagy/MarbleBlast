@@ -15,15 +15,25 @@ export interface GameServerSocket {
 	close(): void;
 }
 
+export enum Reliability {
+	Unreliable,
+	Urgent,
+	Relaxed
+}
+
+interface CommandBundle {
+	command: GameServerMessage['commandWrappers'][number]['command'],
+	reliability: Reliability,
+	localPacketId: number
+}
+
 export class GameServerConnection {
 	socket: GameServerSocket;
-	queuedCommands: {
-		command: GameServerMessage['commands'][number],
-		ack?: number,
-		id?: string
-	}[] = [];
+	queuedCommands: CommandBundle[] = [];
+	awaitingRelaxedAck: CommandBundle[] = [];
+	queuedAcks: number[] = [];
 	localPacketId = 0;
-	remotePacketId = -1;
+	lastRemotePacketId = -1;
 
 	tickTimeout = 0;
 	addedOneWayLatency = 0;
@@ -45,22 +55,13 @@ export class GameServerConnection {
 		};
 	}
 
-	queueCommand(command: GameServerMessage['commands'][number], reliable: boolean, uniqueCommandId?: string) {
-		reliable = false; // TODO implement reliability
+	queueCommand(command: GameServerMessage['commandWrappers'][number]['command'], reliability: Reliability) {
+		reliability = Reliability.Unreliable;
 		let commandObject = {
 			command,
-			ack: reliable? this.localPacketId : null,
-			id: uniqueCommandId
+			reliability: reliability,
+			localPacketId: this.localPacketId
 		};
-
-		if (uniqueCommandId !== undefined) {
-			for (let i = 0; i < this.queuedCommands.length; i++) {
-				if (this.queuedCommands[i].id !== uniqueCommandId) continue;
-
-				this.queuedCommands[i] = commandObject;
-				return;
-			}
-		}
 
 		this.queuedCommands.push(commandObject);
 	}
@@ -77,20 +78,29 @@ export class GameServerConnection {
 
 	sendCommands() {
 		let message: GameServerMessage = {
-			packetId: this.localPacketId++,
-			ack: this.remotePacketId,
-			commands: this.queuedCommands.map(x => x.command)
+			localPacketId: this.localPacketId++,
+			lastRemotePacketId: this.lastRemotePacketId,
+			needsAck: this.queuedCommands.some(x => x.reliability === Reliability.Relaxed),
+			commandWrappers: this.queuedCommands.map(x => ({ packetId: x.localPacketId, command: x.command })),
+			acks: this.queuedAcks
 		};
 		this.send(message);
 
 		for (let i = 0; i < this.queuedCommands.length; i++) {
-			if (this.queuedCommands[i].ack === null)
+			let cmd = this.queuedCommands[i];
+
+			if (cmd.reliability === Reliability.Unreliable || cmd.reliability === Reliability.Relaxed) {
 				this.queuedCommands.splice(i--, 1);
+
+				if (cmd.reliability === Reliability.Relaxed)
+					this.awaitingRelaxedAck.push(cmd);
+			}
 		}
+
+		this.queuedAcks.length = 0;
 	}
 
 	async send(message: GameServerMessage) {
-		//console.log(message);
 		let encoded = FixedFormatBinarySerializer.encode(message, gameServerMessageFormat);
 		if (this.addedOneWayLatency) await wait(this.addedOneWayLatency);
 
@@ -100,23 +110,33 @@ export class GameServerConnection {
 	}
 
 	onMessage(message: GameServerMessage) {
-		//console.log(message);
-
-		if (message.packetId <= this.remotePacketId) return; // Discard out-of-order messages
+		if (message.localPacketId <= this.lastRemotePacketId) return; // Discard out-of-order messages
 
 		for (let i = 0; i < this.queuedCommands.length; i++) {
-			if (this.queuedCommands[i].ack !== null && this.queuedCommands[i].ack <= message.ack)
+			let cmd = this.queuedCommands[i];
+			if (cmd.reliability === Reliability.Urgent && cmd.localPacketId <= message.lastRemotePacketId)
 				this.queuedCommands.splice(i--, 1);
 		}
 
-		for (let command of message.commands) {
-			//if (command. !== null && ack <= this.remotePacketId) continue;
+		for (let wrapper of message.commandWrappers) {
+			if (wrapper.packetId <= this.lastRemotePacketId) continue;
 
-			let arr = this.commandHandlers.get(command.command);
-			for (let fn of arr) fn(command);
+			let arr = this.commandHandlers.get(wrapper.command.command);
+			for (let fn of arr) fn(wrapper.command);
 		}
 
-		this.remotePacketId = message.packetId;
+		for (let i = 0; i < this.awaitingRelaxedAck.length; i++) {
+			let cmd = this.awaitingRelaxedAck[i];
+			if (message.acks.includes(cmd.localPacketId)) {
+				this.awaitingRelaxedAck.splice(i--, 1);
+			} else if (message.lastRemotePacketId > cmd.localPacketId) {
+				this.awaitingRelaxedAck.splice(i--, 1);
+				this.queuedCommands.push(cmd); // Requeue the thing
+			}
+		}
+
+		this.lastRemotePacketId = message.localPacketId;
+		if (message.needsAck) this.queuedAcks.push(message.localPacketId);
 	}
 
 	on<K extends GameServerCommands>(command: K, callback: (data: CommandToData<K>) => void) {
@@ -134,6 +154,6 @@ export class GameServerConnection {
 	}
 
 	disconnect() {
-
+		this.socket.close();
 	}
 }

@@ -135,6 +135,7 @@ export class MbpLevelSelect extends LevelSelect {
 		// Show a random beginner category at the start
 		this.setMissionArray(Util.randomFromArray([MissionLibrary.goldBeginner/*, MissionLibrary.platinumBeginner, MissionLibrary.ultraBeginner*/]), false); // fixme
 
+		// todo: This but for Lobby screen
 		await ResourceManager.loadImages(['play/eggnotfound.png', 'play/eggfound.png', 'play/marble_gold.png', 'play/marble_platinum.png', 'play/marble_ultra.png', 'mp/menu/brown/joined.png', 'mp/menu/brown/divider-orange-joined.png', 'options/textentry.png'].map(x => './assets/ui_mbp/' + x));
 
 		this.menu.setupButton(this.chooseLevelButton, 'mp/play/choose', () => {
