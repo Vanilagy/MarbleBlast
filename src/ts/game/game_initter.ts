@@ -277,7 +277,7 @@ export class GameInitter {
 		else if (dataBlockLowerCase === "endpad") shape = new EndPad(element === this.endPadElement);
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
 		else if (dataBlockLowerCase.startsWith("signplain")) shape = new SignPlain(element as MissionElementStaticShape);
-		else if (dataBlockLowerCase.startsWith("gemitem")) shape = new Gem(element as MissionElementItem), game.totalGems++;
+		else if (dataBlockLowerCase.startsWith("gemitem")) shape = new Gem(), game.totalGems++;
 		else if (dataBlockLowerCase === "superjumpitem") shape = new SuperJump(element as MissionElementItem);
 		else if (dataBlockLowerCase.startsWith("signcaution")) shape = new SignCaution(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "superbounceitem") shape = new SuperBounce(element as MissionElementItem);

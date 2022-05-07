@@ -179,6 +179,13 @@ export const gameServerCommandFormat = [union, 'command', {
 	command: 'playerRestartIntentState',
 	playerId: 'varint',
 	state: 'boolean'
+}, {
+	command: 'sendTextMessage',
+	body: 'string'
+}, {
+	command: 'textMessage',
+	playerId: 'varint',
+	body: 'string'
 }] as const;
 
 export const gameServerMessageFormat = FixedFormatBinarySerializer.format({

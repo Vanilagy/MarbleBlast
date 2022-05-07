@@ -6,6 +6,7 @@ import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { Menu } from "./menu";
 import { FRAME_RATE_OPTIONS } from "./options_mbp";
+import { MultiplayerGame } from "../game/multiplayer_game";
 
 const numberSources = {
 	"0": "0.png",
@@ -44,6 +45,9 @@ export abstract class Hud {
 	lastBlastMeterBodySrc: string = null;
 	lastBlastMeterFillSrc: string = null;
 	scoreboard: HTMLDivElement;
+	chatContainer: HTMLDivElement;
+	chatInput: HTMLInputElement;
+	chatMessageContainer: HTMLDivElement;
 
 	abstract gemCountMinDigits: number;
 	abstract showClockBackground: boolean;
@@ -52,6 +56,7 @@ export abstract class Hud {
 
 	lastGemCount: string = null;
 	lastScoreboardHtml = '';
+	chatMessageStartTimes = new WeakMap<Element, number>();
 	helpMessages: {
 		frame: number,
 		getMessage: () => string
@@ -77,6 +82,52 @@ export abstract class Hud {
 		this.blastMeterBody = document.querySelector('#blast-meter-body');
 		this.blastMeterFill = document.querySelector('#blast-meter-fill');
 		this.scoreboard = document.querySelector('#scoreboard');
+		this.chatContainer = document.querySelector('#hud-chat');
+		this.chatInput = document.querySelector('#hud-chat input');
+		this.chatMessageContainer = document.querySelector('#hud-chat > div');
+
+		(this.chatInput.parentElement as HTMLFormElement).addEventListener('submit', e => {
+			e.preventDefault();
+
+			let body = this.chatInput.value.trim();
+			if (body) {
+				this.displayChatMessage(StorageManager.data.username, body);
+
+				(G.game as MultiplayerGame).connection.queueCommand({
+					command: 'sendTextMessage',
+					body: body
+				}, true);
+			}
+
+			this.chatInput.value = '';
+			this.chatInput.blur();
+			this.chatInput.style.visibility = '';
+			this.chatInput.style.pointerEvents = '';
+			this.chatMessageContainer.style.overflowY = '';
+			this.chatMessageContainer.scrollTop = 1e6;
+			this.chatMessageContainer.classList.remove('highlighted');
+
+			let now = performance.now();
+			for (let child of this.chatMessageContainer.children) {
+				(child as HTMLElement).style.animationDelay = -(now - this.chatMessageStartTimes.get(child)) + 'ms';
+			}
+		});
+
+		window.addEventListener('keydown', e => {
+			if (!(!menu.gameUiDiv.classList.contains('hidden') && document.activeElement !== this.chatInput))
+				return;
+
+			if (e.code === 'Enter') {
+				e.stopPropagation();
+				e.preventDefault();
+
+				this.chatInput.style.visibility = 'visible';
+				this.chatInput.style.pointerEvents = 'all';
+				this.chatMessageContainer.style.overflowY = 'auto';
+				this.chatMessageContainer.classList.add('highlighted');
+				this.chatInput.focus();
+			}
+		});
 	}
 
 	async load() {
@@ -111,6 +162,8 @@ export abstract class Hud {
 		if (G.game.type === 'singleplayer') this.scoreboard.style.display = 'none';
 		else this.scoreboard.style.display = '';
 		this.lastScoreboardHtml = '';
+
+		this.chatContainer.style.display = G.game.type === 'singleplayer' ? 'none' : '';
 
 		if (Util.isTouchDevice) this.setupTouchControls();
 
@@ -348,6 +401,14 @@ export abstract class Hud {
 			this.scoreboard.innerHTML = newHtml;
 			this.lastScoreboardHtml = newHtml;
 		}
+	}
+
+	displayChatMessage(username: string, body: string) {
+		let div = document.createElement('div');
+		div.innerHTML = `<b>${Util.htmlEscape(username)}: </b>${Util.htmlEscape(body)}`;
+		this.chatMessageStartTimes.set(div, performance.now());
+
+		this.chatMessageContainer.insertBefore(div, this.chatMessageContainer.firstChild);
 	}
 
 	static processHelpMessage(message: string) {

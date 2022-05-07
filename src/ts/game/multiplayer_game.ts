@@ -4,6 +4,7 @@ import { FixedFormatBinarySerializer, FormatToType } from "../../../shared/fixed
 import { GameServerConnection } from "../../../shared/game_server_connection";
 import { CommandToData, entityStateFormat, EntityUpdate, playerFormat } from "../../../shared/game_server_format";
 import { Socket } from "../../../shared/socket";
+import { G } from "../global";
 import { Marble } from "../marble";
 import { Mission } from "../mission";
 import { Connectivity } from "../net/connectivity";
@@ -96,6 +97,12 @@ export class MultiplayerGame extends Game {
 
 		this.connection.on('playerRestartIntentState', data => {
 			this.players.find(x => x.id === data.playerId).hasRestartIntent = data.state;
+		});
+
+		this.connection.on('textMessage', data => {
+			let sessionId = this.players.find(x => x.id === data.playerId)?.sessionId;
+			let username = G.lobby.sockets.find(x => x.id === sessionId)?.name;
+			G.menu.hud.displayChatMessage(username ?? '???', data.body);
 		});
 
 		setInterval(() => {

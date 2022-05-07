@@ -136,7 +136,7 @@
 #scoreboard {
 	position: absolute;
 	top: 110px;
-	left: 38px;
+	right: 15px;
 	font-family: MarkerFelt;
 	color: white;
 	text-shadow: 1px 1px 0px black;
@@ -170,14 +170,91 @@
 #scoreboard > div img {
 	position: absolute;
 	top: -2px;
-	right: -36px;
+	left: -36px;
 	width: 24px;
 	filter: invert(31%) sepia(26%) saturate(2754%) hue-rotate(325deg) brightness(119%) contrast(102%) drop-shadow(1px 1px 0px black);
-	animation: pop-up 0.5s;
+	animation: pop-up 0.5s forwards;
 }
 
 @keyframes pop-up {
 	0% { transform: scale(0); }
 	20% { transform: scale(2); }
 	100% { transform: scale(1); }
+}
+
+#hud-chat {
+	position: absolute;
+	top: 50%;
+	left: 20px;
+	transform: translateY(-50%);
+	height: 400px;
+	width: 350px;
+	display: flex;
+	color: white;
+	text-shadow: 1px 1px 0px black;
+	flex-direction: column;
+	text-align: left;
+}
+
+#hud-chat > div {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column-reverse;
+	overflow: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+	margin-bottom: 10px;
+}
+
+#hud-chat > div::-webkit-scrollbar {
+	width: 5px;
+}
+
+#hud-chat > div::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#hud-chat > div::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+#hud-chat > div > div {
+	font-size: 14px;
+	font-family: Nunito;
+	white-space: pre-wrap;
+	background: #0000003f;
+	padding: 1px;
+	padding-left: 5px;
+	overflow-wrap: break-word;
+	animation: chat-message-fade-out 10s forwards;
+}
+
+#hud-chat > div.highlighted > div {
+	animation: none;
+}
+
+#hud-chat input {
+	flex: 0 0 auto;
+	border: none;
+	width: 100%;
+	color: inherit;
+	padding: 6px;
+	padding-left: 8px;
+	box-sizing: border-box;
+	font-family: Nunito;
+	border-radius: 5px;
+	font-size: 14px;
+	visibility: hidden;
+	pointer-events: none;
+	background: #0000006b;
+}
+
+#hud-chat input:focus {
+	outline: none;
+}
+
+@keyframes chat-message-fade-out {
+	0% { opacity: 1; }
+	80% { opacity: 1; }
+	100% { opacity: 0; }
 }

@@ -25,17 +25,13 @@ export class Gem extends Shape {
 	pickedUpBy: Marble = null;
 	pickUpFrame = -Infinity;
 
-	constructor(element: MissionElementItem) {
-		super();
-
+	init(game?: Game, srcElement?: MissionElementItem) {
 		// Determine the color of the gem:
-		let color = element.datablock.slice("GemItem".length);
-		if (color.length === 0) color = Gem.pickRandomColor(); // Random if no color specified
+		let color = srcElement.datablock.slice("GemItem".length);
+		if (color.length === 0) color = Gem.pickRandomColor(game.seed + srcElement._id); // Random if no color specified
 
 		this.matNamesOverride["base.gem"] = color.toLowerCase() + ".gem";
-	}
 
-	init(game?: Game, srcElement?: MissionElement) {
 		if (game instanceof MultiplayerGame) this.sounds.push('opponentdiamond.wav');
 
 		return super.init(game, srcElement);
@@ -152,8 +148,8 @@ export class Gem extends Shape {
 		}, `${this.id}sound`, true);
 	}
 
-	static pickRandomColor() {
-		// todo: make this synced across clients
+	static pickRandomColor(seed?: number) {
+		if (seed !== undefined) return GEM_COLORS[Math.floor(Util.seededRandom(seed, 10) * GEM_COLORS.length)];
 		return Util.randomFromArray(GEM_COLORS);
 	}
 }

@@ -137,6 +137,18 @@ export class Game {
 			}
 		});
 
+		connection.on('sendTextMessage', data => {
+			for (let otherPlayer of this.players) {
+				if (player === otherPlayer) continue;
+
+				otherPlayer.connection.queueCommand({
+					command: 'textMessage',
+					playerId: player.id,
+					body: data.body
+				}, true);
+			}
+		});
+
 		for (let otherPlayer of this.players) {
 			if (otherPlayer === player) continue;
 
