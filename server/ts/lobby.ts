@@ -96,7 +96,7 @@ export class Lobby {
 		this.sendSocketList();
 	}
 
-	startGame() {
+	initializeStartGame() {
 		if (this.inGame) return;
 		this.inGame = true;
 
@@ -107,22 +107,20 @@ export class Lobby {
 			sessions: this.sockets.map(x => x.sessionId)
 		});
 
-		let callback = ({ lobbyId }) => {
-			if (lobbyId !== this.id) return;
+		// And now we wait for confirmation from the game server.
+	}
 
-			// We got confirmation from the game server, let's start the game!
-			let gameSeed = Math.floor(Math.random() * 2**32);
+	startGame(gameId: string) {
+		// We got confirmation from the game server, let's start the game!
+		let gameSeed = Math.floor(Math.random() * 2**32);
 
-			for (let socket of this.sockets) {
-				socket.send('startGame', {
-					lobbySettings: this.settings,
-					seed: gameSeed
-				});
-			}
-
-			gameServer.socket.off('createGameConfirm', callback);
-		};
-		gameServer.socket.on('createGameConfirm', callback);
+		for (let socket of this.sockets) {
+			socket.send('startGame', {
+				lobbySettings: this.settings,
+				gameId: gameId,
+				seed: gameSeed
+			});
+		}
 	}
 }
 

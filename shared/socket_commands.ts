@@ -20,10 +20,12 @@ export type SocketCommands = {
 	},
 	rtcIceGameServer: {
 		ice: RTCIceCandidate,
+		sessionId: string,
 		connectionId: string
 	},
 	rtcSdpGameServer: {
 		sdp: RTCSessionDescription,
+		sessionId: string,
 		connectionId: string
 	},
 
@@ -54,6 +56,7 @@ export type SocketCommands = {
 	startGameRequest: null,
 	startGame: {
 		lobbySettings: LobbySettings,
+		gameId: string,
 		seed: number
 	},
 	loadingCompletion: number,
@@ -71,6 +74,7 @@ export type SocketCommands = {
 		sessions: string[]
 	},
 	createGameConfirm: {
-		lobbyId: string
+		lobbyId: string,
+		gameId: string
 	}
 };

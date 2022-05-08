@@ -5,6 +5,7 @@ import { GameServerConnection, GameServerSocket } from "../../../shared/game_ser
 import { G } from "../global";
 import { MbpMenu } from "../ui/menu_mbp";
 import { Util } from "../util";
+import { MultiplayerGame } from "../game/multiplayer_game";
 
 export let gameServers: GameServer[] = [];
 const TICK_FREQUENCY = 30;
@@ -117,8 +118,6 @@ export class GameServer {
 			this.rtcSocket = new GameServerRTCConnection(this.id);
 			this.rtcSocket.createOffer();
 
-			console.log("offered");
-
 			this.connection = new GameServerConnection(this.rtcSocket);
 		} else {
 			let ws = new WebSocket(this.wsUrl);
@@ -126,6 +125,70 @@ export class GameServer {
 
 			this.connection = new GameServerConnection(socket);
 		}
+
+		this.connection.on('pong', ({ timestamp, subtract }) => {
+			let game = G.game as MultiplayerGame;
+			if (!game) return;
+
+			let now = performance.now();
+			let rtt = now - timestamp - subtract;
+
+			game.recentRtts.push({
+				value: rtt,
+				timestamp: now
+			});
+		});
+
+		this.connection.on('gameJoinInfo', data => {
+			let game = G.game as MultiplayerGame;
+			if (!game) return;
+
+			game.onGameJoinInfo(data);
+		});
+
+		this.connection.on('serverStateBundle', data => {
+			let game = G.game as MultiplayerGame;
+			if (!game) return;
+
+			game.onServerStateBundle(data);
+		});
+
+		this.connection.on('timeState', data => {
+			let game = G.game as MultiplayerGame;
+			if (!game) return;
+
+			game.state.supplyServerTimeState(data.serverFrame, data.targetFrame);
+		});
+
+		this.connection.on('playerJoin', data => {
+			let game = G.game as MultiplayerGame;
+			if (!game) return;
+
+			game.addPlayer(data);
+		});
+
+		this.connection.on('scheduleRestart', data => {
+			let game = G.game as MultiplayerGame;
+			if (!game) return;
+
+			game.state.scheduledRestartFrame = data.frame;
+		});
+
+		this.connection.on('playerRestartIntentState', data => {
+			let game = G.game as MultiplayerGame;
+			if (!game) return;
+
+			game.players.find(x => x.id === data.playerId).hasRestartIntent = data.state;
+		});
+
+		this.connection.on('textMessage', data => {
+			let game = G.game as MultiplayerGame;
+			if (!game) return;
+
+			let sessionId = game.players.find(x => x.id === data.playerId)?.sessionId;
+			let username = G.lobby.sockets.find(x => x.id === sessionId)?.name;
+			G.menu.hud.displayChatMessage(username ?? '???', data.body);
+		});
 	}
 
 	disconnect() {

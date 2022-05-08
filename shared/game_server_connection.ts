@@ -139,18 +139,9 @@ export class GameServerConnection {
 		if (message.needsAck) this.queuedAcks.push(message.localPacketId);
 	}
 
-	on<K extends GameServerCommands>(command: K, callback: (data: CommandToData<K>) => void) {
+	on<K extends GameServerCommands>(command: K, callback: (data: CommandToData<K>, attachmentId?: string) => void) {
 		let arr = this.commandHandlers.get(command);
 		arr.push(callback);
-	}
-
-	off<K extends GameServerCommands>(command: K, callback: (data: CommandToData<K>) => void) {
-		let arr = this.commandHandlers.get(command);
-		if (arr.includes(callback)) arr.splice(arr.indexOf(callback));
-	}
-
-	clearAllHandlers() {
-		this.commandHandlers.clear();
 	}
 
 	disconnect() {

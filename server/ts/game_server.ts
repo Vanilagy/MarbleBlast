@@ -2,6 +2,7 @@ import { Socket, WebSocketType } from "./socket";
 import express from 'express';
 import { removeFromArray } from "./util";
 import { sockets } from "./sockets";
+import { lobbies } from "./lobby";
 
 const KEY = 'I love cocks';
 
@@ -51,7 +52,7 @@ class GameServer {
 		};
 
 		this.socket.on('rtcIceGameServer', data => {
-			let socket = sockets.find(x => x.rtcConnectionIds.has(data.connectionId));
+			let socket = sockets.find(x => x.sessionId === data.sessionId);
 			if (!socket) return;
 
 			socket.send('rtcIce', {
@@ -62,7 +63,7 @@ class GameServer {
 		});
 
 		this.socket.on('rtcSdpGameServer', data => {
-			let socket = sockets.find(x => x.rtcConnectionIds.has(data.connectionId));
+			let socket = sockets.find(x => x.sessionId === data.sessionId);
 			if (!socket) return;
 
 			socket.send('rtcSdp', {
@@ -70,6 +71,13 @@ class GameServer {
 				gameServerId: this.id,
 				connectionId: data.connectionId
 			});
+		});
+
+		this.socket.on('createGameConfirm', ({ lobbyId, gameId }) => {
+			let lobby = lobbies.find(x => x.id === lobbyId);
+			if (!lobby) return;
+
+			lobby.startGame(gameId);
 		});
 	}
 }

@@ -12,11 +12,10 @@ import { GameServer } from "../net/game_server";
 import { Util } from "../util";
 import { Entity } from "./entity";
 import { Game } from "./game";
+import { MultiplayerGameRenderer } from "./multiplayer_game_renderer";
 import { MultiplayerGameSimulator } from "./multiplayer_game_simulator";
 import { MultiplayerGameState } from "./multiplayer_game_state";
 import { Player } from "./player";
-
-const networkStatsElement = document.querySelector('#network-stats') as HTMLDivElement;
 
 let sendTimeout = 0;
 
@@ -35,6 +34,7 @@ export class MultiplayerGame extends Game {
 	pausable = false;
 	state: MultiplayerGameState;
 	simulator: MultiplayerGameSimulator;
+	renderer: MultiplayerGameRenderer;
 
 	gameServer: GameServer;
 	connection: GameServerConnection;
@@ -68,74 +68,29 @@ export class MultiplayerGame extends Game {
 		this.connection.beforeTick = this.tickConnection.bind(this);
 		this.connection.onIncomingPacket = (len) => this.incomingTimes.push([performance.now(), len]);
 		this.connection.onOutgoingPacket = (len) => this.outgoingTimes.push([performance.now(), len]);
-
-		this.connection.on('pong', ({ timestamp, subtract }) => {
-			let now = performance.now();
-			let rtt = now - timestamp - subtract;
-
-			this.recentRtts.push({
-				value: rtt,
-				timestamp: now
-			});
-		});
-
-		this.connection.on('serverStateBundle', data => {
-			this.onServerStateBundle(data);
-		});
-
-		this.connection.on('timeState', data => {
-			this.state.supplyServerTimeState(data.serverFrame, data.targetFrame);
-		});
-
-		this.connection.on('playerJoin', data => {
-			this.addPlayer(data);
-		});
-
-		this.connection.on('scheduleRestart', data => {
-			this.state.scheduledRestartFrame = data.frame;
-		});
-
-		this.connection.on('playerRestartIntentState', data => {
-			this.players.find(x => x.id === data.playerId).hasRestartIntent = data.state;
-		});
-
-		this.connection.on('textMessage', data => {
-			let sessionId = this.players.find(x => x.id === data.playerId)?.sessionId;
-			let username = G.lobby.sockets.find(x => x.id === sessionId)?.name;
-			G.menu.hud.displayChatMessage(username ?? '???', data.body);
-		});
-
-		setInterval(() => {
-			this.displayNetworkStats();
-		}, 1000 / 20);
 	}
 
 	createState() { this.state = new MultiplayerGameState(this); }
 	createSimulator() { this.simulator = new MultiplayerGameSimulator(this); }
+	createRenderer() { this.renderer = new MultiplayerGameRenderer(this); }
 
 	async start() {
 		this.connection.queueCommand({
 			command: 'join',
-			sessionId: Connectivity.sessionId
+			gameId: this.id
 		}, Reliability.Urgent);
+	}
 
-		let response = await new Promise<CommandToData<'gameJoinInfo'>>(resolve => {
-			const callback = (data: CommandToData<'gameJoinInfo'>) => {
-				this.connection.off('gameJoinInfo', callback);
-				resolve(data);
-			};
-			this.connection.on('gameJoinInfo', callback);
-		});
+	async onGameJoinInfo(data: CommandToData<'gameJoinInfo'>) {
+		console.log(data);
 
-		console.log(response);
+		this.state.supplyServerTimeState(data.serverFrame, data.clientFrame);
 
-		this.state.supplyServerTimeState(response.serverFrame, response.clientFrame);
-
-		for (let playerData of response.players) {
+		for (let playerData of data.players) {
 			await this.addPlayer(playerData);
 		}
 
-		this.localPlayer = this.players.find(x => x.id === response.localPlayerId);
+		this.localPlayer = this.players.find(x => x.id === data.localPlayerId);
 		//this.localPlayer.controlledMarble.addToGame();
 
 		for (let entity of this.entities) {
@@ -143,7 +98,7 @@ export class MultiplayerGame extends Game {
 			entity.loadState(entity.getInitialState(), { frame: 0, remote: false });
 		}
 
-		for (let update of response.entityStates) {
+		for (let update of data.entityStates) {
 			this.applyRemoteEntityUpdate(update);
 		}
 
@@ -325,54 +280,13 @@ export class MultiplayerGame extends Game {
 		this.localPlayer.hasRestartIntent = true;
 	}
 
-	displayNetworkStats() {
-		if (!this.started) return;
-
-		let now = performance.now();
-		while (this.recentRtts.length > 0 && now - this.recentRtts[0].timestamp > 2000) this.recentRtts.shift();
-		while (this.incomingTimes.length > 0 && now - this.incomingTimes[0][0] > 1000) this.incomingTimes.shift();
-		while (this.outgoingTimes.length > 0 && now - this.outgoingTimes[0][0] > 1000) this.outgoingTimes.shift();
-
-		while (this.tickDurations.length > 0 && now - this.tickDurations[0].start > 1000) this.tickDurations.shift();
-		while (this.simulator.advanceTimes.length > 0 && now - this.simulator.advanceTimes[0] > 1000) this.simulator.advanceTimes.shift();
-		while (this.simulator.reconciliationDurations.length > 0 && now - this.simulator.reconciliationDurations[0].start > 1000) this.simulator.reconciliationDurations.shift();
-
-		//let medianRtt = Util.computeMedian(this.recentRtts.map(x => x.value));
-		let averageRtt = this.recentRtts.map(x => x.value).reduce((a, b) => a + b, 0) / this.recentRtts.length;
-		let jitter = this.recentRtts.map(x => Math.abs(x.value - averageRtt)).reduce((a, b) => a + b, 0) / this.recentRtts.length;
-		let averageTickDuration = this.tickDurations.map(x => x.duration).reduce((a, b) => a + b, 0) / this.tickDurations.length;
-		let averageReconciliationDuration = this.simulator.reconciliationDurations.map(x => x.duration).reduce((a, b) => a + b, 0) / this.simulator.reconciliationDurations.length;
-
-		networkStatsElement.textContent = `
-			Ping: ${isNaN(averageRtt)? 'N/A' : averageRtt.toFixed(1) + ' ms'}
-			Jitter: ${isNaN(jitter)? 'N/A' : jitter.toFixed(1) + ' ms'}
-			Incoming packets/s: ${this.incomingTimes.length}
-			Outgoing packets/s: ${this.outgoingTimes.length}
-			Downstream: ${(this.incomingTimes.map(x => x[1]).reduce((a, b) => a + b, 0) / 1000).toFixed(1)} kB/s
-			Upstream: ${(this.outgoingTimes.map(x => x[1]).reduce((a, b) => a + b, 0) / 1000).toFixed(1)} kB/s
-			Server frame: ${this.state.serverFrame}
-			Client frame: ${this.state.frame}
-			Target frame: ${this.state.targetFrame}
-			Frames ahead server: ${this.state.frame - this.state.serverFrame}
-			Frames ahead target: ${this.state.frame - this.state.targetFrame}
-			Server update rate: ${GAME_UPDATE_RATE} Hz
-			Client update rate: ${this.lastUpdateRate | 0} Hz
-			Advancements/s: ${this.simulator.advanceTimes.length}
-			Tick duration: ${averageTickDuration.toFixed(2)} ms
-			Reconciliation duration: ${isNaN(averageReconciliationDuration)? 'N/A' : averageReconciliationDuration.toFixed(2) + ' ms'}
-			Reconciliation frames: ${this.simulator.lastReconciliationFrames}
-			Send timeout: ${Math.max(0, sendTimeout)}
-		`;
-
-		document.body.style.filter = sendTimeout <= 0 ? '' : 'saturate(0.25)';
-	}
-
 	stop() {
 		super.stop();
 
 		this.connection.beforeTick = null;
 		this.connection.onIncomingPacket = null;
 		this.connection.onOutgoingPacket = null;
-		this.connection.clearAllHandlers();
+
+		this.connection.queueCommand({ command: 'leave' }, Reliability.Urgent);
 	}
 }

@@ -28,10 +28,9 @@ const initUserSocket = (socket: Socket) => {
 		let gameServer = gameServers.find(x => x.id === data.gameServerId);
 		if (!gameServer) return; // todo probably do something more elaborate here? like send an error
 
-		socket.rtcConnectionIds.add(data.connectionId);
-
 		gameServer.socket.send('rtcIceGameServer', {
 			ice: data.ice,
+			sessionId: socket.sessionId,
 			connectionId: data.connectionId
 		});
 	});
@@ -40,10 +39,9 @@ const initUserSocket = (socket: Socket) => {
 		let gameServer = gameServers.find(x => x.id === data.gameServerId);
 		if (!gameServer) return; // todo probably do something more elaborate here? like send an error
 
-		socket.rtcConnectionIds.add(data.connectionId);
-
 		gameServer.socket.send('rtcSdpGameServer', {
 			sdp: data.sdp,
+			sessionId: socket.sessionId,
 			connectionId: data.connectionId
 		});
 	});
@@ -60,7 +58,7 @@ const initUserSocket = (socket: Socket) => {
 		removeLobbyListSubscriber(socket);
 	});
 
-	socket.on('createLobbyRequest', data => {
+	socket.on('createLobbyRequest', () => {
 		let lobby = new Lobby('Wow nice name 🍇 ' + lobbies.length);
 		lobbies.push(lobby);
 		lobby.join(socket);
@@ -107,7 +105,7 @@ const initUserSocket = (socket: Socket) => {
 		let lobby = lobbies.find(x => x.sockets.includes(socket));
 		if (!lobby) return;
 
-		lobby.startGame();
+		lobby.initializeStartGame();
 	});
 
 	socket.on('loadingCompletion', completion => {

@@ -24,6 +24,21 @@ export class LobbySelectScreen {
 		menu.setupButton(this.createLobbyButton, 'mp/team/create', () => {
 			Socket.send('createLobbyRequest', null);
 		});
+
+		Socket.on('lobbyList', list => {
+			this.updateLobbyList(list);
+		});
+
+		Socket.on('joinLobbyResponse', data => {
+			if (G.lobby) throw new Error("Already in a lobby!");
+
+			this.hide();
+
+			let newLobby = new Lobby(data.id, data.name, data.settings);
+			G.lobby = newLobby;
+			newLobby.join();
+			this.menu.lobbyScreen.show();
+		});
 	}
 
 	initProperties() {
@@ -39,27 +54,12 @@ export class LobbySelectScreen {
 		G.menu.backgroundImage.src = (G.menu as MbpMenu).multiplayerBg;
 
 		Socket.send('subscribeToLobbyList', null);
-
-		Socket.on('lobbyList', list => {
-			this.updateLobbyList(list);
-		});
-
-		Socket.on('joinLobbyResponse', data => {
-			this.hide();
-
-			let newLobby = new Lobby(data.id, data.name, data.settings);
-			G.lobby = newLobby;
-			newLobby.join();
-			this.menu.lobbyScreen.show();
-		});
 	}
 
 	hide() {
 		this.div.classList.add('hidden');
 
 		Socket.send('unsubscribeFromLobbyList', null);
-		Socket.off('lobbyList');
-		Socket.off('joinLobbyResponse');
 	}
 
 	updateLobbyList(list: SocketCommands['lobbyList']) {

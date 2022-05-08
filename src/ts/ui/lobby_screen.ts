@@ -68,14 +68,6 @@ export class LobbyScreen {
 
 		menu.setupButton(this.playButton, 'play/play', () => {
 			Socket.send('startGameRequest', null);
-			/*
-
-			let selectedMission = MissionLibrary.allMissions.find(x => x.path === G.lobby.settings.missionPath);
-			if (!selectedMission) return;
-
-			this.hide();
-			menu.loadingScreen.loadLevel(selectedMission);
-			*/
 		}, true);
 
 		menu.setupButton(this.serverSelectorCollapsed, 'mp/play/difficulty', () => {
@@ -131,6 +123,8 @@ export class LobbyScreen {
 
 		this.div.classList.remove('hidden');
 		this.updateUi();
+
+		G.menu.backgroundImage.src = (G.menu as MbpMenu).multiplayerBg;
 	}
 
 	hide() {

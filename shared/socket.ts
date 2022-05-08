@@ -67,8 +67,4 @@ export abstract class Socket {
 
 		arr.push(callback);
 	}
-
-	static off<K extends keyof SocketCommands>(command: K) {
-		delete this.commandHandlers[command];
-	}
 }

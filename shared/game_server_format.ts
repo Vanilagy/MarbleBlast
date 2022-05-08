@@ -126,7 +126,7 @@ export const gameServerCommandFormat = [union, 'command', {
 	subtract: 'f32'
 }, {
 	command: 'join',
-	sessionId: 'string'
+	gameId: 'string'
 }, {
 	command: 'clientStateBundle',
 	serverFrame: 'varint',
@@ -186,6 +186,8 @@ export const gameServerCommandFormat = [union, 'command', {
 	command: 'textMessage',
 	playerId: 'varint',
 	body: 'string'
+}, {
+	command: 'leave'
 }] as const;
 
 export const gameServerMessageFormat = FixedFormatBinarySerializer.format({

@@ -25,6 +25,7 @@ import { Vector3 } from "../math/vector3";
 
 export abstract class Game {
 	abstract type: 'singleplayer' | 'multiplayer'; // For the record, I do know that it's spelled "single-player", but I also know that English can suck my
+	id = Util.uuid();
 
 	state: GameState;
 	initter: GameInitter;
@@ -234,6 +235,8 @@ export abstract class Game {
 		G.menu.finishScreen.hide();
 		G.menu.hideGameUi();
 		G.menu.show();
+
+		G.menu.lobbyScreen.show();
 
 		document.exitPointerLock?.();
 	}

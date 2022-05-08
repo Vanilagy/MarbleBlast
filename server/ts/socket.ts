@@ -10,7 +10,6 @@ export class Socket {
 	onClose: () => void = null;
 	sessionId: string = null;
 	username: string = null;
-	rtcConnectionIds = new Set<string>();
 
 	constructor(ws: WebSocketType) {
 		this.ws = ws;
@@ -50,12 +49,5 @@ export class Socket {
 		}
 
 		arr.push(callback);
-	}
-
-	off<K extends keyof SocketCommands>(command: K, callback: (data: SocketCommands[K]) => void) {
-		let arr = this.commandHandlers[command];
-		if (!arr) return;
-
-		removeFromArray(arr, callback);
 	}
 }

@@ -53,4 +53,17 @@ export abstract class Util {
 		let sorted = arr.slice().sort((a, b) => a - b);
 		return sorted[Math.floor(p * (arr.length - 1))];
 	}
+
+	static readonly base62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+	/** Generates a (probably universally-unique) identifier. Uses its own format, not the standard cringe. */
+	static uuid() {
+		let res = '';
+		for (let i = 0; i < 12; i++) {
+			let char = this.base62[Math.floor(Math.random() * this.base62.length)];
+			res += char;
+		}
+
+		return res;
+	}
 }

@@ -621,14 +621,6 @@ export class Marble extends Entity {
 
 		this.slidingTimeout--;
 
-		if (this === this.game.localPlayer.controlledMarble && !reconciling) {
-			let timeSinceRespawn = (this.game.state.frame - this.respawnFrame) / GAME_UPDATE_RATE;
-
-			if (timeSinceRespawn === READY_TIME) AudioManager.play('ready.wav');
-			if (timeSinceRespawn === SET_TIME) AudioManager.play('set.wav');
-			if (timeSinceRespawn === GO_TIME) AudioManager.play('go.wav');
-		}
-
 		// Handle teleporting
 		for (let teleportState of this.teleportStates) {
 			if (teleportState.entryFrame === null) continue;

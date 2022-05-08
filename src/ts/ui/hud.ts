@@ -49,6 +49,7 @@ export abstract class Hud {
 	chatContainer: HTMLDivElement;
 	chatInput: HTMLInputElement;
 	chatMessageContainer: HTMLDivElement;
+	networkStats: HTMLDivElement;
 
 	abstract gemCountMinDigits: number;
 	abstract showClockBackground: boolean;
@@ -58,6 +59,7 @@ export abstract class Hud {
 	lastGemCount: string = null;
 	lastScoreboardHtml = '';
 	chatMessageStartTimes = new WeakMap<Element, number>();
+
 	helpMessages: {
 		frame: number,
 		getMessage: () => string
@@ -86,7 +88,12 @@ export abstract class Hud {
 		this.chatContainer = document.querySelector('#hud-chat');
 		this.chatInput = document.querySelector('#hud-chat input');
 		this.chatMessageContainer = document.querySelector('#hud-chat > div');
+		this.networkStats = document.querySelector('#network-stats');
 
+		this.initGameChat();
+	}
+
+	initGameChat() {
 		(this.chatInput.parentElement as HTMLFormElement).addEventListener('submit', e => {
 			e.preventDefault();
 
@@ -115,7 +122,7 @@ export abstract class Hud {
 		});
 
 		window.addEventListener('keydown', e => {
-			if (!(!menu.gameUiDiv.classList.contains('hidden') && document.activeElement !== this.chatInput))
+			if (!(!this.menu.gameUiDiv.classList.contains('hidden') && document.activeElement !== this.chatInput))
 				return;
 
 			if (e.code === 'Enter') {
@@ -165,6 +172,10 @@ export abstract class Hud {
 		this.lastScoreboardHtml = '';
 
 		this.chatContainer.style.display = G.game.type === 'singleplayer' ? 'none' : '';
+		this.chatMessageContainer.innerHTML = '';
+
+		this.helpMessages.length = 0;
+		this.alerts.length = 0;
 
 		if (Util.isTouchDevice) this.setupTouchControls();
 

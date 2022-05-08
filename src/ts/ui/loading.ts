@@ -44,6 +44,8 @@ export abstract class LoadingScreen {
 	}
 
 	async loadMission(mission: Mission, createGame: () => Game) {
+		if (G.game) throw new Error("There's already a game running!");
+
 		this.show();
 		let indexAtStart = this.loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
 
@@ -124,10 +126,11 @@ export abstract class LoadingScreen {
 		return this.loadMission(mission, () => new SingleplayerGame(mission));
 	}
 
-	loadMissionMultiplayer(mission: Mission, lobby: Lobby, seed: number) {
+	loadMissionMultiplayer(mission: Mission, lobby: Lobby, gameId: string, seed: number) {
 		let gameServer = gameServers.find(x => x.id === lobby.settings.gameServer);
 		return this.loadMission(mission, () => {
 			let game = new MultiplayerGame(mission, gameServer);
+			game.id = gameId;
 			game.seed = seed;
 
 			return game;

@@ -29,31 +29,6 @@ export class Lobby {
 
 		(G.menu as MbpMenu).lobbyScreen.onJoin();
 
-		Socket.on('lobbySettingsChange', settings => {
-			this.settings = settings;
-			this.applySettings();
-		});
-
-		Socket.on('lobbySocketList', list => {
-			this.sockets = list;
-			(G.menu as MbpMenu).lobbyScreen.updatePlayerList(list);
-			(G.menu as MbpMenu).lobbyScreen.updatePlayButton();
-		});
-
-		Socket.on('lobbyTextMessage', data => {
-			(G.menu as MbpMenu).lobbyScreen.addChatMessage(data.username, data.body);
-		});
-
-		Socket.on('startGame', data => {
-			this.settings = data.lobbySettings; // Make sure we're all on the same page
-
-			let mission = MissionLibrary.allMissions.find(x => x.path === this.settings.missionPath);
-			if (!mission) return;
-
-			(G.menu as MbpMenu).lobbyScreen.hide();
-			G.menu.loadingScreen.loadMissionMultiplayer(mission, this, data.seed);
-		});
-
 		this.pollerInterval = setInterval(() => {
 			let gameServer = gameServers.find(x => x.id === this.settings.gameServer);
 			if (!gameServer) return;
@@ -71,10 +46,11 @@ export class Lobby {
 		clearInterval(this.pollerInterval);
 
 		Socket.send('leaveLobby', null);
-		Socket.off('lobbySettingsChange');
 
 		let connectedGameServer = gameServers.find(x => x.connection);
 		connectedGameServer?.disconnect();
+
+		G.lobby = null;
 	}
 
 	onSettingsChanged() {
@@ -98,3 +74,40 @@ export class Lobby {
 		(G.menu as MbpMenu).lobbyScreen.updateUi();
 	}
 }
+
+Socket.on('lobbySettingsChange', settings => {
+	let lobby = G.lobby;
+	if (!lobby) return;
+
+	lobby.settings = settings;
+	lobby.applySettings();
+});
+
+Socket.on('lobbySocketList', list => {
+	let lobby = G.lobby;
+	if (!lobby) return;
+
+	lobby.sockets = list;
+	(G.menu as MbpMenu).lobbyScreen.updatePlayerList(list);
+	(G.menu as MbpMenu).lobbyScreen.updatePlayButton();
+});
+
+Socket.on('lobbyTextMessage', data => {
+	let lobby = G.lobby;
+	if (!lobby) return;
+
+	(G.menu as MbpMenu).lobbyScreen.addChatMessage(data.username, data.body);
+});
+
+Socket.on('startGame', data => {
+	let lobby = G.lobby;
+	if (!lobby) return;
+
+	lobby.settings = data.lobbySettings; // Make sure we're all on the same page
+
+	let mission = MissionLibrary.allMissions.find(x => x.path === lobby.settings.missionPath);
+	if (!mission) return;
+
+	(G.menu as MbpMenu).lobbyScreen.hide();
+	G.menu.loadingScreen.loadMissionMultiplayer(mission, lobby, data.gameId, data.seed);
+});

@@ -489,7 +489,6 @@ export class GameRenderer {
 
 		hud.displayGemCount(gemCount, this.game.totalGems);
 		hud.displayBlastMeterFullness(this.game.localPlayer.controlledMarble.blastAmount);
-		hud.displayScoreboard();
 		hud.displayFps();
 
 		hud.helpElement.textContent = '';
@@ -499,7 +498,7 @@ export class GameRenderer {
 			let frameDifference = game.state.scheduledRestartFrame - game.state.frame;
 			let secondsUntil = frameDifference / GAME_UPDATE_RATE;
 			let fac = secondsUntil < 2 ? 10 : 1;
-			hud.helpElement.textContent = `${game.clock.restartFrame === null ? 'Starting' : 'Restarting'} game in ${Math.trunc(secondsUntil * fac) / fac} seconds...`;
+			hud.helpElement.textContent = `Game ${game.clock.restartFrame === null ? 'starting' : 'restarting'} in ${Math.trunc(secondsUntil * fac) / fac} seconds...`;
 			hud.helpElement.style.opacity = '1';
 			hud.helpElement.style.filter = '';
 		} else {

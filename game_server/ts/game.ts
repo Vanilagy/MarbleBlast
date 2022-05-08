@@ -5,8 +5,11 @@ import { Util } from "./util";
 import { GAME_UPDATE_RATE } from '../../shared/constants';
 import { performance } from 'perf_hooks';
 import { LobbySettings } from "../../shared/types";
+import { Session } from "./session";
 
 const UPDATE_BUFFER_SIZE = 4 + 1; // In frames
+
+export const games: Game[] = [];
 
 interface BaseStateRequest {
 	entityId: number,
@@ -19,10 +22,12 @@ interface BaseStateRequest {
 }
 
 export class Game {
-	lobbySettings: LobbySettings;
-	sessions: string[];
-	running: string[] = [];
+	id = Util.uuid();
 	players: Player[] = [];
+
+	lobbySettings: LobbySettings;
+	lobbySessionIds: string[];
+	running = 0;
 
 	startTime: number;
 	lastAdvanceTime: number;
@@ -41,11 +46,11 @@ export class Game {
 	baseStateRequests: BaseStateRequest[] = [];
 	maxReceivedBaseStateFrame = -1;
 
-	constructor(lobbySettings: LobbySettings, sessions: string[]) {
+	constructor(lobbySettings: LobbySettings, lobbySessionIds: string[]) {
 		this.lobbySettings = lobbySettings;
-		this.sessions = sessions;
+		this.lobbySessionIds = lobbySessionIds;
 
-		console.log(`GAME CREATED!`, lobbySettings);
+		console.log(`GAME CREATED!`, this.id, lobbySettings);
 
 		this.start();
 	}
@@ -55,16 +60,15 @@ export class Game {
 		this.lastAdvanceTime = this.startTime;
 	}
 
-	addPlayer(connection: GameServerConnection, sessionId: string) {
-		// todo: Add all the players at the start of game creation and automatically schedule a restart incase some idiot doesn't connect
+	addPlayer(session: Session) {
+		// todo: Add all the players at the start of game creation and automatically schedule a restart in case some idiot doesn't connect
 
 		let playerId = -(1 + this.players.length * 3);
 		let marbleId = -(1 + this.players.length * 3 + 1);
 		let checkpointStateId = -(1 + this.players.length * 3 + 2);
 
 		let player = new Player(
-			connection,
-			sessionId,
+			session,
 			this,
 			playerId,
 			marbleId,
@@ -74,13 +78,13 @@ export class Game {
 
 		//connection.addedOneWayLatency = 25;
 
-		connection.queueCommand({
+		session.connection.queueCommand({
 			command: 'gameJoinInfo',
 			serverFrame: this.frame,
 			clientFrame: this.frame + UPDATE_BUFFER_SIZE, // No better guess yet
 			players: this.players.map(x => ({
 				id: x.id,
-				sessionId: x.sessionId,
+				sessionId: x.session.id,
 				marbleId: x.marbleId,
 				checkpointStateId: x.checkpointStateId
 			})),
@@ -91,77 +95,23 @@ export class Game {
 			}))*/
 		}, Reliability.Urgent);
 
-		connection.on('clientStateBundle', data => {
-			this.queuedPlayerBundles.push([player, data]);
-		});
-
-		connection.on('ping', ({ timestamp }) => {
-			let now = performance.now();
-			this.pendingPings.get(player).set(timestamp, now);
-		});
-
-		connection.on('running', () => {
-			this.running.push(sessionId);
-			if (this.running.length === this.sessions.length) {
-				for (let player of this.players) {
-					player.connection.queueCommand({
-						command: 'scheduleRestart',
-						frame: this.frame + 5 * GAME_UPDATE_RATE
-					}, Reliability.Urgent);
-				}
-			}
-		});
-
-		connection.on('restartIntent', () => {
-			player.hasRestartIntent = true;
-
-			for (let otherPlayer of this.players) {
-				if (player === otherPlayer) continue;
-
-				otherPlayer.connection.queueCommand({
-					command: 'playerRestartIntentState',
-					playerId: player.id,
-					state: true
-				}, Reliability.Urgent);
-			}
-
-			let quota = this.players.filter(x => x.hasRestartIntent).length / this.players.length;
-			if (quota >= 0.75) {
-				for (let player of this.players) {
-					player.hasRestartIntent = false; // todo probably set this when the actual respawn happens here
-					player.connection.queueCommand({
-						command: 'scheduleRestart',
-						frame: this.frame + 2 * GAME_UPDATE_RATE
-					}, Reliability.Urgent);
-				}
-			}
-		});
-
-		connection.on('sendTextMessage', data => {
-			if (data.body.length > 250) return;
-
-			for (let otherPlayer of this.players) {
-				if (player === otherPlayer) continue;
-
-				otherPlayer.connection.queueCommand({
-					command: 'textMessage',
-					playerId: player.id,
-					body: data.body
-				}, Reliability.Relaxed);
-			}
-		});
-
 		for (let otherPlayer of this.players) {
 			if (otherPlayer === player) continue;
 
-			otherPlayer.connection.queueCommand({
+			otherPlayer.session.connection.queueCommand({
 				command: 'playerJoin',
 				id: player.id,
-				sessionId: player.sessionId,
+				sessionId: player.session.id,
 				marbleId: player.marbleId,
 				checkpointStateId: player.checkpointStateId
 			}, Reliability.Urgent);
 		}
+
+		return player;
+	}
+
+	removePlayer(player: Player) {
+		Util.filterInPlace(this.players, x => x !== player);
 	}
 
 	tryAdvanceGame() {
@@ -213,7 +163,7 @@ export class Game {
 			}
 
 			// Queue the ting
-			player.connection.queueCommand({
+			player.session.connection.queueCommand({
 				command: 'serverStateBundle',
 				serverFrame: this.frame,
 				entityUpdates: player.queuedEntityUpdates,
@@ -226,7 +176,7 @@ export class Game {
 		for (let player of this.players) {
 			for (let [timestamp, receiveTime] of this.pendingPings.get(player)) {
 				let elapsed = now - receiveTime;
-				player.connection.queueCommand({
+				player.session.connection.queueCommand({
 					command: 'pong',
 					timestamp,
 					subtract: elapsed
@@ -237,13 +187,13 @@ export class Game {
 			while (player.estimatedRttHistory.length > 45) player.estimatedRttHistory.shift();
 			let rtt = Util.percentile(player.estimatedRttHistory, 0.1);
 
-			player.connection.queueCommand({
+			player.session.connection.queueCommand({
 				command: 'timeState',
 				serverFrame: this.frame,
 				targetFrame: this.frame + rtt + UPDATE_BUFFER_SIZE
 			}, Reliability.Unreliable);
 
-			player.connection.tick();
+			player.session.connection.tick();
 		}
 
 		// Remove past updates / edges if we know all players are past their ID to not explode memory
@@ -355,12 +305,62 @@ export class Game {
 			}
 		}
 	}
+
+	onPlayerRunning(player: Player) {
+		this.running++;
+
+		if (this.running === this.lobbySessionIds.length) {
+			for (let player of this.players) {
+				player.session.connection.queueCommand({
+					command: 'scheduleRestart',
+					frame: this.frame + 5 * GAME_UPDATE_RATE
+				}, Reliability.Urgent);
+			}
+		}
+	}
+
+	onPlayerRestartIntent(player: Player) {
+		player.hasRestartIntent = true;
+
+		for (let otherPlayer of this.players) {
+			if (player === otherPlayer) continue;
+
+			otherPlayer.session.connection.queueCommand({
+				command: 'playerRestartIntentState',
+				playerId: player.id,
+				state: true
+			}, Reliability.Urgent);
+		}
+
+		let quota = this.players.filter(x => x.hasRestartIntent).length / this.players.length;
+		if (quota >= 0.75) {
+			for (let player of this.players) {
+				player.hasRestartIntent = false; // todo probably set this when the actual respawn happens here
+				player.session.connection.queueCommand({
+					command: 'scheduleRestart',
+					frame: this.frame + 2 * GAME_UPDATE_RATE
+				}, Reliability.Urgent);
+			}
+		}
+	}
+
+	onPlayerSendTextMessage(player: Player, body: string) {
+		if (body.length > 250) return;
+
+		for (let otherPlayer of this.players) {
+			if (player === otherPlayer) continue;
+
+			otherPlayer.session.connection.queueCommand({
+				command: 'textMessage',
+				playerId: player.id,
+				body: body
+			}, Reliability.Relaxed);
+		}
+	}
 }
 
-class Player {
-	connection: GameServerConnection;
-	sessionId: string;
-
+export class Player {
+	session: Session;
 	game: Game;
 	id: number;
 	marbleId: number;
@@ -374,10 +374,8 @@ class Player {
 
 	hasRestartIntent = false;
 
-	constructor(connection: GameServerConnection, sessionId: string, game: Game, id: number, marbleId: number, checkpointStateId: number) {
-		this.connection = connection;
-		this.sessionId = sessionId;
-
+	constructor(session: Session, game: Game, id: number, marbleId: number, checkpointStateId: number) {
+		this.session = session;
 		this.game = game;
 		this.id = id;
 		this.marbleId = marbleId;
