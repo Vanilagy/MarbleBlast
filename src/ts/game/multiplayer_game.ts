@@ -41,6 +41,7 @@ export class MultiplayerGame extends Game {
 	connection: GameServerConnection;
 	lastServerTickTime: number = null;
 	lastServerStateBundle: CommandToData<"serverStateBundle"> = null;
+	awaitingGameStartResolve: () => void = null;
 
 	lastUpdateRate: number;
 
@@ -80,6 +81,8 @@ export class MultiplayerGame extends Game {
 			command: 'join',
 			gameId: this.id
 		}, Reliability.Urgent);
+
+		await new Promise<void>(resolve => this.awaitingGameStartResolve = resolve);
 	}
 
 	async onGameJoinInfo(data: CommandToData<'gameJoinInfo'>) {
@@ -107,6 +110,8 @@ export class MultiplayerGame extends Game {
 
 		Socket.send('loadingCompletion', 1);
 		this.connection.queueCommand({ command: 'running' }, Reliability.Urgent);
+
+		this.awaitingGameStartResolve();
 	}
 
 	tick() {

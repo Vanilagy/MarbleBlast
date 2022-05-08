@@ -57,7 +57,7 @@ export abstract class Hud {
 	abstract supportFpsMeter: boolean;
 
 	lastGemCount: string = null;
-	lastScoreboardHtml = '';
+	scoreboardRows: ScoreboardRow[] = [];
 	chatMessageStartTimes = new WeakMap<Element, number>();
 
 	helpMessages: {
@@ -169,7 +169,7 @@ export abstract class Hud {
 
 		if (G.game.type === 'singleplayer') this.scoreboard.style.display = 'none';
 		else this.scoreboard.style.display = '';
-		this.lastScoreboardHtml = '';
+		this.scoreboardRows.length = 0;
 
 		this.chatContainer.style.display = G.game.type === 'singleplayer' ? 'none' : '';
 		this.chatMessageContainer.innerHTML = '';
@@ -383,35 +383,26 @@ export abstract class Hud {
 	}
 
 	displayScoreboard() {
-		if (G.game.type === 'singleplayer') return;
-
-		let newHtml = '';
+		let updatedRows = new WeakSet<ScoreboardRow>();
 
 		for (let socket of G.lobby.sockets) {
-			let divHtml = '';
-
-			let rhsText: string;
-			if (G.game.clock.restartFrame === null) {
-				if (socket.loadingCompletion < 1) {
-					rhsText = Math.floor(socket.loadingCompletion * 100) + '%';
-				} else {
-					rhsText = '100% ✔';
-				}
-			} else {
-				rhsText = 'Playing';
+			let row = this.scoreboardRows.find(x => x.sessionId === socket.id);
+			if (!row) {
+				row = new ScoreboardRow(socket.id);
+				row.add();
+				this.scoreboardRows.push(row);
 			}
 
-			divHtml += `<span>${Util.htmlEscape(socket.name)}</span><span>${rhsText}</span>`;
-
-			let hasRestartIntent = G.game.players.some(x => x.sessionId === socket.id && x.hasRestartIntent);
-			if (hasRestartIntent) divHtml += `<img src="./assets/img/return.png">`;
-
-			newHtml += `<div>${divHtml}</div>`;
+			row.update();
+			updatedRows.add(row);
 		}
 
-		if (newHtml !== this.lastScoreboardHtml) {
-			this.scoreboard.innerHTML = newHtml;
-			this.lastScoreboardHtml = newHtml;
+		for (let i = 0; i < this.scoreboardRows.length; i++) {
+			let row = this.scoreboardRows[i];
+			if (!updatedRows.has(row)) {
+				row.remove();
+				this.scoreboardRows.splice(i--, 1);
+			}
 		}
 	}
 
@@ -460,5 +451,57 @@ export abstract class Hud {
 		if (message === 'MSG_RACETOTHEFINISH') message = "Race to the finish!";
 
 		return message;
+	}
+}
+
+class ScoreboardRow {
+	sessionId: string;
+	div: HTMLDivElement;
+	lhs: HTMLSpanElement;
+	rhs: HTMLSpanElement;
+	restartIntentIcon: HTMLImageElement;
+
+	constructor(sessionId: string) {
+		this.sessionId = sessionId;
+
+		this.div = document.createElement('div');
+
+		this.lhs = document.createElement('span');
+		this.rhs = document.createElement('span');
+
+		this.restartIntentIcon = document.createElement('img');
+		this.restartIntentIcon.src = "./assets/img/return.png";
+		this.restartIntentIcon.style.display = 'none';
+
+		this.div.append(this.lhs, this.rhs, this.restartIntentIcon);
+	}
+
+	update() {
+		let socket = G.lobby.sockets.find(x => x.id === this.sessionId);
+
+		let rhsText: string;
+		if (G.game.clock.restartFrame === null) {
+			if (socket.loadingCompletion < 1) {
+				rhsText = Math.floor(socket.loadingCompletion * 100) + '%';
+			} else {
+				rhsText = '100% ✔';
+			}
+		} else {
+			rhsText = 'Playing';
+		}
+
+		this.lhs.textContent = socket.name;
+		this.rhs.textContent = rhsText;
+
+		let hasRestartIntent = G.game.players.some(x => x.sessionId === socket.id && x.hasRestartIntent);
+		this.restartIntentIcon.style.display = hasRestartIntent ? '' : 'none';
+	}
+
+	add() {
+		G.menu.hud.scoreboard.appendChild(this.div);
+	}
+
+	remove() {
+		G.menu.hud.scoreboard.removeChild(this.div);
 	}
 }
