@@ -774,7 +774,7 @@ export class Marble extends Entity {
 		this.beforeVel.copy(this.body.linearVelocity);
 		this.beforeAngVel.copy(this.body.angularVelocity);
 
-		if (this.game.state.frame - this.respawnFrame < 3.5 * GAME_UPDATE_RATE) {
+		if (this.game.state.frame - this.game.clock.restartFrame < 3.5 * GAME_UPDATE_RATE) {
 			// Lock the marble to the space above the start pad
 
 			let { position: startPosition } = this.getStartPositionAndOrientation();
@@ -1352,6 +1352,7 @@ export class Marble extends Entity {
 
 	afterReconciliation() {
 		let frames = (this.game as MultiplayerGame).state.frameGap;
+		frames = Math.min(frames, 15);
 		if (this.interpolationRemaining > frames) return;
 
 		if (this.reconciliationPosition.distanceTo(this.body.position) === 0) return;

@@ -1,6 +1,7 @@
 import { Socket } from "../../../shared/socket";
 import { SocketCommands } from "../../../shared/socket_commands";
 import { G } from "../global";
+import { MissionLibrary } from "../mission_library";
 import { Lobby } from "../net/lobby";
 import { MbpMenu } from "./menu_mbp";
 
@@ -67,9 +68,29 @@ export class LobbySelectScreen {
 
 		for (let lobby of list) {
 			let div = document.createElement('div');
-			div.textContent = lobby.name;
+
+			let img = document.createElement('img');
+			let mission = MissionLibrary.allMissions.find(x => x.path === lobby.settings.missionPath);
+			img.src = mission.getImagePath();
+			img.title = mission.title;
+
+			let topText = document.createElement('p');
+			topText.textContent = lobby.name;
+
+			let bottomText = document.createElement('p');
+			bottomText.innerHTML = `<span style="color: #e5a8ff">Co-op</span>  |  ${lobby.socketCount} Player${lobby.socketCount === 1 ? '' : 's'}`;
+
+			let statusText = document.createElement('p');
+			statusText.textContent = lobby.status === 'idle' ? 'Waiting' : 'In-Game';
+			if (lobby.status === 'playing') statusText.style.color = '#ffa966';
+
+			div.append(img, topText, bottomText, statusText);
 
 			div.addEventListener('click', () => {
+				if (lobby.status === 'playing') {
+					alert("Cannot join ongoing games right now.");
+					return;
+				}
 				Socket.send('joinLobbyRequest', lobby.id);
 			});
 

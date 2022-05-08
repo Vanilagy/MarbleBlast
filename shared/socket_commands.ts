@@ -63,7 +63,10 @@ export type SocketCommands = {
 
 	lobbyList: {
 		id: string,
-		name: string
+		name: string,
+		settings: LobbySettings,
+		socketCount: number,
+		status: 'idle' | 'playing'
 	}[],
 	subscribeToLobbyList: null,
 	unsubscribeFromLobbyList: null,

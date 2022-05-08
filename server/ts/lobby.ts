@@ -37,13 +37,16 @@ export class Lobby {
 			name: this.name,
 			settings: this.settings
 		});
+
 		this.sendSocketList();
+		onLobbiesChanged();
 	}
 
 	leave(socket: Socket) {
 		this.sockets = this.sockets.filter(x => x !== socket);
 
 		this.sendSocketList();
+		onLobbiesChanged();
 	}
 
 	sendSocketList() {
@@ -67,6 +70,8 @@ export class Lobby {
 
 			socket.send('lobbySettingsChange', this.settings);
 		}
+
+		onLobbiesChanged();
 	}
 
 	sendTextMessage(sender: Socket, messageBody: string) {
@@ -106,6 +111,8 @@ export class Lobby {
 			lobbySettings: this.settings,
 			sessions: this.sockets.map(x => x.sessionId)
 		});
+
+		onLobbiesChanged();
 
 		// And now we wait for confirmation from the game server.
 	}
@@ -148,7 +155,10 @@ const createLobbyList = () => {
 	for (let lobby of lobbies) {
 		list.push({
 			id: lobby.id,
-			name: lobby.name
+			name: lobby.name,
+			settings: lobby.settings,
+			socketCount: lobby.sockets.length,
+			status: lobby.inGame? 'playing' : 'idle'
 		});
 	}
 
