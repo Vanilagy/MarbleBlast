@@ -236,8 +236,6 @@ export abstract class Game {
 		G.menu.hideGameUi();
 		G.menu.show();
 
-		G.menu.lobbyScreen.show();
-
 		document.exitPointerLock?.();
 	}
 

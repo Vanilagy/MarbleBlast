@@ -9,6 +9,7 @@ import { Marble } from "../marble";
 import { Mission } from "../mission";
 import { Connectivity } from "../net/connectivity";
 import { GameServer } from "../net/game_server";
+import { MbpMenu } from "../ui/menu_mbp";
 import { Util } from "../util";
 import { Entity } from "./entity";
 import { Game } from "./game";
@@ -288,5 +289,17 @@ export class MultiplayerGame extends Game {
 		this.connection.onOutgoingPacket = null;
 
 		this.connection.queueCommand({ command: 'leave' }, Reliability.Urgent);
+	}
+
+	async stopAndExit() {
+		let confirmed = await G.menu.showConfirmPopup("Leave game", "Are you sure you want to leave this multiplayer game? You will also leave the lobby by doing so.");
+
+		if (!confirmed) return;
+
+		super.stopAndExit();
+
+		G.lobby.leave();
+		G.menu.levelSelect.hide();
+		(G.menu as MbpMenu).lobbySelectScreen.show();
 	}
 }
