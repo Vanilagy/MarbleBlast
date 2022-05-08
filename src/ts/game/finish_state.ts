@@ -61,6 +61,7 @@ export class FinishState extends Entity {
 			}
 
 			if (!finishIsLegal) {
+				// Todo: In multiplayer, if the game doesn't restart automatically, the players should be able to pause and restart. Pause usually doesn't work tho when the finish state is set
 				this.playCosmeticEffects(endPad);
 				return;
 			}
