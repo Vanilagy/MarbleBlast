@@ -54,7 +54,6 @@ export const entityStateFormat = [union, 'entityType', {
 	entityType: 'pathedInterior',
 	currentTime: 'f64',
 	targetTime: 'f64',
-	changeTime: 'f64'
 }, {
 	entityType: 'gem',
 	pickedUpBy: [nullable, 'varint'],

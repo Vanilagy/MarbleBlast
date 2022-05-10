@@ -12,6 +12,7 @@ export abstract class Entity {
 	applyUpdatesBeforeAdvance = false;
 	sendAllUpdates = false;
 	affectedBy = new Set<Player>();
+	restartable = false;
 
 	stateNeedsStore = false;
 	internalStateNeedsStore = true; // Start out true so we store it once in the beninging... in the... in the beni... in the beninging (listen properly)
@@ -39,7 +40,11 @@ export abstract class Entity {
 
 	getState(): EntityState { return null; }
 	getInitialState(): EntityState { return null; }
-	loadState(state: EntityState, meta: { frame: number, remote: boolean }) {}
+	loadState(state: EntityState, meta: { frame: number, remote: boolean }) {} // Todo: Define / write down somewhere that "remote" means that its a new update that came from the outside. If the same update is applied again later in a rewinding step, remote becomes false.
+
+	restart(frame: number) {
+		this.loadState(this.getInitialState(), { frame, remote: false });
+	}
 
 	getInternalState(): any { return null; }
 	loadInternalState(state: any, frame: number) {}

@@ -14,6 +14,8 @@ import { Game } from "./game";
 type FinishStateState = EntityState & { entityType: 'finishState' };
 
 export class FinishState extends Entity {
+	restartable = true;
+
 	finished = false;
 	frame: number = null;
 	time: number = null;
@@ -29,7 +31,7 @@ export class FinishState extends Entity {
 		if (this.finished) return;
 
 		let endPad = Util.findLast(this.game.shapes, (shape) => shape instanceof EndPad) as EndPad;
-		let gemCount = this.game.shapes.filter(x => x instanceof Gem && !x.pickupable).length;
+		let gemCount = this.game.shapes.filter(x => x instanceof Gem && x.pickedUpBy).length;
 
 		if (gemCount < this.game.totalGems) {
 			AudioManager.play('missinggems.wav', undefined, undefined, endPad?.worldPosition);
@@ -98,11 +100,6 @@ export class FinishState extends Entity {
 		G.menu.hud.displayAlert(() => "Congratulations! You've finished!", this.game.state.frame);
 	}
 
-	reset() {
-		this.loadState(this.getInitialState());
-		this.stateNeedsStore = true;
-	}
-
 	getState(): FinishStateState {
 		return {
 			entityType: 'finishState',
@@ -123,11 +120,19 @@ export class FinishState extends Entity {
 		};
 	}
 
-	loadState(state: FinishStateState) {
+	loadState(state: FinishStateState, { remote }: { remote: boolean }) {
+		if (remote) console.trace(state, remote);
+
 		this.finished = state.finishFrame !== null;
 		this.frame = state.finishFrame;
 		this.time = state.finishTime;
 		this.elapsedTime = state.finishElapsedTime;
+		this.isLegal = state.isLegal;
+
+		if (remote && this.finished && this.isLegal) {
+			let endPad = Util.findLast(this.game.shapes, (shape) => shape instanceof EndPad) as EndPad;
+			this.finish(endPad);
+		}
 	}
 
 	update() {}

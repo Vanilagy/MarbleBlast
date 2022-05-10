@@ -171,7 +171,7 @@ export class GameServer {
 			let game = G.game as MultiplayerGame;
 			if (!game) return;
 
-			game.state.scheduledRestartFrame = data.frame;
+			Util.insertSorted(game.state.restartFrames, data.frame, (a, b) => a - b);
 		});
 
 		this.connection.on('playerRestartIntentState', data => {

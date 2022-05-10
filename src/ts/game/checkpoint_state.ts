@@ -20,6 +20,7 @@ interface InternalCheckpointStateState {
 }
 
 export class CheckpointState extends Entity {
+	restartable = true;
 	marble: Marble;
 
 	/** Stores the shape that is the destination of the current checkpoint. */
@@ -163,11 +164,6 @@ export class CheckpointState extends Entity {
 			this.scheduledPickUpFrame = null;
 			this.internalStateNeedsStore = true;
 		}
-	}
-
-	reset() {
-		this.loadState(this.getInitialState());
-		this.stateNeedsStore = true;
 	}
 
 	render() {}

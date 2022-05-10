@@ -13,6 +13,7 @@ export type PowerUpState = EntityState & { entityType: 'powerUp' | 'randomPowerU
 
 /** Powerups can be collected and used by the player for bonus effects. */
 export abstract class PowerUp extends Shape {
+	restartable = true;
 	element: MissionElementItem;
 	/** Reappears after this time. */
 	cooldownDuration: number = DEFAULT_COOLDOWN_DURATION;
@@ -37,7 +38,7 @@ export abstract class PowerUp extends Shape {
 	}
 
 	get pickupable() {
-		return this.game.state.frame - this.pickUpFrame >= this.cooldownDuration * GAME_UPDATE_RATE || this.game.clock.restartFrame > this.pickUpFrame;
+		return this.game.state.frame - this.pickUpFrame >= this.cooldownDuration * GAME_UPDATE_RATE;
 	}
 
 	onMarbleInside(t: number, marble: Marble) {
@@ -75,7 +76,7 @@ export abstract class PowerUp extends Shape {
 		super.render();
 
 		let opacity = 1;
-		if (this.pickUpFrame >= this.game.clock.restartFrame && this.cooldownDuration > 0) {
+		if (this.cooldownDuration > 0) {
 			let availableTime = this.pickUpFrame / GAME_UPDATE_RATE + this.cooldownDuration;
 			opacity = Util.clamp(this.game.state.time - availableTime, 0, 1);
 		}

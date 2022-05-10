@@ -9,6 +9,8 @@ import { Quaternion } from "./math/quaternion";
 import { Game } from "./game/game";
 import { GAME_UPDATE_RATE } from "../../shared/constants";
 import { EntityState } from "../../shared/game_server_format";
+import { Marble } from "./marble";
+import { Collision } from "./physics/collision";
 
 let v1 = new Vector3();
 let m1 = new Matrix4();
@@ -29,6 +31,7 @@ interface InternalPathedInteriorState {
 
 /** Represents a Torque 3D Pathed Interior moving along a set path. */
 export class PathedInterior extends Interior {
+	restartable = true;
 	path: MissionElementPath;
 	markerData: MarkerData[];
 	simGroup: MissionElementSimGroup;
@@ -254,6 +257,11 @@ export class PathedInterior extends Interior {
 		return dst;
 	}
 
+	onMarbleContact(collision: Collision, dt: number, marble: Marble): void {
+		super.onMarbleContact(collision, dt, marble);
+		this.affect(marble);
+	}
+
 	render() {
 		let transform = this.getTransformAtTime(m1, this.getInternalTime(this.game.state.time));
 
@@ -273,15 +281,13 @@ export class PathedInterior extends Interior {
 		return {
 			entityType: 'pathedInterior',
 			currentTime: this.currentTime,
-			targetTime: this.targetTime,
-			changeTime: this.changeTime
+			targetTime: this.targetTime
 		};
 	}
 
 	getInitialState(): PathedInteriorState {
 		let currentTime = 0;
 		let targetTime = 0;
-		let changeTime = 0;
 
 		if (this.element.initialposition) {
 			currentTime = MisParser.parseNumber(this.element.initialposition);
@@ -296,15 +302,14 @@ export class PathedInterior extends Interior {
 		return {
 			entityType: 'pathedInterior',
 			currentTime,
-			targetTime,
-			changeTime
+			targetTime
 		};
 	}
 
-	loadState(state: PathedInteriorState) {
+	loadState(state: PathedInteriorState, { frame }: { frame: number }) {
 		this.currentTime = state.currentTime;
 		this.targetTime = state.targetTime;
-		this.changeTime = state.changeTime;
+		this.changeTime = 1000 * frame / GAME_UPDATE_RATE;
 
 		// Set the position
 		let transform = this.getTransformAtTime(m1, this.getInternalTime(this.game.state.time));

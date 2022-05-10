@@ -1,17 +1,10 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { DefaultMap } from "../../../shared/default_map";
 import { EntityUpdate } from "../../../shared/game_server_format";
-import { AudioManager } from "../audio";
-import { Euler } from "../math/euler";
-import { Vector3 } from "../math/vector3";
-import { MissionElementSimGroup, MissionElementTrigger, MisParser } from "../parsing/mis_parser";
-import { StartPad } from "../shapes/start_pad";
 import { G } from "../global";
 import { Util } from "../util";
 import { Game } from "./game";
 import { Entity } from "./entity";
-import { PowerUp } from "../shapes/power_up";
-import { PathedInterior } from "../pathed_interior";
 
 interface AffectionEdge {
 	id: number,
@@ -30,7 +23,18 @@ export class GameState {
 
 	frame = -1;
 	maxFrame = -1;
-	scheduledRestartFrame: number = null;
+	restartFrames: number[] = [];
+
+	get lastRestartFrame() {
+		let restartFrame: number = null;
+
+		for (let i = 0; i < this.restartFrames.length; i++) {
+			if (this.restartFrames[i] > this.frame) break;
+			restartFrame = this.restartFrames[i];
+		}
+
+		return restartFrame;
+	}
 
 	get time() {
 		return (this.frame + this.subframeCompletion) / GAME_UPDATE_RATE;
@@ -72,19 +76,12 @@ export class GameState {
 		propagate(e2);
 	}
 
-	restart() {
+	restart(frame: number) {
 		let { game } = this;
 
-		game.clock.restart();
-		game.finishState.reset();
-		for (let marble of game.marbles) marble.respawn(true);
-
-		for (let interior of game.interiors) {
-			if (!(interior instanceof PathedInterior)) continue;
-
-			let state = interior.getInitialState();
-			state.changeTime = 1000 * this.time;
-			interior.loadState(state);
+		for (let entity of game.entities) {
+			if (!entity.restartable) continue;
+			entity.restart(frame);
 		}
 
 		for (let player of game.players) {
@@ -125,6 +122,18 @@ export class GameState {
 		}
 	}
 
+	getLastEntityUpdate(entity: Entity, upToFrame: number) {
+		let history = this.stateHistory.get(entity.id);
+		let update = history && Util.findLast(history, x => x.frame <= upToFrame);
+		if (!update) update = this.createInitialUpdate(entity);
+		if (entity.restartable && update.frame < this.lastRestartFrame) {
+			update = this.createInitialUpdate(entity);
+			update.frame = this.lastRestartFrame;
+		}
+
+		return update;
+	}
+
 	rollBackToFrame(target: number) {
 		if (target === this.frame) return;
 		this.frame = target;
@@ -146,7 +155,6 @@ export class GameState {
 				history.pop();
 				popped = true;
 			}
-
 			if (!popped) continue;
 
 			let entity = this.game.getEntityById(entityId);
@@ -172,13 +180,12 @@ export class GameState {
 
 		if (!popped) return;
 
-		let update = Util.last(history);
-		let state = update?.state ?? entity.getInitialState();
-
+		let update = this.getLastEntityUpdate(entity, frame);
+		let state = update.state ?? entity.getInitialState();
 		if (!state) return;
 
 		entity.loadState(state, {
-			frame: update?.frame ?? 0,
+			frame: update.frame,
 			remote: false
 		});
 	}
@@ -187,7 +194,7 @@ export class GameState {
 		return {
 			updateId: -1,
 			entityId: entity.id,
-			frame: -1,
+			frame: 0,
 			state: null
 		};
 	}

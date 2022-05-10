@@ -12,6 +12,7 @@ export class GameSimulator {
 	advanceTimes: number[] = [];
 	nonDuplicatableEventFrames = new DefaultMap<string, number>(() => -1);
 	isReconciling = false;
+	maxExecutedRestartFrame = -Infinity;
 
 	constructor(game: Game) {
 		this.game = game;
@@ -29,8 +30,9 @@ export class GameSimulator {
 		game.state.frame++;
 		game.state.maxFrame = Math.max(game.state.frame, game.state.maxFrame);
 
-		if (game.state.scheduledRestartFrame === game.state.frame) {
-			game.state.restart();
+		if (game.state.restartFrames.includes(game.state.frame)) {
+			game.state.restart(game.state.frame);
+			this.maxExecutedRestartFrame = Math.max(game.state.frame, this.maxExecutedRestartFrame);
 		}
 
 		for (let entity of game.entities) entity.update();

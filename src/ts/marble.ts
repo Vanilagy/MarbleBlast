@@ -120,6 +120,8 @@ export interface MarbleControlState {
 }
 
 export class Marble extends Entity {
+	restartable = true;
+
 	group: Group;
 	innerGroup: Group;
 	sphere: Mesh;
@@ -417,19 +419,21 @@ export class Marble extends Entity {
 	}
 
 	getInitialState(): MarbleState {
-		// todo this is NOT a correct initial state is it?
+		let { position } = this.getStartPositionAndOrientation();
+
 		return {
 			entityType: 'marble',
-			position: this.body.position.clone(),
-			orientation: this.body.orientation.clone(),
-			linearVelocity: this.body.linearVelocity.clone(),
-			angularVelocity: this.body.angularVelocity.clone(),
+			position: position,
+			orientation: this.body.orientation.clone(), // Todo: Is this fine?
+			linearVelocity: new Vector3(),
+			angularVelocity: new Vector3(),
 			extras: {}
 		};
 	}
 
 	loadState(state: MarbleState, { remote }: { remote: boolean }) {
 		//if (!this.addedToGame && remote) this.addToGame();
+		//if (remote) return;
 
 		this.body.position.fromObject(state.position);
 		this.body.orientation.fromObject(state.orientation);
@@ -480,7 +484,6 @@ export class Marble extends Entity {
 			this.goOutOfBounds(state.extras.outOfBoundsFrame);
 		this.outOfBoundsFrame = state.extras.outOfBoundsFrame ?? null;
 
-		// todo: sound stuff
 		this.teleportStates = (state.extras.teleportStates ?? []).map(x => ({
 			trigger: this.game.getEntityById(x.trigger) as TeleportTrigger,
 			entryFrame: x.entryFrame,
@@ -525,7 +528,8 @@ export class Marble extends Entity {
 		this.stateNeedsStore = true;
 		this.internalStateNeedsStore = true;
 
-		this.controllingPlayer?.applyControlState();
+		if (this.controllingPlayer)
+			this.currentControlState = this.controllingPlayer.controlState;
 
 		if (
 			this.outOfBoundsFrame !== null &&
@@ -533,8 +537,10 @@ export class Marble extends Entity {
 			!(this.game.finishState.finished && this.game.finishState.isLegal)
 		) {
 			// Respawn the marble two seconds after having gone out of bounds
-			if (this.game.type === 'singleplayer' && !this.checkpointState.currentCheckpoint) this.game.state.scheduledRestartFrame = this.game.state.frame + 1;
-			else this.respawn(false);
+			if (this.game.type === 'singleplayer' && !this.checkpointState.currentCheckpoint)
+				this.game.state.restartFrames.push(this.game.state.frame + 1);
+			else
+				this.respawn(false);
 		}
 
 		let reconciling = this.game.simulator.isReconciling;
@@ -774,7 +780,7 @@ export class Marble extends Entity {
 		this.beforeVel.copy(this.body.linearVelocity);
 		this.beforeAngVel.copy(this.body.angularVelocity);
 
-		if (this.game.state.frame - this.game.clock.restartFrame < 3.5 * GAME_UPDATE_RATE) {
+		if (this.game.state.frame - this.game.state.lastRestartFrame < 3.5 * GAME_UPDATE_RATE) {
 			// Lock the marble to the space above the start pad
 
 			let { position: startPosition } = this.getStartPositionAndOrientation();
@@ -1242,68 +1248,44 @@ export class Marble extends Entity {
 		this.forcefield.group.recomputeTransform();
 	}
 
-	respawn(ignoreCheckpointState: boolean) {
+	restart(frame: number) {
+		super.restart(frame);
+
+		this.slidingTimeout = 0;
+		this.lastContactNormal.set(0, 0, 0);
+		this.setUp(new Vector3(0, 0, 1), true);
+		this.cancelInterpolation();
+
 		if (!this.addedToGame) this.addToGame();
 
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play('spawn.wav', undefined, undefined, this.body.position);
+		}, `${this.id}respawnSound`, true);
+
+		G.menu.hud.displayHelp(() => {
+			if (this.controllingPlayer !== this.game.localPlayer) return null;
+			return this.game.mission.missionInfo.starthelptext ?? null;
+		}, this.game.state.frame, false);
+	}
+
+	respawn(ignoreCheckpointState: boolean) {
 		if (this.checkpointState.currentCheckpoint && !ignoreCheckpointState) {
 			// There's a checkpoint, so load its state instead
 			this.checkpointState.load();
 			return;
 		}
 
-		this.checkpointState.reset();
-		this.affect(this.checkpointState);
-
 		// Unpickup all gems picked up by this marble
-		for (let shape of this.game.shapes) {
-			if (!(shape instanceof Gem)) continue;
-			if (shape.pickedUpBy === this) {
-				shape.pickDown();
-				this.affect(shape);
+		for (let gem of this.game.shapes) {
+			if (!(gem instanceof Gem)) continue;
+			if (gem.pickedUpBy === this) {
+				gem.pickDown();
+				this.affect(gem);
 			}
 		}
 
-		let { position: startPosition, euler } = this.getStartPositionAndOrientation();
-
-		// Place the marble a bit above the start pad position
-		this.body.position.copy(startPosition);
-		this.group.position.copy(this.body.position);
-		this.group.recomputeTransform();
-		this.body.linearVelocity.setScalar(0);
-		this.body.angularVelocity.setScalar(0);
-		this.superBounceEnableFrame = -Infinity;
-		this.shockAbsorberEnableFrame = -Infinity;
-		this.helicopterEnableFrame = -Infinity;
-		this.megaMarbleEnableFrame = -Infinity;
-		this.teleportEnableTime = null;
-		this.teleportDisableTime = null;
-		this.lastContactNormal.set(0, 0, 0);
-		this.beforeVel.set(0, 0, 0);
-		this.beforeAngVel.set(0, 0, 0);
-		this.slidingTimeout = 0;
-		this.predictedPosition.copy(this.body.position);
-		this.predictedOrientation.copy(this.body.orientation);
-		this.setRadius(this.game.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
-		this.setUp(new Vector3(0, 0, 1), true);
-		this.calculatePredictiveTransforms();
-		this.respawnFrame = this.game.state.frame;
-		this.outOfBoundsFrame = null;
-		this.inFinishState = false;
-		this.cancelInterpolation();
-
-		this.game.simulator.executeNonDuplicatableEvent(() => {
-			AudioManager.play('spawn.wav', undefined, undefined, this.body.position);
-		}, `${this.id}respawnSound`, true);
-
-		if (this.controllingPlayer) {
-			this.controllingPlayer.pitch = DEFAULT_PITCH;
-			this.controllingPlayer.yaw = DEFAULT_YAW + euler.z;
-		}
-
-		G.menu.hud.displayHelp(() => {
-			if (this.controllingPlayer !== this.game.localPlayer) return null;
-			return this.game.mission.missionInfo.starthelptext ?? null;
-		}, this.game.state.frame, false);
+		this.restart(this.game.state.frame);
+		this.controllingPlayer?.restart();
 	}
 
 	/** Gets the position and orientation of the player spawn point. */
@@ -1352,9 +1334,9 @@ export class Marble extends Entity {
 
 	afterReconciliation() {
 		let frames = (this.game as MultiplayerGame).state.frameGap;
-		frames = Math.min(frames, 15);
-		if (this.interpolationRemaining > frames) return;
+		frames = Math.max(frames, 20); // 20 is totally fine as lower bound, still looks good
 
+		if (this.interpolationRemaining > frames) return;
 		if (this.reconciliationPosition.distanceTo(this.body.position) === 0) return;
 
 		this.interpolationRemaining = frames;

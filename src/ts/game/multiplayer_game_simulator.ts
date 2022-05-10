@@ -92,6 +92,12 @@ export class MultiplayerGameSimulator extends GameSimulator {
 
 			this.clearLocallyPredictedUpdates(reconciliationUpdates);
 
+			// Execute any restarts we missed
+			if (state.lastRestartFrame > this.maxExecutedRestartFrame) {
+				state.restart(state.lastRestartFrame);
+				this.maxExecutedRestartFrame = state.lastRestartFrame;
+			}
+
 			// Apply the oldest updates first
 			this.applyReconciliationUpdates(reconciliationUpdates, true);
 

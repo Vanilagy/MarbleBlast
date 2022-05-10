@@ -718,7 +718,7 @@ export abstract class Util {
 	}
 
 	static assert(bool: boolean) {
-		if (!bool) throw new Error("Assertion failed: " + bool);
+		if (!bool) throw new Error("Assertion failed.");
 	}
 
 	static getBoxVertices(box: Box3) {

@@ -251,10 +251,7 @@ export class MultiplayerGame extends Game {
 			// It is fine to only look at the last server bundle
 			for (let id of this.lastServerStateBundle.baseStateRequests) {
 				// Get the update closest to the last-received server frame
-				let history = this.state.stateHistory.get(id);
-				let update = Util.findLast(history, x => x.frame <= baseState.frame);
-				if (!update) update = this.state.createInitialUpdate(this.getEntityById(id));
-
+				let update = this.state.getLastEntityUpdate(this.getEntityById(id), baseState.frame);
 				baseState.updates.push(update);
 			}
 
@@ -297,7 +294,7 @@ export class MultiplayerGame extends Game {
 	}
 
 	async stopAndExit() {
-		let confirmed = await G.menu.showConfirmPopup("Leave game", "Are you sure you want to leave this multiplayer game? You will also leave the lobby by doing so.");
+		let confirmed = await G.menu.showConfirmPopup("Leave Game and Lobby", "Are you sure you want to leave this multiplayer game? You will also leave the lobby by doing so.");
 
 		if (!confirmed) return;
 

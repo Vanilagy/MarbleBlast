@@ -122,8 +122,12 @@ export abstract class Hud {
 		});
 
 		window.addEventListener('keydown', e => {
-			if (!(!this.menu.gameUiDiv.classList.contains('hidden') && document.activeElement !== this.chatInput))
+			if (!(!this.menu.gameUiDiv.classList.contains('hidden') &&
+				document.activeElement !== this.chatInput &&
+				G.menu.finishScreen.div.classList.contains('hidden'))
+			) {
 				return;
+			}
 
 			if (e.code === 'Enter') {
 				e.stopPropagation();
@@ -480,7 +484,7 @@ class ScoreboardRow {
 		let socket = G.lobby.sockets.find(x => x.id === this.sessionId);
 
 		let rhsText: string;
-		if (G.game.clock.restartFrame === null) {
+		if (G.game.state.lastRestartFrame === null) {
 			if (socket.loadingCompletion < 1) {
 				rhsText = Math.floor(socket.loadingCompletion * 100) + '%';
 			} else {

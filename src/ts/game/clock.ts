@@ -12,16 +12,17 @@ type ClockState = EntityState & { entityType: 'clock' };
 
 interface InternalClockState {
 	time: number,
+	elapsedTime: number,
 	timeTravelBonus: number
 }
 
 export const MAX_TIME = 999 * 60 + 59 + 0.999; // 999:59.99, should be large enough
 
 export class Clock extends Entity {
+	restartable = true;
 	time = 0;
 	elapsedTime = 0;
 	timeTravelBonus = 0;
-	restartFrame: number = null; // Todo: Does it make sense to store this in the clock?
 	updateOrder = -1;
 	timeTravelSound: AudioSource = null;
 	alarmSound: AudioSource = null;
@@ -33,14 +34,14 @@ export class Clock extends Entity {
 	}
 
 	update() {
-		this.advanceTime();
+		this.advanceTime(this.game.state.frame);
 
 		this.internalStateNeedsStore = true;
 
 		if (this.game.simulator.isReconciling) return;
 
-		if (this.restartFrame !== null) {
-			let timeSinceRestart = (this.game.state.frame - this.restartFrame) / GAME_UPDATE_RATE;
+		if (this.game.state.lastRestartFrame !== null) {
+			let timeSinceRestart = (this.game.state.frame - this.game.state.lastRestartFrame) / GAME_UPDATE_RATE;
 
 			if (timeSinceRestart === READY_TIME) AudioManager.play('ready.wav');
 			if (timeSinceRestart === SET_TIME) AudioManager.play('set.wav');
@@ -83,8 +84,8 @@ export class Clock extends Entity {
 		}
 	}
 
-	advanceTime() {
-		if (this.restartFrame === null || this.game.state.frame - this.restartFrame < GO_TIME * GAME_UPDATE_RATE)
+	advanceTime(currentFrame: number) {
+		if (this.game.state.lastRestartFrame === null || currentFrame - this.game.state.lastRestartFrame < GO_TIME * GAME_UPDATE_RATE)
 			return;
 
 		if (this.timeTravelBonus > 0) {
@@ -115,18 +116,9 @@ export class Clock extends Entity {
 
 		this.timeTravelBonus += bonus;
 
-		this.stateNeedsStore = true;
-	}
-
-	restart() {
-		this.time = 0;
-		this.elapsedTime = 0;
-		this.timeTravelBonus = 0;
-		this.restartFrame = this.game.state.frame;
-
-		// todo see if we really need this
-		for (let entity of this.game.shapes.filter(x => x instanceof Gem || x instanceof PowerUp)) {
-			this.affect(entity);
+		if (this.timeTravelBonus < 0) {
+			this.time -= this.timeTravelBonus;
+			this.timeTravelBonus = 0;
 		}
 
 		this.stateNeedsStore = true;
@@ -183,20 +175,22 @@ export class Clock extends Entity {
 		this.timeTravelBonus = state.timeTravelBonus;
 
 		// Catch up to the now
-		for (let i = 0; i < (this.game.state.frame - meta.frame); i++) {
-			this.advanceTime();
+		for (let frame = meta.frame + 1; frame <= this.game.state.frame; frame++) {
+			this.advanceTime(frame);
 		}
 	}
 
 	getInternalState(): InternalClockState {
 		return {
 			time: this.time,
+			elapsedTime: this.elapsedTime,
 			timeTravelBonus: this.timeTravelBonus
 		};
 	}
 
 	loadInternalState(state: InternalClockState) {
 		this.time = state.time;
+		this.elapsedTime = state.elapsedTime;
 		this.timeTravelBonus = state.timeTravelBonus;
 	}
 

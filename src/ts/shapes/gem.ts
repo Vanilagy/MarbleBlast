@@ -15,6 +15,7 @@ type GemState = EntityState & { entityType: 'gem' };
 
 /** Gems need to be collected before being able to finish. */
 export class Gem extends Shape {
+	restartable = true;
 	dtsPath = "shapes/items/gem.dts";
 	ambientRotate = true;
 	collideable = false;
@@ -37,14 +38,10 @@ export class Gem extends Shape {
 		return super.init(game, srcElement);
 	}
 
-	get pickupable() {
-		return this.game.clock.restartFrame > this.pickUpFrame || !this.pickedUpBy;
-	}
-
 	onMarbleInside(t: number, marble: Marble) {
 		marble.affect(this);
 
-		if (!this.pickupable) return;
+		if (this.pickedUpBy) return;
 
 		this.pickedUpBy = marble;
 		this.pickUpFrame = this.game.state.frame;
@@ -64,13 +61,13 @@ export class Gem extends Shape {
 	update(onlyVisual?: boolean) {
 		if (onlyVisual) return;
 
-		this.setCollisionEnabled(this.pickupable);
+		this.setCollisionEnabled(!this.pickedUpBy);
 	}
 
 	render() {
 		super.render();
 
-		this.setOpacity(Number(this.pickupable));
+		this.setOpacity(Number(!this.pickedUpBy));
 	}
 
 	getState(): GemState {
@@ -144,7 +141,10 @@ export class Gem extends Shape {
 
 	playSound() {
 		this.game.simulator.executeNonDuplicatableEvent(() => {
-			AudioManager.play(this.pickedUpBy === this.game.localPlayer.controlledMarble ? this.sounds[0] : this.sounds[3]);
+			let gemCount = this.game.entities.filter(x => x instanceof Gem && x.pickedUpBy !== null).length;
+			let sound = gemCount === this.game.totalGems ? this.sounds[1] : this.pickedUpBy === this.game.localPlayer.controlledMarble ? this.sounds[0] : this.sounds[3];
+
+			AudioManager.play(sound);
 		}, `${this.id}sound`, true);
 	}
 

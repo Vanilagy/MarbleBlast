@@ -146,7 +146,6 @@ const setPressed = (buttonName: keyof typeof gameButtons, presser: string, butto
 
 /** Determine if a button is pressed. */
 export const isPressed = (buttonName: keyof typeof gameButtons) => {
-	if (document.activeElement === G.menu.hud.chatInput) return false; // Classic
 	return (gameButtons[buttonName].length > 0);
 };
 

@@ -145,7 +145,7 @@ export class Game {
 		// Send packets to all players
 		for (let player of this.players) {
 			// Filter out the updates the player themselves sent
-			player.queuedEntityUpdates.push(...newUpdates.filter(x => this.updateOriginator.get(x) !== player));
+			player.queuedEntityUpdates.push(...newUpdates.filter(x => this.updateOriginator.get(x) !== player || x.state.entityType === 'finishState'));
 			player.cleanUpQueuedUpdates();
 
 			// If this is 0, then the player hasn't sent a bundle in a while. In that case, we also don't want to send anything to the player because we can make more informed decisions about what to send only if we have data from them.

@@ -13,12 +13,11 @@ export class SingleplayerGame extends Game {
 			checkpointStateId: -3
 		});
 		this.localPlayer = this.players[0];
-		this.localPlayer.controlledMarble.addToGame();
 
-		this.state.scheduledRestartFrame = 0;
+		this.state.restartFrames.push(0);
 	}
 
 	signalRestartIntent() {
-		this.state.restart();
+		this.state.restartFrames.push(this.state.frame + 1);
 	}
 }

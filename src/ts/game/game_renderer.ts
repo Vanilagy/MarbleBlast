@@ -339,7 +339,7 @@ export class GameRenderer {
 		let { game } = this;
 		let { simulator } = game;
 
-		if (game.clock.restartFrame === null) {
+		if (game.state.lastRestartFrame === null) {
 			let pos = new Vector3(game.orbitSphere.radius * 2, 0, 0);
 			pos.applyAxisAngle(new Vector3(0, 1, 0), -Math.PI / 6);
 			pos.applyAxisAngle(new Vector3(0, 0, 1), -game.state.time / 10);
@@ -469,8 +469,8 @@ export class GameRenderer {
 		if (game.localPlayer.controlledMarble.outOfBoundsFrame !== null) {
 			hud.setCenterText('outofbounds');
 		} else {
-			let timeSinceRestart = (game.state.frame - game.clock.restartFrame) / GAME_UPDATE_RATE;
-			if (timeSinceRestart < READY_TIME || timeSinceRestart > 5.5 || game.clock.restartFrame === null) {
+			let timeSinceRestart = (game.state.frame - game.state.lastRestartFrame) / GAME_UPDATE_RATE;
+			if (timeSinceRestart < READY_TIME || timeSinceRestart > 5.5 || game.state.lastRestartFrame === null) {
 				hud.setCenterText('none');
 			} else if (timeSinceRestart > GO_TIME) {
 				hud.setCenterText('go');
@@ -484,7 +484,7 @@ export class GameRenderer {
 		let gemCount = 0;
 		for (let i = 0; i < this.game.entities.length; i++) {
 			let entity = this.game.entities[i];
-			if (entity instanceof Gem && !entity.pickupable) gemCount++;
+			if (entity instanceof Gem && entity.pickedUpBy) gemCount++;
 		}
 
 		hud.displayGemCount(gemCount, this.game.totalGems);
@@ -494,11 +494,11 @@ export class GameRenderer {
 		hud.helpElement.textContent = '';
 		hud.alertElement.textContent = '';
 
-		if (game.state.scheduledRestartFrame !== null && game.state.frame < game.state.scheduledRestartFrame) {
-			let frameDifference = game.state.scheduledRestartFrame - game.state.frame;
+		if (game.state.restartFrames.length > 0 && game.state.frame < Util.last(game.state.restartFrames)) {
+			let frameDifference = Util.last(game.state.restartFrames) - game.state.frame;
 			let secondsUntil = frameDifference / GAME_UPDATE_RATE;
 			let fac = secondsUntil < 2 ? 10 : 1;
-			hud.helpElement.textContent = `Game ${game.clock.restartFrame === null ? 'starting' : 'restarting'} in ${Math.trunc(secondsUntil * fac) / fac} seconds...`;
+			hud.helpElement.textContent = `Game ${game.state.lastRestartFrame === null ? 'starting' : 'restarting'} in ${Math.trunc(secondsUntil * fac) / fac} seconds...`;
 			hud.helpElement.style.opacity = '1';
 			hud.helpElement.style.filter = '';
 		} else {
