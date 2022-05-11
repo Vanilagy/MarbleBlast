@@ -22,8 +22,7 @@ let sendTimeout = 0;
 
 // todo make sure to remove this eventually
 window.addEventListener('keydown', e => {
-	return;
-	if (e.code === 'KeyG') {
+	if (e.code === 'KeyG' && e.altKey) {
 		sendTimeout = 200;
 		console.log("activated timeout");
 	}
@@ -60,6 +59,7 @@ export class MultiplayerGame extends Game {
 	maxReceivedServerUpdateId = -1;
 	loneEntityTimeout = new DefaultMap<Entity, number>(() => -Infinity);
 	remoteUpdates = new WeakSet<EntityUpdate>();
+	baseStateUpdates = new WeakSet<EntityUpdate>();
 
 	constructor(mission: Mission, gameServer: GameServer) {
 		super(mission);
@@ -108,10 +108,13 @@ export class MultiplayerGame extends Game {
 
 		await super.start();
 
-		Socket.send('loadingCompletion', 1);
-		this.connection.queueCommand({ command: 'running' }, Reliability.Urgent);
-
 		this.awaitingGameStartResolve();
+
+		// Tell the servers that we're down loading and running the game, but do it with a delay so that this only runs once we actually have some CPU idle time.
+		setTimeout(() => {
+			Socket.send('loadingCompletion', 1);
+			this.connection.queueCommand({ command: 'running' }, Reliability.Urgent);
+		}, 500);
 	}
 
 	tick() {
@@ -133,7 +136,7 @@ export class MultiplayerGame extends Game {
 		}
 
 		let updateRateDelta = Util.signedSquare((this.state.targetFrame - this.state.frame) / 2) * 2;
-		updateRateDelta = Util.clamp(updateRateDelta, -60, 60);
+		updateRateDelta = Util.clamp(updateRateDelta, -90, 500); // Kinda ridiculous tbh, but let's see if it's fine
 		let gameUpdateRate = GAME_UPDATE_RATE + updateRateDelta;
 		this.lastUpdateRate = gameUpdateRate;
 
@@ -148,7 +151,7 @@ export class MultiplayerGame extends Game {
 
 		// Mark the incoming updates as being remote
 		for (let update of data.entityUpdates) this.remoteUpdates.add(update);
-		for (let { update } of data.baseState) this.remoteUpdates.add(update);
+		for (let { update } of data.baseState) this.remoteUpdates.add(update), this.baseStateUpdates.add(update);
 
 		// Remove the updates already received by the server
 		Util.filterInPlace(this.queuedEntityUpdates, x => x.frame > data.maxReceivedClientUpdateFrame);
@@ -266,7 +269,7 @@ export class MultiplayerGame extends Game {
 		let entity = this.getEntityById(update.entityId);
 		if (!entity) return;
 
-		if (entity.affectedBy.size > 1) return;
+		if (!this.baseStateUpdates.has(update) && entity.affectedBy.size > 1) return;
 
 		let history = this.state.stateHistory.get(entity.id);
 		while (history.length > 0 && Util.last(history).frame >= update.frame) {
@@ -279,6 +282,8 @@ export class MultiplayerGame extends Game {
 	}
 
 	signalRestartIntent() {
+		if (this.localPlayer.hasRestartIntent) return;
+
 		this.connection.queueCommand({ command: 'restartIntent' }, Reliability.Urgent);
 		this.localPlayer.hasRestartIntent = true;
 	}

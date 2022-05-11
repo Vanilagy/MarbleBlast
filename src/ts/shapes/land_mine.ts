@@ -6,6 +6,7 @@ import { BlendingType } from "../rendering/renderer";
 import { Collision } from "../physics/collision";
 import { Marble } from "../marble";
 import { EntityState } from "../../../shared/game_server_format";
+import { MultiplayerGame } from "../game/multiplayer_game";
 
 export type ExplosiveState = EntityState & { entityType: 'explosive' };
 
@@ -17,6 +18,13 @@ export class LandMine extends Shape {
 	shareMaterials = false;
 
 	onMarbleContact(collision: Collision, marble: Marble) {
+		if (this.game instanceof MultiplayerGame) {
+			// We disable prediction of mine impacts of marbles we're not sure about, because mine impacts create a very sudden and disturbing gameplay effect.
+			let sureAboutIt = marble.affectedBy.size === 1 && marble.affectedBy.has(this.game.localPlayer);
+			if (!sureAboutIt && this.game.state.frame > this.game.state.serverFrame)
+				return;
+		}
+
 		let minePos = this.worldPosition;
 
 		for (let marble of this.game.marbles) {

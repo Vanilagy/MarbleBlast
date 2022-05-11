@@ -15,7 +15,6 @@ export class EndPad extends Shape {
 	dtsPath = "shapes/pads/endarea.dts";
 	fireworks: Firework[] = [];
 	sounds = ['firewrks.wav'];
-	inArea = 0; // Used to only trigger the event once
 
 	/** @param isMain Whether or not this pad is the main pad, meaning it has to be touched for the level to end. All other pads are purely cosmetic. */
 	constructor(isMain: boolean) {
@@ -38,8 +37,8 @@ export class EndPad extends Shape {
 			return finishArea;
 		}, (t: number, dt: number, marble: Marble) => {
 			// These checks are to make sure touchFinish is only called once per contact with the collider. For it to be called again, the marble must leave the area again.
-			let exit = this.inArea > 0;
-			this.inArea = 2;
+			let exit = marble.endPadColliderTimeout > 0;
+			marble.endPadColliderTimeout = 2;
 			if (exit) return;
 
 			this.game.finishState.tryFinish(marble, t);
@@ -66,8 +65,6 @@ export class EndPad extends Shape {
 			if (this.game.state.time - firework.spawnTime >= 10)
 				Util.removeFromArray(this.fireworks, firework); // We can safely remove the firework
 		}
-
-		this.inArea--;
 	}
 }
 

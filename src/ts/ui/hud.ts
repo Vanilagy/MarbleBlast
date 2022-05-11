@@ -34,6 +34,7 @@ export abstract class Hud {
 	clockCtx: CanvasRenderingContext2D;
 	helpElement: HTMLDivElement;
 	alertElement: HTMLDivElement;
+	announcementElement: HTMLDivElement;
 	centerElement: HTMLImageElement;
 	powerUpBorder: HTMLImageElement;
 	clockBackground: HTMLImageElement;
@@ -76,6 +77,7 @@ export abstract class Hud {
 		this.clockCtx = this.clockCanvas.getContext('2d');
 		this.helpElement = document.querySelector('#help-text');
 		this.alertElement = document.querySelector('#alert-text');
+		this.announcementElement = document.querySelector('#announcement-text');
 		this.centerElement = document.querySelector('#center-text');
 		this.powerUpBorder = document.querySelector('#powerup-border');
 		this.clockBackground = document.querySelector('#clock-background');
@@ -484,7 +486,7 @@ class ScoreboardRow {
 		let socket = G.lobby.sockets.find(x => x.id === this.sessionId);
 
 		let rhsText: string;
-		if (G.game.state.lastRestartFrame === null) {
+		if (G.game.state.lastRestartFrame === -Infinity) {
 			if (socket.loadingCompletion < 1) {
 				rhsText = Math.floor(socket.loadingCompletion * 100) + '%';
 			} else {

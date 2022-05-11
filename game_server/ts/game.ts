@@ -1,6 +1,6 @@
 import { DefaultMap } from "../../shared/default_map";
 import { GameServerConnection, Reliability } from "../../shared/game_server_connection";
-import { CommandToData, EntityUpdate } from "../../shared/game_server_format";
+import { CommandToData, EntityState, EntityUpdate } from "../../shared/game_server_format";
 import { Util } from "./util";
 import { GAME_UPDATE_RATE } from '../../shared/constants';
 import { performance } from 'perf_hooks';
@@ -81,7 +81,7 @@ export class Game {
 		session.connection.queueCommand({
 			command: 'gameJoinInfo',
 			serverFrame: this.frame,
-			clientFrame: this.frame + UPDATE_BUFFER_SIZE, // No better guess yet
+			clientFrame: this.frame + Math.max(...player.estimatedRttHistory) + UPDATE_BUFFER_SIZE, // Not precise, just a guess
 			players: this.players.map(x => ({
 				id: x.id,
 				sessionId: x.session.id,
@@ -142,10 +142,25 @@ export class Game {
 		newUpdates.forEach(x => x.updateId = this.incrementalUpdateId++);
 		this.allEntityUpdates.push(...newUpdates);
 
+		let finishStateUpdate = newUpdates.find(x => x.state && x.state.entityType === 'finishState');
+		if (finishStateUpdate) {
+			// After this base state was added, no new finish states should come in if everythings works as expected.
+			this.baseStateRequests.push({
+				entityId: finishStateUpdate.entityId,
+				sendTo: new Set(this.players),
+				sentFrom: new Set(),
+				responseFrame: finishStateUpdate.frame,
+				update: finishStateUpdate,
+				id: this.baseStateRequestId++
+			});
+
+			Util.filterInPlace(newUpdates, x => x.state?.entityType !== 'finishState');
+		}
+
 		// Send packets to all players
 		for (let player of this.players) {
 			// Filter out the updates the player themselves sent
-			player.queuedEntityUpdates.push(...newUpdates.filter(x => this.updateOriginator.get(x) !== player || x.state.entityType === 'finishState'));
+			player.queuedEntityUpdates.push(...newUpdates.filter(x => this.updateOriginator.get(x) !== player));
 			player.cleanUpQueuedUpdates();
 
 			// If this is 0, then the player hasn't sent a bundle in a while. In that case, we also don't want to send anything to the player because we can make more informed decisions about what to send only if we have data from them.
@@ -333,7 +348,7 @@ export class Game {
 		}
 
 		let quota = this.players.filter(x => x.hasRestartIntent).length / this.players.length;
-		if (quota >= 0.75) {
+		if (quota >= 0.5) {
 			for (let player of this.players) {
 				player.hasRestartIntent = false; // todo probably set this when the actual respawn happens here
 				player.session.connection.queueCommand({
@@ -389,9 +404,14 @@ export class Player {
 			let update = this.queuedEntityUpdates[i];
 			count.set(update.entityId, count.get(update.entityId) + 1);
 			let newCount = count.get(update.entityId);
-			let maxCount = update.state?.entityType === 'player' ? 8 : 1; // Dirty hardcode 😬
+			let maxCount = getMaxUpdateCountForEntityType(update.state?.entityType);
 
 			if (newCount > maxCount) this.queuedEntityUpdates.splice(i, 1);
 		}
 	}
 }
+
+const getMaxUpdateCountForEntityType = (entityType: EntityState['entityType']) => {
+	if (entityType === 'player') return 8;
+	return 1;
+};

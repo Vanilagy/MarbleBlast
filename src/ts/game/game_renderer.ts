@@ -339,7 +339,7 @@ export class GameRenderer {
 		let { game } = this;
 		let { simulator } = game;
 
-		if (game.state.lastRestartFrame === null) {
+		if (game.state.lastRestartFrame === -Infinity) {
 			let pos = new Vector3(game.orbitSphere.radius * 2, 0, 0);
 			pos.applyAxisAngle(new Vector3(0, 1, 0), -Math.PI / 6);
 			pos.applyAxisAngle(new Vector3(0, 0, 1), -game.state.time / 10);
@@ -470,7 +470,7 @@ export class GameRenderer {
 			hud.setCenterText('outofbounds');
 		} else {
 			let timeSinceRestart = (game.state.frame - game.state.lastRestartFrame) / GAME_UPDATE_RATE;
-			if (timeSinceRestart < READY_TIME || timeSinceRestart > 5.5 || game.state.lastRestartFrame === null) {
+			if (timeSinceRestart < READY_TIME || timeSinceRestart > 5.5 || game.state.lastRestartFrame === -Infinity) {
 				hud.setCenterText('none');
 			} else if (timeSinceRestart > GO_TIME) {
 				hud.setCenterText('go');
@@ -497,23 +497,24 @@ export class GameRenderer {
 		if (game.state.restartFrames.length > 0 && game.state.frame < Util.last(game.state.restartFrames)) {
 			let frameDifference = Util.last(game.state.restartFrames) - game.state.frame;
 			let secondsUntil = frameDifference / GAME_UPDATE_RATE;
-			let fac = secondsUntil < 2 ? 10 : 1;
-			hud.helpElement.textContent = `Game ${game.state.lastRestartFrame === null ? 'starting' : 'restarting'} in ${Math.trunc(secondsUntil * fac) / fac} seconds...`;
-			hud.helpElement.style.opacity = '1';
-			hud.helpElement.style.filter = '';
+			let decimalPlaces = secondsUntil < 2 ? 1 : 0;
+			hud.announcementElement.textContent = `Game ${game.state.lastRestartFrame === -Infinity ? 'starting' : 'restarting'} in ${(Math.trunc(secondsUntil * 10**decimalPlaces) / 10**decimalPlaces).toFixed(decimalPlaces)} seconds...`;
 		} else {
-			for (let i = hud.helpMessages.length-1; i >= 0; i--) {
-				let helpMessage = hud.helpMessages[i];
-				let message = helpMessage.getMessage();
-				if (message === null) continue;
+			hud.announcementElement.textContent = '';
+		}
 
-				let completion = Util.clamp(game.state.time - helpMessage.frame/GAME_UPDATE_RATE - 3, 0, 1) ** 2;
-				hud.helpElement.textContent = Hud.processHelpMessage(message);
-				hud.helpElement.style.opacity = (1 - completion).toString();
-				hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, completion)})`;
+		for (let i = hud.helpMessages.length-1; i >= 0; i--) {
+			let helpMessage = hud.helpMessages[i];
+			let message = helpMessage.getMessage();
+			if (message === null) continue;
 
-				break;
-			}
+			let completion = Util.clamp(game.state.time - helpMessage.frame/GAME_UPDATE_RATE - 3, 0, 1) ** 2;
+			hud.helpElement.style.opacity = (1 - completion).toString();
+			if (completion === 1) break;
+
+			hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, completion)})`;
+			hud.helpElement.textContent = Hud.processHelpMessage(message);
+			break;
 		}
 
 		for (let i = hud.alerts.length-1; i >= 0; i--) {
@@ -522,10 +523,11 @@ export class GameRenderer {
 			if (message === null) continue;
 
 			let completion = Util.clamp(game.state.time - alert.frame/GAME_UPDATE_RATE - 3, 0, 1) ** 2;
-			hud.alertElement.textContent = message;
 			hud.alertElement.style.opacity = (1 - completion).toString();
-			hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, completion)})`;
+			if (completion === 1) break;
 
+			hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, completion)})`;
+			hud.alertElement.textContent = message;
 			break;
 		}
 

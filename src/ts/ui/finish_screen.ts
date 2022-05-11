@@ -35,9 +35,7 @@ export abstract class FinishScreen {
 
 		menu.setupButton(this.replayButton, 'endgame/replay', () => {
 			// Restart the level
-			this.div.classList.add('hidden');
-			G.game.state.restart();
-			if (!Util.isTouchDevice) Util.requestPointerLock();
+			G.game.signalRestartIntent();
 		});
 		menu.setupButton(this.continueButton, 'endgame/continue', () => G.game.stopAndExit());
 
@@ -149,7 +147,7 @@ export abstract class FinishScreen {
 		let bestTimes = StorageManager.getBestTimesForMission(game.mission.path, this.bestTimeCount, this.scorePlaceholderName);
 		let place = bestTimes.filter(x => x[1] <= 1000 * time).length; // The place is determined by seeing how many scores there currently are faster than the achieved time.
 
-		if (place < this.bestTimeCount && (!failedToQualify || this.storeNotQualified)) {
+		if (game.type === 'singleplayer' && place < this.bestTimeCount && (!failedToQualify || this.storeNotQualified)) {
 			// Prompt the user to enter their name
 			this.nameEntryScreenDiv.classList.remove('hidden');
 			this.nameEntryText.textContent = this.generateNameEntryText(place);

@@ -181,6 +181,7 @@ export class Marble extends Entity {
 	cubeMap: CubeTexture;
 	cubeCamera: CubeCamera;
 
+	endPadColliderTimeout = 0;
 	inFinishState = false;
 	finishYaw: number;
 	finishPitch: number;
@@ -412,6 +413,7 @@ export class Marble extends Entity {
 				teleportEnableTime: this.teleportEnableTime ?? undefined,
 				teleportDisableTime: this.teleportDisableTime !== null && this.game.state.time - this.teleportDisableTime < TELEPORT_FADE_DURATION ? this.teleportDisableTime : undefined,
 				blastAmount: this.blastAmount || undefined,
+				endPadColliderTimeout: this.endPadColliderTimeout > 0 ? this.endPadColliderTimeout : undefined,
 				finishYaw: this.inFinishState ? this.finishYaw : undefined,
 				finishPitch: this.inFinishState ? this.finishPitch : undefined
 			}
@@ -494,6 +496,7 @@ export class Marble extends Entity {
 
 		this.blastAmount = state.extras.blastAmount || 0;
 
+		this.endPadColliderTimeout = state.extras.endPadColliderTimeout || 0;
 		this.inFinishState = state.extras.finishYaw !== undefined;
 		this.finishYaw = state.extras.finishYaw;
 		this.finishPitch = state.extras.finishPitch;
@@ -652,6 +655,7 @@ export class Marble extends Entity {
 			this.blastAmount = Util.clamp(this.blastAmount + 1000 / BLAST_CHARGE_TIME / GAME_UPDATE_RATE, 0, 1);
 
 		if (this.inFinishState) this.body.gravity.multiplyScalar(0);
+		if (this.endPadColliderTimeout > 0) this.endPadColliderTimeout--;
 
 		Util.filterInPlace(this.teleportStates, x => x.entryFrame !== null || x.exitFrame !== null);
 	}

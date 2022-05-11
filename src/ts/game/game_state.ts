@@ -26,7 +26,7 @@ export class GameState {
 	restartFrames: number[] = [];
 
 	get lastRestartFrame() {
-		let restartFrame: number = null;
+		let restartFrame = -Infinity;
 
 		for (let i = 0; i < this.restartFrames.length; i++) {
 			if (this.restartFrames[i] > this.frame) break;
@@ -84,9 +84,8 @@ export class GameState {
 			entity.restart(frame);
 		}
 
-		for (let player of game.players) {
-			player.hasRestartIntent = false;
-		}
+		G.menu.finishScreen.hide();
+		if (!Util.isTouchDevice) Util.requestPointerLock(); // Oof honestly I don't think this will trigger, maybe find a hack to trigger it through some custom event shit
 	}
 
 	saveStates() {

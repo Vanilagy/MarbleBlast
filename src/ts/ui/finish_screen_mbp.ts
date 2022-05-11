@@ -81,10 +81,18 @@ export class MbpFinishScreen extends FinishScreen {
 	show() {
 		super.show();
 
+		let game = G.game;
 		let nextLevel = this.getNextLevel();
 		let mission = nextLevel.array[nextLevel.index];
 
-		this.nextLevelImage.src = mission.getImagePath();
+		if (game.type === 'multiplayer') {
+			this.nextLevelImage.style.display = 'none';
+			this.nextLevelButton.style.display = 'none';
+		} else {
+			this.nextLevelImage.style.display = '';
+			this.nextLevelButton.style.display = '';
+			this.nextLevelImage.src = mission.getImagePath();
+		}
 	}
 
 	showMessage(type: 'failed' | 'qualified' | 'gold' | 'ultimate') {

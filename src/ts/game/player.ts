@@ -169,6 +169,8 @@ export class Player extends Entity {
 
 		this.yaw = DEFAULT_YAW + euler.z;
 		this.pitch = DEFAULT_PITCH;
+
+		this.hasRestartIntent = false;
 	}
 
 	getInitialState(): PlayerState {

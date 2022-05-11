@@ -32,6 +32,7 @@ export const entityStateFormat = [union, 'entityType', {
 		teleportEnableTime: 'f32',
 		teleportDisableTime: 'f32',
 		blastAmount: 'f32',
+		endPadColliderTimeout: 'u8',
 		finishYaw: 'f32',
 		finishPitch: 'f32'
 	}]
@@ -94,9 +95,9 @@ export const entityStateFormat = [union, 'entityType', {
 	lastInstance: [nullable, 'varint']
 }, {
 	entityType: 'finishState',
-	finishFrame: [nullable, 'varint'],
-	finishTime: [nullable, 'f64'],
-	finishElapsedTime: [nullable, 'f64'],
+	frame: [nullable, 'varint'],
+	time: [nullable, 'f64'],
+	elapsedTime: [nullable, 'f64'],
 	isLegal: 'boolean'
 }] as const;
 

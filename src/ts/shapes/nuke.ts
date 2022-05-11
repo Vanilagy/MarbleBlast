@@ -1,4 +1,5 @@
 import { AudioManager } from "../audio";
+import { MultiplayerGame } from "../game/multiplayer_game";
 import { TimeState } from "../level";
 import { Marble } from "../marble";
 import { Vector3 } from "../math/vector3";
@@ -16,6 +17,13 @@ export class Nuke extends Shape {
 	shareMaterials = false;
 
 	onMarbleContact(collision: Collision, marble: Marble) {
+		if (this.game instanceof MultiplayerGame) {
+			// We disable prediction of nuke impacts of marbles we're not sure about, because nuke impacts create a very sudden and disturbing gameplay effect.
+			let sureAboutIt = marble.affectedBy.size === 1 && marble.affectedBy.has(this.game.localPlayer);
+			if (!sureAboutIt && this.game.state.frame > this.game.state.serverFrame)
+				return;
+		}
+
 		let nukePos = this.worldPosition;
 
 		for (let marble of this.game.marbles) {

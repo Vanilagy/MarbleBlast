@@ -40,13 +40,10 @@ export class Clock extends Entity {
 
 		if (this.game.simulator.isReconciling) return;
 
-		if (this.game.state.lastRestartFrame !== null) {
-			let timeSinceRestart = (this.game.state.frame - this.game.state.lastRestartFrame) / GAME_UPDATE_RATE;
-
-			if (timeSinceRestart === READY_TIME) AudioManager.play('ready.wav');
-			if (timeSinceRestart === SET_TIME) AudioManager.play('set.wav');
-			if (timeSinceRestart === GO_TIME) AudioManager.play('go.wav');
-		}
+		let timeSinceRestart = (this.game.state.frame - this.game.state.lastRestartFrame) / GAME_UPDATE_RATE;
+		if (timeSinceRestart === READY_TIME) AudioManager.play('ready.wav');
+		if (timeSinceRestart === SET_TIME) AudioManager.play('set.wav');
+		if (timeSinceRestart === GO_TIME) AudioManager.play('go.wav');
 
 		if (this.timeTravelBonus > 0 && !this.timeTravelSound && !this.game.finishState.finished) {
 			this.timeTravelSound = AudioManager.createAudioSource('timetravelactive.wav');
@@ -85,7 +82,7 @@ export class Clock extends Entity {
 	}
 
 	advanceTime(currentFrame: number) {
-		if (this.game.state.lastRestartFrame === null || currentFrame - this.game.state.lastRestartFrame < GO_TIME * GAME_UPDATE_RATE)
+		if (this.game.state.lastRestartFrame === -Infinity || currentFrame - this.game.state.lastRestartFrame < GO_TIME * GAME_UPDATE_RATE)
 			return;
 
 		if (this.timeTravelBonus > 0) {

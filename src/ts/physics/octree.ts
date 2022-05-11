@@ -40,6 +40,12 @@ export class Octree {
 		let node = this.objectToNode.get(object);
 		if (node) return; // Don't insert if already contained in the tree
 
+		if (!object.boundingBox.min.equals(object.boundingBox.min) || !object.boundingBox.max.equals(object.boundingBox.max)) {
+			console.log("object");
+			console.warn(`Can't insert NaN bounding box object into octree, my guy!`);
+			return;
+		}
+
 		while (!this.root.largerThan(object) || !this.root.containsCenter(object)) {
 			// The root node does not fit the object; we need to grow the tree.
 			if (this.root.depth === MIN_DEPTH) {

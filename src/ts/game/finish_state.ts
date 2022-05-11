@@ -70,7 +70,7 @@ export class FinishState extends Entity {
 
 			// When we reach this point, the level has been completed successfully.
 			if (this.game.type === 'singleplayer') this.finish(endPad);
-			else { /* todo */ }
+			// Do not predict finishing for multiplayer games
 		}
 	}
 
@@ -103,9 +103,9 @@ export class FinishState extends Entity {
 	getState(): FinishStateState {
 		return {
 			entityType: 'finishState',
-			finishFrame: this.frame,
-			finishTime: this.time,
-			finishElapsedTime: this.elapsedTime,
+			frame: this.frame,
+			time: this.time,
+			elapsedTime: this.elapsedTime,
 			isLegal: this.isLegal
 		};
 	}
@@ -113,20 +113,18 @@ export class FinishState extends Entity {
 	getInitialState(): FinishStateState {
 		return {
 			entityType: 'finishState',
-			finishFrame: null,
-			finishTime: null,
-			finishElapsedTime: null,
+			frame: null,
+			time: null,
+			elapsedTime: null,
 			isLegal: true
 		};
 	}
 
 	loadState(state: FinishStateState, { remote }: { remote: boolean }) {
-		if (remote) console.trace(state, remote);
-
-		this.finished = state.finishFrame !== null;
-		this.frame = state.finishFrame;
-		this.time = state.finishTime;
-		this.elapsedTime = state.finishElapsedTime;
+		this.finished = state.frame !== null;
+		this.frame = state.frame;
+		this.time = state.time;
+		this.elapsedTime = state.elapsedTime;
 		this.isLegal = state.isLegal;
 
 		if (remote && this.finished && this.isLegal) {
