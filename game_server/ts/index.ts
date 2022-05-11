@@ -6,6 +6,7 @@ import { RTCConnection } from '../../shared/rtc_connection';
 import { GameServerConnection, GameServerSocket } from '../../shared/game_server_connection';
 import { Game, games } from './game';
 import { Session, sessions } from './session';
+import { Util } from './util';
 
 const wss = new WebSocketServer({
 	port: 6969
@@ -124,11 +125,19 @@ setDriftlessInterval(() => {
 }, 1000 / TICK_FREQUENCY);
 
 Socket.on('createGame', data => {
-	let game = new Game(data.lobbySettings, data.sessions);
+	let game = new Game(data.lobbyId, data.lobbySettings, data.sessions, data.lobbyOwnerSessionId);
 	games.push(game);
 
 	Socket.send('createGameConfirm', {
 		lobbyId: data.lobbyId,
 		gameId: game.id
 	});
+});
+
+Socket.on('destroyGame', data => {
+	let game = games.find(x => x.lobbyId === data.lobbyId);
+	if (!game) return;
+
+	game.destroy();
+	Util.filterInPlace(games, x => x !== game);
 });

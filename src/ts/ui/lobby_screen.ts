@@ -8,6 +8,7 @@ import { Util } from "../util";
 import { MbpLevelSelect } from "./level_select_mbp";
 import { MbpMenu } from "./menu_mbp";
 import { gameServers } from "../net/game_server";
+import { Connectivity } from "../net/connectivity";
 
 export class LobbyScreen {
 	div: HTMLDivElement;
@@ -25,6 +26,8 @@ export class LobbyScreen {
 	levelTitle: HTMLParagraphElement;
 
 	playerListContainer: HTMLDivElement;
+	playerActionsContainer: HTMLDivElement;
+	currentPlayerActionReceiver: string = null;
 
 	playButton: HTMLImageElement;
 
@@ -46,6 +49,7 @@ export class LobbyScreen {
 		this.levelTitle = document.querySelector('#mbp-lobby-level-title');
 
 		this.playerListContainer = document.querySelector('#mbp-lobby-player-list');
+		this.playerActionsContainer = document.querySelector('#mbp-lobby-player-actions');
 
 		this.playButton = document.querySelector('#mbp-lobby-play');
 
@@ -61,9 +65,7 @@ export class LobbyScreen {
 			let confirmed = await menu.showConfirmPopup("Leave lobby", "Are you sure you want to leave this lobby?");
 			if (!confirmed) return;
 
-			this.hide();
 			G.lobby.leave();
-			menu.lobbySelectScreen.show();
 		});
 
 		menu.setupButton(this.playButton, 'play/play', () => {
@@ -115,6 +117,26 @@ export class LobbyScreen {
 			}
 		});
 
+		this.playerActionsContainer.querySelector('._click-preventer').addEventListener('click', () => {
+			this.playerActionsContainer.classList.add('hidden');
+		});
+
+		menu.setupButton(this.playerActionsContainer.querySelector('#mbp-lobby-player-action-kick') as HTMLImageElement, 'mp/play/kick', async () => {
+			let confirmed = await menu.showConfirmPopup('Kick Player', `Are you sure you want to kick player ${G.lobby.sockets.find(x => x.id === this.currentPlayerActionReceiver)?.name} out of this lobby?`);
+			if (!confirmed) return;
+
+			this.playerActionsContainer.classList.add('hidden');
+			Socket.send('kickSocketOutOfLobby', this.currentPlayerActionReceiver);
+		});
+
+		menu.setupButton(this.playerActionsContainer.querySelector('#mbp-lobby-player-action-promote') as HTMLImageElement, 'mp/play/empty', async () => {
+			let confirmed = await menu.showConfirmPopup('Promote Player', `Are you sure you want to promote player ${G.lobby.sockets.find(x => x.id === this.currentPlayerActionReceiver)?.name} to lobby owner?`);
+			if (!confirmed) return;
+
+			this.playerActionsContainer.classList.add('hidden');
+			Socket.send('promotePlayer', this.currentPlayerActionReceiver);
+		});
+
 		this.updateGameServerList();
 	}
 
@@ -159,8 +181,21 @@ export class LobbyScreen {
 		}
 
 		this.updatePlayButton();
+
+		if (G.lobby.localSessionIsOwner()) {
+			this.serverSelectorCollapsed.src = this.serverSelectorCollapsed.src.replace(/_\w\.png$/, '_n.png');
+			this.serverSelectorCollapsed.style.pointerEvents = '';
+			this.playerListContainer.classList.add('_is-lobby-owner');
+			this.levelImageContainer.style.pointerEvents = '';
+		} else {
+			this.serverSelectorCollapsed.src = this.serverSelectorCollapsed.src.replace(/_\w\.png$/, '_i.png');
+			this.serverSelectorCollapsed.style.pointerEvents = 'none';
+			this.playerListContainer.classList.remove('_is-lobby-owner');
+			this.levelImageContainer.style.pointerEvents = 'none';
+		}
 	}
 
+	// todo: method name
 	updatePlayerList(list: SocketCommands['lobbySocketList']) {
 		this.playerListContainer.innerHTML = '';
 
@@ -168,6 +203,9 @@ export class LobbyScreen {
 			let div = document.createElement('div');
 
 			div.innerHTML = `<span>${Util.htmlEscape(player.name)}</span>`;
+
+			if (G.lobby.ownerSessionId === player.id)
+				div.innerHTML += '<img src="./assets/img/crown_b.png" class="_lobby-owner-icon" title="Lobby owner">';
 
 			let statusColor = {
 				'connecting': '', // Good?
@@ -179,11 +217,27 @@ export class LobbyScreen {
 			}[Util.htmlEscape(player.connectionStatus)] ?? "In Lobby"}</span>`;
 
 			this.playerListContainer.appendChild(div);
+
+			if (G.lobby.localSessionIsOwner() && player.id !== G.lobby.ownerSessionId) div.addEventListener('click', () => {
+				this.playerActionsContainer.classList.remove('hidden');
+				let wholeBoundingRect = this.div.getBoundingClientRect();
+				let boundingRect = div.getBoundingClientRect();
+
+				this.playerActionsContainer.style.bottom = (boundingRect.top - wholeBoundingRect.top) + 'px';
+				this.playerActionsContainer.style.left = (boundingRect.left - wholeBoundingRect.left + Math.floor(boundingRect.width/2)) + 'px';
+
+				this.currentPlayerActionReceiver = player.id;
+			});
+		}
+
+		if (!list.some(x => x.id === this.currentPlayerActionReceiver)) {
+			this.playerActionsContainer.classList.add('hidden'); // Hide the action popup if the player isn't in the lobby anymore
+			this.currentPlayerActionReceiver = null;
 		}
 	}
 
 	updatePlayButton() {
-		let enabled = !!G.lobby.settings.gameServer && G.lobby.sockets.every(x => x.connectionStatus === 'connected');
+		let enabled = !!G.lobby.settings.gameServer && G.lobby.sockets.every(x => x.connectionStatus === 'connected') && G.lobby.localSessionIsOwner();
 
 		if (enabled && this.playButton.style.pointerEvents === 'none') {
 			this.playButton.style.pointerEvents = '';

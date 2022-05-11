@@ -59,7 +59,13 @@ export type SocketCommands = {
 		gameId: string,
 		seed: number
 	},
+	endGameRequest: null,
+	endGame: null,
 	loadingCompletion: number,
+	lobbyOwner: string,
+	kickSocketOutOfLobby: string,
+	kicked: null,
+	promotePlayer: string,
 
 	lobbyList: {
 		id: string,
@@ -74,10 +80,14 @@ export type SocketCommands = {
 	createGame: {
 		lobbyId: string,
 		lobbySettings: LobbySettings,
+		lobbyOwnerSessionId: string,
 		sessions: string[]
 	},
 	createGameConfirm: {
 		lobbyId: string,
 		gameId: string
+	},
+	destroyGame: {
+		lobbyId: string
 	}
 };

@@ -8,6 +8,7 @@ import { Menu } from "./menu";
 import { FRAME_RATE_OPTIONS } from "./options_mbp";
 import { MultiplayerGame } from "../game/multiplayer_game";
 import { Reliability } from "../../../shared/game_server_connection";
+import { Connectivity } from "../net/connectivity";
 
 const numberSources = {
 	"0": "0.png",
@@ -176,6 +177,7 @@ export abstract class Hud {
 		if (G.game.type === 'singleplayer') this.scoreboard.style.display = 'none';
 		else this.scoreboard.style.display = '';
 		this.scoreboardRows.length = 0;
+		this.scoreboard.innerHTML = '';
 
 		this.chatContainer.style.display = G.game.type === 'singleplayer' ? 'none' : '';
 		this.chatMessageContainer.innerHTML = '';
@@ -496,7 +498,13 @@ class ScoreboardRow {
 			rhsText = 'Playing';
 		}
 
-		this.lhs.textContent = socket.name;
+		// todo: Figure out a way to highlight the local player without it looking ass
+		if (false && socket.id === Connectivity.sessionId) {
+			this.lhs.innerHTML = `<b>${Util.htmlEscape(socket.name)}</b>`; // To highlight the local player
+		} else {
+			this.lhs.innerHTML = Util.htmlEscape(socket.name);
+		}
+
 		this.rhs.textContent = rhsText;
 
 		let hasRestartIntent = G.game.players.some(x => x.sessionId === socket.id && x.hasRestartIntent);

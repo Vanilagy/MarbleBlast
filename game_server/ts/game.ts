@@ -25,8 +25,10 @@ export class Game {
 	id = Util.uuid();
 	players: Player[] = [];
 
+	lobbyId: string;
 	lobbySettings: LobbySettings;
 	lobbySessionIds: string[];
+	lobbyOwnerSessionId: string;
 	running = 0;
 
 	startTime: number;
@@ -46,9 +48,11 @@ export class Game {
 	baseStateRequests: BaseStateRequest[] = [];
 	maxReceivedBaseStateFrame = -1;
 
-	constructor(lobbySettings: LobbySettings, lobbySessionIds: string[]) {
+	constructor(lobbyId: string, lobbySettings: LobbySettings, lobbySessionIds: string[], lobbyOwnerSessionId: string) {
+		this.lobbyId = lobbyId;
 		this.lobbySettings = lobbySettings;
 		this.lobbySessionIds = lobbySessionIds;
+		this.lobbyOwnerSessionId = lobbyOwnerSessionId;
 
 		console.log(`GAME CREATED!`, this.id, lobbySettings);
 
@@ -348,7 +352,7 @@ export class Game {
 		}
 
 		let quota = this.players.filter(x => x.hasRestartIntent).length / this.players.length;
-		if (quota >= 0.5) {
+		if (quota > 0.5 || player.session.id === this.lobbyOwnerSessionId) {
 			for (let player of this.players) {
 				player.hasRestartIntent = false; // todo probably set this when the actual respawn happens here
 				player.session.connection.queueCommand({
@@ -370,6 +374,12 @@ export class Game {
 				playerId: player.id,
 				body: body
 			}, Reliability.Relaxed);
+		}
+	}
+
+	destroy() {
+		for (let player of this.players) {
+			player.session.leaveGame();
 		}
 	}
 }

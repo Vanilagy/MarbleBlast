@@ -16,6 +16,7 @@ const DEFAULT_LOBBY_SETTINGS: LobbySettings = {
 export class Lobby {
 	id: string;
 	name: string;
+	owner: Socket = null;
 	sockets: Socket[] = [];
 	settings: LobbySettings = { ...DEFAULT_LOBBY_SETTINGS };
 	gameServerConnectionInfo = new DefaultMap<Socket, {
@@ -38,12 +39,19 @@ export class Lobby {
 			settings: this.settings
 		});
 
+		if (!this.owner) this.owner = socket;
+		socket.send('lobbyOwner', this.owner.sessionId);
+
 		this.sendSocketList();
 		onLobbiesChanged();
 	}
 
 	leave(socket: Socket) {
 		this.sockets = this.sockets.filter(x => x !== socket);
+
+		if (this.sockets.length > 0) {
+			this.setOwner(this.sockets[0]);
+		}
 
 		this.sendSocketList();
 		onLobbiesChanged();
@@ -101,6 +109,24 @@ export class Lobby {
 		this.sendSocketList();
 	}
 
+	setOwner(socket: Socket) {
+		if (this.owner === socket) return;
+
+		this.owner = socket;
+
+		for (let socket of this.sockets) {
+			socket.send('lobbyOwner', this.owner.sessionId);
+		}
+	}
+
+	kick(sessionId: string) {
+		let socket = this.sockets.find(x => x.sessionId === sessionId);
+		if (!socket) return;
+
+		this.leave(socket);
+		socket.send('kicked', null);
+	}
+
 	initializeStartGame() {
 		if (this.inGame) return;
 		this.inGame = true;
@@ -109,6 +135,7 @@ export class Lobby {
 		gameServer.socket.send('createGame', {
 			lobbyId: this.id,
 			lobbySettings: this.settings,
+			lobbyOwnerSessionId: this.owner.sessionId,
 			sessions: this.sockets.map(x => x.sessionId)
 		});
 
@@ -128,6 +155,21 @@ export class Lobby {
 				seed: gameSeed
 			});
 		}
+	}
+
+	endGame() {
+		this.inGame = false;
+
+		let gameServer = gameServers.find(x => x.id === this.settings.gameServer);
+		gameServer.socket.send('destroyGame', {
+			lobbyId: this.id
+		});
+
+		for (let socket of this.sockets) {
+			socket.send('endGame', null);
+		}
+
+		onLobbiesChanged();
 	}
 }
 

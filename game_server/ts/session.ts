@@ -52,11 +52,13 @@ export class Session {
 
 		this.connection.on('leave', () => {
 			if (!this.game) return;
-
-			this.game.removePlayer(this.player);
-
-			this.game = null;
-			this.player = null;
+			this.leaveGame();
 		});
+	}
+
+	leaveGame() {
+		this.game.removePlayer(this.player);
+		this.game = null;
+		this.player = null;
 	}
 }

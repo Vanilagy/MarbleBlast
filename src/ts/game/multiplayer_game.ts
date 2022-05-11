@@ -298,15 +298,22 @@ export class MultiplayerGame extends Game {
 		this.connection.queueCommand({ command: 'leave' }, Reliability.Urgent);
 	}
 
-	async stopAndExit() {
-		let confirmed = await G.menu.showConfirmPopup("Leave Game and Lobby", "Are you sure you want to leave this multiplayer game? You will also leave the lobby by doing so.");
+	async stopAndExit(callSuper = false) {
+		if (callSuper) return super.stopAndExit(); // Kinda ug but whatever
 
-		if (!confirmed) return;
+		if (G.lobby.localSessionIsOwner()) {
+			let confirmed = await G.menu.showConfirmPopup("End Game and Return to Lobby", "Are you sure you want to end this multiplayer game for all players and return to the lobby?");
+			if (!confirmed) return;
 
-		super.stopAndExit();
+			Socket.send('endGameRequest', null);
+		} else {
+			let confirmed = await G.menu.showConfirmPopup("Leave Game and Lobby", "Are you sure you want to leave this multiplayer game? You will also leave the lobby by doing so.");
+			if (!confirmed) return;
 
-		G.lobby.leave();
-		G.menu.levelSelect.hide();
-		(G.menu as MbpMenu).lobbySelectScreen.show();
+			super.stopAndExit();
+
+			G.lobby.leave();
+			G.menu.levelSelect.hide();
+		}
 	}
 }

@@ -81,7 +81,7 @@ const initUserSocket = (socket: Socket) => {
 	});
 
 	socket.on('setLobbySettings', newSettings => {
-		let lobby = lobbies.find(x => x.sockets.includes(socket));
+		let lobby = lobbies.find(x => x.sockets.includes(socket) && x.owner === socket);
 		if (!lobby) return;
 
 		lobby.setSettings(newSettings, socket);
@@ -102,7 +102,7 @@ const initUserSocket = (socket: Socket) => {
 	});
 
 	socket.on('startGameRequest', () => {
-		let lobby = lobbies.find(x => x.sockets.includes(socket));
+		let lobby = lobbies.find(x => x.sockets.includes(socket) && x.owner === socket);
 		if (!lobby) return;
 
 		lobby.initializeStartGame();
@@ -113,5 +113,27 @@ const initUserSocket = (socket: Socket) => {
 		if (!lobby) return;
 
 		lobby.setLoadingCompletion(socket, completion);
+	});
+
+	socket.on('kickSocketOutOfLobby', socketToBeKicked => {
+		let lobby = lobbies.find(x => x.sockets.includes(socket) && x.owner === socket);
+		if (!lobby) return;
+
+		lobby.kick(socketToBeKicked);
+	});
+
+	socket.on('promotePlayer', socketToBePromoted => {
+		let lobby = lobbies.find(x => x.sockets.includes(socket) && x.owner === socket);
+		if (!lobby) return;
+
+		let otherSocket = lobby.sockets.find(x => x.sessionId === socketToBePromoted);
+		if (otherSocket) lobby.setOwner(otherSocket);
+	});
+
+	socket.on('endGameRequest', () => {
+		let lobby = lobbies.find(x => x.sockets.includes(socket) && x.owner === socket);
+		if (!lobby) return;
+
+		lobby.endGame();
 	});
 };

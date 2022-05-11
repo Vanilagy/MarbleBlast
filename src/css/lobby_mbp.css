@@ -94,11 +94,12 @@
 #mbp-lobby-player-list {
 	position: absolute;
 	top: 313px;
-	left: 475px;
-	font-size: 18px;
-	width: 277px;
+	left: 470px;
+	font-size: 16px;
+	width: 282px;
 	height: 198px;
 	overflow: auto;
+	overflow-x: hidden;
 	scrollbar-width: thin;
 	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
 }
@@ -117,14 +118,37 @@
 
 #mbp-lobby-player-list > div {
 	padding: 5px 0px;
+	position: relative;
+	border-radius: 5px;
+	padding-left: 5px;
+	height: 31px;
+	box-sizing: border-box;
 }
 
-#mbp-lobby-player-list > div > span:first-child {
-	width: 150px;
+#mbp-lobby-player-list._is-lobby-owner > div:hover {
+	background: #000a741c;
+}
+
+#mbp-lobby-player-list > div > span:nth-of-type(1) {
+	max-width: 105px;
 	display: inline-block;
 	text-overflow: ellipsis;
 	overflow: hidden;
 	vertical-align: top;
+	padding-right: 2px;
+}
+
+#mbp-lobby-player-list > div > ._lobby-owner-icon {
+	vertical-align: top;
+	width: 24px;
+	filter: invert(1) invert(79%) sepia(61%) saturate(493%) hue-rotate(357deg) brightness(101%) contrast(103%) drop-shadow(1px 1px 0px black);
+	margin-left: 10px;
+}
+
+#mbp-lobby-player-list > div > span:nth-of-type(2) {
+	vertical-align: top;
+	position: absolute;
+	left: 155px;
 }
 
 #mbp-lobby-play {
@@ -308,4 +332,48 @@
 	left: 0;
 	margin: 0;
 	font-family: MarkerFelt;
+}
+
+#mbp-lobby-player-actions {
+	position: absolute;
+	transform: translateX(-50%) translateY(80px);
+	z-index: 10;
+}
+
+#mbp-lobby-player-actions ._click-preventer {
+	position: absolute;
+	top: -5000px;
+	left: -5000px;
+	width: 10000px;
+	height: 10000px;
+}
+
+#mbp-lobby-player-actions > img {
+	display: block;
+	z-index: 1;
+	position: relative;
+}
+
+#mbp-lobby-player-actions ._actions {
+	position: absolute;
+	top: 27px;
+	left: 33px;
+	width: 150px;
+	z-index: 1;
+	display: flex;
+	justify-content: center;
+}
+
+#mbp-lobby-player-actions ._actions > * {
+	display: block;
+	margin: 0px 5px;
+}
+
+#mbp-lobby-player-action-promote-icon {
+	position: absolute;
+	top: 10px;
+	left: 9px;
+	width: 24px;
+	filter: drop-shadow(1px 1px 1px rgb(0, 0, 0));
+	pointer-events: none;
 }

@@ -1,8 +1,10 @@
 import { Socket } from "../../../shared/socket";
 import { LobbySettings } from "../../../shared/types";
+import { MultiplayerGame } from "../game/multiplayer_game";
 import { G } from "../global";
 import { MissionLibrary } from "../mission_library";
 import { MbpMenu } from "../ui/menu_mbp";
+import { Connectivity } from "./connectivity";
 import { gameServers } from "./game_server";
 
 export class Lobby {
@@ -15,6 +17,7 @@ export class Lobby {
 		connectionStatus: 'connecting' | 'connected',
 		loadingCompletion: number
 	}[] = [];
+	ownerSessionId: string = null;
 	pollerInterval: number;
 	lastConnectionStatus: string = null;
 
@@ -42,15 +45,20 @@ export class Lobby {
 		}, 1000 / 30) as unknown as number;
 	}
 
-	leave() {
+	leave(kicked = false) {
 		clearInterval(this.pollerInterval);
 
-		Socket.send('leaveLobby', null);
+		if (!kicked) Socket.send('leaveLobby', null);
 
 		let connectedGameServer = gameServers.find(x => x.connection);
 		connectedGameServer?.disconnect();
 
 		G.lobby = null;
+
+		(G.menu as MbpMenu).lobbyScreen.hide();
+		(G.menu as MbpMenu).lobbySelectScreen.show();
+
+		if (kicked) G.menu.showAlertPopup('Kicked', 'The lobby owner has kicked you out of the lobby.');
 	}
 
 	onSettingsChanged() {
@@ -72,6 +80,10 @@ export class Lobby {
 		}
 
 		(G.menu as MbpMenu).lobbyScreen.updateUi();
+	}
+
+	localSessionIsOwner() {
+		return this.ownerSessionId === Connectivity.sessionId;
 	}
 }
 
@@ -99,6 +111,22 @@ Socket.on('lobbyTextMessage', data => {
 	(G.menu as MbpMenu).lobbyScreen.addChatMessage(data.username, data.body);
 });
 
+Socket.on('lobbyOwner', ownerSessionId => {
+	let lobby = G.lobby;
+	if (!lobby) return;
+
+	lobby.ownerSessionId = ownerSessionId;
+	(G.menu as MbpMenu).lobbyScreen.updateUi();
+	(G.menu as MbpMenu).lobbyScreen.updatePlayerList(lobby.sockets);
+});
+
+Socket.on('kicked', () => {
+	let lobby = G.lobby;
+	if (!lobby) return;
+
+	lobby.leave(true);
+});
+
 Socket.on('startGame', data => {
 	let lobby = G.lobby;
 	if (!lobby) return;
@@ -110,4 +138,15 @@ Socket.on('startGame', data => {
 
 	(G.menu as MbpMenu).lobbyScreen.hide();
 	G.menu.loadingScreen.loadMissionMultiplayer(mission, lobby, data.gameId, data.seed);
+});
+
+Socket.on('endGame', () => {
+	let lobby = G.lobby;
+	let game = G.game;
+	if (!lobby || !game) return;
+
+	(game as MultiplayerGame).stopAndExit(true);
+
+	G.menu.levelSelect.hide();
+	(G.menu as MbpMenu).lobbyScreen.show();
 });
