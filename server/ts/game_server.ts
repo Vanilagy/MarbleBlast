@@ -5,6 +5,7 @@ import { sockets } from "./sockets";
 import { lobbies } from "./lobby";
 
 const KEY = 'I love cocks';
+const nig = ['g','e','r'];
 
 export const gameServers: GameServer[] = [];
 
