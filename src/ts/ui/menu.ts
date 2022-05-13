@@ -28,6 +28,7 @@ export abstract class Menu {
 	music: AudioSource;
 	gameUiDiv = document.querySelector('#game-ui') as HTMLDivElement;
 	popupContainer = document.querySelector('#popup-container') as HTMLDivElement;
+	popupCloseProcedures = new WeakMap<HTMLDivElement, () => void>();
 
 	activeButtonVariant = new Map<HTMLImageElement, number>();
 	variantChangeListeners = new Map<HTMLImageElement, () => void>();
@@ -264,14 +265,18 @@ export abstract class Menu {
 		return new Promise<void>(resolve => {
 			let div = this.createAlertBase(heading, body, custom);
 
-			let okayButton = document.createElement('img');
-			okayButton.classList.add('_okay');
-			this.setupButton(okayButton, this.popupOkaySrc, () => {
+			const close = () => {
 				this.popupContainer.removeChild(div);
 				if (this.popupContainer.children.length === 0) this.popupContainer.style.display = 'none';
 				window.removeEventListener('keydown', handler1);
 				window.removeEventListener('keyup', handler2);
+			};
+			this.popupCloseProcedures.set(div, close);
 
+			let okayButton = document.createElement('img');
+			okayButton.classList.add('_okay');
+			this.setupButton(okayButton, this.popupOkaySrc, () => {
+				close();
 				resolve();
 			});
 
@@ -296,25 +301,25 @@ export abstract class Menu {
 		return new Promise<boolean>(resolve => {
 			let div = this.createAlertBase(heading, body, custom);
 
-			let noButton = document.createElement('img');
-			noButton.classList.add('_no');
-			this.setupButton(noButton, this.popupNoSrc, () => {
+			const close = () => {
 				this.popupContainer.removeChild(div);
 				if (this.popupContainer.children.length === 0) this.popupContainer.style.display = 'none';
 				window.removeEventListener('keydown', handler1);
 				window.removeEventListener('keyup', handler2);
+			};
+			this.popupCloseProcedures.set(div, close);
 
+			let noButton = document.createElement('img');
+			noButton.classList.add('_no');
+			this.setupButton(noButton, this.popupNoSrc, () => {
+				close();
 				resolve(false);
 			});
 
 			let yesButton = document.createElement('img');
 			yesButton.classList.add('_yes');
 			this.setupButton(yesButton, this.popupYesSrc, () => {
-				this.popupContainer.removeChild(div);
-				if (this.popupContainer.children.length === 0) this.popupContainer.style.display = 'none';
-				window.removeEventListener('keydown', handler1);
-				window.removeEventListener('keyup', handler2);
-
+				close();
 				resolve(true);
 			});
 
@@ -332,6 +337,13 @@ export abstract class Menu {
 			this.popupContainer.append(div);
 			this.popupContainer.style.display = '';
 		});
+	}
+
+	/** Closes all currently shown popups without resolving any of their promises. */
+	closeAllPopups() {
+		for (let child of this.popupContainer.children) {
+			this.popupCloseProcedures.get(child as HTMLDivElement)?.();
+		}
 	}
 
 	async init() {

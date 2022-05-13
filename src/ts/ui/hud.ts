@@ -110,39 +110,44 @@ export abstract class Hud {
 				}, Reliability.Relaxed);
 			}
 
-			this.chatInput.value = '';
-			this.chatInput.blur();
-			this.chatInput.style.visibility = '';
-			this.chatInput.style.pointerEvents = '';
-			this.chatMessageContainer.style.overflowY = '';
-			this.chatMessageContainer.scrollTop = 1e6;
-			this.chatMessageContainer.classList.remove('highlighted');
-
-			let now = performance.now();
-			for (let child of this.chatMessageContainer.children) {
-				(child as HTMLElement).style.animationDelay = -(now - this.chatMessageStartTimes.get(child)) + 'ms';
-			}
+			this.closeChat();
 		});
 
 		window.addEventListener('keydown', e => {
-			if (!(!this.menu.gameUiDiv.classList.contains('hidden') &&
-				document.activeElement !== this.chatInput &&
-				G.menu.finishScreen.div.classList.contains('hidden'))
-			) {
-				return;
-			}
+			if (this.menu.gameUiDiv.classList.contains('hidden')) return;
 
-			if (e.code === 'Enter') {
+			if (document.activeElement !== this.chatInput && e.code === 'Enter') {
 				e.stopPropagation();
 				e.preventDefault();
 
+				this.chatContainer.style.pointerEvents = 'auto';
 				this.chatInput.style.visibility = 'visible';
 				this.chatInput.style.pointerEvents = 'all';
 				this.chatMessageContainer.style.overflowY = 'auto';
 				this.chatMessageContainer.classList.add('highlighted');
 				this.chatInput.focus();
 			}
+
+			if (document.activeElement === this.chatInput && e.code === 'Escape') {
+				this.closeChat();
+			}
 		});
+	}
+
+	closeChat() {
+		this.chatContainer.style.pointerEvents = '';
+		this.chatInput.value = '';
+		this.chatInput.blur();
+		this.chatInput.style.visibility = '';
+		this.chatInput.style.pointerEvents = '';
+		this.chatMessageContainer.style.overflowY = '';
+		this.chatMessageContainer.scrollTop = 1e6;
+		this.chatMessageContainer.classList.remove('highlighted');
+
+		let now = performance.now();
+		for (let child of this.chatMessageContainer.children) {
+			(child as HTMLElement).style.animationDelay = -(now - this.chatMessageStartTimes.get(child)) + 'ms';
+		}
 	}
 
 	async load() {

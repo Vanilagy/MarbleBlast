@@ -147,6 +147,7 @@ export class LobbyScreen {
 		this.updateUi();
 
 		G.menu.backgroundImage.src = (G.menu as MbpMenu).multiplayerBg;
+		this.chatMessageContainer.scrollTop = 1e10;
 	}
 
 	hide() {

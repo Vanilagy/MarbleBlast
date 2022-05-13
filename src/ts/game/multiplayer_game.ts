@@ -12,6 +12,7 @@ import { GameServer } from "../net/game_server";
 import { MbpMenu } from "../ui/menu_mbp";
 import { Util } from "../util";
 import { Entity } from "./entity";
+import { FinishState } from "./finish_state";
 import { Game } from "./game";
 import { MultiplayerGameRenderer } from "./multiplayer_game_renderer";
 import { MultiplayerGameSimulator } from "./multiplayer_game_simulator";
@@ -182,6 +183,11 @@ export class MultiplayerGame extends Game {
 				continue;
 			}
 
+			if (entity.requireServerConfirmation) {
+				conflictingEntities.push(entity);
+				continue;
+			}
+
 			let last = Util.last(history);
 			if (!last || last.frame <= this.lastQueuedFrame) continue;
 
@@ -279,6 +285,8 @@ export class MultiplayerGame extends Game {
 		entity.loadState(update.state ?? entity.getInitialState(), { frame: update.frame, remote: true });
 
 		history.push(update);
+
+		if (this.baseStateUpdates.has(update)) entity.requireServerConfirmation = false;
 	}
 
 	signalRestartIntent() {

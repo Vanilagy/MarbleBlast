@@ -35,14 +35,14 @@ export class EndPad extends Shape {
 			finishArea.margin = 0.005; // OIMO had a margin of 0.005 on every shape. We somewhat try to correct for that by adding it back here.
 
 			return finishArea;
-		}, (t: number, dt: number, marble: Marble) => {
+		}, transform, (t: number, dt: number, marble: Marble) => {
 			// These checks are to make sure touchFinish is only called once per contact with the collider. For it to be called again, the marble must leave the area again.
 			let exit = marble.endPadColliderTimeout > 0;
 			marble.endPadColliderTimeout = 2;
 			if (exit) return;
 
 			this.game.finishState.tryFinish(marble, t);
-		}, transform);
+		});
 	}
 
 	/** Starts the finish celebration firework at a given time. */
@@ -51,7 +51,7 @@ export class EndPad extends Shape {
 			let firework = new Firework(this.game, this.worldPosition, this.game.state.time);
 			this.fireworks.push(firework);
 
-			AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
+			AudioManager.play(this.sounds[0]); // Play it for everyone!
 		}, `${this.id}firework`, true);
 	}
 

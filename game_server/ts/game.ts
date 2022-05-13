@@ -146,21 +146,6 @@ export class Game {
 		newUpdates.forEach(x => x.updateId = this.incrementalUpdateId++);
 		this.allEntityUpdates.push(...newUpdates);
 
-		let finishStateUpdate = newUpdates.find(x => x.state && x.state.entityType === 'finishState');
-		if (finishStateUpdate) {
-			// After this base state was added, no new finish states should come in if everythings works as expected.
-			this.baseStateRequests.push({
-				entityId: finishStateUpdate.entityId,
-				sendTo: new Set(this.players),
-				sentFrom: new Set(),
-				responseFrame: finishStateUpdate.frame,
-				update: finishStateUpdate,
-				id: this.baseStateRequestId++
-			});
-
-			Util.filterInPlace(newUpdates, x => x.state?.entityType !== 'finishState');
-		}
-
 		// Send packets to all players
 		for (let player of this.players) {
 			// Filter out the updates the player themselves sent

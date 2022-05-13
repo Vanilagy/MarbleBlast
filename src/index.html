@@ -81,14 +81,6 @@
 
 			<div id="scoreboard"></div>
 
-			<div id="hud-chat">
-				<div></div>
-				<form>
-					<input type="text" maxlength="250">
-					<input type="submit" hidden>
-				</form>
-			</div>
-
 			<div id="touch-input-container">
 				<div id="movement-area"></div>
 				<div id="movement-joystick">
@@ -103,38 +95,6 @@
 				<img src="./assets/img/pause-button.png" id="pause-button" class="touch-button">
 				<div class="touch-button" id="restart-button"><img src="./assets/img/refresh.png"></div>
 				<img src="./assets/img/video-camera.png" id="free-look-button" class="touch-button">
-			</div>
-
-			<div id="pause-screen" class="hidden">
-				<img src="./assets/ui/common/dialog.png">
-				<p>Exit from this Level?</p>
-				<img id="pause-yes">
-				<img id="pause-no">
-				<img id="pause-restart">
-				<img src="./assets/img/round_videocam_black_18dp.png" id="pause-replay" title="Click to view replay up until this point, Alt-Click to download it">
-			</div>
-
-			<div id="mbp-pause-screen" class="hidden">
-				<div class="_background"></div>
-				<div class="_center">
-					<img src="./assets/ui_mbp/play/window.png">
-					<p>Exit from this Level?</p>
-					<img id="mbp-pause-yes">
-					<img id="mbp-pause-no">
-					<img id="mbp-pause-restart">
-					<img id="mbp-pause-replay" title="Click to view replay up until this point, Alt-Click to download it">
-				</div>
-				<img src="./assets/ui_mbp/jukebox/jb_pausemenu_n.png" id="mbp-pause-jukebox">
-
-				<div id="jukebox" class="hidden">
-					<img src="./assets/ui_mbp/jukebox/window.png">
-					<div id="jukebox-songs"></div>
-					<p id="jukebox-text"></p>
-					<img id="jukebox-close">
-					<img id="jukebox-prev">
-					<img id="jukebox-play">
-					<img id="jukebox-next">
-				</div>
 			</div>
 
 			<div id="finish-screen" class="hidden">
@@ -200,6 +160,46 @@
 				<img src="./assets/ui_mbp/endgame/window.png" id="mbp-name-entry-input-background">
 				<input type="text" id="mbp-name-entry-input" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false">
 				<img id="mbp-name-entry-confirm">
+			</div>
+
+			<div id="hud-chat">
+				<div></div>
+				<form>
+					<input type="text" maxlength="250">
+					<input type="submit" hidden>
+				</form>
+			</div>
+
+			<div id="pause-screen" class="hidden">
+				<img src="./assets/ui/common/dialog.png">
+				<p>Exit from this Level?</p>
+				<img id="pause-yes">
+				<img id="pause-no">
+				<img id="pause-restart">
+				<img src="./assets/img/round_videocam_black_18dp.png" id="pause-replay" title="Click to view replay up until this point, Alt-Click to download it">
+			</div>
+
+			<div id="mbp-pause-screen" class="hidden">
+				<div class="_background"></div>
+				<div class="_center">
+					<img src="./assets/ui_mbp/play/window.png">
+					<p>Exit from this Level?</p>
+					<img id="mbp-pause-yes">
+					<img id="mbp-pause-no">
+					<img id="mbp-pause-restart">
+					<img id="mbp-pause-replay" title="Click to view replay up until this point, Alt-Click to download it">
+				</div>
+				<img src="./assets/ui_mbp/jukebox/jb_pausemenu_n.png" id="mbp-pause-jukebox">
+
+				<div id="jukebox" class="hidden">
+					<img src="./assets/ui_mbp/jukebox/window.png">
+					<div id="jukebox-songs"></div>
+					<p id="jukebox-text"></p>
+					<img id="jukebox-close">
+					<img id="jukebox-prev">
+					<img id="jukebox-play">
+					<img id="jukebox-next">
+				</div>
 			</div>
 		</div>
 

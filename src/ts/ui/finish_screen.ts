@@ -1,5 +1,5 @@
 import { AudioManager } from "../audio";
-import { isPressedByGamepad, getPressedFlag, resetPressedFlag } from "../input";
+import { isPressedByGamepad, getPressedFlag, resetPressedFlag, hideTouchControls } from "../input";
 import { Leaderboard } from "../leaderboard";
 import { Replay } from "../replay";
 import { G } from "../global";
@@ -8,7 +8,7 @@ import { Util } from "../util";
 import { Menu } from "./menu";
 
 export abstract class FinishScreen {
-	div:HTMLDivElement;
+	div: HTMLDivElement;
 	time: HTMLParagraphElement;
 	message: HTMLParagraphElement;
 	bestTimeContainer: HTMLDivElement;
@@ -25,6 +25,8 @@ export abstract class FinishScreen {
 	abstract bestTimeCount: number;
 	abstract scorePlaceholderName: string;
 	abstract storeNotQualified: boolean;
+
+	scheduled = false;
 
 	get showing() {
 		return !this.div.classList.contains('hidden');
@@ -81,6 +83,7 @@ export abstract class FinishScreen {
 		window.addEventListener('keydown', (e) => {
 			if (!G.game) return;
 			if (G.menu !== menu) return;
+			if (G.game.type === 'multiplayer') return; // Enter should open chat instead
 
 			if (e.key === 'Enter') {
 				if (!this.nameEntryScreenDiv.classList.contains('hidden')) {
@@ -93,6 +96,7 @@ export abstract class FinishScreen {
 		window.addEventListener('keyup', (e) => {
 			if (!G.game) return;
 			if (G.menu !== menu) return;
+			if (G.game.type === 'multiplayer') return; // Enter should open chat instead
 
 			if (e.key === 'Enter') {
 				if (!this.nameEntryScreenDiv.classList.contains('hidden')) {
@@ -117,6 +121,22 @@ export abstract class FinishScreen {
 	abstract createBestTimeElement(): HTMLDivElement;
 	abstract updateBestTimeElement(element: HTMLDivElement, score: BestTimes[number], rank: number): void;
 	abstract generateNameEntryText(place: number): string;
+
+	schedule() {
+		if (this.scheduled) return;
+		this.scheduled = true;
+
+		setTimeout(() => {
+			// Show the finish screen
+			document.exitPointerLock?.();
+			G.menu.finishScreen.show();
+			hideTouchControls();
+
+			resetPressedFlag('use');
+			resetPressedFlag('jump');
+			resetPressedFlag('restart');
+		}, 2000);
+	}
 
 	show() {
 		let game = G.game;
@@ -170,6 +190,7 @@ export abstract class FinishScreen {
 
 	hide() {
 		this.div.classList.add('hidden');
+		this.scheduled = false;
 	}
 
 	/** Updates the best times. */

@@ -76,7 +76,7 @@ export abstract class PowerUp extends Shape {
 		super.render();
 
 		let opacity = 1;
-		if (this.cooldownDuration > 0) {
+		if (this.pickUpFrame > -Infinity && this.cooldownDuration > 0) {
 			let availableTime = this.pickUpFrame / GAME_UPDATE_RATE + this.cooldownDuration;
 			opacity = Util.clamp(this.game.state.time - availableTime, 0, 1);
 		}

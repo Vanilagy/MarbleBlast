@@ -381,9 +381,9 @@ export class GameRenderer {
 		}
 		*/
 
-		if (marble.inFinishState) {
+		if (marble.finishCameraAnimationStart !== null) {
 			// Make the camera spin around slowly
-			let timeElapsed = this.game.state.time - this.game.finishState.frame / GAME_UPDATE_RATE;
+			let timeElapsed = this.game.state.time - marble.finishCameraAnimationStart;
 			pitch = Util.lerp(marble.finishPitch, DEFAULT_PITCH, Util.clamp(timeElapsed / 0.333, 0, 1));
 			yaw = marble.finishYaw - timeElapsed * 0.6;
 		}

@@ -107,7 +107,8 @@ interface InternalMarbleState {
 	slidingTimeout: number,
 	oldOrientationQuat: Quaternion,
 	orientationQuat: Quaternion,
-	orientationChangeTime: number
+	orientationChangeTime: number,
+	endPadColliderTimeout: number
 }
 
 export interface MarbleControlState {
@@ -183,6 +184,7 @@ export class Marble extends Entity {
 
 	endPadColliderTimeout = 0;
 	inFinishState = false;
+	finishCameraAnimationStart: number = null;
 	finishYaw: number;
 	finishPitch: number;
 
@@ -413,9 +415,7 @@ export class Marble extends Entity {
 				teleportEnableTime: this.teleportEnableTime ?? undefined,
 				teleportDisableTime: this.teleportDisableTime !== null && this.game.state.time - this.teleportDisableTime < TELEPORT_FADE_DURATION ? this.teleportDisableTime : undefined,
 				blastAmount: this.blastAmount || undefined,
-				endPadColliderTimeout: this.endPadColliderTimeout > 0 ? this.endPadColliderTimeout : undefined,
-				finishYaw: this.inFinishState ? this.finishYaw : undefined,
-				finishPitch: this.inFinishState ? this.finishPitch : undefined
+				inFinishState: this.inFinishState || undefined
 			}
 		};
 	}
@@ -434,9 +434,6 @@ export class Marble extends Entity {
 	}
 
 	loadState(state: MarbleState, { remote }: { remote: boolean }) {
-		//if (!this.addedToGame && remote) this.addToGame();
-		//if (remote) return;
-
 		this.body.position.fromObject(state.position);
 		this.body.orientation.fromObject(state.orientation);
 		this.body.linearVelocity.fromObject(state.linearVelocity);
@@ -496,10 +493,7 @@ export class Marble extends Entity {
 
 		this.blastAmount = state.extras.blastAmount || 0;
 
-		this.endPadColliderTimeout = state.extras.endPadColliderTimeout || 0;
-		this.inFinishState = state.extras.finishYaw !== undefined;
-		this.finishYaw = state.extras.finishYaw;
-		this.finishPitch = state.extras.finishPitch;
+		this.inFinishState = !!state.extras.inFinishState;
 	}
 
 	getInternalState(): InternalMarbleState {
@@ -510,7 +504,8 @@ export class Marble extends Entity {
 			slidingTimeout: this.slidingTimeout,
 			oldOrientationQuat: this.oldOrientationQuat.clone(),
 			orientationQuat: this.orientationQuat.clone(),
-			orientationChangeTime: this.orientationChangeTime
+			orientationChangeTime: this.orientationChangeTime,
+			endPadColliderTimeout: this.endPadColliderTimeout
 		};
 	}
 
@@ -522,6 +517,7 @@ export class Marble extends Entity {
 		this.orientationQuat.copy(state.orientationQuat);
 		this.oldOrientationQuat.copy(state.oldOrientationQuat);
 		this.orientationChangeTime = state.orientationChangeTime;
+		this.endPadColliderTimeout = state.endPadColliderTimeout;
 	}
 
 	update() {
@@ -656,6 +652,12 @@ export class Marble extends Entity {
 
 		if (this.inFinishState) this.body.gravity.multiplyScalar(0);
 		if (this.endPadColliderTimeout > 0) this.endPadColliderTimeout--;
+
+		if (!reconciling && this.inFinishState && this.finishCameraAnimationStart === null) {
+			this.finishCameraAnimationStart = this.game.state.time;
+			this.finishYaw = this.currentControlState.yaw;
+			this.finishPitch = this.currentControlState.pitch;
+		}
 
 		Util.filterInPlace(this.teleportStates, x => x.entryFrame !== null || x.exitFrame !== null);
 	}
@@ -1179,10 +1181,7 @@ export class Marble extends Entity {
 
 	enableFinishState() {
 		if (this.inFinishState) return;
-
 		this.inFinishState = true;
-		this.finishYaw = this.currentControlState.yaw;
-		this.finishPitch = this.currentControlState.pitch;
 	}
 
 	useBlast() {
@@ -1255,12 +1254,19 @@ export class Marble extends Entity {
 	restart(frame: number) {
 		super.restart(frame);
 
+		if (!this.addedToGame) this.addToGame();
+
 		this.slidingTimeout = 0;
 		this.lastContactNormal.set(0, 0, 0);
+		this.finishCameraAnimationStart = null;
 		this.setUp(new Vector3(0, 0, 1), true);
 		this.cancelInterpolation();
 
-		if (!this.addedToGame) this.addToGame();
+		if (this.controllingPlayer) {
+			let { euler } = this.getStartPositionAndOrientation();
+			this.controllingPlayer.yaw = DEFAULT_YAW + euler.z;
+			this.controllingPlayer.pitch = DEFAULT_PITCH;
+		}
 
 		this.game.simulator.executeNonDuplicatableEvent(() => {
 			AudioManager.play('spawn.wav', undefined, undefined, this.body.position);
@@ -1289,7 +1295,6 @@ export class Marble extends Entity {
 		}
 
 		this.restart(this.game.state.frame);
-		this.controllingPlayer?.restart();
 	}
 
 	/** Gets the position and orientation of the player spawn point. */
@@ -1337,7 +1342,7 @@ export class Marble extends Entity {
 	}
 
 	afterReconciliation() {
-		let frames = (this.game as MultiplayerGame).state.frameGap;
+		let frames = (this.game as MultiplayerGame).state.frameGap * 2;
 		frames = Math.max(frames, 20); // 20 is totally fine as lower bound, still looks good
 
 		if (this.interpolationRemaining > frames) return;

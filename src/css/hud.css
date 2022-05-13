@@ -212,6 +212,7 @@
 	text-shadow: 1px 1px 0px black;
 	flex-direction: column;
 	text-align: left;
+	pointer-events: none;
 }
 
 #hud-chat > div {

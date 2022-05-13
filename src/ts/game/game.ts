@@ -189,12 +189,13 @@ export abstract class Game {
 
 	/** Pauses the game. */
 	pause() {
-		if (this.paused || (this.finishState.finished && this.finishState.isLegal)) return;
+		if (this.paused || G.menu.finishScreen.scheduled) return;
 
 		document.exitPointerLock?.();
 		releaseAllButtons(); // Safety measure to prevent keys from getting stuck
 		G.menu.pauseScreen.show();
 		hideTouchControls();
+		G.menu.hud.closeChat();
 
 		this.paused = true;
 	}
@@ -234,6 +235,7 @@ export abstract class Game {
 		G.menu.levelSelect.displayBestTimes(); // Potentially update best times having changed
 		G.menu.finishScreen.hide();
 		G.menu.hideGameUi();
+		G.menu.closeAllPopups(); // This is necessary in some multiplayer scenarios
 		G.menu.show();
 
 		document.exitPointerLock?.();

@@ -975,7 +975,7 @@ export class Shape extends Entity {
 	}
 
 	/** Adds a collider shape. Whenever the marble overlaps with the shape, a callback is fired. */
-	addCollider(generateShape: (scale: Vector3) => CollisionShape, onInside: (t: number, dt: number, marble: Marble) => void, localTransform: Matrix4) {
+	addCollider(generateShape: (scale: Vector3) => CollisionShape, localTransform: Matrix4, onInside: (t: number, dt: number, marble: Marble) => void) {
 		let body = new RigidBody();
 		body.type = RigidBodyType.Static;
 

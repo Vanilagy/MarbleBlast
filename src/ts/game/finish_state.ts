@@ -34,7 +34,10 @@ export class FinishState extends Entity {
 		let gemCount = this.game.shapes.filter(x => x instanceof Gem && x.pickedUpBy).length;
 
 		if (gemCount < this.game.totalGems) {
-			AudioManager.play('missinggems.wav', undefined, undefined, endPad?.worldPosition);
+			this.game.simulator.executeNonDuplicatableEvent(() => {
+				AudioManager.play('missinggems.wav', undefined, undefined, endPad?.worldPosition);
+			}, `${this.id}sound`, true);
+
 			G.menu.hud.displayAlert(() => {
 				if (this.game.localPlayer.controlledMarble !== marble) return null;
 				return (G.modification === 'gold')? "You can't finish without all the gems!!" : "You may not finish without all the diamonds!";
@@ -70,7 +73,7 @@ export class FinishState extends Entity {
 
 			// When we reach this point, the level has been completed successfully.
 			if (this.game.type === 'singleplayer') this.finish(endPad);
-			// Do not predict finishing for multiplayer games
+			else this.requireServerConfirmation = true; // Do not predict finishing for multiplayer games
 		}
 	}
 
@@ -83,16 +86,8 @@ export class FinishState extends Entity {
 		}
 
 		// Schedule the finish screen to be shown
-		setTimeout(() => {
-			// Show the finish screen
-			document.exitPointerLock?.();
-			G.menu.finishScreen.show();
-			hideTouchControls();
-
-			resetPressedFlag('use');
-			resetPressedFlag('jump');
-			resetPressedFlag('restart');
-		}, 2000);
+		G.menu.finishScreen.schedule();
+		G.menu.pauseScreen.hide(); // Just to be sure
 	}
 
 	playCosmeticEffects(endPad?: EndPad) {

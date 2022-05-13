@@ -36,6 +36,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 		// Join up all the updates and base states
 		let reconciliationUpdates = bundles.map(x => x.entityUpdates).flat();
 		let baseState = bundles.map(x => x.baseState).flat();
+		let entitiesAffectedByBaseState = new Set<Entity>();
 
 		if (baseState.length > 0) {
 			// Add the base states updates to the other reconciliation updates
@@ -46,15 +47,12 @@ export class MultiplayerGameSimulator extends GameSimulator {
 				let entity = game.getEntityById(update.entityId);
 
 				const prepareForBaseState = (e: Entity) => {
-					// Remove all of the new local changes to the entity
-					let history = state.stateHistory.get(e.id);
-					let can = history && !history.some(x => x.frame >= this.lastServerFrame && game.remoteUpdates.has(x));
-					if (can) state.rollBackEntityToFrame(e, this.lastServerFrame);
-
 					let next = new Set<Entity>();
 					for (let edge of state.affectionGraph) if (edge.from === e) next.add(edge.to);
 
 					e.clearInteractions(); // Because it's a base state
+					entitiesAffectedByBaseState.add(e);
+
 					for (let e2 of next) prepareForBaseState(e2);
 				};
 
@@ -90,7 +88,7 @@ export class MultiplayerGameSimulator extends GameSimulator {
 			// Roll back the entire game start to the start of the reconciliation window
 			state.rollBackToFrame(startFrame);
 
-			this.clearLocallyPredictedUpdates(reconciliationUpdates);
+			this.clearLocallyPredictedUpdates(reconciliationUpdates, entitiesAffectedByBaseState);
 
 			// Execute any restarts we missed
 			if (state.lastRestartFrame > this.maxExecutedRestartFrame) {
@@ -126,9 +124,17 @@ export class MultiplayerGameSimulator extends GameSimulator {
 	}
 
 	/** Undoes all locally predicted state updates performed by players other than the local one. We do this because unless they are conflicts, we have no real say about what the other players update. */
-	clearLocallyPredictedUpdates(reconciliationUpdates: EntityUpdate[]) {
+	clearLocallyPredictedUpdates(reconciliationUpdates: EntityUpdate[], entititesAffectedByBaseState: Set<Entity>) {
 		let { game } = this;
 		let { state } = game;
+
+		// First, do some base state clean-up stuff
+		for (let entity of entititesAffectedByBaseState) {
+			// Remove all of the new local changes to the entity
+			let history = state.stateHistory.get(entity.id);
+			let can = history && !history.some(x => x.frame >= this.lastServerFrame && game.remoteUpdates.has(x));
+			if (can) state.rollBackEntityToFrame(entity, this.lastServerFrame);
+		}
 
 		// Figure out from which players we've gotten updates (we use the Player entity state as am indicator for that)
 		let playerUpdates = [...new Set(reconciliationUpdates.filter(x => x.state?.entityType === 'player').map(x => x.entityId))];
