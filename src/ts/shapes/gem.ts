@@ -123,7 +123,10 @@ export class Gem extends Shape {
 				subject = 'A marble';
 			} else {
 				if (marble.controllingPlayer === this.game.localPlayer) subject = 'You';
-				else subject = 'They'; // todo change to username
+				else {
+					let session = G.lobby.sockets.find(x => x.id === marble.controllingPlayer?.sessionId);
+					subject = session ? session.name : 'A marble';
+				}
 			}
 
 			string = `${subject} picked up a ${gemWord}${G.modification === 'gold' ? '.' : '!'}  `;

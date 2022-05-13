@@ -10,6 +10,15 @@ import { MultiplayerGame } from "../game/multiplayer_game";
 import { Reliability } from "../../../shared/game_server_connection";
 import { Connectivity } from "../net/connectivity";
 
+export const hudCanvas = document.querySelector('#hud-canvas') as HTMLCanvasElement;
+export let hudCtx: CanvasRenderingContext2D;
+
+export const initHudCtx = () => {
+	hudCtx = hudCanvas.getContext('2d', {
+		desynchronized: StorageManager.data.settings.canvasDesynchronized
+	});
+};
+
 const numberSources = {
 	"0": "0.png",
 	"1": "1.png",
@@ -189,6 +198,8 @@ export abstract class Hud {
 
 		this.helpMessages.length = 0;
 		this.alerts.length = 0;
+
+		hudCanvas.style.display = G.game.type === 'singleplayer' ? 'none' : '';
 
 		if (Util.isTouchDevice) this.setupTouchControls();
 

@@ -1,7 +1,13 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { G } from "../global";
+import { Vector2 } from "../math/vector2";
+import { BallCollisionShape } from "../physics/collision_shape";
+import { hudCtx } from "../ui/hud";
+import { Util } from "../util";
 import { GameRenderer } from "./game_renderer";
 import { MultiplayerGame } from "./multiplayer_game";
+
+const NAME_TAG_HEIGHT = 18;
 
 export class MultiplayerGameRenderer extends GameRenderer {
 	networkStatTimeout = 0;
@@ -11,6 +17,55 @@ export class MultiplayerGameRenderer extends GameRenderer {
 		super.renderHud();
 
 		G.menu.hud.displayScoreboard();
+
+		hudCtx.clearRect(0, 0, hudCtx.canvas.width, hudCtx.canvas.height);
+
+		for (let marble of this.game.marbles) {
+			if (!marble.addedToGame) continue;
+			let player = marble.controllingPlayer;
+			if (!player || player === this.game.localPlayer) continue;
+			let socket = G.lobby.sockets.find(x => x.id === player.sessionId);
+			if (!socket) continue;
+
+			let pos = marble.group.position.clone().addScaledVector(this.camera.up, 0.5); // Use the visual position, not the physics one
+			let projected = pos.clone().applyMatrix4(this.camera.matrixWorldInverse).applyMatrix4(this.camera.projectionMatrix);
+
+			projected.addScalar(1).multiplyScalar(0.5);
+			if (projected.z < 0 || projected.z > 1) continue; // Not inside the view frustum
+
+			let hits = this.game.simulator.world.castRay(this.camera.position, marble.group.position.clone().sub(this.camera.position), 1);
+			let inLineOfSight = !hits.some(x => !(x.shape instanceof BallCollisionShape));
+
+			hudCtx.globalAlpha = inLineOfSight? 1 : 0.5;
+
+			let screenPos = new Vector2(
+				Math.floor(hudCtx.canvas.width * projected.x),
+				Math.floor(hudCtx.canvas.height * (1 - projected.y))
+			);
+
+			hudCtx.textAlign = 'center';
+			hudCtx.textBaseline = 'middle';
+			hudCtx.font = '12px Nunito';
+
+			let name = socket.name;
+			let nameTagWidth = Util.roundToMultiple(hudCtx.measureText(name).width + 20, 2);
+
+			hudCtx.fillStyle = 'rgba(0,0,0,0.333)';
+			Util.roundRect(
+				hudCtx,
+				screenPos.x - nameTagWidth/2,
+				screenPos.y - NAME_TAG_HEIGHT/2,
+				nameTagWidth,
+				NAME_TAG_HEIGHT,
+				5
+			);
+			hudCtx.fill();
+
+			hudCtx.fillStyle = 'black';
+			hudCtx.fillText(name, screenPos.x + 1, screenPos.y + 1);
+			hudCtx.fillStyle = 'white';
+			hudCtx.fillText(name, screenPos.x, screenPos.y);
+		}
 
 		if (--this.networkStatTimeout <= 0) {
 			this.displayNetworkStats();

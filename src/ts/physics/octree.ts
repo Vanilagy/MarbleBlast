@@ -1,5 +1,6 @@
 import { Box3 } from "../math/box3";
 import { Vector3 } from "../math/vector3";
+import { Util } from "../util";
 
 const DEFAULT_ROOT_NODE_SIZE = 1;
 const MIN_DEPTH = -32;
@@ -12,12 +13,6 @@ let b1 = new Box3();
 /** Specifies an object that an octree can index. */
 export interface OctreeObject {
 	boundingBox: Box3
-}
-
-export interface OctreeIntersection {
-	object: OctreeObject,
-	point: Vector3,
-	distance: number
 }
 
 /** A dynamic, loose octree of bounding boxes for efficient spatial operations such as raytracing. Implemented without any cringe. */
@@ -170,6 +165,16 @@ export class Octree {
 
 		let intersections: OctreeObject[] = [];
 		this.root.intersectAabb(aabb, intersections);
+
+		return intersections;
+	}
+
+	intersectRay(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number) {
+		v1.copy(rayDirection).normalize();
+		lambdaMax *= rayDirection.length();
+
+		let intersections: OctreeObject[] = [];
+		this.root.intersectRay(rayOrigin, v1, lambdaMax, intersections);
 
 		return intersections;
 	}
@@ -381,6 +386,28 @@ class OctreeNode {
 			if (octant.count === 0) continue;
 
 			octant.intersectAabb(aabb, intersections);
+		}
+	}
+
+	intersectRay(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number, intersections: OctreeObject[]) {
+		// Construct the loose bounding box of this node (2x in size, with the regular bounding box in the center)
+		let looseBoundingBox = b1;
+		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
+		looseBoundingBox.max.copy(this.min).addScalar(this.size * 3/2);
+
+		if (!Util.rayIntersectsBox(rayOrigin, rayDirection, lambdaMax, looseBoundingBox)) return; // The ray doesn't hit the node's loose bounding box; we can stop
+
+		// Test all objects for intersection
+		if (this.objects.size > 0) for (let object of this.objects) {
+			if (Util.rayIntersectsBox(rayOrigin, rayDirection, lambdaMax, object.boundingBox)) {
+				intersections.push(object);
+			}
+		}
+
+		// Recurse into the octants
+		if (this.octants) for (let i = 0; i < 8; i++) {
+			let octant = this.octants[i];
+			octant.intersectRay(rayOrigin, rayDirection, lambdaMax, intersections);
 		}
 	}
 

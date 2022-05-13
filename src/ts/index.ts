@@ -10,6 +10,7 @@ import { setMenu } from './ui/menu_setter';
 import { initMainRenderer } from './ui/misc';
 import { Connectivity } from './net/connectivity';
 import { Socket } from '../../shared/socket';
+import { initHudCtx } from './ui/hud';
 
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
 const loadingDetail = document.querySelector('#loading-detail') as HTMLDivElement;
@@ -20,6 +21,7 @@ const init = async () => {
 	await StorageManager.init();
 	await ResourceManager.init();
 	initMainRenderer();
+	initHudCtx();
 
 	await Connectivity.init();
 

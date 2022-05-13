@@ -2,6 +2,7 @@ import { Renderer } from "../rendering/renderer";
 import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
+import { hudCanvas } from "./hud";
 
 export const mainCanvas = document.querySelector('#main-canvas') as HTMLCanvasElement;
 export let mainRenderer: Renderer;
@@ -35,6 +36,10 @@ export const resize = async (wait = true) => {
 	mainRenderer?.setPixelRatio(Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]));
 
 	G.game?.renderer.onResize();
+
+	// todo pixelratio
+	hudCanvas.setAttribute('width', window.innerWidth.toString());
+	hudCanvas.setAttribute('height', window.innerHeight.toString());
 };
 window.addEventListener('resize', resize as any);
 

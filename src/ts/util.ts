@@ -13,6 +13,8 @@ export interface RGBAColor {
 	a: number
 }
 
+let v1 = new Vector3();
+
 export abstract class Util {
 	static keyboardMap: Map<string, string>;
 
@@ -603,8 +605,10 @@ export abstract class Util {
 		return Math.round(val / fac) * fac;
 	}
 
-	/** Checks if a ray intersects an AABB. Uses the algorithm described at https://tavianator.com/2011/ray_box.html. */
-	static rayIntersectsBox(rayOrigin: Vector3, rayDirection: Vector3, box: Box3, intersectionPoint?: Vector3) {
+	/** Checks if a ray intersects an AABB. Expects a normalized ray direction. Uses the algorithm described at https://tavianator.com/2011/ray_box.html. */
+	static rayIntersectsBox(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number, box: Box3) {
+		if (box.containsPoint(rayOrigin)) return true;
+
 		let tx1 = (box.min.x - rayOrigin.x) / rayDirection.x;
 		let tx2 = (box.max.x - rayOrigin.x) / rayDirection.x;
 
@@ -623,8 +627,8 @@ export abstract class Util {
 		tmin = Math.max(tmin, Math.min(tz1, tz2));
 		tmax = Math.min(tmax, Math.max(tz1, tz2));
 
-		if (intersectionPoint && tmax >= tmin)
-			intersectionPoint.copy(rayOrigin).addScaledVector(rayDirection, (tmin >= 0)? tmin : tmax); // use tmax if the ray starts inside the box
+		v1.copy(rayOrigin).addScaledVector(rayDirection, (tmin >= 0)? tmin : tmax); // use tmax if the ray starts inside the box
+		if (rayOrigin.distanceToSquared(v1) > lambdaMax**2) return false;
 
 		return tmax >= tmin;
 	}
@@ -855,6 +859,18 @@ export abstract class Util {
 
 		// Map state to [0, 1)
 		return resU * 2.3283064365386963e-10 + (resL >>> 12) * 2.220446049250313e-16;
+	}
+
+	static roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+		if (w < 2 * r) r = w / 2;
+		if (h < 2 * r) r = h / 2;
+		ctx.beginPath();
+		ctx.moveTo(x+r, y);
+		ctx.arcTo(x+w, y,   x+w, y+h, r);
+		ctx.arcTo(x+w, y+h, x,   y+h, r);
+		ctx.arcTo(x,   y+h, x,   y,   r);
+		ctx.arcTo(x,   y,   x+w, y,   r);
+		ctx.closePath();
 	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing

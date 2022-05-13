@@ -273,12 +273,13 @@ export class World {
 	/** Casts a ray into the world and returns all intersections. */
 	castRay(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number, collisionDetectionMask = 0b1) {
 		// Build the AABB of the ray
+		// todo remove these?
 		rayCastAabb.makeEmpty();
 		rayCastAabb.expandByPoint(rayOrigin);
 		rayCastAabb.expandByPoint(v1.copy(rayOrigin).addScaledVector(rayDirection, lambdaMax));
 
 		// Query the octree for possible candidates
-		let candidates = this.octree.intersectAabb(rayCastAabb) as CollisionShape[];
+		let candidates = this.octree.intersectRay(rayOrigin, rayDirection, lambdaMax) as CollisionShape[];
 		let hits: RayCastHit[] = [];
 
 		for (let candidate of candidates) {
