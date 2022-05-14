@@ -8,7 +8,7 @@ import { Util } from "../util";
 import { MbpLevelSelect } from "./level_select_mbp";
 import { MbpMenu } from "./menu_mbp";
 import { gameServers } from "../net/game_server";
-import { Connectivity } from "../net/connectivity";
+import { SCALING_RATIO } from "./misc";
 
 export class LobbyScreen {
 	div: HTMLDivElement;
@@ -117,7 +117,7 @@ export class LobbyScreen {
 			}
 		});
 
-		this.playerActionsContainer.querySelector('._click-preventer').addEventListener('click', () => {
+		this.playerActionsContainer.addEventListener('click', () => {
 			this.playerActionsContainer.classList.add('hidden');
 		});
 
@@ -125,7 +125,6 @@ export class LobbyScreen {
 			let confirmed = await menu.showConfirmPopup('Kick Player', `Are you sure you want to kick player ${G.lobby.sockets.find(x => x.id === this.currentPlayerActionReceiver)?.name} out of this lobby?`);
 			if (!confirmed) return;
 
-			this.playerActionsContainer.classList.add('hidden');
 			Socket.send('kickSocketOutOfLobby', this.currentPlayerActionReceiver);
 		});
 
@@ -133,7 +132,6 @@ export class LobbyScreen {
 			let confirmed = await menu.showConfirmPopup('Promote Player', `Are you sure you want to promote player ${G.lobby.sockets.find(x => x.id === this.currentPlayerActionReceiver)?.name} to lobby owner?`);
 			if (!confirmed) return;
 
-			this.playerActionsContainer.classList.add('hidden');
 			Socket.send('promotePlayer', this.currentPlayerActionReceiver);
 		});
 
@@ -224,8 +222,8 @@ export class LobbyScreen {
 				let wholeBoundingRect = this.div.getBoundingClientRect();
 				let boundingRect = div.getBoundingClientRect();
 
-				this.playerActionsContainer.style.bottom = (boundingRect.top - wholeBoundingRect.top) + 'px';
-				this.playerActionsContainer.style.left = (boundingRect.left - wholeBoundingRect.left + Math.floor(boundingRect.width/2)) + 'px';
+				this.playerActionsContainer.style.top = SCALING_RATIO * (boundingRect.top - wholeBoundingRect.top) + 'px';
+				this.playerActionsContainer.style.left = SCALING_RATIO * (boundingRect.left - wholeBoundingRect.left + Math.floor(boundingRect.width/2)) + 'px';
 
 				this.currentPlayerActionReceiver = player.id;
 			});

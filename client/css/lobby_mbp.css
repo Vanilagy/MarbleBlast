@@ -336,7 +336,7 @@
 
 #mbp-lobby-player-actions {
 	position: absolute;
-	transform: translateX(-50%) translateY(80px);
+	transform: translateX(-50%) translateY(-100%) translateY(50px);
 	z-index: 10;
 }
 

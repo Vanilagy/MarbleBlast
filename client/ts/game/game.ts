@@ -17,11 +17,11 @@ import { G } from "../global";
 import { workerClearTimeoutOrInterval, workerSetInterval } from "../worker";
 import { Player } from "./player";
 import { Clock } from "./clock";
-import { PowerUp } from "../shapes/power_up";
 import { FormatToType } from "../../../shared/fixed_format_binary_serializer";
 import { playerFormat } from "../../../shared/game_server_format";
 import { FinishState } from "./finish_state";
 import { Vector3 } from "../math/vector3";
+import { PowerUp } from "./shapes/power_up";
 
 export abstract class Game {
 	abstract type: 'singleplayer' | 'multiplayer'; // For the record, I do know that it's spelled "single-player", but I also know that English can suck my
