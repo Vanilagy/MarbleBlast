@@ -289,14 +289,14 @@ export abstract class Hud {
 	}
 
 	/** Updates the gem count display. */
-	displayGemCount(count: number, total: number) {
+	displayGemCount(count: number, total?: number) {
 		if (total === 0) return;
 
-		let hash = `${count}/${total}`;
+		let hash = total === undefined ? count.toString() : `${count}/${total}`;
 		if (this.lastGemCount === hash) return;
 		this.lastGemCount = hash;
 
-		let string = Util.leftPadZeroes(count.toString(), this.gemCountMinDigits) + '/' + Util.leftPadZeroes(total.toString(), this.gemCountMinDigits);
+		let string = Util.leftPadZeroes(count.toString(), this.gemCountMinDigits) + (total === undefined ? '' : '/' + Util.leftPadZeroes(total.toString(), this.gemCountMinDigits));
 
 		// Generate the appropriate number of image elements
 		while (string.length > this.gemCountElement.children.length) {

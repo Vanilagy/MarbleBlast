@@ -23,7 +23,7 @@ import { mainRenderer, SCALING_RATIO } from "../ui/misc";
 import { FRAME_RATE_OPTIONS } from "../ui/options_mbp";
 import { MbpPauseScreen } from "../ui/pause_screen_mbp";
 import { Util } from "../util";
-import { Game } from "./game";
+import { Game, GameMode } from "./game";
 import { GAME_PLAYBACK_SPEED } from "./game_simulator";
 import { GO_TIME, READY_TIME, SET_TIME } from "./game_state";
 import { MisUtils } from "../parsing/mis_utils";
@@ -482,13 +482,26 @@ export class GameRenderer {
 			}
 		}
 
-		let gemCount = 0;
-		for (let i = 0; i < this.game.entities.length; i++) {
-			let entity = this.game.entities[i];
-			if (entity instanceof Gem && entity.pickedUpBy) gemCount++;
+		if (game.mode === GameMode.Normal) {
+			let gemCount = 0;
+			for (let i = 0; i < this.game.entities.length; i++) {
+				let entity = this.game.entities[i];
+				if (entity instanceof Gem && entity.pickUpHistory.length > 0) gemCount++;
+			}
+
+			hud.displayGemCount(gemCount, this.game.totalGems);
+		} else if (game.mode === GameMode.Hunt) {
+			let gemCount = 0;
+			for (let i = 0; i < this.game.entities.length; i++) {
+				let entity = this.game.entities[i];
+				if (entity instanceof Gem) gemCount += Util.count(entity.pickUpHistory, x => x === game.localPlayer.controlledMarble);
+			}
+
+			// todo proper points
+
+			hud.displayGemCount(gemCount);
 		}
 
-		hud.displayGemCount(gemCount, this.game.totalGems);
 		hud.displayBlastMeterFullness(this.game.localPlayer.controlledMarble.blastAmount);
 		hud.displayFps();
 

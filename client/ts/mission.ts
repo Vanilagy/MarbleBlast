@@ -21,6 +21,8 @@ export class Mission {
 	/** The string used for searching missions. */
 	searchString: string;
 	missionInfo: MissionElementScriptObject;
+
+	gameMode: 'normal' | 'hunt' = 'normal';
 	title: string;
 	artist: string;
 	description: string;
@@ -47,31 +49,11 @@ export class Mission {
 		}
 	}
 
-	/** Creates a new Mission from a .mis file. */
-	static fromMisFile(path: string, misFile: MisFile) {
-		let mission = new Mission(path, misFile);
-		let missionInfo = mission.allElements.find(element => element._type === MissionElementType.ScriptObject && element._name === 'MissionInfo') as MissionElementScriptObject;
-
-		mission.missionInfo = missionInfo;
-		mission.title = missionInfo.name;
-		mission.artist = missionInfo.artist ?? '';
-		mission.description = missionInfo.desc ?? '';
-		if (missionInfo.time && missionInfo.time !== "0") mission.qualifyTime = MisParser.parseNumber(missionInfo.time);
-		if (missionInfo.goldtime) mission.goldTime = MisParser.parseNumber(missionInfo.goldtime);
-		if (missionInfo.platinumtime) mission.goldTime = MisParser.parseNumber(missionInfo.platinumtime);
-		if (missionInfo.ultimatetime) mission.ultimateTime = MisParser.parseNumber(missionInfo.ultimatetime);
-		mission.type = missionInfo.type.toLowerCase() as any;
-		mission.modification = path.startsWith('mbp/')? 'platinum' : path.startsWith('mbu/')? 'ultra' : 'gold';
-		mission.hasEasterEgg = mission.allElements.some(element => element._type === MissionElementType.Item && element.datablock?.toLowerCase() === 'easteregg');
-		mission.setUltraFlags();
-
-		return mission;
-	}
-
 	static fromOfficialMissionDescription(description: OfficialMissionDescription) {
 		let mission = new Mission(description.path);
 
 		mission.misPath = description.misPath;
+		mission.gameMode = description.gameMode?.toLowerCase() ?? 'normal' as any;
 		mission.title = description.name;
 		mission.artist = description.artist ?? '';
 		mission.description = description.desc ?? '';
@@ -195,16 +177,10 @@ export class Mission {
 			this.hasUltraMarble = true;
 	}
 
-	getDirectoryMissionPath() {
-		if (this.modification === 'gold') return 'missions/' + this.path;
-		if (this.modification === 'ultra') return 'missions_mbu/' + this.path.slice(4);
-		if (this.modification === 'platinum') return 'missions_mbp/' + this.path.slice(4);
-	}
-
 	/** Gets the path of the image of a mission. */
 	getImagePath() {
 		if (this.type !== 'custom') {
-			let directoryMissionPath = this.getDirectoryMissionPath();
+			let directoryMissionPath = this.misPath.slice(this.misPath.indexOf('/') + 1);
 			if (G.modification !== 'gold') directoryMissionPath = directoryMissionPath.replace('missions/', 'missions_mbg/');
 
 			let withoutExtension = directoryMissionPath.slice(0, -4);

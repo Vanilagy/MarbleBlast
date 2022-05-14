@@ -30,7 +30,7 @@ export class FinishState extends Entity {
 		if (this.finished) return;
 
 		let endPad = Util.findLast(this.game.shapes, (shape) => shape instanceof EndPad) as EndPad;
-		let gemCount = this.game.shapes.filter(x => x instanceof Gem && x.pickedUpBy).length;
+		let gemCount = Util.count(this.game.shapes, x => x instanceof Gem && x.pickUpHistory.length > 0);
 
 		if (gemCount < this.game.totalGems) {
 			this.game.simulator.executeNonDuplicatableEvent(() => {

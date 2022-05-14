@@ -22,6 +22,12 @@ import { playerFormat } from "../../../shared/game_server_format";
 import { FinishState } from "./finish_state";
 import { Vector3 } from "../math/vector3";
 import { PowerUp } from "./shapes/power_up";
+import { GemSpawnState } from "./gem_spawn_state";
+
+export enum GameMode {
+	Normal,
+	Hunt
+}
 
 export abstract class Game {
 	abstract type: 'singleplayer' | 'multiplayer'; // For the record, I do know that it's spelled "single-player", but I also know that English can suck my
@@ -34,6 +40,7 @@ export abstract class Game {
 
 	mission: Mission;
 	seed = Math.floor(Math.random() * 2**32);
+	mode: GameMode;
 
 	entities: Entity[] = [];
 	entityMap = new Map<number, Entity>();
@@ -47,6 +54,7 @@ export abstract class Game {
 
 	clock: Clock;
 	finishState: FinishState;
+	gemSpawnState: GemSpawnState;
 	randomPowerUpInstances: PowerUp[];
 
 	totalGems = 0;
@@ -68,6 +76,7 @@ export abstract class Game {
 
 	constructor(mission: Mission) {
 		this.mission = mission;
+		this.mode = mission.gameMode === 'hunt' ? GameMode.Hunt : GameMode.Normal;
 
 		this.createState();
 		this.createInitter();

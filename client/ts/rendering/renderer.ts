@@ -29,7 +29,11 @@ const DEFAULT_CONTEXT_OPTIONS = {
 
 /** The renderer is the central keeper of the WebGL rendering context and performs the actual rendering of a scene. */
 export class Renderer {
-	options: { canvas: HTMLCanvasElement };
+	options: {
+		canvas: HTMLCanvasElement,
+		alpha?: boolean,
+		desynchronized?: boolean
+	};
 	gl: WebGLRenderingContext | WebGL2RenderingContext;
 	currentProgram: Program = null;
 	/** Maps #define chunks, which uniquely identify a shader, to the program containing that shader. */
@@ -229,11 +233,19 @@ export class Renderer {
 			gl.uniform1f(program.getUniformLocation('reflectivity'), material.reflectivity);
 			gl.uniform1f(program.getUniformLocation('secondaryMapUvFactor'), material.secondaryMapUvFactor);
 
-			if (material.blending === BlendingType.Normal) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // Premultiplied alpha
+			this.options.alpha;
+
+			if (material.blending === BlendingType.Normal) {
+				if (this.options.alpha) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // Premultiplied alpha
+				else gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // No premultiplied alpha
+			}
 			else if (material.blending === BlendingType.Additive) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 			else if (material.blending === BlendingType.Subtractive) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // I actually dunno if this one's correct
 
 			gl.depthMask(material.depthWrite);
+
+			if (material.doubleSided) gl.disable(gl.CULL_FACE);
+			else gl.enable(gl.CULL_FACE);
 
 			// Bind all textures
 			if (material.receiveShadows || material.isShadow)

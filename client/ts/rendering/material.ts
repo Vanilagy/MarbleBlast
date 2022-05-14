@@ -1,5 +1,5 @@
 import { CubeTexture } from "./cube_texture";
-import { BlendingType } from "./renderer";
+import { BlendingType, Renderer } from "./renderer";
 import { Texture } from "./texture";
 
 /** A material defines the visual appearance of a mesh and controls the vertex/fragment shaders that are needed to render it. */
@@ -41,6 +41,8 @@ export class Material {
 	renderOrder = 0;
 	/** The factor by which to scale all secondary map (normal & specular) UV coordinates by. */
 	secondaryMapUvFactor = 1;
+	/** Whether to turn face culling off and render sides of faces. */
+	doubleSided = false;
 
 	private hashCache: string = null;
 	/** Gets the hash of the material. Two materials with the same configuration will have an identical hash. */
@@ -78,7 +80,7 @@ export class Material {
 
 	private defineChunkCache: string = null;
 	/** Gets the #define chunk that needs to be prepended to both the vertex and fragment shaders to make the material work. */
-	getDefineChunk() {
+	getDefineChunk(renderer: Renderer) {
 		if (this.defineChunkCache) return this.defineChunkCache;
 
 		let defines: string[] = [];
@@ -100,7 +102,7 @@ export class Material {
 		if (this.useAccurateReflectionRay) defines.push('USE_ACCURATE_REFLECTION_RAY');
 		if (this.specularIntensity) defines.push('USE_SPECULAR');
 		if (this.saturateIncomingLight) defines.push('SATURATE_INCOMING_LIGHT');
-		if (this.blending === BlendingType.Normal) defines.push('USE_PREMULTIPLIED_ALPHA');
+		if (this.blending === BlendingType.Normal && renderer.options.alpha) defines.push('USE_PREMULTIPLIED_ALPHA');
 
 		return this.defineChunkCache = defines.map(x => `#define ${x}\n`).join('');
 	}

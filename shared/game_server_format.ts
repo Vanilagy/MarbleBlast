@@ -55,8 +55,8 @@ export const entityStateFormat = [union, 'entityType', {
 	targetTime: 'f64',
 }, {
 	entityType: 'gem',
-	pickedUpBy: [nullable, 'varint'],
-	pickUpFrame: [nullable, 'varint']
+	pickUpFrame: [nullable, 'varint'],
+	pickUpHistory: ['varint']
 }, {
 	entityType: 'powerUp',
 	...powerUpStateFormat
@@ -97,6 +97,11 @@ export const entityStateFormat = [union, 'entityType', {
 	time: [nullable, 'f64'],
 	elapsedTime: [nullable, 'f64'],
 	isLegal: 'boolean'
+}, {
+	entityType: 'gemSpawnState',
+	n: 'varint',
+	lastSpawnFrame: 'varint',
+	lastFinalGem: [nullable, 'varint']
 }] as const;
 
 export const entityUpdateFormat = {

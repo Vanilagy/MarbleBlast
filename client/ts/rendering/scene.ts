@@ -303,7 +303,7 @@ export class Scene extends Group {
 
 			for (let data of mesh.materialIndices) {
 				let material = data.material;
-				let defineChunk = material.getDefineChunk();
+				let defineChunk = material.getDefineChunk(this.renderer);
 				this.allDefineChunks.add(defineChunk);
 
 				if (!this.renderer.materialShaders.has(defineChunk)) {
@@ -319,7 +319,7 @@ export class Scene extends Group {
 					continue; // We do only opaque stuff here
 				}
 
-				Scene.updateMaterialGroup(materialMap, data);
+				this.updateMaterialGroup(materialMap, data);
 			}
 		}
 
@@ -399,7 +399,7 @@ export class Scene extends Group {
 	}
 
 	/** Updates (or creates) a material group and adds index data to it. */
-	static updateMaterialGroup(materialMap: Map<string, MaterialGroup>, data: MaterialIndexData) {
+	updateMaterialGroup(materialMap: Map<string, MaterialGroup>, data: MaterialIndexData) {
 		let material = data.material;
 		let materialHash = material.getHash();
 		let materialGroup = materialMap.get(materialHash);
@@ -408,7 +408,7 @@ export class Scene extends Group {
 			materialGroup = {
 				material,
 				indexGroups: [],
-				defineChunk: material.getDefineChunk(),
+				defineChunk: material.getDefineChunk(this.renderer),
 
 				// These two *have* to be set later on
 				vertexBufferGroup: null,
@@ -527,7 +527,7 @@ export class Scene extends Group {
 
 				if ((!material.transparent && effectiveOpacity === 1) || effectiveOpacity === 0) continue;
 
-				let group = Scene.updateMaterialGroup(mesh.dynamic? dynamicMaterialMap : staticMaterialMap, data);
+				let group = this.updateMaterialGroup(mesh.dynamic? dynamicMaterialMap : staticMaterialMap, data);
 				group.minDistance = Math.min(group.minDistance, mesh.distanceToCamera);
 			}
 		}

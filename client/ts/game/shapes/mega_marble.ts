@@ -1,3 +1,4 @@
+import { AudioManager } from "../../audio";
 import { Marble } from "../marble";
 import { PowerUp } from "./power_up";
 
@@ -14,5 +15,9 @@ export class MegaMarble extends PowerUp {
 		marble.enableMegaMarble();
 	}
 
-	useCosmetically() {}
+	useCosmetically(marble: Marble) {
+		this.game.simulator.executeNonDuplicatableEvent(() => {
+			AudioManager.play(this.sounds[1], undefined, undefined, marble.body.position);
+		}, `${this.id} ${marble.id}useCosmetic`, marble !== this.game.localPlayer.controlledMarble);
+	}
 }

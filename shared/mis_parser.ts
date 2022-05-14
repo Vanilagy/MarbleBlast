@@ -67,6 +67,9 @@ export interface MissionElementScriptObject extends MissionElementBase {
 	noblast: string,
 	blast: string,
 	useultramarble: string,
+	maxgemsperspawn: string,
+	radiusfromgem: string,
+	spawnblock: string,
 
 	score: any,
 	score0: any,
@@ -98,7 +101,7 @@ export interface MissionElementSky extends MissionElementBase {
 	position: string,
 	rotation: string,
 	scale: string,
-	cloudheightper: string[],
+	cloudheightper: string,
 	cloudspeed1: string,
 	cloudspeed2: string,
 	cloudspeed3: string,
@@ -486,8 +489,8 @@ export class MisParser {
 
 	/** Reads the key/value pairs of an element. */
 	readValues() {
-		// Values are either strings or string arrays.
-		let obj: Record<string, string | string[]> = {};
+		// Values are always strings.
+		let obj: Record<string, string> = {};
 		let endingBraceIndex = SharedUtil.indexOfIgnoreStringLiterals(this.text, '};', this.index);
 		if (endingBraceIndex === -1) endingBraceIndex = this.text.length;
 		let section = this.text.slice(this.index, endingBraceIndex).trim();
@@ -501,18 +504,9 @@ export class MisParser {
 			if (parts.length !== 2) continue;
 			let key = parts[0];
 			key = key.toLowerCase(); // TorqueScript is case-insensitive here
+			key = key.replace(/\[(\d+)\]/, '_$1'); // "Array indices" actually just turn into _index
 
-			if (key.endsWith(']')) {
-				// The key is specifying array data, so handle that case.
-				let openingIndex = key.indexOf('[');
-				let arrayName = key.slice(0, openingIndex);
-				let array = (obj[arrayName] ?? (obj[arrayName] = [])) as string[]; // Create a new array or use the existing one
-
-				let index = Number(key.slice(openingIndex + 1, -1));
-				array[index] = this.resolveExpression(parts[1]);
-			} else {
-				obj[key] = this.resolveExpression(parts[1]);
-			}
+			obj[key] = this.resolveExpression(parts[1]);
 		}
 
 		this.index = endingBraceIndex + 2;

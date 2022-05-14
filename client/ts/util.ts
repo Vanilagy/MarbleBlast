@@ -872,6 +872,16 @@ export abstract class Util {
 		ctx.arcTo(x,   y,   x+w, y,   r);
 		ctx.closePath();
 	}
+
+	static imply(antecedent: boolean, consequent: boolean) {
+		return !antecedent || consequent;
+	}
+
+	static count<T>(arr: T[], pred: (item: T) => boolean) {
+		let total = 0;
+		for (let i = 0; i < arr.length; i++) if (pred(arr[i])) total++;
+		return total;
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 

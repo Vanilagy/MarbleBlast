@@ -8,7 +8,7 @@ import { ParticleEmitter, ParticleEmitterOptions, ParticleManager, particleNodeE
 import { Util } from "../util";
 import { Balloon } from "./balloon";
 import { Clock } from "./clock";
-import { Game } from "./game";
+import { Game, GameMode } from "./game";
 import { FinishState } from "./finish_state";
 import { Box3 } from "../math/box3";
 import { MisUtils } from "../parsing/mis_utils";
@@ -54,6 +54,7 @@ import { TimeTravel } from "./shapes/time_travel";
 import { Tornado } from "./shapes/tornado";
 import { TrapDoor } from "./shapes/trap_door";
 import { TriangleBumper } from "./shapes/triangle_bumper";
+import { GemSpawnState } from "./gem_spawn_state";
 
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
@@ -123,6 +124,11 @@ export class GameInitter {
 
 		game.finishState = new FinishState(game, this.auxEntityId++);
 		game.addEntity(game.finishState);
+
+		if (game.mode === GameMode.Hunt) {
+			game.gemSpawnState = new GemSpawnState(game, this.auxEntityId++);
+			game.addEntity(game.gemSpawnState);
+		}
 
 		if (game.shapes.some(x => x instanceof RandomPowerUp))
 			await this.initRandomPowerUpInstances();

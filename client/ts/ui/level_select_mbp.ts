@@ -75,7 +75,8 @@ export class MbpLevelSelect extends LevelSelect {
 			{ name: 'Intermediate', arr: MissionLibrary.platinumIntermediate },
 			{ name: 'Advanced', arr: MissionLibrary.platinumAdvanced },
 			{ name: 'Expert', arr: MissionLibrary.platinumExpert },
-			{ name: 'Custom', arr: MissionLibrary.platinumCustom }
+			{ name: 'Custom', arr: MissionLibrary.platinumCustom },
+			{ name: 'Hunt', arr: MissionLibrary.multiplayer }
 		]);
 		this.createDifficultySection('Ultra', './assets/ui_mbp/play/marble_ultra.png', [
 			{ name: 'Beginner', arr: MissionLibrary.ultraBeginner },

@@ -2,10 +2,9 @@ import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { EntityState } from "../../../shared/game_server_format";
 import { AudioManager, AudioSource } from "../audio";
 import { G } from "../global";
-import { Gem } from "../shapes/gem";
-import { PowerUp } from "../shapes/power_up";
+import { Util } from "../util";
 import { Entity } from "./entity";
-import { Game } from "./game";
+import { Game, GameMode } from "./game";
 import { GO_TIME, READY_TIME, SET_TIME } from "./game_state";
 
 type ClockState = EntityState & { entityType: 'clock' };
@@ -123,9 +122,13 @@ export class Clock extends Entity {
 
 	render() {
 		let timeToDisplay = this.game.finishState.time ?? this.time; // fixme not visually smoothed
-		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
 
-		G.menu.hud.displayTime(timeToDisplay, this.determineClockColor(timeToDisplay));
+		let clockColorTime = timeToDisplay;
+		if (this.game.mode === GameMode.Hunt) timeToDisplay = this.game.mission.qualifyTime/1000 - timeToDisplay;
+
+		timeToDisplay = Util.clamp(timeToDisplay, 0, MAX_TIME);
+
+		G.menu.hud.displayTime(timeToDisplay, this.determineClockColor(clockColorTime));
 	}
 
 	determineClockColor(timeToDisplay: number): 'red' | 'green' {

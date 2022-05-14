@@ -22,6 +22,8 @@ export abstract class MissionLibrary {
 	static ultraAdvanced: Mission[] = [];
 	static ultraCustom: Mission[] = [];
 
+	static multiplayer: Mission[] = [];
+
 	static allMissionArrays: Mission[][] = [];
 
 	/** Loads all missions. */
@@ -39,7 +41,10 @@ export abstract class MissionLibrary {
 		for (let description of missions.officialMissions) {
 			let mission = Mission.fromOfficialMissionDescription(description);
 
-			if (mission.modification === 'gold' && mission.type === 'beginner')
+			if (mission.gameMode === 'hunt')
+				this.multiplayer.push(mission);
+
+			else if (mission.modification === 'gold' && mission.type === 'beginner')
 				this.goldBeginner.push(mission);
 			else if (mission.modification === 'gold' && mission.type === 'intermediate')
 				this.goldIntermediate.push(mission);
@@ -123,7 +128,9 @@ export abstract class MissionLibrary {
 		for (let i = 0; i < this.ultraAdvanced.length; i++) this.ultraAdvanced[i].initSearchString(i);
 		for (let i = 0; i < this.ultraCustom.length; i++) this.ultraCustom[i].initSearchString(i);
 
-		this.allMissionArrays.push(this.goldBeginner, this.goldIntermediate, this.goldAdvanced, this.goldCustom, this.platinumBeginner, this.platinumIntermediate, this.platinumAdvanced, this.platinumExpert, this.platinumCustom, this.ultraBeginner, this.ultraIntermediate, this.ultraAdvanced, this.ultraCustom);
+		for (let i = 0; i < this.multiplayer.length; i++) this.multiplayer[i].initSearchString(i);
+
+		this.allMissionArrays.push(this.goldBeginner, this.goldIntermediate, this.goldAdvanced, this.goldCustom, this.platinumBeginner, this.platinumIntermediate, this.platinumAdvanced, this.platinumExpert, this.platinumCustom, this.ultraBeginner, this.ultraIntermediate, this.ultraAdvanced, this.ultraCustom); // Todo what to do about multiplayer missions here
 	}
 
 	static getModification(arr: Mission[]) {

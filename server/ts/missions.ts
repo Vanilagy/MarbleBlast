@@ -61,11 +61,11 @@ export const initMissionList = () => {
 	collectMissionFiles(path.posix.join(shared.directoryPath, 'assets', 'data', 'missions'), '');
 	collectMissionFiles(path.posix.join(shared.directoryPath, 'assets', 'data_mbp', 'missions_mbp'), 'mbp/');
 	collectMissionFiles(path.posix.join(shared.directoryPath, 'assets', 'data_mbp', 'missions_mbu'), 'mbu/');
+	collectMissionFiles(path.posix.join(shared.directoryPath, 'assets', 'data_mbp', 'multiplayer', 'hunt'), 'mbp/multiplayer/');
 
 	goldCustoms.push(...JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'customs_gold.json')).toString()));
 	platinumCustoms.push(...JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'customs_platinum.json')).toString()));
 	ultraCustoms.push(...JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'customs_ultra.json')).toString()));
-
 };
 
 apiInits.push(app => {

@@ -1289,7 +1289,7 @@ export class Marble extends Entity {
 		// Unpickup all gems picked up by this marble
 		for (let gem of this.game.shapes) {
 			if (!(gem instanceof Gem)) continue;
-			if (gem.pickedUpBy === this) {
+			if (gem.pickUpHistory.includes(this)) {
 				gem.pickDown();
 				this.affect(gem);
 			}

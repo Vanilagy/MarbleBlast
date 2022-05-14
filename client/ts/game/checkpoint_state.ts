@@ -60,7 +60,7 @@ export class CheckpointState extends Entity {
 		// Remember all gems that were collected up to this point
 		for (let shape of this.game.shapes) {
 			if (!(shape instanceof Gem)) continue;
-			if (shape.pickedUpBy === this.marble) this.checkpointCollectedGems.add(shape);
+			if (shape.pickUpHistory[0] === this.marble) this.checkpointCollectedGems.add(shape);
 		}
 
 		this.checkpointHeldPowerUp = this.marble.heldPowerUp;
@@ -130,7 +130,7 @@ export class CheckpointState extends Entity {
 		// Restore gem states
 		for (let shape of this.game.shapes) {
 			if (!(shape instanceof Gem)) continue;
-			if (shape.pickedUpBy === marble && !this.checkpointCollectedGems.has(shape)) {
+			if (shape.pickUpHistory[0] === marble && !this.checkpointCollectedGems.has(shape)) {
 				shape.pickDown();
 				marble.affect(shape);
 			}
