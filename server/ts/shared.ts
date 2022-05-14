@@ -1,33 +1,6 @@
 import * as Database from 'better-sqlite3';
 import express from 'express';
-
-/** A custom levels archive entry. */
-interface CLAEntry {
-	id: number,
-	baseName: string,
-	gameType: string,
-	modification: string,
-	name: string,
-	artist: string,
-	desc: string,
-	addedAt: number,
-	gameMode: string,
-
-	qualifyingTime: number,
-	goldTime: number,
-	platinumTime: number,
-	ultimateTime: number,
-	awesomeTime: number,
-
-	qualifyingScore: number,
-	goldScore: number,
-	platinumScore: number,
-	ultimateScore: number,
-	awesomeScore: number,
-
-	gems: number,
-	hasEasterEgg: boolean
-}
+import { CLAEntry } from "../../shared/types";
 
 export const shared: {
 	/** The path to the served HTML directory. */

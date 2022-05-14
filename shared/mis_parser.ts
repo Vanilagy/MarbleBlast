@@ -1,8 +1,4 @@
-import { Quaternion } from "../math/quaternion";
-import { Vector3 } from "../math/vector3";
-import { Vector4 } from "../math/vector4";
-import { ResourceManager } from "../resources";
-import { Util } from "../util";
+import { SharedUtil } from "./util";
 
 export interface MisFile {
 	root: MissionElementSimGroup,
@@ -359,8 +355,8 @@ export class MisParser {
 			let lineMatch = lineCommentRegEx.exec(this.text);
 
 			// The detected "comment" might be inside a string literal, in which case we ignore it 'cause it ain't no comment.
-			if (blockMatch && Util.indexIsInStringLiteral(this.text, blockMatch.index)) blockMatch = null;
-			if (lineMatch && Util.indexIsInStringLiteral(this.text, lineMatch.index)) lineMatch = null;
+			if (blockMatch && SharedUtil.indexIsInStringLiteral(this.text, blockMatch.index)) blockMatch = null;
+			if (lineMatch && SharedUtil.indexIsInStringLiteral(this.text, lineMatch.index)) lineMatch = null;
 
 			if (!blockMatch && !lineMatch) break;
 			else if (!lineMatch || (blockMatch && lineMatch && blockMatch.index < lineMatch.index)) {
@@ -430,7 +426,7 @@ export class MisParser {
 			default: {
 				console.warn("Unknown element type! " + type);
 				// Still advance the index
-				let endingBraceIndex = Util.indexOfIgnoreStringLiterals(this.text, '};', this.index);
+				let endingBraceIndex = SharedUtil.indexOfIgnoreStringLiterals(this.text, '};', this.index);
 				if (endingBraceIndex === -1) endingBraceIndex = this.text.length;
 				this.index = endingBraceIndex + 2;
 			}
@@ -446,7 +442,7 @@ export class MisParser {
 		let head = elementHeadRegEx.exec(this.text);
 
 		if (!head) return false;
-		if (Util.indexOfIgnoreStringLiterals(this.text.slice(this.index, head.index), '}') !== -1) return false;
+		if (SharedUtil.indexOfIgnoreStringLiterals(this.text.slice(this.index, head.index), '}') !== -1) return false;
 		return true;
 	}
 
@@ -463,7 +459,7 @@ export class MisParser {
 
 			let index = Math.min(head?.index, keyValue?.index);
 			if (!isFinite(index)) break;
-			if (Util.indexOfIgnoreStringLiterals(this.text.slice(this.index, index), '}') !== -1) break;
+			if (SharedUtil.indexOfIgnoreStringLiterals(this.text.slice(this.index, index), '}') !== -1) break;
 
 			if (index === head?.index) {
 				let element = this.readElement();
@@ -475,7 +471,7 @@ export class MisParser {
 			}
 		}
 
-		let endingBraceIndex = Util.indexOfIgnoreStringLiterals(this.text, '};', this.index);
+		let endingBraceIndex = SharedUtil.indexOfIgnoreStringLiterals(this.text, '};', this.index);
 		if (endingBraceIndex === -1) endingBraceIndex = this.text.length;
 		this.index = endingBraceIndex + 2;
 
@@ -492,10 +488,10 @@ export class MisParser {
 	readValues() {
 		// Values are either strings or string arrays.
 		let obj: Record<string, string | string[]> = {};
-		let endingBraceIndex = Util.indexOfIgnoreStringLiterals(this.text, '};', this.index);
+		let endingBraceIndex = SharedUtil.indexOfIgnoreStringLiterals(this.text, '};', this.index);
 		if (endingBraceIndex === -1) endingBraceIndex = this.text.length;
 		let section = this.text.slice(this.index, endingBraceIndex).trim();
-		let statements = Util.splitIgnoreStringLiterals(section, ';').map(x => x.trim()); // Get a list of all statements
+		let statements = SharedUtil.splitIgnoreStringLiterals(section, ';').map(x => x.trim()); // Get a list of all statements
 
 		for (let statement of statements) {
 			if (!statement) continue;
@@ -525,14 +521,14 @@ export class MisParser {
 
 	/** Resolves a TorqueScript rvalue expression. Currently only supports the concatenation @ operator. */
 	resolveExpression(expr: string) {
-		let parts = Util.splitIgnoreStringLiterals(expr, '@').map(x => {
+		let parts = SharedUtil.splitIgnoreStringLiterals(expr, '@').map(x => {
 			x = x.trim();
 
 			if (x.startsWith('$') && this.variables[x] !== undefined) {
 				// Replace the variable with its value
 				x = this.resolveExpression(this.variables[x]);
 			} else if (x.startsWith('"') && x.endsWith('"')) {
-				x = Util.unescape(x.slice(1, -1)); // It's a string literal, so remove " "
+				x = SharedUtil.unescape(x.slice(1, -1)); // It's a string literal, so remove " "
 			}
 
 			return x;
@@ -648,56 +644,6 @@ export class MisParser {
 		}, this.readValues()) as unknown as MissionElementParticleEmitterNode;
 	}
 
-	static cachedFiles = new Map<string, MisFile>();
-
-	/** Loads and parses a .mis file. Returns a cached version if already loaded. */
-	static async loadFile(path: string) {
-		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
-
-		let blob = await ResourceManager.loadResource(path);
-		let text = await ResourceManager.readBlobAsText(blob);
-		let parser = new MisParser(text);
-
-		let result = parser.parse();
-		this.cachedFiles.set(path, result);
-
-		return result;
-	}
-
-	/** Parses a 3-component vector from a string of three numbers. */
-	static parseVector3(string: string) {
-		if (!string) return new Vector3();
-		let parts = string.split(' ').map((part) => Number(part));
-		if (parts.length < 3) return new Vector3();
-		if (parts.find(x => !isFinite(x)) !== undefined) return new Vector3();
-
-		return new Vector3(parts[0], parts[1], parts[2]);
-	}
-
-	/** Parses a 4-component vector from a string of four numbers. */
-	static parseVector4(string: string) {
-		if (!string) return new Vector4();
-		let parts = string.split(' ').map((part) => Number(part));
-		if (parts.length < 4) return new Vector4();
-		if (parts.find(x => !isFinite(x)) !== undefined) return new Vector4();
-
-		return new Vector4(parts[0], parts[1], parts[2], parts[3]);
-	}
-
-	/** Returns a quaternion based on a rotation specified from 4 numbers. */
-	static parseRotation(string: string) {
-		if (!string) return new Quaternion();
-		let parts = string.split(' ').map((part) => Number(part));
-		if (parts.length < 4) return new Quaternion();
-		if (parts.find(x => !isFinite(x)) !== undefined) return new Quaternion();
-
-		let quaternion = new Quaternion();
-		// The first 3 values represent the axis to rotate on, the last represents the negative angle in degrees.
-		quaternion.setFromAxisAngle(new Vector3(parts[0], parts[1], parts[2]), -Util.degToRad(parts[3]));
-
-		return quaternion;
-	}
-
 	/** Parses a numeric value. */
 	static parseNumber(string: string) {
 		if (!string || typeof string !== 'string') return 0;
@@ -705,36 +651,6 @@ export class MisParser {
 		let val = Number(string.split(',')[0]);
 		if (isNaN(val)) return 0;
 		return val;
-	}
-
-	/** Parses a list of space-separated numbers. */
-	static parseNumberList(string: string) {
-		let parts = string.split(' ');
-		let result: number[] = [];
-
-		for (let part of parts) {
-			let number = Number(part);
-
-			if (!isNaN(number)) {
-				// The number parsed without issues; simply add it to the array.
-				result.push(number);
-			} else {
-				// Since we got NaN, we assume the number did not parse correctly and we have a case where the space between multiple numbers are missing. So "0.0000000 1.0000000" turning into "0.00000001.0000000".
-				const assumedDecimalPlaces = 7; // Reasonable assumption
-
-				// Scan the part to try to find all numbers contained in it
-				while (part.length > 0) {
-					let dotIndex = part.indexOf('.');
-					if (dotIndex === -1) break;
-
-					let section = part.slice(0, Math.min(dotIndex + assumedDecimalPlaces + 1, part.length));
-					result.push(Number(section));
-					part = part.slice(dotIndex + assumedDecimalPlaces + 1);
-				}
-			}
-		}
-
-		return result;
 	}
 
 	/** Parses a boolean value. */

@@ -3,7 +3,7 @@ import { Interior } from "../interior";
 import { PHYSICS_TICK_RATE } from "../level";
 import { bounceParticleOptions, Marble } from "../marble";
 import { Vector3 } from "../math/vector3";
-import { MissionElementType, MisParser, MissionElementInteriorInstance, MissionElementItem, MissionElementParticleEmitterNode, MissionElementSimGroup, MissionElementStaticShape, MissionElementTrigger, MissionElementTSStatic } from "../parsing/mis_parser";
+import { MissionElementType, MisParser, MissionElementInteriorInstance, MissionElementItem, MissionElementParticleEmitterNode, MissionElementSimGroup, MissionElementStaticShape, MissionElementTrigger, MissionElementTSStatic } from "../../../shared/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions, ParticleManager, particleNodeEmittersEmitterOptions } from "../particles";
 import { PathedInterior } from "../pathed_interior";
 import { World } from "../physics/world";
@@ -55,6 +55,7 @@ import { Clock } from "./clock";
 import { Game } from "./game";
 import { FinishState } from "./finish_state";
 import { Box3 } from "../math/box3";
+import { MisUtils } from "../parsing/mis_utils";
 
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
@@ -249,9 +250,9 @@ export class GameInitter {
 
 		renderer.scene.add(interior.mesh);
 
-		let interiorPosition = MisParser.parseVector3(element.position);
-		let interiorRotation = MisParser.parseRotation(element.rotation);
-		let interiorScale = MisParser.parseVector3(element.scale);
+		let interiorPosition = MisUtils.parseVector3(element.position);
+		let interiorRotation = MisUtils.parseRotation(element.rotation);
+		let interiorScale = MisUtils.parseVector3(element.scale);
 		let hasCollision = interiorScale.x !== 0 && interiorScale.y !== 0 && interiorScale.z !== 0; // Don't want to add buggy geometry
 
 		// Fix zero-volume interiors so they receive correct lighting
@@ -315,9 +316,9 @@ export class GameInitter {
 		await shape.init(game, element);
 
 		// Set the shape's transform
-		let shapePosition = MisParser.parseVector3(element.position);
-		let shapeRotation = MisParser.parseRotation(element.rotation);
-		let shapeScale = MisParser.parseVector3(element.scale);
+		let shapePosition = MisUtils.parseVector3(element.position);
+		let shapeRotation = MisUtils.parseRotation(element.rotation);
+		let shapeScale = MisUtils.parseVector3(element.scale);
 
 		// Apparently we still do collide with zero-volume shapes
 		if (shapeScale.x === 0) shapeScale.x = 0.0001;
@@ -401,7 +402,7 @@ export class GameInitter {
 			return;
 		}
 
-		shape.setTransform(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
+		shape.setTransform(MisUtils.parseVector3(element.position), MisUtils.parseRotation(element.rotation), MisUtils.parseVector3(element.scale));
 
 		renderer.scene.add(shape.group);
 		if (shape.worldScale.x !== 0 && shape.worldScale.y !== 0 && shape.worldScale.z !== 0) {
@@ -441,7 +442,7 @@ export class GameInitter {
 		let emitterOptions = particleEmitterMap[element.emitter];
 		if (!emitterOptions) return;
 
-		this.game.renderer.particles.createEmitter(emitterOptions, MisParser.parseVector3(element.position));
+		this.game.renderer.particles.createEmitter(emitterOptions, MisUtils.parseVector3(element.position));
 	}
 
 	/** Adds a Balloon entity to the world. They're just a testing entity, fun to play around with. */

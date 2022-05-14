@@ -1,7 +1,7 @@
 import { PowerUp } from "./power_up";
 import { AudioManager } from "../audio";
 import { G } from "../global";
-import { MissionElementItem } from "../parsing/mis_parser";
+import { MissionElementItem } from "../../../shared/mis_parser";
 import { Vector3 } from "../math/vector3";
 import { Marble } from "../marble";
 

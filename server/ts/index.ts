@@ -10,6 +10,7 @@ import './leaderboard';
 import './customs';
 import { handleNewWebSocketConnection } from './sockets';
 import { registerGameServer } from './game_server';
+import { initMissionList } from './missions';
 
 let db: Database.Database = null;
 
@@ -86,6 +87,7 @@ const init = () => {
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'backups'));
 	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'user_errors.log'));
 
+	initMissionList();
 	setupDb();
 	initServer(port);
 };

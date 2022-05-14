@@ -1,5 +1,5 @@
 import { Interior } from "./interior";
-import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterior, MissionElementPath, MisParser, MissionElementTrigger } from "../../shared/mis_parser";
 import { Util } from "./util";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
 import { AudioManager, AudioSource } from "./audio";
@@ -11,6 +11,7 @@ import { GAME_UPDATE_RATE } from "../../shared/constants";
 import { EntityState } from "../../shared/game_server_format";
 import { Marble } from "./marble";
 import { Collision } from "./physics/collision";
+import { MisUtils } from "./parsing/mis_utils";
 
 let v1 = new Vector3();
 let m1 = new Matrix4();
@@ -80,9 +81,9 @@ export class PathedInterior extends Interior {
 		await super.init(id);
 
 		// Pathed interiors ignore the normal position, rotation, scale and use the base- variants instead.
-		this.basePosition = MisParser.parseVector3(this.element.baseposition);
-		this.baseOrientation = MisParser.parseRotation(this.element.baserotation);
-		this.baseScale = MisParser.parseVector3(this.element.basescale);
+		this.basePosition = MisUtils.parseVector3(this.element.baseposition);
+		this.baseOrientation = MisUtils.parseRotation(this.element.baserotation);
+		this.baseScale = MisUtils.parseVector3(this.element.basescale);
 		this.hasCollision = this.baseScale.x !== 0 && this.baseScale.y !== 0 && this.baseScale.z !== 0; // Don't want to add buggy geometry
 
 		// Fix zero-volume interiors so they receive correct lighting
@@ -102,8 +103,8 @@ export class PathedInterior extends Interior {
 			return {
 				msToNext: MisParser.parseNumber(x.mstonext),
 				smoothingType: x.smoothingtype,
-				position: MisParser.parseVector3(x.position),
-				rotation: MisParser.parseRotation(x.rotation)
+				position: MisUtils.parseVector3(x.position),
+				rotation: MisUtils.parseRotation(x.rotation)
 			};
 		});
 		if (MisParser.parseBoolean(this.path.isLooping)) this.markerData.push(this.markerData[0]); // In this case, we wrap around the marker list smoothly. Emulate this by copying the start to the end.

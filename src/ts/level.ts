@@ -1,7 +1,7 @@
 import { Interior } from "./interior";
 import { Marble } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
-import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "../../shared/mis_parser";
 import { StartPad } from "./shapes/start_pad";
 import { SignFinish } from "./shapes/sign_finish";
 import { SignPlain } from "./shapes/sign_plain";

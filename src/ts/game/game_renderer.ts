@@ -3,7 +3,7 @@ import { PHYSICS_TICK_RATE, DEFAULT_PITCH } from "../level";
 import { Plane } from "../math/plane";
 import { Quaternion } from "../math/quaternion";
 import { Vector3 } from "../math/vector3";
-import { MissionElementType, MisParser, MissionElementSky } from "../parsing/mis_parser";
+import { MissionElementType, MisParser, MissionElementSky } from "../../../shared/mis_parser";
 import { ParticleManager } from "../particles";
 import { BallCollisionShape, CollisionShape } from "../physics/collision_shape";
 import { AmbientLight } from "../rendering/ambient_light";
@@ -30,6 +30,7 @@ import { Util } from "../util";
 import { Game } from "./game";
 import { GAME_PLAYBACK_SPEED } from "./game_simulator";
 import { GO_TIME, READY_TIME, SET_TIME } from "./game_state";
+import { MisUtils } from "../parsing/mis_utils";
 
 // Used for frame rate limiting working correctly
 const decoyCanvas = document.querySelector('#decoy-canvas') as HTMLCanvasElement;
@@ -97,9 +98,9 @@ export class GameRenderer {
 		for (let element of game.mission.allElements) {
 			if (element._type !== MissionElementType.Sun) continue;
 
-			let directionalColor = MisParser.parseVector4(element.color);
-			let ambientColor = MisParser.parseVector4(element.ambient);
-			let sunDirection = MisParser.parseVector3(element.direction);
+			let directionalColor = MisUtils.parseVector4(element.color);
+			let ambientColor = MisUtils.parseVector4(element.ambient);
+			let sunDirection = MisUtils.parseVector3(element.direction);
 
 			// Create the ambient light
 			this.scene.addAmbientLight(new AmbientLight(new Vector3(ambientColor.x, ambientColor.y, ambientColor.z)));
@@ -122,13 +123,13 @@ export class GameRenderer {
 
 		let skyElement = game.mission.allElements.find((element) => element._type === MissionElementType.Sky) as MissionElementSky;
 
-		let fogColor = MisParser.parseVector4(skyElement.fogcolor);
+		let fogColor = MisUtils.parseVector4(skyElement.fogcolor);
 		// Uber strange way Torque maps these values:
 		if (fogColor.x > 1) fogColor.x = 1 - (fogColor.x - 1) % 256 / 256;
 		if (fogColor.y > 1) fogColor.y = 1 - (fogColor.y - 1) % 256 / 256;
 		if (fogColor.z > 1) fogColor.z = 1 - (fogColor.z - 1) % 256 / 256;
 
-		let skySolidColor = MisParser.parseVector4(skyElement.skysolidcolor);
+		let skySolidColor = MisUtils.parseVector4(skyElement.skysolidcolor);
 		// This is kind of a weird situation here. It seems as if when the skysolidcolor isn't the default value, it's used as the skycolor; otherwise, fog color is used. Strange.
 		if (skySolidColor.x !== 0.6 || skySolidColor.y !== 0.6 || skySolidColor.z !== 0.6) fogColor = skySolidColor;
 

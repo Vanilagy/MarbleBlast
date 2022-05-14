@@ -1,42 +1,16 @@
-import { MissionElementSimGroup, MisParser, MissionElementType, MissionElementScriptObject, MisFile, MissionElement } from "./parsing/mis_parser";
+import { MissionElementSimGroup, MisParser, MissionElementType, MissionElementScriptObject, MisFile, MissionElement } from "../../shared/mis_parser";
 import { ResourceManager } from "./resources";
 import { DifParser, DifFile } from "./parsing/dif_parser";
 import { Util } from "./util";
 import { DtsFile, DtsParser } from "./parsing/dts_parser";
 import { G } from "./global";
-
-/** A custom levels archive entry. */
-export interface CLAEntry {
-	id: number,
-	baseName: string,
-	gameType: string,
-	modification: string,
-	name: string,
-	artist: string,
-	desc: string,
-	addedAt: number,
-	gameMode: string,
-
-	qualifyingTime: number,
-	goldTime: number,
-	platinumTime: number,
-	ultimateTime: number,
-	awesomeTime: number,
-
-	qualifyingScore: number,
-	goldScore: number,
-	platinumScore: number,
-	ultimateScore: number,
-	awesomeScore: number,
-
-	gems: number,
-	hasEasterEgg: boolean
-}
+import { CLAEntry, OfficialMissionDescription } from "../../shared/types";
 
 /** Represents a playable mission. Contains all the necessary metadata, as well as methods for loading the mission and gettings its resources. */
 export class Mission {
 	/** The path to the mission. This is either (beginner|intermediate|advanced)/levelname or custom/levelid. */
 	path: string;
+	misPath: string;
 	misFile: MisFile;
 	/** The root sim group, MissionGroup. */
 	root: MissionElementSimGroup;
@@ -94,6 +68,24 @@ export class Mission {
 		return mission;
 	}
 
+	static fromOfficialMissionDescription(description: OfficialMissionDescription) {
+		let mission = new Mission(description.path);
+
+		mission.misPath = description.misPath;
+		mission.title = description.name;
+		mission.artist = description.artist ?? '';
+		mission.description = description.desc ?? '';
+		if (description.qualifyingTime) mission.qualifyTime = description.qualifyingTime;
+		if (description.goldTime !== undefined) mission.goldTime = description.goldTime;
+		if (description.platinumTime !== undefined) mission.goldTime = description.platinumTime;
+		if (description.ultimateTime !== undefined) mission.ultimateTime = description.ultimateTime;
+		mission.type = description.type.toLowerCase() as any;
+		mission.modification = description.path.startsWith('mbp/')? 'platinum' : description.path.startsWith('mbu/')? 'ultra' : 'gold';
+		mission.hasEasterEgg = description.hasEasterEgg;
+
+		return mission;
+	}
+
 	/** Creates a new mission from a CLA entry. */
 	static fromCLAEntry(entry: CLAEntry, isNew: boolean) {
 		let path = 'custom/' + entry.id;
@@ -135,35 +127,39 @@ export class Mission {
 	/** Loads this mission for gameplay. */
 	async load() {
 		if (this.misFile) return; // We already have the .mis file, we don't need to do anything
-		if (this.type !== 'custom') return; // Just a safety check
 
+		if (this.type === 'custom') {
 		// Get the zip archive
-		let blob = await ResourceManager.loadResource(`./api/custom/${this.id}.zip`);
-		let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
-		let zip = await JSZip.loadAsync(arrayBuffer); // Unzip the thing
-		this.zipDirectory = zip;
+			let blob = await ResourceManager.loadResource(`./api/custom/${this.id}.zip`);
+			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
+			let zip = await JSZip.loadAsync(arrayBuffer); // Unzip the thing
+			this.zipDirectory = zip;
 
-		// Normalize filenames within the zip
-		for (let filename in zip.files) {
-			let val = zip.files[filename];
-			delete zip.files[filename];
-			zip.files[filename.toLowerCase()] = val;
-			zip.files[filename.toLowerCase().replace('data/', 'data_mbp/')] = val; // Alias every data/ with a data_mbp/ entry
+			// Normalize filenames within the zip
+			for (let filename in zip.files) {
+				let val = zip.files[filename];
+				delete zip.files[filename];
+				zip.files[filename.toLowerCase()] = val;
+				zip.files[filename.toLowerCase().replace('data/', 'data_mbp/')] = val; // Alias every data/ with a data_mbp/ entry
 
-			if (this.modification === 'gold' && filename.includes('interiors_mbg/')) {
+				if (this.modification === 'gold' && filename.includes('interiors_mbg/')) {
 				// Create an alias in interiors
-				zip.files[filename.replace('interiors_mbg/', 'interiors/')] = val;
+					zip.files[filename.replace('interiors_mbg/', 'interiors/')] = val;
+				}
 			}
+
+			// Read the .mis file
+			let missionFileName = Object.keys(zip.files).find(x => x.endsWith('.mis'));
+			let text = await ResourceManager.readBlobAsText(await zip.files[missionFileName].async('blob'), 'ISO-8859-1');
+			let parser = new MisParser(text);
+			this.misFile = parser.parse();
+		} else {
+			let text = await ResourceManager.readBlobAsText(await ResourceManager.loadResource('./assets/' + this.misPath), 'ISO-8859-1');
+			let parser = new MisParser(text);
+			this.misFile = parser.parse();
 		}
 
-		// Read the .mis file
-		let missionFileName = Object.keys(zip.files).find(x => x.endsWith('.mis'));
-		let text = await ResourceManager.readBlobAsText(await zip.files[missionFileName].async('blob'), 'ISO-8859-1');
-		let parser = new MisParser(text);
-		let misFile = parser.parse();
-
-		this.misFile = misFile;
-		this.root = misFile.root;
+		this.root = this.misFile.root;
 		this.initAllElements();
 
 		// Set up some metadata

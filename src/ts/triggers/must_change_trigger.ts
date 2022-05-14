@@ -1,4 +1,4 @@
-import { MissionElementTrigger, MisParser } from "../parsing/mis_parser";
+import { MissionElementTrigger, MisParser } from "../../../shared/mis_parser";
 import { Trigger } from "./trigger";
 import { PathedInterior } from "../pathed_interior";
 import { Marble } from "../marble";

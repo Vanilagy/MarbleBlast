@@ -1,4 +1,4 @@
-import { MissionElementStaticShape } from "../parsing/mis_parser";
+import { MissionElementStaticShape } from "../../../shared/mis_parser";
 import { Shape } from "../shape";
 
 /** Sign used in MBP to show a direction. */

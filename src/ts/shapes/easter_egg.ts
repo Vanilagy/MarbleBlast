@@ -1,7 +1,7 @@
 import { AudioManager } from "../audio";
 import { Game } from "../game/game";
 import { Marble } from "../marble";
-import { MissionElement } from "../parsing/mis_parser";
+import { MissionElement } from "../../../shared/mis_parser";
 import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Util } from "../util";

@@ -5,13 +5,14 @@ import { G } from "../global";
 import { DEFAULT_PITCH, DEFAULT_YAW, Marble } from "../marble";
 import { Euler } from "../math/euler";
 import { Vector3 } from "../math/vector3";
-import { MisParser } from "../parsing/mis_parser";
+import { MisParser } from "../../../shared/mis_parser";
 import { Shape } from "../shape";
 import { Gem } from "../shapes/gem";
 import { PowerUp } from "../shapes/power_up";
 import { CheckpointTrigger } from "../triggers/checkpoint_trigger";
 import { Entity } from "./entity";
 import { Game } from "./game";
+import { MisUtils } from "../parsing/mis_utils";
 
 type CheckpointStateState = EntityState & { entityType: 'checkpointState' };
 
@@ -100,9 +101,9 @@ export class CheckpointState extends Entity {
 		// Determine where to spawn the marble
 		let offset = new Vector3();
 		let add = (this.currentCheckpoint.srcElement as any)?.add || this.currentCheckpointTrigger?.element.add;
-		if (add) offset.add(MisParser.parseVector3(add));
+		if (add) offset.add(MisUtils.parseVector3(add));
 		let sub = (this.currentCheckpoint.srcElement as any)?.sub || this.currentCheckpointTrigger?.element.sub;
-		if (sub) offset.sub(MisParser.parseVector3(sub));
+		if (sub) offset.sub(MisUtils.parseVector3(sub));
 		if (!add && !sub) {
 			offset.z = 3; // Defaults to (0, 0, 3)
 

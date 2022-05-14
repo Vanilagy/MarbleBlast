@@ -1,6 +1,6 @@
 import { InternalShapeState, Shape } from "../shape";
 import { Util } from "../util";
-import { MissionElementStaticShape, MisParser } from "../parsing/mis_parser";
+import { MissionElementStaticShape, MisParser } from "../../../shared/mis_parser";
 import { AudioManager } from "../audio";
 import { EntityState } from "../../../shared/game_server_format";
 import { Collision } from "../physics/collision";

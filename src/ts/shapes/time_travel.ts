@@ -1,5 +1,5 @@
 import { PowerUp } from "./power_up";
-import { MissionElementItem, MisParser } from "../parsing/mis_parser";
+import { MissionElementItem, MisParser } from "../../../shared/mis_parser";
 import { AudioManager } from "../audio";
 import { G } from "../global";
 import { Marble } from "../marble";

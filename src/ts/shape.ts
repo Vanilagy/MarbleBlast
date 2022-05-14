@@ -5,7 +5,7 @@ import { Util } from "./util";
 import { TimeState } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 import { AudioManager } from "./audio";
-import { MissionElement } from "./parsing/mis_parser";
+import { MissionElement } from "../../shared/mis_parser";
 import { Group } from "./rendering/group";
 import { Material } from "./rendering/material";
 import { Geometry } from "./rendering/geometry";

@@ -1,5 +1,5 @@
 import { Shape } from "../shape";
-import { MissionElementStaticShape } from "../parsing/mis_parser";
+import { MissionElementStaticShape } from "../../../shared/mis_parser";
 
 /** A caution/danger sign. */
 export class SignCaution extends Shape {

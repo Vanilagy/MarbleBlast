@@ -1,5 +1,5 @@
 import { Shape } from "../shape";
-import { MissionElement, MissionElementItem } from "../parsing/mis_parser";
+import { MissionElement, MissionElementItem } from "../../../shared/mis_parser";
 import { Util } from "../util";
 import { EntityState } from "../../../shared/game_server_format";
 import { Marble } from "../marble";

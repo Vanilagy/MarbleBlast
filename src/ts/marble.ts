@@ -4,7 +4,7 @@ import { Shape } from "./shape";
 import { Util } from "./util";
 import { AudioManager, AudioSource } from "./audio";
 import { StorageManager } from "./storage";
-import { MisParser, MissionElementSimGroup, MissionElementTrigger, MissionElementType } from "./parsing/mis_parser";
+import { MisParser, MissionElementSimGroup, MissionElementTrigger, MissionElementType } from "../../shared/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";
 import { G } from "./global";
 import { Group } from "./rendering/group";
@@ -37,6 +37,7 @@ import { DefaultMap } from "../../shared/default_map";
 import { CheckpointState } from "./game/checkpoint_state";
 import { Gem } from "./shapes/gem";
 import { StartPad } from "./shapes/start_pad";
+import { MisUtils } from "./parsing/mis_utils";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -1315,7 +1316,7 @@ export class Marble extends Entity {
 			let spawnPoints = game.mission.allElements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
 			if (spawnPoints) {
 				let first = spawnPoints.elements[0] as MissionElementTrigger;
-				position = MisParser.parseVector3(first.position);
+				position = MisUtils.parseVector3(first.position);
 			} else {
 				// If there isn't anything, start at this weird point
 				position = new Vector3(0, 0, 300);

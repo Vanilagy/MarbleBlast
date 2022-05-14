@@ -1,4 +1,4 @@
-import { MissionElementTrigger, MisParser } from "../parsing/mis_parser";
+import { MissionElementTrigger, MisParser } from "../../../shared/mis_parser";
 import { Util } from "../util";
 import { AudioManager } from "../audio";
 import { ConvexHullCollisionShape } from "../physics/collision_shape";
@@ -10,6 +10,7 @@ import { Game } from "../game/game";
 import { Entity } from "../game/entity";
 import { EntityState } from "../../../shared/game_server_format";
 import { Marble } from "../marble";
+import { MisUtils } from "../parsing/mis_utils";
 
 interface InternalTriggerState {
 	currentlyColliding: Set<RigidBody>
@@ -31,7 +32,7 @@ export abstract class Trigger extends Entity {
 		this.game = game;
 
 		// Parse the "polyhedron"
-		let coordinates = MisParser.parseNumberList(element.polyhedron);
+		let coordinates = MisUtils.parseNumberList(element.polyhedron);
 		let origin = new Vector3(coordinates[0], coordinates[1], coordinates[2]);
 		let d1 = new Vector3(coordinates[3], coordinates[4], coordinates[5]);
 		let d2 = new Vector3(coordinates[6], coordinates[7], coordinates[8]);
@@ -48,7 +49,7 @@ export abstract class Trigger extends Entity {
 		let p8 = origin.clone().add(d1).add(d2).add(d3);
 
 		let mat = new Matrix4();
-		mat.compose(MisParser.parseVector3(element.position), MisParser.parseRotation(element.rotation), MisParser.parseVector3(element.scale));
+		mat.compose(MisUtils.parseVector3(element.position), MisUtils.parseRotation(element.rotation), MisUtils.parseVector3(element.scale));
 
 		// Apply the transformation matrix to each vertex
 		let vertices = [p1, p2, p3, p4, p5, p6, p7, p8].map(x => x.applyMatrix4(mat));

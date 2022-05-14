@@ -1,6 +1,6 @@
 import { Util } from "../util";
 import { Shape } from "../shape";
-import { MisParser, MissionElementItem } from "../parsing/mis_parser";
+import { MisParser, MissionElementItem } from "../../../shared/mis_parser";
 import { G } from "../global";
 import { Marble } from "../marble";
 import { EntityState } from "../../../shared/game_server_format";

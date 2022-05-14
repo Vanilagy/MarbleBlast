@@ -2,7 +2,7 @@ import { AudioManager } from "../audio";
 import { Game } from "../game/game";
 import { DEFAULT_PITCH } from "../level";
 import { Vector3 } from "../math/vector3";
-import { MisParser, MissionElementTrigger } from "../parsing/mis_parser";
+import { MisParser, MissionElementTrigger } from "../../../shared/mis_parser";
 import { G } from "../global";
 import { Util } from "../util";
 import { DestinationTrigger } from "./destination_trigger";

@@ -1,6 +1,6 @@
-import { Mission, CLAEntry } from "./mission";
-import { MisFile, MisParser } from "./parsing/mis_parser";
-import { ResourceManager, DirectoryStructure } from "./resources";
+import { Mission } from "./mission";
+import { CLAEntry, OfficialMissionDescription } from "../../shared/types";
+import { ResourceManager } from "./resources";
 import { Util } from "./util";
 
 export abstract class MissionLibrary {
@@ -26,131 +26,73 @@ export abstract class MissionLibrary {
 
 	/** Loads all missions. */
 	static async init() {
-		let mbgMissionFilenames: string[] = [];
-		let mbpMissionFilenames: string[] = [];
-		let mbuMissionFilenames: string[] = [];
-
-		const collectMissionFiles = (arr: string[], directory: DirectoryStructure, path: string) => {
-			for (let name in directory) {
-				if (directory[name]) {
-					collectMissionFiles(arr, directory[name], path + name + '/');
-				} else if (name.endsWith('.mis')) {
-					arr.push(path + name);
-				}
-			}
+		// Do a single request to get a list of all missions
+		let missions = await ResourceManager.readBlobAsJson(await ResourceManager.loadResource('/api/missions')) as {
+			officialMissions: OfficialMissionDescription[],
+			goldCustoms: CLAEntry[],
+			platinumCustoms: CLAEntry[],
+			ultraCustoms: CLAEntry[]
 		};
-		collectMissionFiles(mbgMissionFilenames, ResourceManager.dataDirectoryStructure['missions'], ''); // Find all mission files
-		collectMissionFiles(mbpMissionFilenames, ResourceManager.dataMbpDirectoryStructure['missions_mbp'], '');
-		collectMissionFiles(mbuMissionFilenames, ResourceManager.dataMbpDirectoryStructure['missions_mbu'], '');
 
-		let mbgPromises: Promise<MisFile>[] = [];
-		let mbpPromises: Promise<MisFile>[] = [];
-		let mbuPromises: Promise<MisFile>[] = [];
-		for (let filename of mbgMissionFilenames) {
-			// Load and read all missions
-			mbgPromises.push(MisParser.loadFile("./assets/data/missions/" + filename));
-		}
-		for (let filename of mbpMissionFilenames) {
-			mbpPromises.push(MisParser.loadFile("./assets/data_mbp/missions_mbp/" + filename));
-		}
-		for (let filename of mbuMissionFilenames) {
-			mbuPromises.push(MisParser.loadFile("./assets/data_mbp/missions_mbu/" + filename));
-		}
+		missions.officialMissions.sort((a, b) => a.index - b.index);
 
-		// Get the list of all custom levels in the CLA
-		let goldCustomLevelListPromise = ResourceManager.loadResource('./assets/customs_gold.json');
-		let platinumCustomLevelListPromise = ResourceManager.loadResource('./assets/customs_platinum.json');
-		let ultraCustomLevelListPromise = ResourceManager.loadResource('./assets/customs_ultra.json');
+		for (let description of missions.officialMissions) {
+			let mission = Mission.fromOfficialMissionDescription(description);
 
-		let mbgMisFiles = await Promise.all(mbgPromises);
-		let mbpMisFiles = await Promise.all(mbpPromises);
-		let mbuMisFiles = await Promise.all(mbuPromises);
+			if (mission.modification === 'gold' && mission.type === 'beginner')
+				this.goldBeginner.push(mission);
+			else if (mission.modification === 'gold' && mission.type === 'intermediate')
+				this.goldIntermediate.push(mission);
+			else if (mission.modification === 'gold' && mission.type === 'advanced')
+				this.goldAdvanced.push(mission);
+			else if (mission.modification === 'gold')
+				this.goldCustom.push(mission);
+			else if (mission.modification === 'platinum' && mission.type === 'beginner')
+				this.platinumBeginner.push(mission);
+			else if (mission.modification === 'platinum' && mission.type === 'intermediate')
+				this.platinumIntermediate.push(mission);
+			else if (mission.modification === 'platinum' && mission.type === 'advanced')
+				this.platinumAdvanced.push(mission);
+			else if (mission.modification === 'platinum' && mission.type === 'expert')
+				this.platinumExpert.push(mission);
+			else if (mission.modification === 'platinum')
+				this.platinumCustom.push(mission);
+			else if (mission.modification === 'ultra' && mission.type === 'beginner')
+				this.ultraBeginner.push(mission);
+			else if (mission.modification === 'ultra' && mission.type === 'intermediate')
+				this.ultraIntermediate.push(mission);
+			else if (mission.modification === 'ultra' && mission.type === 'advanced')
+				this.ultraAdvanced.push(mission);
+			else if (mission.modification === 'ultra')
+				this.ultraCustom.push(mission);
 
-		let misFileToFilename = new Map<MisFile, string>();
-		for (let i = 0; i < mbgMissionFilenames.length; i++) misFileToFilename.set(mbgMisFiles[i], mbgMissionFilenames[i]);
-		for (let i = 0; i < mbpMissionFilenames.length; i++) misFileToFilename.set(mbpMisFiles[i], mbpMissionFilenames[i]);
-		for (let i = 0; i < mbuMissionFilenames.length; i++) misFileToFilename.set(mbuMisFiles[i], mbuMissionFilenames[i]);
-
-		let mbgMissions: Mission[] = [];
-		let mbpMissions: Mission[] = [];
-		let mbuMissions: Mission[] = [];
-
-		// Create the regular missions
-		for (let misFile of mbgMisFiles) {
-			let mission = Mission.fromMisFile(misFileToFilename.get(misFile), misFile);
-			mbgMissions.push(mission);
-		}
-		for (let misFile of mbpMisFiles) {
-			let mission = Mission.fromMisFile('mbp/' + misFileToFilename.get(misFile), misFile);
-			mbpMissions.push(mission);
-		}
-		for (let misFile of mbuMisFiles) {
-			let mission = Mission.fromMisFile('mbu/' + misFileToFilename.get(misFile), misFile);
-			mbuMissions.push(mission);
+			this.allMissions.push(mission);
 		}
 
-		// Sort the missions by level index so they're in the right order
-		const sortFn = (a: Mission, b: Mission) => {
-			return MisParser.parseNumber(a.missionInfo.level) - MisParser.parseNumber(b.missionInfo.level);
-		};
-		mbgMissions.sort(sortFn);
-		mbpMissions.sort(sortFn);
-		mbuMissions.sort(sortFn);
+		// Filter the custom levels some:
+		Util.filterInPlace(missions.goldCustoms, x => x.modification === 'gold'); // Apparently some platinum levels snuck in
+		Util.filterInPlace(missions.platinumCustoms, x => x.gameType === 'single' && (!x.gameMode || x.gameMode === 'null')); // Whoops, forgot to filter the JSON
+		Util.filterInPlace(missions.ultraCustoms, x => x.gameType === 'single');
 
-		// Read the custom level lists
-		let goldCustoms = await ResourceManager.readBlobAsJson(await goldCustomLevelListPromise) as CLAEntry[];
-		goldCustoms = goldCustoms.filter(x => x.modification === 'gold'); // Apparently some platinum levels snuck in
-		let platCustoms = await ResourceManager.readBlobAsJson(await platinumCustomLevelListPromise) as CLAEntry[];
-		platCustoms = platCustoms.filter(x => x.gameType === 'single' && (!x.gameMode || x.gameMode === 'null')); // Whoops, forgot to filter the JSON
-		let ultraCustoms = await ResourceManager.readBlobAsJson(await ultraCustomLevelListPromise) as CLAEntry[];
-		ultraCustoms = ultraCustoms.filter(x => x.gameType === 'single');
-
-		// Remove duplicate platinum levels
+		// Remove duplicate Platinum levels
 		let platCustomNames = new Set<string>();
-		for (let i = 0; i < platCustoms.length; i++) {
-			let mission = platCustoms[i];
+		for (let i = 0; i < missions.platinumCustoms.length; i++) {
+			let mission = missions.platinumCustoms[i];
 			let identifier = mission.name + mission.desc; // Assume this makes a mission unique
 
 			if (platCustomNames.has(identifier)) {
-				platCustoms.splice(i--, 1);
+				missions.platinumCustoms.splice(i--, 1);
 			} else {
 				platCustomNames.add(identifier);
 			}
 		}
 
 		// Create all custom missions
-		for (let custom of [...goldCustoms, ...platCustoms, ...ultraCustoms]) {
+		for (let custom of [...missions.goldCustoms, ...missions.platinumCustoms, ...missions.ultraCustoms]) {
 			let mission = Mission.fromCLAEntry(custom, false);
-			if (mission.modification === 'gold') mbgMissions.push(mission);
-			else if (mission.modification === 'ultra') mbuMissions.push(mission);
-			else mbpMissions.push(mission);
-		}
-
-		// Sort the missions into the correct array
-		for (let mission of mbgMissions) {
-			let missionType = mission.type;
-			if (missionType === 'beginner') this.goldBeginner.push(mission);
-			else if (missionType === 'intermediate') this.goldIntermediate.push(mission);
-			else if (missionType === 'advanced') this.goldAdvanced.push(mission);
-			else this.goldCustom.push(mission);
-			this.allMissions.push(mission);
-		}
-		for (let mission of mbpMissions) {
-			let missionType = mission.type;
-			if (missionType === 'beginner') this.platinumBeginner.push(mission);
-			else if (missionType === 'intermediate') this.platinumIntermediate.push(mission);
-			else if (missionType === 'advanced') this.platinumAdvanced.push(mission);
-			else if (missionType === 'expert') this.platinumExpert.push(mission);
+			if (mission.modification === 'gold') this.goldCustom.push(mission);
+			else if (mission.modification === 'ultra') this.ultraCustom.push(mission);
 			else this.platinumCustom.push(mission);
-			this.allMissions.push(mission);
-		}
-		for (let mission of mbuMissions) {
-			let missionType = mission.type;
-			if (missionType === 'beginner') this.ultraBeginner.push(mission);
-			else if (missionType === 'intermediate') this.ultraIntermediate.push(mission);
-			else if (missionType === 'advanced') this.ultraAdvanced.push(mission);
-			else this.ultraCustom.push(mission);
-			this.allMissions.push(mission);
 		}
 
 		// Strange case, but these two levels are in opposite order in the original game.
@@ -161,6 +103,9 @@ export abstract class MissionLibrary {
 		this.goldCustom.sort(sortFn2);
 		this.platinumCustom.sort(sortFn2);
 		this.ultraCustom.sort(sortFn2);
+
+		// Apparently, these two levels are swapped
+		Util.swapInArray(this.goldIntermediate, 11, 12);
 
 		for (let i = 0; i < this.goldBeginner.length; i++) this.goldBeginner[i].initSearchString(i);
 		for (let i = 0; i < this.goldIntermediate.length; i++) this.goldIntermediate[i].initSearchString(i);
