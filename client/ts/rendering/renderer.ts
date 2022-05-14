@@ -4,7 +4,7 @@ import shadowMapVert from './shaders/shadow_map_vert.glsl';
 import shadowMapFrag from './shaders/shadow_map_frag.glsl';
 import particleVert from './shaders/particle_vert.glsl';
 import particleFrag from './shaders/particle_frag.glsl';
-import { ParticleManager } from "../particles";
+import { ParticleManager } from "./particles";
 import { ResourceManager } from "../resources";
 import { OrthographicCamera, PerspectiveCamera } from "./camera";
 

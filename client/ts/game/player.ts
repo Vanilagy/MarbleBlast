@@ -1,7 +1,7 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { EntityState } from "../../../shared/game_server_format";
 import { isPressed, getPressedFlag, gamepadAxes, normalizedJoystickHandlePosition } from "../input";
-import { DEFAULT_PITCH, DEFAULT_YAW, Marble, MarbleControlState } from "../marble";
+import { DEFAULT_PITCH, DEFAULT_YAW, Marble, MarbleControlState } from "./marble";
 import { Vector2 } from "../math/vector2";
 import { G } from "../global";
 import { StorageManager } from "../storage";

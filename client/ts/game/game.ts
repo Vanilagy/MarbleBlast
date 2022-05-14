@@ -1,10 +1,10 @@
 import { AudioManager, AudioSource } from "../audio";
 import { Entity } from "./entity";
-import { Interior } from "../interior";
-import { Marble } from "../marble";
+import { Interior } from "./interior";
+import { Marble } from "./marble";
 import { Mission } from "../mission";
-import { Shape } from "../shape";
-import { Trigger } from "../triggers/trigger";
+import { Shape } from "./shape";
+import { Trigger } from "./trigger";
 import { Util } from "../util";
 import { GameInitter } from "./game_initter";
 import { GameRenderer } from "./game_renderer";

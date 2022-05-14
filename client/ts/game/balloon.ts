@@ -1,5 +1,5 @@
 import { EntityState } from "../../../shared/game_server_format";
-import { Marble } from "../marble";
+import { Marble } from "./marble";
 import { BallCollisionShape, CollisionShape } from "../physics/collision_shape";
 import { RigidBody } from "../physics/rigid_body";
 import { Geometry } from "../rendering/geometry";

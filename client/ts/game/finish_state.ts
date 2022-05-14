@@ -2,14 +2,13 @@ import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { EntityState } from "../../../shared/game_server_format";
 import { AudioManager } from "../audio";
 import { G } from "../global";
-import { hideTouchControls, resetPressedFlag } from "../input";
-import { Marble } from "../marble";
-import { EndPad } from "../shapes/end_pad";
-import { Gem } from "../shapes/gem";
+import { Marble } from "./marble";
 import { Util } from "../util";
 import { MAX_TIME } from "./clock";
 import { Entity } from "./entity";
 import { Game } from "./game";
+import { EndPad } from "./shapes/end_pad";
+import { Gem } from "./shapes/gem";
 
 type FinishStateState = EntityState & { entityType: 'finishState' };
 

@@ -7,7 +7,7 @@ import { AmbientLight } from "../rendering/ambient_light";
 import { PerspectiveCamera } from "../rendering/camera";
 import { Renderer } from "../rendering/renderer";
 import { Scene } from "../rendering/scene";
-import { Shape } from "../shape";
+import { Shape } from "../game/shape";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { HelpScreen } from "./help";

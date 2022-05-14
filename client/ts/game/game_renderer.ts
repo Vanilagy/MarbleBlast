@@ -4,7 +4,7 @@ import { Plane } from "../math/plane";
 import { Quaternion } from "../math/quaternion";
 import { Vector3 } from "../math/vector3";
 import { MissionElementType, MisParser, MissionElementSky } from "../../../shared/mis_parser";
-import { ParticleManager } from "../particles";
+import { ParticleManager } from "../rendering/particles";
 import { BallCollisionShape, CollisionShape } from "../physics/collision_shape";
 import { AmbientLight } from "../rendering/ambient_light";
 import { OrthographicCamera, PerspectiveCamera } from "../rendering/camera";
@@ -15,10 +15,6 @@ import { Material } from "../rendering/material";
 import { Mesh } from "../rendering/mesh";
 import { Scene } from "../rendering/scene";
 import { ResourceManager } from "../resources";
-import { Shape } from "../shape";
-import { Gem } from "../shapes/gem";
-import { PowerUp } from "../shapes/power_up";
-import { RandomPowerUp } from "../shapes/random_power_up";
 import { G } from "../global";
 import { StorageManager } from "../storage";
 import { Hud } from "../ui/hud";
@@ -31,6 +27,10 @@ import { Game } from "./game";
 import { GAME_PLAYBACK_SPEED } from "./game_simulator";
 import { GO_TIME, READY_TIME, SET_TIME } from "./game_state";
 import { MisUtils } from "../parsing/mis_utils";
+import { Shape } from "./shape";
+import { Gem } from "./shapes/gem";
+import { PowerUp } from "./shapes/power_up";
+import { RandomPowerUp } from "./shapes/random_power_up";
 
 // Used for frame rate limiting working correctly
 const decoyCanvas = document.querySelector('#decoy-canvas') as HTMLCanvasElement;
@@ -80,7 +80,7 @@ export class GameRenderer {
 		this.game = game;
 
 		this.scene = new Scene(mainRenderer);
-		this.particles = new ParticleManager(game);
+		this.particles = new ParticleManager(() => game.state.time * 1000);
 	}
 
 	async init() {

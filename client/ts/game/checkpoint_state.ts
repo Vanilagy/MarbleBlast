@@ -2,17 +2,17 @@ import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { EntityState } from "../../../shared/game_server_format";
 import { AudioManager } from "../audio";
 import { G } from "../global";
-import { DEFAULT_PITCH, DEFAULT_YAW, Marble } from "../marble";
+import { DEFAULT_PITCH, DEFAULT_YAW, Marble } from "./marble";
 import { Euler } from "../math/euler";
 import { Vector3 } from "../math/vector3";
 import { MisParser } from "../../../shared/mis_parser";
-import { Shape } from "../shape";
-import { Gem } from "../shapes/gem";
-import { PowerUp } from "../shapes/power_up";
-import { CheckpointTrigger } from "../triggers/checkpoint_trigger";
 import { Entity } from "./entity";
 import { Game } from "./game";
 import { MisUtils } from "../parsing/mis_utils";
+import { Shape } from "./shape";
+import { CheckpointTrigger } from "./triggers/checkpoint_trigger";
+import { Gem } from "./shapes/gem";
+import { PowerUp } from "./shapes/power_up";
 
 type CheckpointStateState = EntityState & { entityType: 'checkpointState' };
 

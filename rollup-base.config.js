@@ -5,7 +5,7 @@ import externals from 'rollup-plugin-node-externals';
 import { string } from 'rollup-plugin-string';
 
 export default (typescript) => [{
-	input: './src/ts/index.ts',
+	input: './client/ts/index.ts',
 	plugins: [
 		string({
 			include: "**/*.glsl"
@@ -23,7 +23,7 @@ export default (typescript) => [{
 	],
 	output: {
 		format: 'iife',
-		file: './src/js/bundle.js',
+		file: './client/js/bundle.js',
 		name: '' // Empty string here to create an unnamed IIFE
 	},
 	onwarn: function (message) {

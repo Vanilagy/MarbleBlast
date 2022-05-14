@@ -5,7 +5,7 @@ import { GameServerConnection, Reliability } from "../../../shared/game_server_c
 import { CommandToData, entityStateFormat, EntityUpdate, playerFormat } from "../../../shared/game_server_format";
 import { Socket } from "../../../shared/socket";
 import { G } from "../global";
-import { Marble } from "../marble";
+import { Marble } from "./marble";
 import { Mission } from "../mission";
 import { Connectivity } from "../net/connectivity";
 import { GameServer } from "../net/game_server";

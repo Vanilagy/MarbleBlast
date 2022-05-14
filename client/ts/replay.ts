@@ -1,4 +1,4 @@
-import { Level, TimeState, PHYSICS_TICK_RATE } from "./level";
+/*import { Level, TimeState, PHYSICS_TICK_RATE } from "./level";
 import { PowerUp } from "./shapes/power_up";
 import { Shape } from "./shape";
 import { Trigger } from "./triggers/trigger";
@@ -11,7 +11,7 @@ import { Mission } from "./mission";
 import { Interior } from "./interior";
 import { Nuke } from "./shapes/nuke";
 import { Vector3 } from "./math/vector3";
-import { Quaternion } from "./math/quaternion";
+import { Quaternion } from "./math/quaternion";*/
 
 /** Stores everything necessary for a correct replay of a playthrough. Instead of relying on replaying player inputs, the replay simply stores all necessary state. */
 export class Replay {

@@ -9,7 +9,7 @@ import { MaterialIndexData, Mesh } from "./mesh";
 import { Renderer } from "./renderer";
 import { Program } from './program';
 import { Util } from '../util';
-import { ParticleManager } from '../particles';
+import { ParticleManager } from './particles';
 import { Vector3 } from '../math/vector3';
 import { Vector2 } from '../math/vector2';
 import { Matrix4 } from '../math/matrix4';

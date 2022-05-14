@@ -1,4 +1,4 @@
-import { Interior } from "./interior";
+/*import { Interior } from "./interior";
 import { Marble } from "./marble";
 import { Shape, SharedShapeData } from "./shape";
 import { MissionElementSimGroup, MissionElementType, MissionElementStaticShape, MissionElementItem, MisParser, MissionElementTrigger, MissionElementInteriorInstance, MissionElementTSStatic, MissionElementParticleEmitterNode, MissionElementSky } from "../../shared/mis_parser";
@@ -72,7 +72,7 @@ import { Euler } from "./math/euler";
 import { OrthographicCamera, PerspectiveCamera } from "./rendering/camera";
 import { Plane } from "./math/plane";
 import { gameServers } from "./net/game_server";
-import { GameServerCommands, GameServerMessage } from "../../shared/rtc";
+import { GameServerCommands, GameServerMessage } from "../../shared/rtc";*/
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
