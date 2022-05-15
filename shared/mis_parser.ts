@@ -504,7 +504,7 @@ export class MisParser {
 			if (parts.length !== 2) continue;
 			let key = parts[0];
 			key = key.toLowerCase(); // TorqueScript is case-insensitive here
-			key = key.replace(/\[(\d+)\]/, '_$1'); // "Array indices" actually just turn into _index
+			key = key.replace(/\[(\d+)\]/, '$1'); // "Array indices" are fake!!1
 
 			obj[key] = this.resolveExpression(parts[1]);
 		}

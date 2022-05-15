@@ -4,7 +4,8 @@ import { AudioManager, AudioSource } from "../audio";
 import { G } from "../global";
 import { Util } from "../util";
 import { Entity } from "./entity";
-import { Game, GameMode } from "./game";
+import { Game } from "./game";
+import { GameMode } from "./game_mode";
 import { GO_TIME, READY_TIME, SET_TIME } from "./game_state";
 
 type ClockState = EntityState & { entityType: 'clock' };

@@ -5,6 +5,9 @@ import { G } from "../global";
 import { Util } from "../util";
 import { Game } from "./game";
 import { Entity } from "./entity";
+import { Marble } from "./marble";
+import { Gem } from "./shapes/gem";
+import { GameMode } from "./game_mode";
 
 interface AffectionEdge {
 	id: number,
@@ -196,5 +199,18 @@ export class GameState {
 			frame: 0,
 			state: null
 		};
+	}
+
+	getHuntPoints() {
+		let points = new DefaultMap<Marble, number>(() => 0);
+		if (this.game.mode !== GameMode.Hunt) return points;
+
+		for (let gem of this.game.shapes) {
+			if (!(gem instanceof Gem)) continue;
+			for (let marble of gem.pickUpHistory)
+				points.set(marble, points.get(marble) + gem.pointValue);
+		}
+
+		return points;
 	}
 }

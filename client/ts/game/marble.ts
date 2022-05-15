@@ -38,6 +38,7 @@ import { MisUtils } from "../parsing/mis_utils";
 import { Gem } from "./shapes/gem";
 import { PowerUp } from "./shapes/power_up";
 import { StartPad } from "./shapes/start_pad";
+import { GameMode } from "./game_mode";
 
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
@@ -220,6 +221,10 @@ export class Marble extends Entity {
 		exitFrame: number
 	}[] = [];
 	teleportSounds = new DefaultMap<TeleportTrigger, AudioSource[]>(() => []);
+
+	spawnPosition = new Vector3(0, 0, 300);
+	spawnRotation = new Euler();
+	lastComputedSpawnElementId: number = null;
 
 	constructor(game: Game, id: number, checkpointStateId: number) {
 		super(game);
@@ -416,21 +421,22 @@ export class Marble extends Entity {
 				teleportEnableTime: this.teleportEnableTime ?? undefined,
 				teleportDisableTime: this.teleportDisableTime !== null && this.game.state.time - this.teleportDisableTime < TELEPORT_FADE_DURATION ? this.teleportDisableTime : undefined,
 				blastAmount: this.blastAmount || undefined,
-				inFinishState: this.inFinishState || undefined
+				inFinishState: this.inFinishState || undefined,
+				spawnElementId: this.lastComputedSpawnElementId
 			}
 		};
 	}
 
 	getInitialState(): MarbleState {
-		let { position } = this.getStartPositionAndOrientation();
-
 		return {
 			entityType: 'marble',
-			position: position,
+			position: this.spawnPosition.clone(),
 			orientation: this.body.orientation.clone(), // Todo: Is this fine?
 			linearVelocity: new Vector3(),
 			angularVelocity: new Vector3(),
-			extras: {}
+			extras: {
+				spawnElementId: this.lastComputedSpawnElementId // Todo is this ok?? Argh initial state can be a wack concept sometimes!
+			}
 		};
 	}
 
@@ -495,6 +501,8 @@ export class Marble extends Entity {
 		this.blastAmount = state.extras.blastAmount || 0;
 
 		this.inFinishState = !!state.extras.inFinishState;
+
+		this.computeSpawnPositionAndOrientation(state.extras.spawnElementId);
 	}
 
 	getInternalState(): InternalMarbleState {
@@ -537,7 +545,7 @@ export class Marble extends Entity {
 			!(this.game.finishState.finished && this.game.finishState.isLegal)
 		) {
 			// Respawn the marble two seconds after having gone out of bounds
-			if (this.game.type === 'singleplayer' && !this.checkpointState.currentCheckpoint)
+			if (this.game.type === 'singleplayer' && !this.checkpointState.currentCheckpoint && this.game.mode === GameMode.Normal)
 				this.game.state.restartFrames.push(this.game.state.frame + 1);
 			else
 				this.respawn(false);
@@ -790,10 +798,9 @@ export class Marble extends Entity {
 		if (this.game.state.frame - this.game.state.lastRestartFrame < 3.5 * GAME_UPDATE_RATE) {
 			// Lock the marble to the space above the start pad
 
-			let { position: startPosition } = this.getStartPositionAndOrientation();
 			let position = this.body.position;
-			position.x = startPosition.x;
-			position.y = startPosition.y;
+			position.x = this.spawnPosition.x;
+			position.y = this.spawnPosition.y;
 
 			let vel = this.body.linearVelocity;
 			vel.x = vel.y = 0;
@@ -1252,7 +1259,9 @@ export class Marble extends Entity {
 		this.forcefield.group.recomputeTransform();
 	}
 
-	restart(frame: number) {
+	restart(frame: number, fromRespawn = false) {
+		this.computeSpawnPositionAndOrientation(this.selectSpawnElement(!fromRespawn));
+
 		super.restart(frame);
 
 		if (!this.addedToGame) this.addToGame();
@@ -1264,8 +1273,7 @@ export class Marble extends Entity {
 		this.cancelInterpolation();
 
 		if (this.controllingPlayer) {
-			let { euler } = this.getStartPositionAndOrientation();
-			this.controllingPlayer.yaw = DEFAULT_YAW + euler.z;
+			this.controllingPlayer.yaw = DEFAULT_YAW + this.spawnRotation.z;
 			this.controllingPlayer.pitch = DEFAULT_PITCH;
 		}
 
@@ -1295,35 +1303,52 @@ export class Marble extends Entity {
 			}
 		}
 
-		this.restart(this.game.state.frame);
+		this.restart(this.game.state.frame, true);
 	}
 
-	/** Gets the position and orientation of the player spawn point. */
-	getStartPositionAndOrientation() {
+	selectSpawnElement(first: boolean) {
 		let { game } = this;
 
-		// The player is spawned at the last start pad in the mission file.
 		let startPad = Util.findLast(game.shapes, (shape) => shape instanceof StartPad);
-		let position: Vector3;
-		let euler = new Euler();
+		if (startPad) return startPad.id;
 
-		if (startPad) {
-			// If there's a start pad, start there
-			position = startPad.worldPosition.clone().add(new Vector3(0, 0, 3));
-			euler.setFromQuaternion(startPad.worldOrientation, "ZXY");
-		} else {
-			// Search for spawn points used for multiplayer
-			let spawnPoints = game.mission.allElements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
-			if (spawnPoints) {
-				let first = spawnPoints.elements[0] as MissionElementTrigger;
-				position = MisUtils.parseVector3(first.position);
-			} else {
-				// If there isn't anything, start at this weird point
-				position = new Vector3(0, 0, 300);
-			}
+		let spawnPoints = game.mission.allElements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
+		if (!spawnPoints) return null;
+
+		if (first) return spawnPoints.elements[Math.floor(Util.seededRandom(game.seed + this.id) * spawnPoints.elements.length)]._id;
+
+		let closest: MissionElementTrigger = null;
+		let closestDist = Infinity;
+
+		// Find the spawn trigger closest to the current marble position
+		for (let spawnTrigger of spawnPoints.elements) {
+			let pos = MisUtils.parseVector3((spawnTrigger as MissionElementTrigger).position);
+			let dist = this.body.position.distanceToSquared(pos);
+			if (dist >= closestDist) continue;
+
+			closest = spawnTrigger as MissionElementTrigger;
+			closestDist = dist;
 		}
 
-		return { position, euler };
+		return closest && closest._id;
+	}
+
+	computeSpawnPositionAndOrientation(spawnElementId: number) {
+		if (this.lastComputedSpawnElementId === spawnElementId) return;
+		this.lastComputedSpawnElementId = spawnElementId;
+
+		let { game } = this;
+
+		let element = game.mission.allElements.find(x => x._id === spawnElementId);
+		if (!element) {
+			// If there isn't anything, start at this weird point
+			this.spawnPosition.set(0, 0, 300);
+			this.spawnRotation.set(0, 0, 0);
+		} else {
+			this.spawnPosition.copy(MisUtils.parseVector3((element as any).position));
+			this.spawnPosition.z += 3;
+			this.spawnRotation.setFromQuaternion(MisUtils.parseRotation((element as any).rotation), "ZXY");
+		}
 	}
 
 	stop() {

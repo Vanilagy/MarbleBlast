@@ -23,7 +23,7 @@ import { mainRenderer, SCALING_RATIO } from "../ui/misc";
 import { FRAME_RATE_OPTIONS } from "../ui/options_mbp";
 import { MbpPauseScreen } from "../ui/pause_screen_mbp";
 import { Util } from "../util";
-import { Game, GameMode } from "./game";
+import { Game } from "./game";
 import { GAME_PLAYBACK_SPEED } from "./game_simulator";
 import { GO_TIME, READY_TIME, SET_TIME } from "./game_state";
 import { MisUtils } from "../parsing/mis_utils";
@@ -31,6 +31,7 @@ import { Shape } from "./shape";
 import { Gem } from "./shapes/gem";
 import { PowerUp } from "./shapes/power_up";
 import { RandomPowerUp } from "./shapes/random_power_up";
+import { GameMode } from "./game_mode";
 
 // Used for frame rate limiting working correctly
 const decoyCanvas = document.querySelector('#decoy-canvas') as HTMLCanvasElement;
@@ -484,22 +485,15 @@ export class GameRenderer {
 
 		if (game.mode === GameMode.Normal) {
 			let gemCount = 0;
-			for (let i = 0; i < this.game.entities.length; i++) {
-				let entity = this.game.entities[i];
-				if (entity instanceof Gem && entity.pickUpHistory.length > 0) gemCount++;
+			for (let i = 0; i < this.game.shapes.length; i++) {
+				let shape = this.game.shapes[i];
+				if (shape instanceof Gem && shape.pickUpHistory.length > 0) gemCount++;
 			}
 
 			hud.displayGemCount(gemCount, this.game.totalGems);
 		} else if (game.mode === GameMode.Hunt) {
-			let gemCount = 0;
-			for (let i = 0; i < this.game.entities.length; i++) {
-				let entity = this.game.entities[i];
-				if (entity instanceof Gem) gemCount += Util.count(entity.pickUpHistory, x => x === game.localPlayer.controlledMarble);
-			}
-
-			// todo proper points
-
-			hud.displayGemCount(gemCount);
+			let points = game.state.getHuntPoints().get(game.localPlayer.controlledMarble);
+			hud.displayGemCount(points);
 		}
 
 		hud.displayBlastMeterFullness(this.game.localPlayer.controlledMarble.blastAmount);

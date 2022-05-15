@@ -32,7 +32,8 @@ export const entityStateFormat = [union, 'entityType', {
 		teleportEnableTime: 'f32',
 		teleportDisableTime: 'f32',
 		blastAmount: 'f32',
-		inFinishState: 'boolean'
+		inFinishState: 'boolean',
+		spawnElementId: 'varint'
 	}]
 }, {
 	entityType: 'player',

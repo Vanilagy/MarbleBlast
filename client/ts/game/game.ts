@@ -23,11 +23,7 @@ import { FinishState } from "./finish_state";
 import { Vector3 } from "../math/vector3";
 import { PowerUp } from "./shapes/power_up";
 import { GemSpawnState } from "./gem_spawn_state";
-
-export enum GameMode {
-	Normal,
-	Hunt
-}
+import { GameMode } from "./game_mode";
 
 export abstract class Game {
 	abstract type: 'singleplayer' | 'multiplayer'; // For the record, I do know that it's spelled "single-player", but I also know that English can suck my

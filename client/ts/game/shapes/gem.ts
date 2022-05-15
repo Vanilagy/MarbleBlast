@@ -6,9 +6,10 @@ import { Marble } from "../marble";
 import { G } from "../../global";
 import { AudioManager } from "../../audio";
 import { MultiplayerGame } from "../multiplayer_game";
-import { Game, GameMode } from "../game";
+import { Game } from "../game";
 import { Vector3 } from "../../math/vector3";
 import { Quaternion } from "../../math/quaternion";
+import { GameMode } from "../game_mode";
 
 // List all of gem colors for randomly choosing one
 const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "orange", "black"]; // "Platinum" is also a color, but it can't appear by chance
@@ -28,6 +29,8 @@ export class Gem extends Shape {
 	pickUpFrame = -Infinity;
 	pickUpHistory: Marble[] = [];
 
+	pointValue = 0;
+
 	get pickupable() {
 		return Util.imply(this.game.mode === GameMode.Hunt, this.game.gemSpawnState && this.game.gemSpawnState.currentSpawns.has(this) && this.game.gemSpawnState.lastSpawnFrame > this.pickUpFrame) &&
 			Util.imply(this.game.mode !== GameMode.Hunt, this.pickUpHistory.length === 0);
@@ -41,6 +44,10 @@ export class Gem extends Shape {
 		this.matNamesOverride["base.gem"] = color.toLowerCase() + ".gem";
 
 		if (game instanceof MultiplayerGame) this.sounds.push('opponentdiamond.wav');
+
+		if (color.toLowerCase() === 'red') this.pointValue = 1;
+		else if (color.toLowerCase() === 'yellow') this.pointValue = 2;
+		else if (color.toLowerCase() === 'blue') this.pointValue = 5;
 
 		await super.init(game, srcElement);
 
@@ -80,12 +87,18 @@ export class Gem extends Shape {
 				this.game.gemSpawnState.advance(this);
 				this.affect(this.game.gemSpawnState);
 			}
+
+			if (marble === this.game.localPlayer.controlledMarble) this.game.simulator.executeNonDuplicatableEvent(() => {
+				let color = this.pointValue === 1 ? '#ed443b' : this.pointValue === 2 ? '#edd53b' : '#3b94ed';
+				let fontSize = this.pointValue === 1 ? '36px' : this.pointValue === 2 ? '42px' : '48px';
+				G.menu.hud.displayPointPopup('+' + this.pointValue, color, fontSize);
+			}, `${this.id}popup`, true);
 		}
 	}
 
 	/** lmao name */
 	pickDown() {
-		if (this.game.mode === GameMode.Normal) return;
+		if (this.game.mode !== GameMode.Normal) return;
 
 		this.pickUpHistory.length = 0;
 		this.stateNeedsStore = true;

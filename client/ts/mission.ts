@@ -173,7 +173,7 @@ export class Mission {
 		if (!MisParser.parseBoolean(this.missionInfo.noblast) && (MisParser.parseBoolean(this.missionInfo.blast) || this.missionInfo.game?.toLowerCase() === 'ultra'))
 			this.hasBlast = true;
 
-		if (this.missionInfo.game?.toLowerCase() === 'ultra' || MisParser.parseBoolean(this.missionInfo.useultramarble))
+		if ((this.missionInfo.game?.toLowerCase() === 'ultra' && !this.missionInfo.platinumscore0) || MisParser.parseBoolean(this.missionInfo.useultramarble))
 			this.hasUltraMarble = true;
 	}
 

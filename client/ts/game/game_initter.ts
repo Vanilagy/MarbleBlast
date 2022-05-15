@@ -8,7 +8,7 @@ import { ParticleEmitter, ParticleEmitterOptions, ParticleManager, particleNodeE
 import { Util } from "../util";
 import { Balloon } from "./balloon";
 import { Clock } from "./clock";
-import { Game, GameMode } from "./game";
+import { Game } from "./game";
 import { FinishState } from "./finish_state";
 import { Box3 } from "../math/box3";
 import { MisUtils } from "../parsing/mis_utils";
@@ -55,6 +55,7 @@ import { Tornado } from "./shapes/tornado";
 import { TrapDoor } from "./shapes/trap_door";
 import { TriangleBumper } from "./shapes/triangle_bumper";
 import { GemSpawnState } from "./gem_spawn_state";
+import { GameMode } from "./game_mode";
 
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 

@@ -9,6 +9,9 @@ import { FRAME_RATE_OPTIONS } from "./options_mbp";
 import { MultiplayerGame } from "../game/multiplayer_game";
 import { Reliability } from "../../../shared/game_server_connection";
 import { Connectivity } from "../net/connectivity";
+import { DefaultMap } from "../../../shared/default_map";
+import { Marble } from "../game/marble";
+import { GameMode } from "../game/game_mode";
 
 export const hudCanvas = document.querySelector('#hud-canvas') as HTMLCanvasElement;
 export let hudCtx: CanvasRenderingContext2D;
@@ -61,6 +64,7 @@ export abstract class Hud {
 	chatInput: HTMLInputElement;
 	chatMessageContainer: HTMLDivElement;
 	networkStats: HTMLDivElement;
+	pointPopupContainer: HTMLDivElement;
 
 	abstract gemCountMinDigits: number;
 	abstract showClockBackground: boolean;
@@ -101,6 +105,7 @@ export abstract class Hud {
 		this.chatInput = document.querySelector('#hud-chat input');
 		this.chatMessageContainer = document.querySelector('#hud-chat > div');
 		this.networkStats = document.querySelector('#network-stats');
+		this.pointPopupContainer = document.querySelector('#point-popups');
 
 		this.initGameChat();
 	}
@@ -408,6 +413,7 @@ export abstract class Hud {
 
 	displayScoreboard() {
 		let updatedRows = new WeakSet<ScoreboardRow>();
+		let huntPoints = G.game.state.getHuntPoints();
 
 		for (let socket of G.lobby.sockets) {
 			let row = this.scoreboardRows.find(x => x.sessionId === socket.id);
@@ -417,7 +423,7 @@ export abstract class Hud {
 				this.scoreboardRows.push(row);
 			}
 
-			row.update();
+			row.update(huntPoints);
 			updatedRows.add(row);
 		}
 
@@ -428,6 +434,14 @@ export abstract class Hud {
 				this.scoreboardRows.splice(i--, 1);
 			}
 		}
+
+		const SCOREBOARD_ROW_HEIGHT = 21;
+
+		this.scoreboard.style.height = SCOREBOARD_ROW_HEIGHT * this.scoreboardRows.length + 'px';
+		let rowOrder = this.scoreboardRows.slice().sort((a, b) => b.importance - a.importance);
+		for (let i = 0; i < rowOrder.length; i++) {
+			rowOrder[i].div.style.top = (7 + i * SCOREBOARD_ROW_HEIGHT) + 'px';
+		}
 	}
 
 	displayChatMessage(username: string, body: string) {
@@ -436,6 +450,16 @@ export abstract class Hud {
 		this.chatMessageStartTimes.set(div, performance.now());
 
 		this.chatMessageContainer.insertBefore(div, this.chatMessageContainer.firstChild);
+	}
+
+	displayPointPopup(contents: string, color: string, fontSize: string) {
+		let div = document.createElement('div');
+		div.textContent = contents;
+		div.style.color = color;
+		div.style.fontSize = fontSize;
+		this.pointPopupContainer.appendChild(div);
+
+		setTimeout(() => this.pointPopupContainer.removeChild(div), 1500);
 	}
 
 	static processHelpMessage(message: string) {
@@ -485,6 +509,8 @@ class ScoreboardRow {
 	rhs: HTMLSpanElement;
 	restartIntentIcon: HTMLImageElement;
 
+	lastPoints = 0;
+
 	constructor(sessionId: string) {
 		this.sessionId = sessionId;
 
@@ -500,7 +526,11 @@ class ScoreboardRow {
 		this.div.append(this.lhs, this.rhs, this.restartIntentIcon);
 	}
 
-	update() {
+	get importance() {
+		return this.lastPoints;
+	}
+
+	update(huntPoints: DefaultMap<Marble, number>) {
 		let socket = G.lobby.sockets.find(x => x.id === this.sessionId);
 
 		let rhsText: string;
@@ -510,12 +540,24 @@ class ScoreboardRow {
 			} else {
 				rhsText = '100% ✔';
 			}
+		} else if (G.game.mode === GameMode.Hunt) {
+			let marble = G.game.marbles.find(x => socket.id === x.controllingPlayer.sessionId);
+			let points = huntPoints.get(marble);
+
+			rhsText = points.toString();
+
+			if (points > this.lastPoints) {
+				this.rhs.style.animation = 'none';
+				Util.forceLayout(this.rhs);
+				this.rhs.style.animation = '0.5s scoreboard-point-pulse ease-out';
+			}
+			this.lastPoints = points;
 		} else {
 			rhsText = 'Playing';
 		}
 
 		// todo: Figure out a way to highlight the local player without it looking ass
-		if (false && socket.id === Connectivity.sessionId) {
+		if (Math.random() < 0 && socket.id === Connectivity.sessionId) {
 			this.lhs.innerHTML = `<b>${Util.htmlEscape(socket.name)}</b>`; // To highlight the local player
 		} else {
 			this.lhs.innerHTML = Util.htmlEscape(socket.name);
