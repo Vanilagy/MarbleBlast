@@ -9,6 +9,12 @@ import { MbpLevelSelect } from "./level_select_mbp";
 import { MbpMenu } from "./menu_mbp";
 import { gameServers } from "../net/game_server";
 import { SCALING_RATIO } from "./misc";
+import { Mission } from "../mission";
+
+export const lobbyModeNames = {
+	coop: 'Co-op',
+	hunt: 'Gem Hunt'
+} as const;
 
 export class LobbyScreen {
 	div: HTMLDivElement;
@@ -20,6 +26,10 @@ export class LobbyScreen {
 	currentServer: HTMLParagraphElement;
 	serverSelectorWindow: HTMLDivElement;
 	noServersMessage: HTMLParagraphElement;
+
+	modeSelectorCollapsed: HTMLImageElement;
+	currentMode: HTMLParagraphElement;
+	modeSelectorWindow: HTMLDivElement;
 
 	levelImageContainer: HTMLDivElement;
 	levelImage: HTMLImageElement;
@@ -43,6 +53,10 @@ export class LobbyScreen {
 		this.currentServer = document.querySelector('#mbp-lobby-current-server');
 		this.serverSelectorWindow = document.querySelector('#mbp-lobby-server-selector-window');
 		this.noServersMessage = document.querySelector('#mbp-lobby-no-servers');
+
+		this.modeSelectorCollapsed = document.querySelector('#mbp-lobby-mode-selector-collapsed');
+		this.currentMode = document.querySelector('#mbp-lobby-current-mode');
+		this.modeSelectorWindow = document.querySelector('#mbp-lobby-mode-selector-window');
 
 		this.levelImageContainer = document.querySelector('#mbp-lobby-image-container');
 		this.levelImage = document.querySelector('#mbp-lobby-image');
@@ -83,6 +97,40 @@ export class LobbyScreen {
 		this.serverSelectorWindow.querySelector('._click-preventer').addEventListener('click', () => {
 			this.serverSelectorWindow.classList.add('hidden');
 		});
+
+		menu.setupButton(this.modeSelectorCollapsed, 'mp/play/difficulty', () => {
+			if (this.modeSelectorWindow.classList.contains('hidden')) {
+				this.modeSelectorWindow.classList.remove('hidden');
+			} else {
+				this.modeSelectorWindow.classList.add('hidden');
+			}
+		});
+
+		this.modeSelectorWindow.querySelector('._click-preventer').addEventListener('click', () => {
+			this.modeSelectorWindow.classList.add('hidden');
+		});
+
+		for (let mode in lobbyModeNames) {
+			let div = document.createElement('div');
+			let img = document.createElement('img');
+			this.menu.setupButton(img, 'mp/play/difficultysel', () => {
+				G.lobby.settings.mode = mode as keyof typeof lobbyModeNames;
+
+				let gameMode: Mission["gameMode"] = G.lobby.settings.mode === 'coop' ? 'normal' : 'hunt';
+				let selectedMission = MissionLibrary.allMissions.find(x => x.path === G.lobby.settings.missionPath);
+				if (gameMode !== selectedMission.gameMode) {
+					G.lobby.settings.missionPath = gameMode === 'normal' ? MissionLibrary.goldBeginner[0].path : MissionLibrary.huntPlatinumBeginner[0].path;
+				}
+
+				G.lobby.onSettingsChanged();
+				this.modeSelectorWindow.classList.add('hidden');
+			});
+			let p = document.createElement('p');
+			p.textContent = lobbyModeNames[mode as keyof typeof lobbyModeNames];
+			div.append(img, p);
+
+			this.modeSelectorWindow.querySelector('._content').append(div);
+		}
 
 		this.levelImageContainer.addEventListener('mouseenter', () => {
 			AudioManager.play('buttonover.wav');
@@ -178,6 +226,8 @@ export class LobbyScreen {
 				this.currentServer.textContent = gameServer.id;
 			}
 		}
+
+		this.currentMode.textContent = lobbyModeNames[G.lobby.settings.mode];
 
 		this.updatePlayButton();
 

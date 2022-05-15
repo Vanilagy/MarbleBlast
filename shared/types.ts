@@ -47,5 +47,6 @@ export interface CLAEntry {
 
 export interface LobbySettings {
 	missionPath: string,
+	mode: 'coop' | 'hunt',
 	gameServer: string
 }

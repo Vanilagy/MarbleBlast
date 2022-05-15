@@ -199,6 +199,10 @@
 	top: 0;
 	left: 0;
 	pointer-events: none;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
 }
 
 #mbp-level-select-text-window {

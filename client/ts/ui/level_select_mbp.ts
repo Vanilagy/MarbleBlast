@@ -30,6 +30,9 @@ export class MbpLevelSelect extends LevelSelect {
 	localScoresCount = 5;
 	scorePlaceholderName = "Matan W.";
 	scoreElementHeight = 16;
+	difficultyContainerToMissionArray = new Map<HTMLDivElement, Mission[]>();
+
+	shownGameMode: Mission["gameMode"] = 'normal';
 
 	initProperties() {
 		this.div = document.querySelector('#mbp-level-select');
@@ -59,6 +62,11 @@ export class MbpLevelSelect extends LevelSelect {
 		], () => {
 			if (this.difficultySelectorWindow.classList.contains('hidden')) {
 				this.difficultySelectorWindow.classList.remove('hidden');
+
+				for (let [div, arr] of this.difficultyContainerToMissionArray) {
+					let visible = arr.length > 0 && arr[0].gameMode === this.shownGameMode;
+					div.style.display = visible ? '' : 'none';
+				}
 			} else {
 				this.difficultySelectorWindow.classList.add('hidden');
 			}
@@ -76,13 +84,20 @@ export class MbpLevelSelect extends LevelSelect {
 			{ name: 'Advanced', arr: MissionLibrary.platinumAdvanced },
 			{ name: 'Expert', arr: MissionLibrary.platinumExpert },
 			{ name: 'Custom', arr: MissionLibrary.platinumCustom },
-			{ name: 'Hunt', arr: MissionLibrary.multiplayer }
+			{ name: 'Hunt Beginner', arr: MissionLibrary.huntPlatinumBeginner },
+			{ name: 'Hunt Intermediate', arr: MissionLibrary.huntPlatinumIntermediate },
+			{ name: 'Hunt Advanced', arr: MissionLibrary.huntPlatinumAdvanced },
+			{ name: 'Hunt Custom', arr: MissionLibrary.huntPlatinumCustom }
 		]);
 		this.createDifficultySection('Ultra', './assets/ui_mbp/play/marble_ultra.png', [
 			{ name: 'Beginner', arr: MissionLibrary.ultraBeginner },
 			{ name: 'Intermediate', arr: MissionLibrary.ultraIntermediate },
 			{ name: 'Advanced', arr: MissionLibrary.ultraAdvanced },
-			{ name: 'Custom', arr: MissionLibrary.ultraCustom }
+			{ name: 'Custom', arr: MissionLibrary.ultraCustom },
+			{ name: 'Hunt Beginner', arr: MissionLibrary.huntUltraBeginner },
+			{ name: 'Hunt Intermediate', arr: MissionLibrary.huntUltraIntermediate },
+			{ name: 'Hunt Advanced', arr: MissionLibrary.huntUltraAdvanced },
+			{ name: 'Hunt Custom', arr: MissionLibrary.huntUltraCustom }
 		]);
 
 		this.difficultySelectorWindow.querySelector('._click-preventer').addEventListener('mousedown', () => {
@@ -132,6 +147,7 @@ export class MbpLevelSelect extends LevelSelect {
 		this.setMissionArray(MissionLibrary.ultraAdvanced, false);
 		this.setMissionArray(MissionLibrary.ultraIntermediate, false);
 		this.setMissionArray(MissionLibrary.ultraBeginner, false);
+		// todo preload hunt??
 
 		// Show a random beginner category at the start
 		this.setMissionArray(Util.randomFromArray([MissionLibrary.goldBeginner/*, MissionLibrary.platinumBeginner, MissionLibrary.ultraBeginner*/]), false); // fixme
@@ -182,6 +198,8 @@ export class MbpLevelSelect extends LevelSelect {
 				container.style.opacity = '0.333';
 				container.style.pointerEvents = 'none';
 			}
+
+			this.difficultyContainerToMissionArray.set(container, difficulty.arr);
 		}
 
 		this.difficultySelectorContent.append(div);
@@ -257,9 +275,6 @@ export class MbpLevelSelect extends LevelSelect {
 	}
 
 	show(lobbyLevelSelect = false) {
-		super.show();
-		this.updateBackground();
-
 		if (lobbyLevelSelect) {
 			this.playButton.style.display = 'none';
 			this.chooseLevelButton.style.display = '';
@@ -276,6 +291,8 @@ export class MbpLevelSelect extends LevelSelect {
 				this.currentMissionIndex = this.currentMissionArray.findIndex(x => x.path === G.lobby.settings.missionPath);
 				this.displayMission();
 			}
+
+			this.shownGameMode = G.lobby.settings.mode === 'coop' ? 'normal' : 'hunt';
 		} else {
 			this.playButton.style.display = '';
 			this.chooseLevelButton.style.display = 'none';
@@ -283,7 +300,11 @@ export class MbpLevelSelect extends LevelSelect {
 			this.viewToggleButton.style.display = '';
 			this.loadReplayButton.style.display = '';
 			this.background.style.filter = this.imageFrame.style.filter = '';
+			this.shownGameMode = 'normal';
 		}
+
+		super.show();
+		this.updateBackground();
 	}
 
 	/** Sets the background image based on the modification. */

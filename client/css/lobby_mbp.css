@@ -326,6 +326,107 @@
 	text-shadow: none;
 }
 
+#mbp-lobby-mode-selector-collapsed {
+	position: absolute;
+	display: block;
+	top: 89px;
+	left: 168px;
+}
+
+#mbp-lobby-current-mode {
+	position: absolute;
+	font-family: MarkerFelt;
+	margin: 0;
+	font-size: 20px;
+	padding-left: 5px;
+	top: 97px;
+	left: 183px;
+	width: 150px;
+	pointer-events: none;
+}
+
+#mbp-lobby-mode-selector-window ._click-preventer {
+	position: absolute;
+	top: -5000px;
+	left: -5000px;
+	width: 10000px;
+	height: 10000px;
+}
+
+#mbp-lobby-mode-selector-window {
+	position: absolute;
+	top: 107px;
+	left: 132px;
+	height: 145px;
+	width: 251px;
+	border-style: solid;
+	border-image-source: url(/assets/ui_mbp/mp/menu/grey/joined.png);
+	border-image-slice: 45 48 62 48 fill;
+	border-image-width: 45px 48px 62px 48px;
+	border-image-repeat: stretch;
+	z-index: 1;
+}
+
+#mbp-lobby-mode-selector-window-tabt {
+	position: absolute;
+	top: -2px;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+#mbp-lobby-mode-selector-window ._content {
+	position: absolute;
+	top: 32px;
+	left: 35px;
+	overflow: auto;
+	overflow-x: hidden;
+	height: 64px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#mbp-lobby-mode-selector-window ._content::-webkit-scrollbar {
+	width: 5px;
+}
+
+#mbp-lobby-mode-selector-window ._content::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#mbp-lobby-mode-selector-window ._content::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+#mbp-lobby-mode-selector-window ._content > div {
+	position: relative;
+}
+
+#mbp-lobby-mode-selector-window ._content > div img {
+	display: block;
+}
+
+#mbp-lobby-mode-selector-window ._content > div p {
+	position: absolute;
+	top: 0;
+	left: 0;
+	pointer-events: none;
+	font-family: MarkerFelt;
+	margin: 0;
+	font-size: 20px;
+	padding-left: 5px;
+	color: black;
+	text-shadow: none;
+}
+
+#mbp-lobby-mode-selector-window > p {
+	position: absolute;
+	text-align: center;
+	width: 100%;
+	top: 67px;
+	color: black;
+	text-shadow: none;
+}
+
 #mbp-lobby-local-connection-status {
 	position: absolute;
 	top: 0;

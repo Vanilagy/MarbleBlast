@@ -10,6 +10,7 @@ const lobbyListSubscribers = new Set<Socket>();
 
 const DEFAULT_LOBBY_SETTINGS: LobbySettings = {
 	missionPath: 'beginner/movement.mis',
+	mode: 'coop',
 	gameServer: null
 };
 

@@ -192,7 +192,7 @@ export class MbpFinishScreen extends FinishScreen {
 				};
 			} else {
 				// Move on to the next mission array
-				let order = MissionLibrary.allMissionArrays;
+				let order = MissionLibrary.allMissionArrays; // TODO THIS WITH HUNT AND SHIT, BAD
 				let next = order[order.indexOf(levelSelect.currentMissionArray) + 1];
 
 				return {

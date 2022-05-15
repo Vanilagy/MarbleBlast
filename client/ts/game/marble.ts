@@ -1322,6 +1322,7 @@ export class Marble extends Entity {
 
 		// Find the spawn trigger closest to the current marble position
 		for (let spawnTrigger of spawnPoints.elements) {
+			// todo: different logic for "quick respawns" in hunt situations
 			let pos = MisUtils.parseVector3((spawnTrigger as MissionElementTrigger).position);
 			let dist = this.body.position.distanceToSquared(pos);
 			if (dist >= closestDist) continue;

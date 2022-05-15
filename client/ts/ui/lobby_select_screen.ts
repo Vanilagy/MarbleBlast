@@ -2,7 +2,9 @@ import { Socket } from "../../../shared/socket";
 import { SocketCommands } from "../../../shared/socket_commands";
 import { G } from "../global";
 import { MissionLibrary } from "../mission_library";
+import { gameServers } from "../net/game_server";
 import { Lobby } from "../net/lobby";
+import { lobbyModeNames } from "./lobby_screen";
 import { MbpMenu } from "./menu_mbp";
 
 export class LobbySelectScreen {
@@ -78,7 +80,8 @@ export class LobbySelectScreen {
 			topText.textContent = lobby.name;
 
 			let bottomText = document.createElement('p');
-			bottomText.innerHTML = `<span style="color: #e5a8ff">Co-op</span>  |  ${lobby.socketCount} Player${lobby.socketCount === 1 ? '' : 's'}`;
+			let gameServer = gameServers.find(x => x.id === lobby.settings.gameServer);
+			bottomText.innerHTML = `<span style="color: #e5a8ff">${lobbyModeNames[lobby.settings.mode]}</span>  |  ${lobby.socketCount} Player${lobby.socketCount === 1 ? '' : 's'}  |  ${gameServer?.id ?? 'Server not selected'}`;
 
 			let statusText = document.createElement('p');
 			statusText.textContent = lobby.status === 'idle' ? 'Waiting' : 'In-Game';

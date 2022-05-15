@@ -66,6 +66,7 @@ export abstract class PowerUp extends Shape {
 	}
 
 	update(onlyVisual?: boolean) {
+		super.update(onlyVisual);
 		if (onlyVisual) return;
 
 		// Enable or disable the collision based on pickupability
