@@ -10,6 +10,7 @@ export const MBP_PLATINUM_COLOR = 'rgb(204, 204, 204)';
 export const MBP_ULTIMATE_COLOR = 'rgb(255, 221, 34)';
 
 export class MbpFinishScreen extends FinishScreen {
+	background = document.querySelector('#mbp-finish-screen-background') as HTMLImageElement;
 	viewReplayButton = document.querySelector('#mbp-finish-view-replay') as HTMLImageElement;
 	timeRows = document.querySelector('#mbp-finish-time-rows') as HTMLDivElement;
 	qualifyTimeElement: HTMLElement;
@@ -88,10 +89,12 @@ export class MbpFinishScreen extends FinishScreen {
 		if (game.type === 'multiplayer') {
 			this.nextLevelImage.style.display = 'none';
 			this.nextLevelButton.style.display = 'none';
+			this.background.style.filter = 'hue-rotate(180deg) saturate(0.7)';
 		} else {
 			this.nextLevelImage.style.display = '';
 			this.nextLevelButton.style.display = '';
 			this.nextLevelImage.src = mission.getImagePath();
+			this.background.style.filter = '';
 		}
 	}
 
