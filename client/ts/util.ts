@@ -882,6 +882,13 @@ export abstract class Util {
 		for (let i = 0; i < arr.length; i++) if (pred(arr[i])) total++;
 		return total;
 	}
+
+	static getOrdinalSuffix(n: number) {
+		if (n % 10 === 1 && n % 100 !== 11) return 'st';
+		if (n % 10 === 2 && n % 100 !== 12) return 'nd';
+		if (n % 10 === 3 && n % 100 !== 13) return 'rd';
+		return 'th';
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 

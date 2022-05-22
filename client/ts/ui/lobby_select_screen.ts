@@ -68,7 +68,7 @@ export class LobbySelectScreen {
 	updateLobbyList(list: SocketCommands['lobbyList']) {
 		this.listContainer.innerHTML = '';
 
-		for (let lobby of list) {
+		for (let lobby of list.slice().reverse() /* temp order */) {
 			let div = document.createElement('div');
 
 			let img = document.createElement('img');

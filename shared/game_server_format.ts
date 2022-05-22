@@ -97,6 +97,13 @@ export const entityStateFormat = [union, 'entityType', {
 	frame: [nullable, 'varint'],
 	time: [nullable, 'f64'],
 	elapsedTime: [nullable, 'f64'],
+	huntPoints: [nullable, [{
+		marbleId: 'varint',
+		total: 'varint',
+		reds: 'varint',
+		yellows: 'varint',
+		blues: 'varint'
+	}]],
 	isLegal: 'boolean'
 }, {
 	entityType: 'gemSpawnState',
@@ -126,8 +133,7 @@ export const gameServerCommandFormat = [union, 'command', {
 	timestamp: 'f32'
 }, {
 	command: 'pong',
-	timestamp: 'f32',
-	subtract: 'f32'
+	timestamp: 'f32'
 }, {
 	command: 'join',
 	gameId: 'string'

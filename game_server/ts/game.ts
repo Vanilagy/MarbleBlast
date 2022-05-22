@@ -34,6 +34,7 @@ export class Game {
 	startTime: number;
 	lastAdvanceTime: number;
 	frame = -1;
+	scheduledRestarts = new Set<number>();
 
 	queuedPlayerBundles: [Player, CommandToData<'clientStateBundle'>][] = [];
 	pendingPings = new DefaultMap<Player, Map<number, number>>(() => new Map());
@@ -128,6 +129,10 @@ export class Game {
 
 	update() {
 		this.frame++;
+
+		if (this.scheduledRestarts.has(this.frame)) {
+			for (let player of this.players) player.hasRestartIntent = false;
+		}
 	}
 
 	tick() {
@@ -146,7 +151,7 @@ export class Game {
 		newUpdates.forEach(x => x.updateId = this.incrementalUpdateId++);
 		this.allEntityUpdates.push(...newUpdates);
 
-		// Send packets to all players
+		// Queue server state bundles
 		for (let player of this.players) {
 			// Filter out the updates the player themselves sent
 			player.queuedEntityUpdates.push(...newUpdates.filter(x => this.updateOriginator.get(x) !== player));
@@ -177,13 +182,13 @@ export class Game {
 			}, Reliability.Unreliable);
 		}
 
+		// Queue some other commands as well
 		for (let player of this.players) {
 			for (let [timestamp, receiveTime] of this.pendingPings.get(player)) {
 				let elapsed = now - receiveTime;
 				player.session.connection.queueCommand({
 					command: 'pong',
-					timestamp,
-					subtract: elapsed
+					timestamp: timestamp - elapsed
 				}, Reliability.Unreliable);
 			}
 			this.pendingPings.get(player).clear();
@@ -196,8 +201,6 @@ export class Game {
 				serverFrame: this.frame,
 				targetFrame: this.frame + rtt + UPDATE_BUFFER_SIZE
 			}, Reliability.Unreliable);
-
-			player.session.connection.tick();
 		}
 
 		// Remove past updates / edges if we know all players are past their ID to not explode memory
@@ -310,16 +313,23 @@ export class Game {
 		}
 	}
 
+	scheduleRestart(forFrame: number) {
+		this.scheduledRestarts.add(forFrame);
+
+		for (let player of this.players) {
+			player.session.connection.queueCommand({
+				command: 'scheduleRestart',
+				frame: forFrame
+			}, Reliability.Urgent);
+		}
+	}
+
 	onPlayerRunning(player: Player) {
 		this.running++;
 
 		if (this.running === this.lobbySessionIds.length) {
-			for (let player of this.players) {
-				player.session.connection.queueCommand({
-					command: 'scheduleRestart',
-					frame: this.frame + 5 * GAME_UPDATE_RATE
-				}, Reliability.Urgent);
-			}
+			this.tryAdvanceGame();
+			this.scheduleRestart(this.frame + 5 * GAME_UPDATE_RATE);
 		}
 	}
 
@@ -338,13 +348,8 @@ export class Game {
 
 		let quota = this.players.filter(x => x.hasRestartIntent).length / this.players.length;
 		if (quota > 0.5 || player.session.id === this.lobbyOwnerSessionId) {
-			for (let player of this.players) {
-				player.hasRestartIntent = false; // todo probably set this when the actual respawn happens here
-				player.session.connection.queueCommand({
-					command: 'scheduleRestart',
-					frame: this.frame + 2 * GAME_UPDATE_RATE
-				}, Reliability.Urgent);
-			}
+			this.tryAdvanceGame();
+			this.scheduleRestart(this.frame + 2 * GAME_UPDATE_RATE);
 		}
 	}
 

@@ -233,8 +233,6 @@ export class Renderer {
 			gl.uniform1f(program.getUniformLocation('reflectivity'), material.reflectivity);
 			gl.uniform1f(program.getUniformLocation('secondaryMapUvFactor'), material.secondaryMapUvFactor);
 
-			this.options.alpha;
-
 			if (material.blending === BlendingType.Normal) {
 				if (this.options.alpha) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // Premultiplied alpha
 				else gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // No premultiplied alpha

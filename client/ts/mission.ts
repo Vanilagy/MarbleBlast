@@ -26,9 +26,15 @@ export class Mission {
 	title: string;
 	artist: string;
 	description: string;
+
 	qualifyTime = Infinity;
 	goldTime = -Infinity; // Doubles as platinum time
 	ultimateTime = -Infinity;
+
+	qualifyScore = -Infinity;
+	goldScore = Infinity; // Doubles as platinum score
+	ultimateScore = Infinity;
+
 	type: 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'custom' = 'custom';
 	modification: 'gold' | 'platinum' | 'ultra';
 	zipDirectory: JSZip = null;
@@ -146,11 +152,11 @@ export class Mission {
 
 		// Set up some metadata
 		let missionInfo = this.allElements.find(x => x._type === MissionElementType.ScriptObject && x._name === "MissionInfo") as MissionElementScriptObject;
-		if (missionInfo?.time) {
+		if (missionInfo.time) {
 			this.qualifyTime = MisParser.parseNumber(missionInfo.time);
 			if (!this.qualifyTime) this.qualifyTime = Infinity; // Catches both 0 and NaN cases
 		}
-		if (missionInfo?.goldtime) {
+		if (missionInfo.goldtime) {
 			this.goldTime = MisParser.parseNumber(missionInfo.goldtime);
 			if (missionInfo?.platinumtime) this.goldTime = MisParser.parseNumber(missionInfo.platinumtime);
 
@@ -158,11 +164,27 @@ export class Mission {
 				this.goldTime = -Infinity;
 			}
 		}
-		if (missionInfo?.ultimatetime) {
+		if (missionInfo.ultimatetime) {
 			this.ultimateTime = MisParser.parseNumber(missionInfo.ultimatetime);
 			if (!this.ultimateTime) { // Again again, catches both 0 and NaN cases
 				this.ultimateTime = -Infinity;
 			}
+		}
+		if (missionInfo.score0 || missionInfo.score) {
+			this.qualifyScore = MisParser.parseNumber(missionInfo.score0 || missionInfo.score);
+			if (!this.qualifyScore) this.qualifyScore = -Infinity; // Again again again, catches both 0 and NaN cases
+		}
+		if (missionInfo.goldscore0 || missionInfo.goldscore) {
+			this.goldScore = MisParser.parseNumber(missionInfo.goldscore0 || missionInfo.goldscore);
+			if (!this.goldScore) this.goldScore = Infinity; // Again again again again, catches both 0 and NaN cases
+		}
+		if (missionInfo.platinumscore0 || missionInfo.platinumscore) {
+			this.goldScore = MisParser.parseNumber(missionInfo.platinumscore0 || missionInfo.platinumscore);
+			if (!this.goldScore) this.goldScore = Infinity; // Again again again again again, catches both 0 and NaN cases
+		}
+		if (missionInfo.ultimatescore0 || missionInfo.ultimatescore) {
+			this.ultimateScore = MisParser.parseNumber(missionInfo.ultimatescore0 || missionInfo.ultimatescore);
+			if (!this.ultimateScore) this.ultimateScore = Infinity; // Again again again again again again, catches both 0 and NaN cases
 		}
 		this.missionInfo = missionInfo;
 

@@ -9,6 +9,8 @@ import { Entity } from "./entity";
 import { Game } from "./game";
 import { EndPad } from "./shapes/end_pad";
 import { Gem } from "./shapes/gem";
+import { GameState } from "./game_state";
+import { DefaultMap } from "../../../shared/default_map";
 
 type FinishStateState = EntityState & { entityType: 'finishState' };
 
@@ -19,6 +21,7 @@ export class FinishState extends Entity {
 	frame: number = null;
 	time: number = null;
 	elapsedTime: number = null;
+	huntPoints: ReturnType<GameState['getDetailedHuntPoints']> = null;
 	isLegal = true;
 
 	constructor(game: Game, id: number) {
@@ -76,7 +79,33 @@ export class FinishState extends Entity {
 		}
 	}
 
-	finish(endPad: EndPad) {
+	tryHuntFinish() {
+		if (this.finished) return;
+
+		this.finished = true;
+		this.frame = this.game.state.frame;
+		this.time = Util.clamp(this.game.clock.time, 0, MAX_TIME);
+		this.elapsedTime = Util.clamp(this.game.clock.elapsedTime, 0, MAX_TIME);
+		this.huntPoints = this.game.state.getDetailedHuntPoints();
+		this.isLegal = true;
+
+		this.stateNeedsStore = true;
+
+		this.game.clock.affect(this);
+		this.affect(this.game.clock);
+
+		for (let marble of this.game.marbles) {
+			marble.enableFinishState();
+			this.affect(marble);
+		}
+
+		if (this.game.type === 'singleplayer') this.finish();
+		else this.requireServerConfirmation = true; // Do not predict finishing for multiplayer games
+	}
+
+	finish(endPad?: EndPad) {
+		// Note: This *can* be called multiple times in quick succession, but it shouldn't cause any weirdness cuz most of this stuff is idempotent
+
 		this.playCosmeticEffects(endPad);
 
 		for (let marble of this.game.marbles) {
@@ -100,6 +129,10 @@ export class FinishState extends Entity {
 			frame: this.frame,
 			time: this.time,
 			elapsedTime: this.elapsedTime,
+			huntPoints: this.huntPoints && [...this.huntPoints].map(([marble, points]) => ({
+				marbleId: marble.id,
+				...points
+			})),
 			isLegal: this.isLegal
 		};
 	}
@@ -110,6 +143,7 @@ export class FinishState extends Entity {
 			frame: null,
 			time: null,
 			elapsedTime: null,
+			huntPoints: null,
 			isLegal: true
 		};
 	}
@@ -119,6 +153,25 @@ export class FinishState extends Entity {
 		this.frame = state.frame;
 		this.time = state.time;
 		this.elapsedTime = state.elapsedTime;
+		this.huntPoints = state.huntPoints && (() => {
+			let points = new DefaultMap<Marble, {
+				total: number,
+				reds: number,
+				yellows: number,
+				blues: number
+			}>(() => ({
+				total: 0,
+				reds: 0,
+				yellows: 0,
+				blues: 0
+			}));
+
+			for (let statePoints of state.huntPoints) {
+				points.set(this.game.getEntityById(statePoints.marbleId) as Marble, statePoints);
+			}
+
+			return points;
+		})();
 		this.isLegal = state.isLegal;
 
 		if (remote && this.finished && this.isLegal) {

@@ -73,7 +73,7 @@ export class GameServerConnection {
 
 		this.sendCommands();
 
-		if (this.queuedCommands.length === 0) this.tickTimeout = 2; // When we've got no more commands to send, our main function is simply to send over ACKs - we can do this at a reduced rate.
+		if (this.queuedCommands.length === 0) this.tickTimeout = 4; // When we've got no more commands to send, our main function is simply to send over ACKs - we can do this at a reduced rate.
 	}
 
 	sendCommands() {

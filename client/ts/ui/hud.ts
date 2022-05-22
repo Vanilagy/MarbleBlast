@@ -542,7 +542,7 @@ class ScoreboardRow {
 			}
 		} else if (G.game.mode === GameMode.Hunt) {
 			let marble = G.game.marbles.find(x => socket.id === x.controllingPlayer.sessionId);
-			let points = huntPoints.get(marble);
+			let points = G.game.finishState.huntPoints?.get(marble).total ?? huntPoints.get(marble);
 
 			rhsText = points.toString();
 

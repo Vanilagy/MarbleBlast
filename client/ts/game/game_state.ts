@@ -39,6 +39,12 @@ export class GameState {
 		return restartFrame;
 	}
 
+	get timesRestarted() {
+		let lastRestartFrame = this.lastRestartFrame;
+		return Util.count(this.restartFrames, x => x <= lastRestartFrame);
+		// Todo for this to be synced between players, it needs to be made sure that all players have the entire history of restarts. Something that could be sent over upon game join for example
+	}
+
 	get time() {
 		return (this.frame + this.subframeCompletion) / GAME_UPDATE_RATE;
 	}
@@ -209,6 +215,34 @@ export class GameState {
 			if (!(gem instanceof Gem)) continue;
 			for (let marble of gem.pickUpHistory)
 				points.set(marble, points.get(marble) + gem.pointValue);
+		}
+
+		return points;
+	}
+
+	getDetailedHuntPoints() {
+		let points = new DefaultMap<Marble, {
+			total: number,
+			reds: number,
+			yellows: number,
+			blues: number
+		}>(() => ({
+			total: 0,
+			reds: 0,
+			yellows: 0,
+			blues: 0
+		}));
+		if (this.game.mode !== GameMode.Hunt) return points;
+
+		for (let gem of this.game.shapes) {
+			if (!(gem instanceof Gem)) continue;
+			for (let marble of gem.pickUpHistory)
+				points.set(marble, {
+					total: points.get(marble).total + gem.pointValue,
+					reds: points.get(marble).reds + (gem.pointValue === 1 ? 1 : 0),
+					yellows: points.get(marble).yellows + (gem.pointValue === 2 ? 1 : 0),
+					blues: points.get(marble).blues + (gem.pointValue === 5 ? 1 : 0)
+				});
 		}
 
 		return points;

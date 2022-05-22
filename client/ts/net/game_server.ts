@@ -126,12 +126,12 @@ export class GameServer {
 			this.connection = new GameServerConnection(socket);
 		}
 
-		this.connection.on('pong', ({ timestamp, subtract }) => {
+		this.connection.on('pong', ({ timestamp }) => {
 			let game = G.game as MultiplayerGame;
 			if (!game) return;
 
 			let now = performance.now();
-			let rtt = now - timestamp - subtract;
+			let rtt = now - timestamp;
 
 			game.recentRtts.push({
 				value: rtt,

@@ -13,6 +13,9 @@ import { GameMode } from "../game_mode";
 
 // List all of gem colors for randomly choosing one
 const GEM_COLORS = ["blue", "red", "yellow", "purple", "green", "turquoise", "orange", "black"]; // "Platinum" is also a color, but it can't appear by chance
+export const RED_GEM_TEXT_COLOR = "#ed443b";
+export const YELLOW_GEM_TEXT_COLOR = "#edd53b";
+export const BLUE_GEM_TEXT_COLOR = "#3b94ed";
 
 type GemState = EntityState & { entityType: 'gem' };
 
@@ -89,7 +92,7 @@ export class Gem extends Shape {
 			}
 
 			if (marble === this.game.localPlayer.controlledMarble) this.game.simulator.executeNonDuplicatableEvent(() => {
-				let color = this.pointValue === 1 ? '#ed443b' : this.pointValue === 2 ? '#edd53b' : '#3b94ed';
+				let color = this.pointValue === 1 ? RED_GEM_TEXT_COLOR : this.pointValue === 2 ? YELLOW_GEM_TEXT_COLOR : BLUE_GEM_TEXT_COLOR;
 				let fontSize = this.pointValue === 1 ? '36px' : this.pointValue === 2 ? '42px' : '48px';
 				G.menu.hud.displayPointPopup('+' + this.pointValue, color, fontSize);
 			}, `${this.id}popup`, true);

@@ -1315,7 +1315,7 @@ export class Marble extends Entity {
 		let spawnPoints = game.mission.allElements.find(x => x._name === "SpawnPoints") as MissionElementSimGroup;
 		if (!spawnPoints) return null;
 
-		if (first) return spawnPoints.elements[Math.floor(Util.seededRandom(game.seed + this.id) * spawnPoints.elements.length)]._id;
+		if (first) return spawnPoints.elements[Math.floor(Util.seededRandom(game.seed + this.id + game.state.timesRestarted) * spawnPoints.elements.length)]._id;
 
 		let closest: MissionElementTrigger = null;
 		let closestDist = Infinity;

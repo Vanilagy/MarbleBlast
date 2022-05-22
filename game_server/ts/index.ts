@@ -122,6 +122,7 @@ class GameClientRTCConnection extends RTCConnection {
 
 setDriftlessInterval(() => {
 	for (let game of games) game.tick();
+	for (let session of sessions) session.connection?.tick();
 }, 1000 / TICK_FREQUENCY);
 
 Socket.on('createGame', data => {

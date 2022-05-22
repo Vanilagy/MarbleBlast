@@ -26,6 +26,44 @@
 	float: right;
 }
 
+#mbp-finish-screen-score {
+	position: absolute;
+	top: 33px;
+	left: 34px;
+	width: 390px;
+	font-size: 55px;
+	margin: 0;
+}
+
+#mbp-finish-screen-score > div {
+	float: right;
+	font-size: 48px;
+	text-align: center;
+	line-height: 0px;
+	padding-top: 22px;
+	width: 100px;
+	white-space: nowrap;
+}
+
+#mbp-finish-screen-score > div > span {
+	font-size: 22px;
+	line-height: -27px;
+	line-height: 70px;
+}
+
+#mbp-finish-screen-rank {
+	position: absolute;
+	top: 17px;
+	right: 30px;
+	font-size: 70px;
+	margin: 0;
+	color: #dfdfdf;
+}
+
+#mbp-finish-screen-rank span {
+	font-size: 30px;
+}
+
 #mbp-finish-message {
 	position: absolute;
 	top: 116px;
@@ -105,6 +143,62 @@
 }
 #mbp-finish-screen-top-times > div:nth-child(5) > div:first-child > span {
 	color: rgb(148, 148, 148);
+}
+
+#mbp-finish-screen-scoreboard {
+	position: absolute;
+    top: 152px;
+	left: 341px;
+	width: 205px;
+	height: 149px;
+	overflow: auto;
+	overflow-x: hidden;
+	padding-right: 10px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 0, 0, 0.6) transparent;
+}
+
+#mbp-finish-screen-scoreboard::-webkit-scrollbar {
+	width: 5px;
+}
+
+#mbp-finish-screen-scoreboard::-webkit-scrollbar-track {
+	background: #f1f1f100;
+}
+
+#mbp-finish-screen-scoreboard::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.603);
+}
+
+#mbp-finish-screen-scoreboard > div {
+	position: relative;
+	font-size: 20px;
+	margin-bottom: 3px;
+}
+
+#mbp-finish-screen-scoreboard > div > div:first-child {
+	width: 124px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#mbp-finish-screen-scoreboard > div > div:last-child {
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+
+#mbp-finish-screen-scoreboard > div > div:first-child > span {
+	display: inline-block;
+	width: 20px;
+}
+
+#mbp-finish-screen-scoreboard > div > div:last-child > span {
+	font-size: 12px;
+	vertical-align: top;
+	line-height: 25px;
+	padding-right: 5px;
 }
 
 #mbp-finish-replay {

@@ -36,6 +36,13 @@ export class Clock extends Entity {
 	update() {
 		this.advanceTime(this.game.state.frame);
 
+		if (this.game.mode === GameMode.Hunt && 1000 * Math.fround(this.time) >= this.game.mission.qualifyTime && !this.game.finishState.finished) {
+			this.time = this.game.mission.qualifyTime / 1000;
+			this.elapsedTime = Math.fround(this.elapsedTime); // If it's like really close to a multiple of 1/120 but got floating pointed
+
+			this.game.finishState.tryHuntFinish();
+		}
+
 		this.internalStateNeedsStore = true;
 
 		if (this.game.simulator.isReconciling) return;

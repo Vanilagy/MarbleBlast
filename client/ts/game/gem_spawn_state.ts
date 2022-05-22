@@ -12,6 +12,7 @@ export class GemSpawnState extends Entity {
 	currentSpawns = new Set<Gem>();
 	lastSpawnFrame = 0;
 	lastFinalGem: Gem = null;
+	restartable = true; // We compute new gem spawns on restart
 
 	constructor(game: Game, id: number) {
 		super(game);
@@ -28,7 +29,8 @@ export class GemSpawnState extends Entity {
 		let gems = this.game.shapes.filter(x => x instanceof Gem) as Gem[];
 		let centerGemCandidates = gems.filter(x => !this.lastFinalGem || this.lastFinalGem.worldPosition.distanceTo(x.worldPosition) >= spawnBlock) as Gem[];
 		if (centerGemCandidates.length === 0) centerGemCandidates = gems;
-		let centerGem = centerGemCandidates[Math.floor(Util.seededRandom(this.game.seed + this.id, this.n) * centerGemCandidates.length)];
+		let seed = this.game.seed + this.id + Math.max(this.game.state.timesRestarted, 1);
+		let centerGem = centerGemCandidates[Math.floor(Util.seededRandom(seed, this.n) * centerGemCandidates.length)];
 
 		let closestGems = gems.slice()
 			.sort((a, b) => a.worldPosition.distanceToSquared(centerGem.worldPosition) - b.worldPosition.distanceToSquared(centerGem.worldPosition))
@@ -40,11 +42,11 @@ export class GemSpawnState extends Entity {
 
 	advance(causedBy: Gem) {
 		this.n++;
-		this.stateNeedsStore = true;
-
 		this.lastFinalGem = causedBy;
 		this.lastSpawnFrame = this.game.state.frame;
 		this.computeGemSpawns();
+
+		this.stateNeedsStore = true;
 	}
 
 	update() {}
@@ -63,18 +65,16 @@ export class GemSpawnState extends Entity {
 		return {
 			entityType: 'gemSpawnState',
 			n: 0,
-			lastSpawnFrame: this.lastSpawnFrame,
+			lastSpawnFrame: 0,
 			lastFinalGem: null
 		};
 	}
 
 	loadState(state: GemSpawnStateState) {
-		let different = state.n !== this.n;
-
 		this.n = state.n;
 		this.lastSpawnFrame = state.lastSpawnFrame;
 		this.lastFinalGem = this.game.getEntityById(state.lastFinalGem) as Gem;
 
-		if (different) this.computeGemSpawns();
+		this.computeGemSpawns();
 	}
 }

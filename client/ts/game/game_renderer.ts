@@ -492,7 +492,8 @@ export class GameRenderer {
 
 			hud.displayGemCount(gemCount, this.game.totalGems);
 		} else if (game.mode === GameMode.Hunt) {
-			let points = game.state.getHuntPoints().get(game.localPlayer.controlledMarble);
+			let points = game.finishState.huntPoints?.get(game.localPlayer.controlledMarble).total ??
+				game.state.getHuntPoints().get(game.localPlayer.controlledMarble);
 			hud.displayGemCount(points);
 		}
 
