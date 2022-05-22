@@ -4,8 +4,10 @@ import { Vector2 } from "../math/vector2";
 import { BallCollisionShape } from "../physics/collision_shape";
 import { hudCtx } from "../ui/hud";
 import { Util } from "../util";
+import { GameMode } from "./game_mode";
 import { GameRenderer } from "./game_renderer";
 import { MultiplayerGame } from "./multiplayer_game";
+import { Gem } from "./shapes/gem";
 
 const NAME_TAG_HEIGHT = 18;
 
@@ -65,6 +67,27 @@ export class MultiplayerGameRenderer extends GameRenderer {
 			hudCtx.fillText(name, screenPos.x + 1, screenPos.y + 1);
 			hudCtx.fillStyle = 'white';
 			hudCtx.fillText(name, screenPos.x, screenPos.y);
+		}
+
+		if (this.game.mode === GameMode.Hunt) {
+			for (let gem of this.game.shapes) {
+				if (!(gem instanceof Gem)) continue;
+
+				let vec = gem.worldPosition.clone().sub(this.camera.position);
+				vec.applyMatrix4(this.camera.matrixWorldInverse).applyMatrix4(this.camera.projectionMatrix);
+
+				if (vec.x >= -1 && vec.x <= 1 && vec.y >= -1 && vec.y <= 1) {
+					return;
+				}
+
+				let theta = Math.atan2(vec.y, vec.x);
+				if (vec.z > 1) theta += Math.PI; // Just works 😂
+
+				hudCtx.fillStyle = 'red';
+				hudCtx.beginPath();
+				hudCtx.arc(hudCtx.canvas.width * (Math.cos(theta) + 1) / 2, hudCtx.canvas.height * (Math.sin(-theta) + 1) / 2, 30, 0, Math.PI * 2);
+				hudCtx.fill();
+			}
 		}
 
 		if (--this.networkStatTimeout <= 0) {
