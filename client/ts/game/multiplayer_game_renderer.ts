@@ -2,24 +2,37 @@ import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { G } from "../global";
 import { Vector2 } from "../math/vector2";
 import { BallCollisionShape } from "../physics/collision_shape";
+import { ResourceManager } from "../resources";
 import { hudCtx } from "../ui/hud";
 import { Util } from "../util";
 import { GameMode } from "./game_mode";
 import { GameRenderer } from "./game_renderer";
 import { MultiplayerGame } from "./multiplayer_game";
-import { Gem } from "./shapes/gem";
+import { BLUE_GEM_TEXT_COLOR, Gem, RED_GEM_TEXT_COLOR, YELLOW_GEM_TEXT_COLOR } from "./shapes/gem";
 
 const NAME_TAG_HEIGHT = 18;
 
 export class MultiplayerGameRenderer extends GameRenderer {
 	networkStatTimeout = 0;
 	game: MultiplayerGame;
+	gemMiniIcons: HTMLImageElement[];
+
+	async initHud() {
+		await super.initHud();
+
+		this.gemMiniIcons = await ResourceManager.loadImages([
+			"./assets/ui_mbp/mp/radar/gemitemred.png",
+			"./assets/ui_mbp/mp/radar/gemitemyellow.png",
+			"./assets/ui_mbp/mp/radar/gemitemblue.png"
+		]);
+	}
 
 	renderHud() {
 		super.renderHud();
 
 		G.menu.hud.displayScoreboard();
 
+		hudCtx.resetTransform();
 		hudCtx.clearRect(0, 0, hudCtx.canvas.width, hudCtx.canvas.height);
 
 		for (let marble of this.game.marbles) {
@@ -69,24 +82,50 @@ export class MultiplayerGameRenderer extends GameRenderer {
 			hudCtx.fillText(name, screenPos.x, screenPos.y);
 		}
 
-		if (this.game.mode === GameMode.Hunt) {
+		hudCtx.globalAlpha = 1;
+
+		if (true || this.game.mode === GameMode.Hunt) {
 			for (let gem of this.game.shapes) {
 				if (!(gem instanceof Gem)) continue;
 
-				let vec = gem.worldPosition.clone().sub(this.camera.position);
+				let vec = gem.worldPosition.clone();
 				vec.applyMatrix4(this.camera.matrixWorldInverse).applyMatrix4(this.camera.projectionMatrix);
 
-				if (vec.x >= -1 && vec.x <= 1 && vec.y >= -1 && vec.y <= 1) {
-					return;
+				if (vec.x >= -1 && vec.x <= 1 && vec.y >= -1 && vec.y <= 1 && vec.z >= -1 && vec.z <= 1) {
+					let image = this.gemMiniIcons[Util.clamp(gem.pointValue - 1, 0, 1)]; // lmao
+					console.log(gem.pointValue, this.gemMiniIcons);
+					hudCtx.drawImage(
+						image,
+						hudCtx.canvas.width * (vec.x + 1) / 2 - image.width/2,
+						hudCtx.canvas.width * ((1 - vec.y) + 1 / 2) - image.height/2
+					);
+
+					continue;
 				}
 
 				let theta = Math.atan2(vec.y, vec.x);
-				if (vec.z > 1) theta += Math.PI; // Just works 😂
+				if (vec.z > 1) theta += Math.PI; // Unflip the projection
 
-				hudCtx.fillStyle = 'red';
+				hudCtx.resetTransform();
+				hudCtx.translate(
+					hudCtx.canvas.width * (0.85 * Math.cos(theta) + 1) / 2,
+					hudCtx.canvas.height * (0.85 * Math.sin(-theta) + 1) / 2
+				);
+				hudCtx.rotate(-theta);
+				hudCtx.scale(30, 30);
+
 				hudCtx.beginPath();
-				hudCtx.arc(hudCtx.canvas.width * (Math.cos(theta) + 1) / 2, hudCtx.canvas.height * (Math.sin(-theta) + 1) / 2, 30, 0, Math.PI * 2);
+				hudCtx.moveTo(-1, -0.7);
+				hudCtx.lineTo(-1, 0.7);
+				hudCtx.lineTo(1, 0);
+				hudCtx.closePath();
+
+				hudCtx.globalAlpha = 0.666;
+				hudCtx.fillStyle = gem.pointValue === 1 ? RED_GEM_TEXT_COLOR : gem.pointValue === 2 ? YELLOW_GEM_TEXT_COLOR : BLUE_GEM_TEXT_COLOR;
 				hudCtx.fill();
+				hudCtx.strokeStyle = 'black';
+				hudCtx.lineWidth = 0.01;
+				hudCtx.stroke();
 			}
 		}
 
