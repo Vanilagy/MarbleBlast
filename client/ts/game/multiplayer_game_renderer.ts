@@ -1,6 +1,7 @@
 import { GAME_UPDATE_RATE } from "../../../shared/constants";
 import { G } from "../global";
 import { Vector2 } from "../math/vector2";
+import { Vector3 } from "../math/vector3";
 import { BallCollisionShape } from "../physics/collision_shape";
 import { ResourceManager } from "../resources";
 import { hudCtx } from "../ui/hud";
@@ -84,20 +85,23 @@ export class MultiplayerGameRenderer extends GameRenderer {
 
 		hudCtx.globalAlpha = 1;
 
-		if (true || this.game.mode === GameMode.Hunt) {
+		if (this.game.mode === GameMode.Hunt && this.game.state.lastRestartFrame !== -Infinity) {
 			for (let gem of this.game.shapes) {
 				if (!(gem instanceof Gem)) continue;
+				if (!gem.pickupable) continue;
 
-				let vec = gem.worldPosition.clone();
+				let vec = new Vector3().fromObject(gem.dts.center).applyMatrix4(gem.worldMatrix); // worldPosition.clone();
 				vec.applyMatrix4(this.camera.matrixWorldInverse).applyMatrix4(this.camera.projectionMatrix);
+				vec.y *= -1;
 
 				if (vec.x >= -1 && vec.x <= 1 && vec.y >= -1 && vec.y <= 1 && vec.z >= -1 && vec.z <= 1) {
-					let image = this.gemMiniIcons[Util.clamp(gem.pointValue - 1, 0, 1)]; // lmao
-					console.log(gem.pointValue, this.gemMiniIcons);
+					let image = this.gemMiniIcons[Util.clamp(gem.pointValue - 1, 0, 2)]; // lmao
+
+					hudCtx.resetTransform();
 					hudCtx.drawImage(
 						image,
 						hudCtx.canvas.width * (vec.x + 1) / 2 - image.width/2,
-						hudCtx.canvas.width * ((1 - vec.y) + 1 / 2) - image.height/2
+						hudCtx.canvas.height * (vec.y + 1) / 2 - image.height/2
 					);
 
 					continue;
@@ -109,9 +113,9 @@ export class MultiplayerGameRenderer extends GameRenderer {
 				hudCtx.resetTransform();
 				hudCtx.translate(
 					hudCtx.canvas.width * (0.85 * Math.cos(theta) + 1) / 2,
-					hudCtx.canvas.height * (0.85 * Math.sin(-theta) + 1) / 2
+					hudCtx.canvas.height * (0.85 * Math.sin(theta) + 1) / 2
 				);
-				hudCtx.rotate(-theta);
+				hudCtx.rotate(theta);
 				hudCtx.scale(30, 30);
 
 				hudCtx.beginPath();
@@ -121,7 +125,7 @@ export class MultiplayerGameRenderer extends GameRenderer {
 				hudCtx.closePath();
 
 				hudCtx.globalAlpha = 0.666;
-				hudCtx.fillStyle = gem.pointValue === 1 ? RED_GEM_TEXT_COLOR : gem.pointValue === 2 ? YELLOW_GEM_TEXT_COLOR : BLUE_GEM_TEXT_COLOR;
+				hudCtx.fillStyle = gem.pointValue === 5 ? BLUE_GEM_TEXT_COLOR : gem.pointValue === 2 ? YELLOW_GEM_TEXT_COLOR : RED_GEM_TEXT_COLOR;
 				hudCtx.fill();
 				hudCtx.strokeStyle = 'black';
 				hudCtx.lineWidth = 0.01;

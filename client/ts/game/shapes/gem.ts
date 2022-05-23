@@ -33,6 +33,7 @@ export class Gem extends Shape {
 	pickUpHistory: Marble[] = [];
 
 	pointValue = 0;
+	beamShape: Shape = null;
 
 	get pickupable() {
 		return Util.imply(this.game.mode === GameMode.Hunt, this.game.gemSpawnState && this.game.gemSpawnState.currentSpawns.has(this) && this.game.gemSpawnState.lastSpawnFrame > this.pickUpFrame) &&
@@ -65,10 +66,10 @@ export class Gem extends Shape {
 			this.game.initter.loadingState.loaded--; // Dumb hack to counteract the beam loading LMAO
 
 			beamShape.setTransform(new Vector3(), new Quaternion(), new Vector3(1, 1, 1));
-			beamShape.setOpacity(0.333);
 			beamShape.render();
 
 			this.group.add(beamShape.group);
+			this.beamShape = beamShape;
 		}
 	}
 
@@ -117,6 +118,7 @@ export class Gem extends Shape {
 		super.render();
 
 		this.setOpacity(Number(this.pickupable));
+		this.beamShape?.setOpacity(0.333 * Number(this.pickupable));
 	}
 
 	getState(): GemState {
