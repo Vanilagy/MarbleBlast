@@ -79,6 +79,7 @@ export class PathedInterior extends Interior {
 
 	async init(id: number) {
 		await super.init(id);
+		this.body.passive = false; // We want to register marble collisions always
 
 		// Pathed interiors ignore the normal position, rotation, scale and use the base- variants instead.
 		this.basePosition = MisUtils.parseVector3(this.element.baseposition);

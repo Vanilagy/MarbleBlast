@@ -123,7 +123,7 @@ interface LoadingState {
 }
 
 /** The central control unit of gameplay. Handles loading, simulation and rendering. */
-export class Level extends Scheduler {
+export class Level {
 	mission: Mission;
 	loadingState: LoadingState;
 
@@ -220,7 +220,7 @@ export class Level extends Scheduler {
 	replay: Replay;
 
 	constructor(mission: Mission) {
-		super();
+		//super();
 		this.mission = mission;
 		this.loadingState = { loaded: 0, total: 0 };
 	}

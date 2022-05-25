@@ -223,6 +223,8 @@ export abstract class Game {
 		workerClearTimeoutOrInterval(this.tickInterval);
 		this.dispose();
 
+		// todo Fix memory leaks! ( if present )
+
 		this.music.stop();
 		for (let entity of this.entities) entity.stop();
 

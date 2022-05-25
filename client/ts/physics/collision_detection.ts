@@ -6,13 +6,13 @@ import { RigidBody } from "./rigid_body";
 
 const maxIterations = 64;
 const maxEpaFaces = 64;
-const epaTolerance = 10 * Number.EPSILON;
+const epaTolerance = 1000 * Number.EPSILON;
 const maxEpaLooseEdges = 64;
 const maxEpaIterations = 64;
 
 // Global algorithm state
 /** The points of the current simplex. Only points with index < numPoints are valid. */
-let points = [new Vector3(), new Vector3(), new Vector3(),  new Vector3()];
+let points = [new Vector3(), new Vector3(), new Vector3(), new Vector3()];
 /** The amount of points in the current simplex. */
 let numPoints = 0;
 let support = new Vector3();
@@ -42,6 +42,12 @@ let requireFlip = 0;
 let lastS1: CollisionShape = null;
 let lastS2: CollisionShape = null;
 let o = new Vector3(0, 0, 0);
+
+let gjkCache = new Map<number, {
+	points: Vector3[],
+	numPoints: number,
+	relativePosition: Vector3
+}>();
 
 let singletonShape = new SingletonCollisionShape();
 let singletonBody = new RigidBody();
@@ -89,6 +95,7 @@ export abstract class CollisionDetection {
 
 	static checkBallConvexIntersection(s1: BallCollisionShape, s2: CollisionShape) {
 		singletonBody.position.copy(s1.body.position);
+		singletonShape.id = s1.id; // To make cache work properly
 
 		// All we need to do is compute the closest point on s2 to s1's center. After that, a simple comparison with the radius will suffice.
 		let closestPoint = this.determineClosestPoint(new Vector3(), s2, singletonShape);
@@ -135,17 +142,40 @@ export abstract class CollisionDetection {
 
 		numPoints = 0;
 
+		let cacheHash = s1.id + 1/s2.id;
+		let cached = gjkCache.get(cacheHash);
+		if (!cached) {
+			gjkCache.set(cacheHash, cached = {
+				points: points.map(x => x.clone()),
+				numPoints: 0,
+				relativePosition: new Vector3().copy(direction)
+			});
+		} else if (cached.numPoints !== 0) {
+			for (let i = 0; i < cached.points.length; i++) points[i].copy(cached.points[i]);
+			numPoints = cached.numPoints;
+
+			let newRelativePosition = direction;
+			for (let point of points) point.sub(newRelativePosition).add(cached.relativePosition);
+			cached.relativePosition.copy(newRelativePosition);
+
+			this.updateSimplexAndClosestPoint(direction);
+			direction.negate();
+		}
+
 		for (let i = 0; i < maxIterations; i++) {
+			if (numPoints === 4) break;
+
 			this.support(support, s1, s2, direction);
 
-			if (direction.lengthSq() + direction.dot(support) <= 10 * Number.EPSILON) break;
+			if (direction.lengthSq() + direction.dot(support) <= 1000 * Number.EPSILON) break;
 
 			this.addPointToSimplex(support);
 			this.updateSimplexAndClosestPoint(direction);
 			direction.negate();
-
-			if (numPoints === 4) break;
 		}
+
+		for (let i = 0; i < points.length; i++) cached.points[i].copy(points[i]);
+		cached.numPoints = numPoints;
 
 		return dst.copy(direction).negate();
 	}
@@ -223,7 +253,7 @@ export abstract class CollisionDetection {
 				maxDist2 = Math.max(maxDist2, points[i].distanceToSquared(x));
 			}
 
-			if (direction.lengthSq() < 10 * Number.EPSILON * maxDist2) {
+			if (direction.lengthSq() < 1000 * Number.EPSILON * maxDist2) {
 				return { point: x.clone(), lambda, normal: n.clone().normalize() };
 			}
 
@@ -238,7 +268,7 @@ export abstract class CollisionDetection {
 	static addPointToSimplex(p: Vector3) {
 		// Check if the point is already contained in the simplex, and if so, don't add it
 		for (let i = 0; i < numPoints; i++) {
-			if (p.distanceToSquared(points[i]) < 10 * Number.EPSILON) return;
+			if (p.distanceToSquared(points[i]) < 1000 * Number.EPSILON) return;
 		}
 
 		// Shift all points one to the right

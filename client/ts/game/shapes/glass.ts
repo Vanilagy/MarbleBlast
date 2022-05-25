@@ -1,6 +1,8 @@
 import { Shape } from "../shape";
 
 export class Glass extends Shape {
+	passiveBodies = true;
+
 	constructor(dataBlock: string) {
 		super();
 

@@ -8,6 +8,7 @@ import { Vector3 } from "../math/vector3";
 import { Box3 } from "../math/box3";
 import { Plane } from "../math/plane";
 import { Util } from "../util";
+import { SweepAndPruneBroadphase } from "./sweep_and_prune";
 
 const MAX_SUBSTEPS = 10;
 
@@ -30,9 +31,17 @@ export interface RayCastHit {
 	shape: CollisionShape
 }
 
+/** Specifies an object that a broadphase can index. */
+export interface BroadphaseObject {
+	boundingBox: Box3
+}
+
 /** Represents a physics simulation world. */
 export class World {
 	bodies: RigidBody[] = [];
+	activeBodies: RigidBody[] = [];
+	dynamicShapes: CollisionShape[] = [];
+	broadphase = new SweepAndPruneBroadphase();
 	octree = new Octree();
 
 	/** This cache can speed up broadphase lookups by reusing results. */
@@ -48,8 +57,12 @@ export class World {
 		}
 
 		Util.insertSorted(this.bodies, body, (a, b) => a.evaluationOrder - b.evaluationOrder);
+		if (!body.passive) Util.insertSorted(this.activeBodies, body, (a, b) => a.evaluationOrder - b.evaluationOrder);
+
 		body.world = this;
 		body.syncShapes();
+
+		if (body.type === RigidBodyType.Dynamic) this.dynamicShapes.push(...body.shapes);
 	}
 
 	/** Steps the physics world by `dt` seconds. */
@@ -62,13 +75,9 @@ export class World {
 
 		if (dt < 0.00001 || depth >= MAX_SUBSTEPS) return;
 
-		let dynamicBodies: RigidBody[] = [];
-		let dynamicShapes: CollisionShape[] = [];
-
-		// Integrate all the bodies
-		for (let i = 0; i < this.bodies.length; i++) {
-			let body = this.bodies[i];
-			if (!body.enabled) continue;
+		// Integrate all the active bodies
+		for (let i = 0; i < this.activeBodies.length; i++) {
+			let body = this.activeBodies[i];
 
 			body.storePrevious();
 			body.onBeforeIntegrate(dt);
@@ -76,11 +85,6 @@ export class World {
 			body.onAfterIntegrate(dt);
 
 			body.collisions.length = 0;
-
-			if (body.type === RigidBodyType.Dynamic) {
-				dynamicBodies.push(body);
-				dynamicShapes.push(...body.shapes);
-			}
 		}
 
 		this.cachedBroadphaseResults.clear();
@@ -100,10 +104,9 @@ export class World {
 
 		let cumT = startT + t * (1 - startT); // coom (it means cumulative incase you don't know)
 
-		// Now, revert all the bodies back according to the CCD result
-		for (let i = 0; i < this.bodies.length; i++) {
-			let body = this.bodies[i];
-			if (!body.enabled) continue;
+		// Now, revert all the active bodies back according to the CCD result
+		for (let i = 0; i < this.activeBodies.length; i++) {
+			let body = this.activeBodies[i];
 
 			body.revert(t);
 			body.collisions.length = 0;
@@ -121,20 +124,18 @@ export class World {
 		}
 
 		// Now, compute the regular collisions
-		let collisions = this.computeCollisions(dynamicShapes, false);
-		let collidingBodies: RigidBody[] = [];
+		let collisions = this.computeCollisions(this.dynamicShapes, false);
+		let collidingBodies = new Set<RigidBody>();
 
 		// Get a list of all bodies that are encountering a collision
 		for (let i = 0; i < collisions.length; i++) {
 			let collision = collisions[i];
 
-			if (!collidingBodies.includes(collision.s1.body)) collidingBodies.push(collision.s1.body);
-			if (!collidingBodies.includes(collision.s2.body)) collidingBodies.push(collision.s2.body);
+			collidingBodies.add(collision.s1.body);
+			collidingBodies.add(collision.s2.body);
 		}
 
-		collidingBodies.sort((a, b) => a.evaluationOrder - b.evaluationOrder);
-
-		for (let i = 0; i < collidingBodies.length; i++) collidingBodies[i].onBeforeCollisionResponse(cumT, dt * t);
+		for (let body of collidingBodies) if (!body.passive) body.onBeforeCollisionResponse(cumT, dt * t);
 
 		// Now, solve all the collisions
 		for (let i = 0; i < collisions.length; i++) {
@@ -145,7 +146,7 @@ export class World {
 			CollisionResponse.solveVelocity(collision);
 		}
 
-		for (let i = 0; i < collidingBodies.length; i++) collidingBodies[i].onAfterCollisionResponse(cumT, dt * t);
+		for (let body of collidingBodies) if (!body.passive) body.onAfterCollisionResponse(cumT, dt * t);
 
 		this.substep(dt * (1 - t), cumT, depth + 1);
 	}
@@ -153,10 +154,11 @@ export class World {
 	/** Computes all collision for a set of dynamic shapes. */
 	computeCollisions(dynamicShapes: CollisionShape[], isCcdPass: boolean) {
 		let collisions: Collision[] = [];
+		let hashes = new Set<number>();
 
 		for (let i = 0; i < dynamicShapes.length; i++) {
 			let shape = dynamicShapes[i];
-			if (!shape.body.enabled) continue;
+			if (shape.collisionDisabled) continue;
 
 			// Figure out which shape to use for the broadphase
 			let broadphaseShape = shape.broadphaseShape || shape;
@@ -164,25 +166,24 @@ export class World {
 			let shapeCollisions: Collision[] = [];
 
 			if (!collisionCandidates) {
-				// Query the octree for AABB intersections
-				collisionCandidates = this.octree.intersectAabb(broadphaseShape.boundingBox) as CollisionShape[];
+				// Query the broadphase for AABB intersections
+				collisionCandidates = this.broadphase.getIntersections(broadphaseShape) as CollisionShape[];
+				//console.log(collisionCandidates.length);
 				this.cachedBroadphaseResults.set(broadphaseShape, collisionCandidates);
 			}
 
 			// Now, loop over all possible candidates
-			outer:
 			for (let j = 0; j < collisionCandidates.length; j++) {
 				let candidate = collisionCandidates[j];
 
 				if (shape === candidate) continue;
+				if (candidate.collisionDisabled) continue;
 				if ((shape.collisionDetectionMask & candidate.collisionDetectionMask) === 0) continue;
-				if (!candidate.body.enabled) continue;
+
+				let collisionHash = candidate.id + 1/shape.id;
 
 				// Check if this pair of shapes is already colliding
-				for (let k = 0; k < collisions.length; k++) {
-					let c = collisions[k];
-					if (c.s1 === candidate && c.s2 === shape) continue outer; // No double collisions
-				}
+				if (hashes.has(collisionHash)) continue; // No double collisions
 
 				if (isCcdPass) {
 					// Compute the time of impact of the two shapes
@@ -192,6 +193,7 @@ export class World {
 					let collision = new Collision(shape, candidate);
 					collision.timeOfImpact = timeOfImpact;
 					collisions.push(collision);
+					hashes.add(collisionHash);
 					shape.body.newInContactCcd.add(candidate);
 				} else {
 					// First, let's check if the two shapes actually intersect
@@ -259,7 +261,8 @@ export class World {
 					collisions.push(collision);
 					shapeCollisions.push(collision);
 					shape.body.collisions.push(collision);
-					collision.s2.body.collisions.push(collision);
+					if (!collision.s2.body.passive) collision.s2.body.collisions.push(collision);
+					hashes.add(collisionHash);
 				}
 			}
 		}
@@ -272,12 +275,6 @@ export class World {
 
 	/** Casts a ray into the world and returns all intersections. */
 	castRay(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number, collisionDetectionMask = 0b1) {
-		// Build the AABB of the ray
-		// todo remove these?
-		rayCastAabb.makeEmpty();
-		rayCastAabb.expandByPoint(rayOrigin);
-		rayCastAabb.expandByPoint(v1.copy(rayOrigin).addScaledVector(rayDirection, lambdaMax));
-
 		// Query the octree for possible candidates
 		let candidates = this.octree.intersectRay(rayOrigin, rayDirection, lambdaMax) as CollisionShape[];
 		let hits: RayCastHit[] = [];
@@ -291,6 +288,8 @@ export class World {
 		}
 
 		return hits.sort((a, b) => a.lambda - b.lambda);
+
+		// todo: Mini Mountain glitchery
 	}
 
 	/** Performs convex casting of a given shape: Translates a shape from its current position linearly along a direction (swept volume) and returns all intersections with other shapes.  */
@@ -310,7 +309,6 @@ export class World {
 		for (let candidate of candidates) {
 			if (shape === candidate) continue;
 			if ((shape.collisionDetectionMask & candidate.collisionDetectionMask) === 0) continue;
-			if (!candidate.body.enabled) continue;
 			if (candidate.body.linearVelocity.lengthSq() > 0) continue;
 
 			// Perform a GJK ray cast on the Minkowski difference

@@ -74,6 +74,7 @@ export class Gem extends Shape {
 	}
 
 	onMarbleInside(t: number, marble: Marble) {
+		if (!marble.controllingPlayer) return; // temp
 		marble.affect(this);
 
 		if (!this.pickupable) return;

@@ -2,6 +2,7 @@ import { Shape } from "../shape";
 
 export class Sky extends Shape {
 	collideable = false;
+	passiveBodies = true;
 
 	constructor(type: string) {
 		super();

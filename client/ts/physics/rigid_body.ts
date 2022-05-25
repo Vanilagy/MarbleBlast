@@ -16,8 +16,7 @@ let q1 = new Quaternion();
 export class RigidBody {
 	world: World = null;
 	type: RigidBodyType = RigidBodyType.Dynamic;
-	/** Disabled bodies will be skipped in the simulation loop. */
-	enabled = true;
+	passive = false;
 
 	position = new Vector3();
 	orientation = new Quaternion();
@@ -99,6 +98,9 @@ export class RigidBody {
 	}
 
 	addCollisionShape(shape: CollisionShape) {
+		if (this.world) {
+			throw new Error("Can't add Shape to RigidBody after adding the RigidBody to a world.");
+		}
 		if (shape.body) {
 			throw new Error("Shape has already been added to a RigidBody.");
 		}
@@ -110,10 +112,16 @@ export class RigidBody {
 		if (this.type === RigidBodyType.Static) {
 			shape.mass = Infinity;
 			shape.invInertia.multiplyScalar(0);
+		} else {
+			//if (this.world) this.world.dynamicShapes
 		}
 	}
 
 	removeCollisionShape(shape: CollisionShape) {
+		if (this.world) {
+			throw new Error("Can't remove Shape from RigidBody after adding the RigidBody to a world.");
+		}
+
 		if (!this.shapes.includes(shape)) return;
 
 		Util.removeFromArray(this.shapes, shape);
@@ -134,7 +142,7 @@ export class RigidBody {
 	}
 
 	updateCollisions(to?: Collision[]) {
-		if (!this.enabled) return;
+		if (this.passive) return;
 		if (this.type !== RigidBodyType.Dynamic) {
 			throw new Error("Can only manually recompute collisions for dynamic rigid bodies.");
 		}

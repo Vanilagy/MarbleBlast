@@ -1,6 +1,5 @@
 import { AudioManager } from "../../audio";
 import { MultiplayerGame } from "../multiplayer_game";
-import { TimeState } from "../../level";
 import { Marble } from "../marble";
 import { Vector3 } from "../../math/vector3";
 import { Collision } from "../../physics/collision";
@@ -8,6 +7,8 @@ import { BlendingType } from "../../rendering/renderer";
 import { Shape } from "../shape";
 import { Util } from "../../util";
 import { ExplosiveState } from "./land_mine";
+
+const NUKE_COOLDOWN = 15;
 
 /** Nukes explode on contact and knock the marble away even more than mines do. */
 export class Nuke extends Shape {
@@ -66,12 +67,12 @@ export class Nuke extends Shape {
 		if (onlyVisual) return;
 
 		// Enable or disable the collision based on disappear time
-		let visible = this.game.state.time >= this.disappearTime + 5;
+		let visible = this.game.state.time >= this.disappearTime + NUKE_COOLDOWN;
 		this.setCollisionEnabled(visible);
 	}
 
 	render() {
-		let opacity = Util.clamp(this.game.state.time - (this.disappearTime + 15), 0, 1);
+		let opacity = Util.clamp(this.game.state.time - (this.disappearTime + NUKE_COOLDOWN), 0, 1);
 		this.setOpacity(opacity);
 
 		super.render();

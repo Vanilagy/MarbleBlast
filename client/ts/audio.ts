@@ -329,6 +329,7 @@ export class AudioSource {
 
 	/** Updates the pan and volume of positional audio sources based on the listener's location. */
 	updatePositionalAudio() {
+		return; // temp
 		if (!this.position) return;
 
 		let camera = G.game.renderer.camera;

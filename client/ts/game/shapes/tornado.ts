@@ -12,7 +12,7 @@ export class Tornado extends ForceShape {
 	constructor() {
 		super();
 
-		this.addSphericalForce(8, -60);
+		this.addSphericalForce(8, -60); // temp
 		this.addSphericalForce(3, 60);
 		this.addFieldForce(3, new Vector3(0, 0, 150)); // The upwards force is always in the same direction regardless of tornado orientation
 	}

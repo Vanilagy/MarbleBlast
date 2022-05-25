@@ -545,7 +545,7 @@ export class Marble extends Entity {
 			!(this.game.finishState.finished && this.game.finishState.isLegal)
 		) {
 			// Respawn the marble two seconds after having gone out of bounds
-			if (this.game.type === 'singleplayer' && !this.checkpointState.currentCheckpoint && this.game.mode === GameMode.Normal)
+			if (this.game.type === 'singleplayer' && !this.checkpointState.currentCheckpoint && this.game.mode === GameMode.Normal && this === this.game.localPlayer.controlledMarble)
 				this.game.state.restartFrames.push(this.game.state.frame + 1);
 			else
 				this.respawn(false);
@@ -770,9 +770,10 @@ export class Marble extends Entity {
 			this.body.linearVelocity.add(airMovementVector);
 
 			if (!reconciling) {
-				this.slidingSound.gain.gain.value = 0;
-				this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
-				this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+				// todo
+				//this.slidingSound.gain.gain.value = 0;
+				//this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+				//this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
 			}
 		}
 
@@ -795,7 +796,7 @@ export class Marble extends Entity {
 		this.beforeVel.copy(this.body.linearVelocity);
 		this.beforeAngVel.copy(this.body.angularVelocity);
 
-		if (this.game.state.frame - this.game.state.lastRestartFrame < 3.5 * GAME_UPDATE_RATE) {
+		if (this.game.state.frame - this.game.state.lastRestartFrame < 3.5 * GAME_UPDATE_RATE && this.controllingPlayer) {
 			// Lock the marble to the space above the start pad
 
 			let position = this.body.position;
@@ -900,7 +901,7 @@ export class Marble extends Entity {
 		}
 
 		// Handle rolling and sliding sounds
-		if (!reconciling) {
+		if (0 !== 0 && !reconciling) { // TODO.
 			if (contactNormal.dot(surfaceRelativeVelocity) < 0.01) {
 				let predictedMovement = this.body.angularVelocity.clone().cross(this.currentUp).multiplyScalar(1 / Math.PI / 2);
 				// The expected movement based on the current angular velocity. If actual movement differs too much, we consider the marble to be "sliding".
@@ -1017,6 +1018,7 @@ export class Marble extends Entity {
 	}
 
 	playBounceSound(volume: number) {
+		return; // temp
 		this.game.simulator.executeNonDuplicatableEvent(() => {
 			let prefix = (this.radius === MEGA_MARBLE_RADIUS)? 'mega_' : '';
 			AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'].map(x => prefix + x), volume, undefined, this.body.position.clone());
@@ -1263,6 +1265,9 @@ export class Marble extends Entity {
 		this.computeSpawnPositionAndOrientation(this.selectSpawnElement(!fromRespawn));
 
 		super.restart(frame);
+
+		// temp lmao
+		if (!this.controllingPlayer) this.body.position.set((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, 20 + (Math.random() - 0.5) * 20);
 
 		if (!this.addedToGame) this.addToGame();
 

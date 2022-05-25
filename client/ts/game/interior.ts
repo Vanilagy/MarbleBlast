@@ -207,6 +207,7 @@ export class Interior extends Entity {
 
 		this.body = new RigidBody();
 		this.body.type = RigidBodyType.Static;
+		this.body.passive = true; // Start out passive, gets set to active if it has special materials
 
 		this.body.onAfterCollisionResponse = (t: number, dt: number) => {
 			for (let collision of this.body.collisions) {
@@ -489,6 +490,10 @@ export class Interior extends Entity {
 		}
 
 		if (this.allowSpecialMaterials && material?.startsWith('mbp_chevron_friction')) isRandom = true;
+
+		if (friction !== INTERIOR_DEFAULT_RESTITUTION || restitution !== INTERIOR_DEFAULT_RESTITUTION || force !== undefined) {
+			this.body.passive = false;
+		}
 
 		return { friction, restitution, force, isRandom };
 	}

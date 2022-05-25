@@ -1,25 +1,21 @@
 import { Box3 } from "../math/box3";
 import { Vector3 } from "../math/vector3";
 import { Util } from "../util";
+import { BroadphaseObject } from "./world";
 
 const DEFAULT_ROOT_NODE_SIZE = 1;
-const MIN_DEPTH = -32;
+const MIN_DEPTH = -52; // Huge
 const MAX_DEPTH = 8;
 
 let v1 = new Vector3();
 let v2 = new Vector3();
 let b1 = new Box3();
 
-/** Specifies an object that an octree can index. */
-export interface OctreeObject {
-	boundingBox: Box3
-}
-
 /** A dynamic, loose octree of bounding boxes for efficient spatial operations such as raytracing. Implemented without any cringe. */
 export class Octree {
 	root: OctreeNode;
 	/** A map of each object in the octree to the node that it's in. This accelerates removal drastically, as the lookup step can be skipped. */
-	objectToNode: WeakMap<OctreeObject, OctreeNode>;
+	objectToNode: WeakMap<BroadphaseObject, OctreeNode>;
 	beforeOperation: () => void = null;
 
 	constructor() {
@@ -31,7 +27,7 @@ export class Octree {
 		this.objectToNode = new WeakMap();
 	}
 
-	insert(object: OctreeObject) {
+	insert(object: BroadphaseObject) {
 		let node = this.objectToNode.get(object);
 		if (node) return; // Don't insert if already contained in the tree
 
@@ -46,6 +42,8 @@ export class Octree {
 			if (this.root.depth === MIN_DEPTH) {
 				console.log(object);
 				console.warn(`Can't insert ${this.root.largerThan(object)? 'distant' : 'large'} object into octree; the octree has already expanded to its maximum size.`);
+
+				this.shrink(); // Since the growing was unsuccessful, let's try to shrink down again
 				return;
 			}
 			this.grow(object);
@@ -56,7 +54,7 @@ export class Octree {
 		if (emptyBefore) this.shrink(); // See if we can fit the octree better now that we actually have an element in it
 	}
 
-	remove(object: OctreeObject) {
+	remove(object: BroadphaseObject) {
 		let node = this.objectToNode.get(object);
 		if (!node) return;
 
@@ -66,11 +64,7 @@ export class Octree {
 	}
 
 	/** Updates an object in the tree whose bounding box has changed. */
-	update(object: OctreeObject) {
-		// this.remove(object);
-		// this.insert(object);
-		// return;
-
+	update(object: BroadphaseObject) {
 		let node = this.objectToNode.get(object);
 		if (!node) {
 			this.insert(object);
@@ -85,7 +79,7 @@ export class Octree {
 	}
 
 	/** Expand the octree towards an object that doesn't fit in it. */
-	grow(towards: OctreeObject) {
+	grow(towards: BroadphaseObject) {
 		// We wanna grow towards all the vertices of the object's bounding box that lie outside the octree, so we determine the average position of those vertices:
 		let averagePoint = v1.set(0, 0, 0);
 		let count = 0;
@@ -129,19 +123,50 @@ export class Octree {
 		this.root = newRoot;
 	}
 
-	/** Tries to shrink the octree if large parts of the octree are empty. */
+	/** Tries to shrink the octree if large parts of it are empty. */
 	shrink() {
-		if (this.root.size < DEFAULT_ROOT_NODE_SIZE || this.root.objects.size > 0) return;
+		if (this.root.size <= DEFAULT_ROOT_NODE_SIZE) return;
 
 		if (this.root.count === 0) {
 			// Reset to default empty octree
 			this.root.min.set(0, 0, 0);
 			this.root.size = DEFAULT_ROOT_NODE_SIZE;
 			this.root.depth = 0;
+
 			return;
 		}
 
-		if (!this.root.octants) return;
+		if (!this.root.octants) {
+			// We don't have any octants, but are still holding objects. Therefore, create temporary utility octants to see if we can still shrink in case all the root's objects fit inside one hypothetical octant.
+			this.root.createOctants();
+
+			let fittingOctant: OctreeNode = null;
+			for (let object of this.root.objects) {
+				if (this.root.octants[0].largerThan(object)) {
+					for (let j = 0; j < 8; j++) {
+						let octant = this.root.octants[j];
+						if (octant.containsCenter(object)) {
+							if (fittingOctant && fittingOctant !== octant) {
+								return;
+							}
+							fittingOctant = octant;
+						}
+					}
+				} else {
+					// An object doesn't fit into an octant, so we definitely can't shrink
+					return;
+				}
+			}
+
+			// All objects fit into an octant, therefore shrink
+			this.root.size /= 2;
+			this.root.min.copy(fittingOctant.min);
+			this.root.depth++;
+			this.root.octants = null; // Don't need these anymore
+
+			this.shrink(); // And again
+			return;
+		}
 
 		// Find the only non-empty octant
 		let nonEmptyOctant: OctreeNode;
@@ -157,13 +182,13 @@ export class Octree {
 		this.root = nonEmptyOctant;
 		nonEmptyOctant.parent = null;
 
-		this.shrink();
+		this.shrink(); // I'll fuckin do it again
 	}
 
 	intersectAabb(aabb: Box3) {
 		this.beforeOperation?.();
 
-		let intersections: OctreeObject[] = [];
+		let intersections: BroadphaseObject[] = [];
 		this.root.intersectAabb(aabb, intersections);
 
 		return intersections;
@@ -173,35 +198,8 @@ export class Octree {
 		v1.copy(rayDirection).normalize();
 		lambdaMax *= rayDirection.length();
 
-		let intersections: OctreeObject[] = [];
+		let intersections: BroadphaseObject[] = [];
 		this.root.intersectRay(rayOrigin, v1, lambdaMax, intersections);
-
-		return intersections;
-	}
-
-	// todo keep this?
-	intersectOctreeObject(object: OctreeObject): OctreeObject[] {
-		let node = this.objectToNode.get(object);
-		if (!node) return [];
-
-		let intersections: OctreeObject[] = [];
-
-		while (node.parent) {
-			let strictBoundingBox = b1;
-			strictBoundingBox.min.copy(node.min);
-			strictBoundingBox.max.copy(node.min).addScalar(node.size);
-
-			if (strictBoundingBox.containsBox(object.boundingBox)) break;
-
-			node = node.parent;
-		}
-
-		node.intersectAabb(object.boundingBox, intersections);
-
-		while (node.parent) {
-			node = node.parent;
-			node.intersectAabb(object.boundingBox, intersections, false);
-		}
 
 		return intersections;
 	}
@@ -216,7 +214,7 @@ class OctreeNode {
 	size: number;
 	octants: OctreeNode[] = null;
 	/** A list of objects contained in this node. Note that the node doesn't need to be a leaf node for this set to be non-empty; since this is an octree of bounding boxes, some volumes cannot fit into an octant and therefore need to be stored in the node itself. */
-	objects = new Set<OctreeObject>();
+	objects = new Set<BroadphaseObject>();
 	/** The total number of objects in the subtree with this node as its root. */
 	count = 0;
 	depth: number;
@@ -226,10 +224,8 @@ class OctreeNode {
 		this.depth = depth;
 	}
 
-	insert(object: OctreeObject) {
+	insert(object: BroadphaseObject) {
 		this.count++;
-
-		//this.intersectAabb2(object);
 
 		if (this.octants) {
 			// First we check if the object can fit into any of the octants (they all have the same size, so checking only one suffices)
@@ -295,7 +291,7 @@ class OctreeNode {
 	}
 
 	// Note: The requirement for this method to be called is that `object` is contained directly in this node.
-	remove(object: OctreeObject) {
+	remove(object: BroadphaseObject) {
 		this.objects.delete(object);
 		this.count--;
 		this.merge();
@@ -310,7 +306,7 @@ class OctreeNode {
 	}
 
 	// Basically first performs a remove, then walks up the tree to find the closest ancestor that can fit the object, then inserts it.
-	update(object: OctreeObject) {
+	update(object: BroadphaseObject) {
 		this.objects.delete(object);
 
 		let node: OctreeNode = this;
@@ -343,14 +339,14 @@ class OctreeNode {
 		this.octants = null; // ...then delete the octants
 	}
 
-	largerThan(object: OctreeObject) {
+	largerThan(object: BroadphaseObject) {
 		let box = object.boundingBox;
 		return this.size > (box.max.x - box.min.x) &&
 			this.size > (box.max.y - box.min.y) &&
 			this.size > (box.max.z - box.min.z);
 	}
 
-	containsCenter(object: OctreeObject) {
+	containsCenter(object: BroadphaseObject) {
 		let box = object.boundingBox;
 		let x = box.min.x + (box.max.x - box.min.x) / 2;
 		let y = box.min.y + (box.max.y - box.min.y) / 2;
@@ -368,7 +364,7 @@ class OctreeNode {
 			this.min.z <= z && z < (this.min.z + this.size);
 	}
 
-	intersectAabb(aabb: Box3, intersections: OctreeObject[], recurse = false) {
+	intersectAabb(aabb: Box3, intersections: BroadphaseObject[]) {
 		let looseBoundingBox = b1;
 		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
 		looseBoundingBox.max.copy(this.min).addScalar(this.size * 3/2);
@@ -389,7 +385,7 @@ class OctreeNode {
 		}
 	}
 
-	intersectRay(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number, intersections: OctreeObject[]) {
+	intersectRay(rayOrigin: Vector3, rayDirection: Vector3, lambdaMax: number, intersections: BroadphaseObject[]) {
 		// Construct the loose bounding box of this node (2x in size, with the regular bounding box in the center)
 		let looseBoundingBox = b1;
 		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
@@ -408,32 +404,6 @@ class OctreeNode {
 		if (this.octants) for (let i = 0; i < 8; i++) {
 			let octant = this.octants[i];
 			octant.intersectRay(rayOrigin, rayDirection, lambdaMax, intersections);
-		}
-	}
-
-	intersectAabb2(object: OctreeObject) {
-		let aabb = object.boundingBox;
-
-		let looseBoundingBox = b1;
-		looseBoundingBox.min.copy(this.min).addScalar(-this.size / 2);
-		looseBoundingBox.max.copy(this.min).addScalar(this.size * 3/2);
-
-		if (!aabb.intersectsBox(looseBoundingBox)) return;
-
-		// Test all objects for intersection
-		if (this.objects.size > 0) for (let otherObject of this.objects) {
-			if (aabb.intersectsBox(otherObject.boundingBox)) {
-				object.adjacent.add(otherObject);
-				otherObject.adjacent.add(object);
-			}
-		}
-
-		// Recurse into the octants
-		if (this.octants) for (let i = 0; i < 8; i++) {
-			let octant = this.octants[i];
-			if (octant.count === 0) continue;
-
-			octant.intersectAabb2(object);
 		}
 	}
 }

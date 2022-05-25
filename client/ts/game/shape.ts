@@ -2,7 +2,6 @@ import { DtsFile, MeshType, DtsParser } from "../parsing/dts_parser";
 import { ResourceManager } from "../resources";
 import { IflParser } from "../parsing/ifl_parser";
 import { Util } from "../util";
-import { TimeState } from "../level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
 import { AudioManager } from "../audio";
 import { MissionElement } from "../../../shared/mis_parser";
@@ -21,7 +20,6 @@ import { Box3 } from "../math/box3";
 import { BlendingType } from "../rendering/renderer";
 import { Game } from "./game";
 import { Entity } from "./entity";
-import { EntityState } from "../../../shared/game_server_format";
 import { Marble } from "./marble";
 
 /** A hardcoded list of shapes that should only use envmaps as textures. */
@@ -116,6 +114,8 @@ export class Shape extends Entity {
 	/** For each shape, the untransformed vertices of their convex hull geometry. */
 	shapeVertices = new Map<CollisionShape, Vector3[]>();
 	currentlyColliding = new Set<RigidBody>();
+	/** Whether to make all physics bodies (except manually-added colliders) passive. */
+	passiveBodies = false;
 
 	worldPosition = new Vector3();
 	worldOrientation = new Quaternion();
@@ -346,6 +346,7 @@ export class Shape extends Entity {
 					body.type = RigidBodyType.Static;
 					body.userData = { nodeIndex: i };
 					body.evaluationOrder = this.id;
+					body.passive = this.passiveBodies;
 
 					this.bodies.push(body);
 				}
@@ -357,6 +358,7 @@ export class Shape extends Entity {
 			let body = new RigidBody();
 			body.type = RigidBodyType.Static;
 			body.evaluationOrder = this.id;
+			body.passive = this.passiveBodies;
 
 			this.bodies.push(body);
 		}
@@ -995,9 +997,9 @@ export class Shape extends Entity {
 
 	/** Enable or disable collision. */
 	setCollisionEnabled(enabled: boolean) {
-		for (let body of this.bodies) {
-			body.enabled = enabled;
-		}
+		for (let i = 0; i < this.bodies.length; i++)
+			for (let j = 0; j < this.bodies[i].shapes.length; j++)
+				this.bodies[i].shapes[j].collisionDisabled = !enabled;
 	}
 
 	stop() {}

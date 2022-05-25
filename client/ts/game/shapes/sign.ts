@@ -4,6 +4,7 @@ import { Shape } from "../shape";
 /** Sign used in MBP to show a direction. */
 export class Sign extends Shape {
 	dtsPath = "shapes/signs/sign.dts";
+	passiveBodies = true;
 
 	constructor(element: MissionElementStaticShape) {
 		super();

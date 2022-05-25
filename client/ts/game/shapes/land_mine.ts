@@ -10,6 +10,8 @@ import { MultiplayerGame } from "../multiplayer_game";
 
 export type ExplosiveState = EntityState & { entityType: 'explosive' };
 
+const MINE_COOLDOWN = 5;
+
 /** Land mines explode on contact and knock the marble away. */
 export class LandMine extends Shape {
 	dtsPath = "shapes/hazards/landmine.dts";
@@ -66,12 +68,12 @@ export class LandMine extends Shape {
 		if (onlyVisual) return;
 
 		// Enable or disable the collision based on disappear time
-		let visible = this.game.state.time >= this.disappearTime + 5;
+		let visible = this.game.state.time >= this.disappearTime + MINE_COOLDOWN;
 		this.setCollisionEnabled(visible);
 	}
 
 	render() {
-		let opacity = Util.clamp(this.game.state.time - (this.disappearTime + 5), 0, 1);
+		let opacity = Util.clamp(this.game.state.time - (this.disappearTime + MINE_COOLDOWN), 0, 1);
 		this.setOpacity(opacity);
 
 		super.render();

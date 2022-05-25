@@ -120,6 +120,16 @@ export class GameInitter {
 		let maxEntityId = Math.max(...game.entities.map(x => x.id));
 		this.auxEntityId = maxEntityId + 1;
 
+		// todo remove
+		for (let i = 0; i < 0; i++) {
+			let marble = new Marble(game, this.auxEntityId++, this.auxEntityId++);
+			await marble.init();
+
+			game.marbles.push(marble);
+			game.addEntity(marble);
+			game.addEntity(marble.checkpointState);
+		}
+
 		game.clock = new Clock(game, this.auxEntityId++);
 		game.addEntity(game.clock);
 

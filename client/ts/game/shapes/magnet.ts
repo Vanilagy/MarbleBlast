@@ -7,6 +7,7 @@ export class Magnet extends ForceShape {
 	collideable = false;
 	sounds = ["magnet.wav"];
 	soundSource: AudioSource;
+	passiveBodies = true;
 
 	constructor() {
 		super();

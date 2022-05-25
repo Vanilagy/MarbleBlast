@@ -3,8 +3,8 @@ import { Matrix3 } from "../math/matrix3";
 import { Matrix4 } from "../math/matrix4";
 import { Quaternion } from "../math/quaternion";
 import { Vector3 } from "../math/vector3";
-import { OctreeObject } from "./octree";
-import { RigidBody } from "./rigid_body";
+import { RigidBody, RigidBodyType } from "./rigid_body";
+import { BroadphaseObject } from "./world";
 
 let v1 = new Vector3();
 let v2 = new Vector3();
@@ -14,8 +14,11 @@ let v5 = new Vector3();
 let m1 = new Matrix4();
 let q1 = new Quaternion();
 
+let collisionShapeId = 0;
+
 /** Represents a convex collision shape. */
-export abstract class CollisionShape implements OctreeObject {
+export abstract class CollisionShape implements BroadphaseObject {
+	id = collisionShapeId++;
 	/** The body this shape belongs to. */
 	body: RigidBody = null;
 	boundingBox = new Box3();
@@ -25,6 +28,7 @@ export abstract class CollisionShape implements OctreeObject {
 	broadphaseShape: CollisionShape = null;
 	collisionDetectionMask = 0b1;
 	collisionResponseMask = 0b1;
+	collisionDisabled = false;
 
 	friction = 1;
 	restitution = 1;
@@ -48,7 +52,7 @@ export abstract class CollisionShape implements OctreeObject {
 		this.boundingBox.min.subScalar(this.margin);
 		this.boundingBox.max.addScalar(this.margin);
 
-		if (this.body.prevValid) {
+		if (this.body?.prevValid) {
 			// Extend the bounding box towards the previous position for CCD purposes
 			let translation = v1.copy(this.body.position).sub(this.body.prevPosition);
 			v2.copy(this.boundingBox.min).sub(translation); // Go backwards
@@ -56,8 +60,9 @@ export abstract class CollisionShape implements OctreeObject {
 			this.boundingBox.expandByPoint(v2).expandByPoint(v3);
 		}
 
-		// Update the octree
-		this.body?.world?.octree.update(this);
+		// Update broadphase stuff
+		this.body?.world?.broadphase.update(this);
+		if (this.body?.type === RigidBodyType.Static) this.body?.world?.octree.update(this);
 	}
 }
 

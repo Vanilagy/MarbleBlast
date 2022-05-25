@@ -15,6 +15,7 @@ export class EndPad extends Shape {
 	dtsPath = "shapes/pads/endarea.dts";
 	fireworks: Firework[] = [];
 	sounds = ['firewrks.wav'];
+	passiveBodies = true;
 
 	/** @param isMain Whether or not this pad is the main pad, meaning it has to be touched for the level to end. All other pads are purely cosmetic. */
 	constructor(isMain: boolean) {
@@ -36,6 +37,7 @@ export class EndPad extends Shape {
 
 			return finishArea;
 		}, transform, (t: number, dt: number, marble: Marble) => {
+			if (!marble.controllingPlayer) return; // temp
 			// These checks are to make sure touchFinish is only called once per contact with the collider. For it to be called again, the marble must leave the area again.
 			let exit = marble.endPadColliderTimeout > 0;
 			marble.endPadColliderTimeout = 2;
