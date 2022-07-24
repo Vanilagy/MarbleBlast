@@ -96,7 +96,7 @@ export class Scene extends Group {
 	needsDynamicMeshRecompilation = true;
 	preparedForRender = false;
 
-	constructor(renderer: Renderer, maxDynamicVertices = 2**18, maxDynamicMeshes = 256) {
+	constructor(renderer: Renderer, maxDynamicVertices = 10 * 2**18, maxDynamicMeshes = 10 * 256) {
 		super();
 
 		this.renderer = renderer;

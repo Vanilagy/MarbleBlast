@@ -107,13 +107,12 @@ export class RigidBody {
 
 		this.shapes.push(shape);
 		shape.body = this;
+		shape.dynamic = this.type === RigidBodyType.Dynamic;
 		shape.updateBoundingBox();
 
 		if (this.type === RigidBodyType.Static) {
 			shape.mass = Infinity;
 			shape.invInertia.multiplyScalar(0);
-		} else {
-			//if (this.world) this.world.dynamicShapes
 		}
 	}
 

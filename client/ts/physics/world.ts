@@ -9,6 +9,7 @@ import { Box3 } from "../math/box3";
 import { Plane } from "../math/plane";
 import { Util } from "../util";
 import { SweepAndPruneBroadphase } from "./sweep_and_prune";
+import { G } from "../global";
 
 const MAX_SUBSTEPS = 10;
 
@@ -33,7 +34,9 @@ export interface RayCastHit {
 
 /** Specifies an object that a broadphase can index. */
 export interface BroadphaseObject {
-	boundingBox: Box3
+	boundingBox: Box3,
+	collisionDetectionMask: number,
+	dynamic: boolean
 }
 
 /** Represents a physics simulation world. */
@@ -88,6 +91,8 @@ export class World {
 		}
 
 		this.cachedBroadphaseResults.clear();
+
+		this.broadphase.recompute();
 
 		// Check for CCD collisions
 		//let ccdCollisions = this.computeCollisions(dynamicShapes, true);
@@ -155,6 +160,110 @@ export class World {
 	computeCollisions(dynamicShapes: CollisionShape[], isCcdPass: boolean) {
 		let collisions: Collision[] = [];
 		let hashes = new Set<number>();
+
+		//console.log([...this.broadphase.intersections].filter(x => x[0] === G.game.localPlayer.controlledMarble.shape), this.broadphase.intersections.length);
+
+		for (let i = 0; i < this.broadphase.intersections.length-1; i += 2) {
+			let s1 = this.broadphase.intersections[i] as CollisionShape;
+			let s2 = this.broadphase.intersections[i+1] as CollisionShape;
+			if (!s1.dynamic) {
+				let temp = s1;
+				s1 = s2;
+				s2 = temp;
+			}
+
+			//if (candidate.collisionDisabled) continue;
+
+			//let collisionHash = candidate.id + 1/shape.id;
+
+			// Check if this pair of shapes is already colliding
+			//if (hashes.has(collisionHash)) continue; // No double collisions
+
+			if (isCcdPass) {
+				// Compute the time of impact of the two shapes
+				let timeOfImpact = CollisionDetection.determineTimeOfImpact(shape, candidate);
+				if (timeOfImpact === null) continue;
+
+				let collision = new Collision(shape, candidate);
+				collision.timeOfImpact = timeOfImpact;
+				collisions.push(collision);
+				hashes.add(collisionHash);
+				shape.body.newInContactCcd.add(candidate);
+			} else {
+				// First, let's check if the two shapes actually intersect
+				let collide = CollisionDetection.checkIntersection(s1, s2);
+				if (!collide) continue;
+
+				let collision = new Collision(s1, s2);
+				let isMainCollisionShape = !!(s1.collisionDetectionMask & 1); // Meaning, no aux stuff, no triggers, whatever
+
+				if (isMainCollisionShape) {
+					// Compute the plane of collision
+					let collisionPlane = CollisionDetection.determineCollisionPlane(p1);
+					collision.supplyCollisionPlane(collisionPlane);
+				}
+
+				// Perform a collision correction step: Sometimes, shapes can collide with internal edges, i.e. edges that aren't visible to the outside, leading to incorrect results. We try to catch and correct these cases here.
+				if (false) if (isMainCollisionShape) for (let k = 0; k < shapeCollisions.length; k++) {
+					let c2 = shapeCollisions[k];
+					let distSq = collision.point2.distanceToSquared(c2.point2);
+					if (distSq >= 0.1**2) continue; // Heuristic: If the two collision points are really close, the two shapes themselves are touching and we've hit at least one internal edge
+
+					// Create a new collision shape that's the convex hull of the two individual shapes
+					combinedCollisionShape.s1 = c2.s2;
+					combinedCollisionShape.s2 = candidate;
+
+					// Perform an intersection test on this combined shape. Our hope is that this gives us a good idea of what the actual collision normal should be.
+					CollisionDetection.checkIntersection(shape, combinedCollisionShape);
+					CollisionDetection.determineCollisionPlane(p1);
+					let combinedNormal = v3.copy(p1.normal);
+
+					if (collision.normal.dot(combinedNormal) <= 0 || c2.normal.dot(combinedNormal) <= 0) break; // Incase the result is totally out of wack
+
+					let size: number;
+
+					// Now, along the combined collision normal from above, perform a ray cast onto both shapes to figure out the "correct" normal of the face that's actually visible and part of the collision (as opposed to the internal edge we can't see). Note that sometimes this method fails and doesn't hit the right face, but that's usually caught later.
+
+					size = candidate.boundingBox.min.distanceTo(candidate.boundingBox.max);
+					let hit1 = CollisionDetection.castRay(
+						candidate,
+						singletonShape,
+						candidate.getCenter(v1).addScaledVector(combinedNormal, size),
+						v2.copy(combinedNormal).negate(),
+						size
+					);
+					size = c2.s2.boundingBox.min.distanceTo(c2.s2.boundingBox.max);
+					let hit2 = CollisionDetection.castRay(
+						c2.s2,
+						singletonShape,
+						c2.s2.getCenter(v1).addScaledVector(combinedNormal, size),
+						v2.copy(combinedNormal).negate(),
+						size
+					);
+
+					// If we've hit the shapes, see if we should replace the collision normals of the collisions
+					if (hit1 && hit1.normal.dot(combinedNormal) >= collision.normal.dot(combinedNormal)) { // Only replace if the hit normal is an improvement over the old normal
+						collision.supplyCollisionPlane(p1.set(hit1.normal, collision.depth));
+					}
+					if (hit2 && hit2.normal.dot(combinedNormal) >= c2.normal.dot(combinedNormal)) {
+						c2.supplyCollisionPlane(p1.set(hit2.normal, c2.depth));
+					}
+
+					break;
+				}
+
+				collisions.push(collision);
+				//shapeCollisions.push(collision);
+				s1.body.collisions.push(collision);
+				if (!s2.body.passive) s2.body.collisions.push(collision);
+				//hashes.add(collisionHash);
+			}
+		}
+
+		// We need to update the material properties at the end because here, all the normals are computed
+		for (let i = 0; i < collisions.length; i++) collisions[i].updateMaterialProperties();
+
+		return collisions;
 
 		for (let i = 0; i < dynamicShapes.length; i++) {
 			let shape = dynamicShapes[i];

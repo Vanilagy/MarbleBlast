@@ -939,7 +939,7 @@ export class Marble extends Entity {
 				this.interpolatedOrientation.slerp(this.body.orientation, this.interpolationStrength);
 			}
 
-			this.calculatePredictiveTransforms();
+			//this.calculatePredictiveTransforms();
 		}
 	}
 

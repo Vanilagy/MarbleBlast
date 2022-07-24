@@ -1,4 +1,3 @@
-import { Util } from "../util";
 import { BroadphaseObject } from "./world";
 
 interface ObjectProxy {
@@ -7,7 +6,9 @@ interface ObjectProxy {
 	min: boolean,
 	value: number,
 	intersections: BroadphaseObject[],
-	index: number
+	index: number,
+	mask: number,
+	dynamic: boolean
 }
 
 export class SweepAndPruneBroadphase {
@@ -19,6 +20,7 @@ export class SweepAndPruneBroadphase {
 	needsSort = false;
 	sortStarts = [Infinity, Infinity, Infinity];
 	sortEnds = [-Infinity, -Infinity, -Infinity];
+	intersections: BroadphaseObject[] = [];
 
 	insert(object: BroadphaseObject) {
 		this.objectCount++;
@@ -37,7 +39,9 @@ export class SweepAndPruneBroadphase {
 					min: min,
 					value: (min ? box.min : box.max).getComponent(dim),
 					intersections: intersections,
-					index: -1
+					index: -1,
+					mask: object.collisionDetectionMask,
+					dynamic: object.dynamic
 				};
 
 				proxies.push(proxy);
@@ -74,6 +78,9 @@ export class SweepAndPruneBroadphase {
 	}
 
 	sort(dimension: number) {
+		this.sortStarts = [0, 0, 0];
+		this.sortEnds = [this.lists[0].length - 1, this.lists[0].length - 1, this.lists[0].length - 1];
+
 		let list = this.lists[dimension];
 		let start = this.sortStarts[dimension];
 		let end = this.sortEnds[dimension];
@@ -94,19 +101,20 @@ export class SweepAndPruneBroadphase {
 
 				j--;
 
-				let toggle = a.object !== b.object && a.min !== b.min;
+				let toggle = a.object !== b.object && a.min !== b.min && (a.mask & b.mask) && (a.dynamic || b.dynamic);
 				if (!toggle) continue;
 
-				let o1 = a.objectIndex;
-				let o2 = b.objectIndex;
-				let n = this.objectCount;
-				if (o2 > o1) {
-					let temp = o1;
-					o1 = o2;
-					o2 = temp;
+				if (b.objectIndex > a.objectIndex) {
+					let temp = a;
+					a = b;
+					b = temp;
 				}
 
-				let flagIndex = (n*(n-1)/2) - (n-o2)*((n-o2)-1)/2 + o1 - o2 - 1;
+				let i1 = a.objectIndex;
+				let i2 = b.objectIndex;
+				let n = this.objectCount;
+
+				let flagIndex = (n*(n-1)/2) - (n-i2)*((n-i2)-1)/2 + i1 - i2 - 1;
 				let flags = this.flags[flagIndex];
 
 				if (flags & (1 << dimension)) {
@@ -115,16 +123,21 @@ export class SweepAndPruneBroadphase {
 					this.flags[flagIndex] = flags;
 
 					if (needsDelete) {
-						Util.removeFromArray(a.intersections, b.object);
-						Util.removeFromArray(b.intersections, a.object);
+						//this.intersections.delete(a.object);
+						for (let k = 0; k < this.intersections.length-1; k += 2) {
+							if (this.intersections[k] === a.object && this.intersections[k+1] === b.object) {
+								this.intersections.splice(k, 2);
+								break;
+							}
+						}
 					}
 				} else {
 					flags |= 1 << dimension;
 					this.flags[flagIndex] = flags;
 
 					if (flags === 7) {
-						a.intersections.push(b.object);
-						b.intersections.push(a.object);
+						//this.intersections.set(a.object, b.object);
+						this.intersections.push(a.object, b.object);
 					}
 				}
 
@@ -163,6 +176,16 @@ export class SweepAndPruneBroadphase {
 		this.needsSort = true;
 	}
 
+	recompute() {
+		if (this.needsSort) {
+			for (let i = 0; i < 3; i++)
+				this.sort(i);
+
+			this.needsSort = false;
+		}
+	}
+
+	/*
 	getIntersections(object: BroadphaseObject) {
 		if (this.needsSort) {
 			for (let i = 0; i < 3; i++)
@@ -173,4 +196,5 @@ export class SweepAndPruneBroadphase {
 
 		return this.objectToProxies.get(object)[0].intersections;
 	}
+	*/
 }

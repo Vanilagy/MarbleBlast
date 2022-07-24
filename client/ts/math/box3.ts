@@ -192,7 +192,7 @@ export class Box3 {
 	}
 
 	/** Transforms this Box3 with the supplied matrix. */
-	applyMatrix4(matrix: Matrix4) {
+	applyMatrix4Legacy(matrix: Matrix4) {
 		// transform of empty box is an empty box.
 		if (this.isEmpty()) return this;
 
@@ -207,6 +207,46 @@ export class Box3 {
 		_points[7].set(this.max.x, this.max.y, this.max.z).applyMatrix4(matrix); // 111
 
 		this.setFromPoints(_points);
+
+		return this;
+	}
+
+	/** Transforms this Box3 with the supplied matrix. */
+	applyMatrix4(matrix: Matrix4) {
+		// Unrolled version of https://stackoverflow.com/a/58630206/7036957
+
+		v1.copy(this.min);
+		v2.copy(this.max);
+
+		this.min.setFromMatrixPosition(matrix);
+		this.max.copy(this.min);
+
+		this.min.x += Math.min(matrix.elements[0] * v1.x, matrix.elements[0] * v2.x);
+		this.max.x += Math.max(matrix.elements[0] * v1.x, matrix.elements[0] * v2.x);
+
+		this.min.x += Math.min(matrix.elements[4] * v1.y, matrix.elements[4] * v2.y);
+		this.max.x += Math.max(matrix.elements[4] * v1.y, matrix.elements[4] * v2.y);
+
+		this.min.x += Math.min(matrix.elements[8] * v1.z, matrix.elements[8] * v2.z);
+		this.max.x += Math.max(matrix.elements[8] * v1.z, matrix.elements[8] * v2.z);
+
+		this.min.y += Math.min(matrix.elements[1] * v1.x, matrix.elements[1] * v2.x);
+		this.max.y += Math.max(matrix.elements[1] * v1.x, matrix.elements[1] * v2.x);
+
+		this.min.y += Math.min(matrix.elements[5] * v1.y, matrix.elements[5] * v2.y);
+		this.max.y += Math.max(matrix.elements[5] * v1.y, matrix.elements[5] * v2.y);
+
+		this.min.y += Math.min(matrix.elements[9] * v1.z, matrix.elements[9] * v2.z);
+		this.max.y += Math.max(matrix.elements[9] * v1.z, matrix.elements[9] * v2.z);
+
+		this.min.z += Math.min(matrix.elements[2] * v1.x, matrix.elements[2] * v2.x);
+		this.max.z += Math.max(matrix.elements[2] * v1.x, matrix.elements[2] * v2.x);
+
+		this.min.z += Math.min(matrix.elements[6] * v1.y, matrix.elements[6] * v2.y);
+		this.max.z += Math.max(matrix.elements[6] * v1.y, matrix.elements[6] * v2.y);
+
+		this.min.z += Math.min(matrix.elements[10] * v1.z, matrix.elements[10] * v2.z);
+		this.max.z += Math.max(matrix.elements[10] * v1.z, matrix.elements[10] * v2.z);
 
 		return this;
 	}
@@ -228,3 +268,5 @@ export class Box3 {
 const _points = [new Vector3(), new Vector3(), new Vector3(), new Vector3(), new Vector3(), new Vector3(), new Vector3(), new Vector3()];
 
 const _vector = new Vector3();
+const v1 = new Vector3();
+const v2 = new Vector3();

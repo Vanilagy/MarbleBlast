@@ -21,6 +21,7 @@ export abstract class CollisionShape implements BroadphaseObject {
 	id = collisionShapeId++;
 	/** The body this shape belongs to. */
 	body: RigidBody = null;
+	dynamic = false;
 	boundingBox = new Box3();
 	/** The collision margin of this shape, can be used to make the shape thiccer in all directions. */
 	margin = 0;

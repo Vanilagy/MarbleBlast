@@ -121,7 +121,7 @@ export class GameInitter {
 		this.auxEntityId = maxEntityId + 1;
 
 		// todo remove
-		for (let i = 0; i < 0; i++) {
+		for (let i = 0; i < 7 ?? 15 ?? 300; i++) {
 			let marble = new Marble(game, this.auxEntityId++, this.auxEntityId++);
 			await marble.init();
 

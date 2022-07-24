@@ -65,11 +65,11 @@ export class MultiplayerGameSimulator extends GameSimulator {
 				entity.clearInteractions();
 		}
 
-		if (reconciliationUpdates.length > 0) {
+		if (false || reconciliationUpdates.length > 0) {
 			reconciliationUpdates.sort((a, b) => a.frame - b.frame);
 
 			// Determine the start and end frames of the reconciliation process
-			let startFrame = reconciliationUpdates[0].frame;
+			let startFrame = reconciliationUpdates[0]?.frame;
 			let endFrame = state.frame;
 
 			if (baseState.length > 0) {
@@ -84,6 +84,8 @@ export class MultiplayerGameSimulator extends GameSimulator {
 			if (reconciliationUpdates.some(x => x.frame === reconciliationUpdates[0].frame && game.getEntityById(x.entityId).applyUpdatesBeforeAdvance)) {
 				startFrame--;
 			}
+
+			startFrame = state.frame - 15;
 
 			// Roll back the entire game start to the start of the reconciliation window
 			state.rollBackToFrame(startFrame);

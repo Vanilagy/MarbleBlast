@@ -329,7 +329,7 @@ export class Game {
 
 		if (this.running === this.lobbySessionIds.length) {
 			this.tryAdvanceGame();
-			this.scheduleRestart(this.frame + 5 * GAME_UPDATE_RATE);
+			this.scheduleRestart(this.frame + (1 ?? 5) * GAME_UPDATE_RATE); // temp
 		}
 	}
 

@@ -3,6 +3,7 @@ import { DefaultMap } from "../../../shared/default_map";
 import { World } from "../physics/world";
 import { Game } from "./game";
 
+// TODO fix this its not working
 export const GAME_PLAYBACK_SPEED = 1; // Major attack surface for cheaters here 😟
 
 export class GameSimulator {
