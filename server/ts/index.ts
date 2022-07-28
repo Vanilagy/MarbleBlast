@@ -44,17 +44,21 @@ const setupDb = () => {
 	shared.getNewerScoresStatement = db.prepare(`SELECT mission, time, username FROM score WHERE timestamp>?;`);
 	shared.getLatestTimestampStatement = db.prepare(`SELECT MAX(timestamp) FROM score;`);
 
-	const backupDb = () => {
-		let yyyymmdd = new Date().toISOString().split('T')[0];
-		let fileName = `main_backup_${yyyymmdd}.db`;
+	setInterval(backupStuff, 3.5 * 24 * 60 * 60 * 1000); // Biweekly
+	backupStuff();
+};
 
-		db.pragma('wal_checkpoint(RESTART)'); // First, checkpoint the WAL to the database so that its changes get backed up too
-		db.backup(path.join(__dirname, 'storage', 'backups', fileName))
-			.then(() => console.log(`Successfully created database backup file ${fileName}.`))
-			.catch((err) => console.error("Backup failed: ", err));
-	};
-	setInterval(backupDb, 3.5 * 24 * 60 * 60 * 1000); // Biweekly
-	backupDb();
+const backupStuff = () => {
+	let yyyymmdd = new Date().toISOString().split('T')[0];
+	let fileName = `main_backup_${yyyymmdd}.db`;
+
+	db.pragma('wal_checkpoint(RESTART)'); // First, checkpoint the WAL to the database so that its changes get backed up too
+	db.backup(path.join(__dirname, 'storage', 'backups', fileName))
+		.then(() => console.log(`Successfully created database backup file ${fileName}.`))
+		.catch((err) => console.error("Backup failed: ", err));
+
+	// To be safe, back up wrecs too. Really, these should be in the SQLite database.
+	fs.copy(path.join(__dirname, 'storage', 'wrecs'), path.join(__dirname, 'storage', 'backups', `wrecs_${yyyymmdd}`));
 };
 
 /** Starts the HTTP server. */

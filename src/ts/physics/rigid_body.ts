@@ -28,6 +28,8 @@ export class RigidBody {
 
 	prevPosition = new Vector3();
 	prevOrientation = new Quaternion();
+	prevLinearVelocity = new Vector3();
+	prevAngularVelocity = new Vector3();
 	/** Indicates whether the previous values are valid, i.e. have been set. */
 	prevValid = false;
 
@@ -78,6 +80,8 @@ export class RigidBody {
 	storePrevious() {
 		this.prevPosition.copy(this.position);
 		this.prevOrientation.copy(this.orientation);
+		//this.prevLinearVelocity.copy(this.linearVelocity);
+		//this.prevAngularVelocity.copy(this.angularVelocity);
 
 		this.prevValid = true;
 	}
@@ -94,6 +98,11 @@ export class RigidBody {
 		}
 
 		// Don't revert the velocities
+
+		//this.linearVelocity.lerpVectors(this.prevLinearVelocity, this.linearVelocity, t);
+		//this.angularVelocity.lerpVectors(this.prevAngularVelocity, this.angularVelocity, t);
+
+		// Okay in hindsight I should have reverted the velocities. Fuck. The thing that was wrong was the marble code, not this. The marble code is wrong in that it applies movement input on every integrate, not once per tick call. Shite
 	}
 
 	addCollisionShape(shape: CollisionShape) {
