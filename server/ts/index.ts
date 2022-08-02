@@ -1,24 +1,22 @@
 import * as http from 'http';
 import * as path from 'path';
 import * as url from 'url';
-import * as Database from 'better-sqlite3';
+import DatabaseConstructor, {Database} from "better-sqlite3";
 import * as fs from 'fs-extra';
-import * as serveStatic_ from 'serve-static';
 import finalhandler from 'finalhandler';
 
-// Do some hackery to satisfy rollup
-const serveStatic = serveStatic_;
+const serveStatic = require("serve-static");
 
 import { shared } from './shared';
 import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity } from './misc';
 import { getLeaderboard, submitScores, getWorldRecordSheet } from './leaderboard';
 import { getCustomLevelResource } from './customs';
 
-let db: Database.Database = null;
+let db: Database;
 
 /** Sets up the database and creates tables, indices and prepared statements. */
 const setupDb = () => {
-	db = new Database(path.join(__dirname, 'storage', 'main.db'));
+	db = new DatabaseConstructor(path.join(__dirname, 'storage', 'main.db'));
 	shared.db = db;
 
 	db.exec(`
