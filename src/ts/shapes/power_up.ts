@@ -50,6 +50,8 @@ export abstract class PowerUp extends Shape {
 	}
 
 	tick(time: TimeState, onlyVisual: boolean) {
+		super.tick(time, onlyVisual);
+
 		if (onlyVisual) return;
 
 		// Enable or disable the collision based on the last pick-up time time

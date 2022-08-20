@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.9
+- Fixed missing power-up animations
+
 ## 2.4.8
 - Fixed sudden velocity changes not being applied
 
