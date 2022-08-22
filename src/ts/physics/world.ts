@@ -228,7 +228,11 @@ export class World {
 						CollisionDetection.determineCollisionPlane(p1);
 						let combinedNormal = v3.copy(p1.normal);
 
-						if (collision.normal.dot(combinedNormal) <= 0 || c2.normal.dot(combinedNormal) <= 0) break; // Incase the result is totally out of wack
+						// Exit if the combined normal has a greater angle to either collision normal than they have to each other (meaning it's probably out of wack)
+						let dotBetween = collision.normal.dot(c2.normal);
+						if (collision.normal.dot(combinedNormal) < dotBetween - 1e-10 || c2.normal.dot(combinedNormal) < dotBetween - 1e-10) {
+							continue;
+						}
 
 						let size: number;
 

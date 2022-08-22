@@ -136,6 +136,8 @@ export abstract class CollisionDetection {
 		numPoints = 0;
 
 		for (let i = 0; i < maxIterations; i++) {
+			if (numPoints === 4) break;
+
 			this.support(support, s1, s2, direction);
 
 			if (direction.lengthSq() + direction.dot(support) <= 10 * Number.EPSILON) break;
@@ -143,8 +145,6 @@ export abstract class CollisionDetection {
 			this.addPointToSimplex(support);
 			this.updateSimplexAndClosestPoint(direction);
 			direction.negate();
-
-			if (numPoints === 4) break;
 		}
 
 		return dst.copy(direction).negate();
@@ -213,10 +213,14 @@ export abstract class CollisionDetection {
 			this.addPointToSimplex(support);
 
 			// Offset the entire simplex temporarily
-			for (let i = 0; i < numPoints; i++) points[i].negate().add(x);
+			for (let i = 0; i < numPoints; i++) points[i].sub(x);
 
 			// This now finds the feature of the simplex closest to x, not the origin anymore, because we offset the simplex.
 			this.updateSimplexAndClosestPoint(direction);
+			direction.negate();
+
+			// Offset the simplex back
+			for (let i = 0; i < numPoints; i++) points[i].add(x);
 
 			let maxDist2 = 0;
 			for (let i = 0; i < numPoints; i++) {
@@ -226,9 +230,6 @@ export abstract class CollisionDetection {
 			if (direction.lengthSq() < 10 * Number.EPSILON * maxDist2) {
 				return { point: x.clone(), lambda, normal: n.clone().normalize() };
 			}
-
-			// Offset the simplex back
-			for (let i = 0; i < numPoints; i++) points[i].sub(x).negate();
 		}
 
 		return null;
@@ -491,6 +492,7 @@ export abstract class CollisionDetection {
 		let outsideACD = acd.dot(ao) > 0;
 		let outsideADB = adb.dot(ao) > 0;
 		let outsideBDC = bdc.dot(bo) > 0;
+		let degenerate = Math.abs(abc.dot(ad)) < 10 * Number.EPSILON; // i.e. it has no volume
 
 		let minDist = Infinity;
 		let used: number;
@@ -498,7 +500,7 @@ export abstract class CollisionDetection {
 
 		// We simply do 4 triangle cases, one for each face of the tetrahedron, and the min wins.
 
-		if (outsideABC) {
+		if (outsideABC || degenerate) {
 			requireFlip = 0;
 			let res = this.closestPointTriangle(v1, a, b, c);
 			let len = v1.lengthSq();
@@ -509,7 +511,7 @@ export abstract class CollisionDetection {
 			flip = requireFlip;
 		}
 
-		if (outsideACD) {
+		if (outsideACD || degenerate) {
 			requireFlip = 0;
 			let res = this.closestPointTriangle(v1, a, c, d);
 			let len = v1.lengthSq();
@@ -522,7 +524,7 @@ export abstract class CollisionDetection {
 			}
 		}
 
-		if (outsideADB) {
+		if (outsideADB || degenerate) {
 			requireFlip = 0;
 			let res = this.closestPointTriangle(v1, a, d, b);
 			let len = v1.lengthSq();
@@ -535,7 +537,7 @@ export abstract class CollisionDetection {
 			}
 		}
 
-		if (outsideBDC) {
+		if (outsideBDC || degenerate) {
 			requireFlip = 0;
 			let res = this.closestPointTriangle(v1, b, d, c);
 			let len = v1.lengthSq();

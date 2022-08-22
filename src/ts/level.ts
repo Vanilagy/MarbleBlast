@@ -1028,7 +1028,7 @@ export class Level extends Scheduler {
 
 				let length = rayCastDirection.length();
 				let hits = this.world.castRay(rayCastOrigin, rayCastDirection.normalize(), length);
-				let firstHit = hits.find(x => x.shape !== this.marble.shape);
+				let firstHit = hits.find(x => x.shape !== this.marble.shape && !processedShapes.has(x.shape));
 
 				if (firstHit) {
 					processedShapes.add(firstHit.shape);
@@ -1048,7 +1048,7 @@ export class Level extends Scheduler {
 					if (dist >= closeness) break;
 
 					// Go the projected point and look at the marble
-					this.camera.position.copy(projected.add(normal.multiplyScalar(closeness)));
+					this.camera.position.copy(projected).addScaledVector(normal, closeness);
 					Util.cameraLookAtDirect(this.camera, marblePosition);
 
 					let rotationAxis = new Vector3(1, 0, 0);

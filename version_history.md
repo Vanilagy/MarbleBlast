@@ -1,5 +1,9 @@
 # Version History
 
+## 2.4.10
+- Fixed weird physics behavior in slope edges
+- Fixed incorrect camera behavior
+
 ## 2.4.9
 - Fixed missing power-up animations
 
