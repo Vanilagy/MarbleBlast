@@ -1117,6 +1117,8 @@ export class Level extends Scheduler {
 		let tickDone = false;
 		// Make sure to execute the correct amount of ticks
 		while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
+			let prevGameplayClock = this.timeState.gameplayClock;
+
 			// Update gameplay clock, taking into account the Time Travel state
 			if (this.timeState.currentAttemptTime >= GO_TIME) {
 				if (this.currentTimeTravelBonus > 0) {
@@ -1148,8 +1150,6 @@ export class Level extends Scheduler {
 			this.timeState.tickIndex++;
 			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
 			elapsed -= 1000 / PHYSICS_TICK_RATE;
-
-			let prevGameplayClock = this.timeState.gameplayClock;
 
 			this.tickSchedule(this.timeState.currentAttemptTime);
 

@@ -1,5 +1,10 @@
 # Version History
 
+## 2.4.11
+- Fixed fans not spinning
+- Fixed missing qualify time alarm
+- Added logic to handle expired local scores
+
 ## 2.4.10
 - Fixed weird physics behavior in slope edges
 - Fixed incorrect camera behavior
