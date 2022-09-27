@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.12
+- Improved webhook world record announcements
+
 ## 2.4.11
 - Fixed fans not spinning
 - Fixed missing qualify time alarm
