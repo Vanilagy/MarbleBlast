@@ -132,8 +132,13 @@ const broadcastToWebhook = (missionPath: string, score: [string, number], previo
 			diffString = (diff / 1000).toFixed(3) + ' s';
 		} else if (diff >= 1) {
 			diffString = diff.toPrecision(3) + ' ms';
+		} else if (diff >= 1e-3) {
+			diffString = (diff * 1e3).toPrecision(3) + ' μs';
+		} else if (diff >= 1e-6) {
+			// Nanosecond accuracy is more a meme, in no way do the phyics justify time differences this precise
+			diffString = Math.floor(diff * 1e6) + ' ns';
 		} else {
-			diffString = Math.floor(diff * 1000) + ' μs';
+			diffString = '<1 ns';
 		}
 
 		let relativeDiffString = (((1 -  score[1] / previousRecord.time) || 0) * 100).toPrecision(3) + '%'; // Make sure to catch NaN just in case
