@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.13
+- Fixed MBU-style marble textures crashing in MBG mode
+
 ## 2.4.12
 - Improved webhook world record announcements
 
