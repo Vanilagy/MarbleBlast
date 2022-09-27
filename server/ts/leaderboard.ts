@@ -122,10 +122,12 @@ const broadcastToWebhook = (missionPath: string, score: [string, number], previo
 
 	let message = `**${escapeDiscord(score[0])}** has just achieved a world record on **${missionName}** (Web ${uppercaseFirstLetter(modification)} ${category}) of **${timeString}**`;
 
+	// Add absolute and relative improvement data to the message in case this score improves an old one
 	if (previousRecord) {
 		let diff = previousRecord.time - score[1];
 		let diffString: string;
 
+		// Choose the unit based on the magnitude
 		if (diff >= 1000) {
 			diffString = (diff / 1000).toFixed(3) + ' s';
 		} else if (diff >= 1) {
