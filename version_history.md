@@ -1,7 +1,18 @@
 # Version History
 
-## 2.4.11
+## 2.4.14
 - Improved logic for handling missing level resources
+
+## 2.4.13
+- Fixed MBU-style marble textures crashing in MBG mode
+
+## 2.4.12
+- Improved webhook world record announcements
+
+## 2.4.11
+- Fixed fans not spinning
+- Fixed missing qualify time alarm
+- Added logic to handle expired local scores
 
 ## 2.4.10
 - Fixed weird physics behavior in slope edges

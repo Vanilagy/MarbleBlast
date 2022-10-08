@@ -61,11 +61,12 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 	for (let missionPath in bestTimes) {
 		let score = bestTimes[missionPath];
 		score[0] = score[0].slice(0, 16); // Fuck you
-		let row: ScoreRow = shared.getScoreByUserStatement.get(missionPath, score[0], data.randomId); // See if a score by this player already exists on this mission
+		let existingRow: ScoreRow = shared.getScoreByUserStatement.get(missionPath, score[0], data.randomId); // See if a score by this player already exists on this mission
+		let oldTopScore: ScoreRow = shared.getTopScoreStatement.get(missionPath);
 		let inserted = false;
 
-		if (row) {
-			if (row.time > score[1]) {
+		if (existingRow) {
+			if (existingRow.time > score[1]) {
 				// If the new score is faster, delete all the old ones and then insert; otherwise do nothing
 
 				// Make sure this step is atomic
@@ -101,7 +102,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) allowed = false; // Not enough scores yet, don't broadcast
 				}
 
-				if (allowed) broadcastToWebhook(missionPath, score);
+				if (allowed) broadcastToWebhook(missionPath, score, oldTopScore);
 			}
 		}
 	}
@@ -112,14 +113,38 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 };
 
 /** Broadcasts a new #1 score to a Discord webhook as a world record message. */
-const broadcastToWebhook = (missionPath: string, score: [string, number]) => {
+const broadcastToWebhook = (missionPath: string, score: [string, number], previousRecord?: ScoreRow) => {
 	let missionName = escapeDiscord(getMissionNameFromMissionPath(missionPath)).trim();
 	let timeString = secondsToTimeString(score[1] / 1000);
 	let modification = missionPath.startsWith('mbp')? 'platinum': missionPath.startsWith('mbu')? 'ultra' : 'gold';
 	if (modification !== 'gold') missionPath = missionPath.slice(4);
 	let category = uppercaseFirstLetter(missionPath.slice(0, missionPath.indexOf('/')));
 
-	let message = `${escapeDiscord(score[0])} has just achieved a world record on "${missionName}" (Web ${uppercaseFirstLetter(modification)} ${category}) of ${timeString}`;
+	let message = `**${escapeDiscord(score[0])}** has just achieved a world record on **${missionName}** (Web ${uppercaseFirstLetter(modification)} ${category}) of **${timeString}**`;
+
+	// Add absolute and relative improvement data to the message in case this score improves an old one
+	if (previousRecord) {
+		let diff = previousRecord.time - score[1];
+		let diffString: string;
+
+		// Choose the unit based on the magnitude
+		if (diff >= 1000) {
+			diffString = (diff / 1000).toFixed(3) + ' s';
+		} else if (diff >= 1) {
+			diffString = diff.toPrecision(3) + ' ms';
+		} else if (diff >= 1e-3) {
+			diffString = (diff * 1e3).toPrecision(3) + ' μs';
+		} else if (diff >= 1e-6) {
+			// Nanosecond accuracy is more a meme, in no way do the phyics justify time differences this precise
+			diffString = Math.floor(diff * 1e6) + ' ns';
+		} else {
+			diffString = '<1 ns';
+		}
+
+		let relativeDiffString = (((1 -  score[1] / previousRecord.time) || 0) * 100).toPrecision(3) + '%'; // Make sure to catch NaN just in case
+
+		message += ` _(-${diffString} | -${relativeDiffString})_`;
+	}
 
 	fetch(shared.config.discordWebhookUrl, {
 		method: 'POST',

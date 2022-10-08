@@ -693,9 +693,8 @@ export class Shape {
 
 		if (!this.showSequences) return;
 		if (!onlyVisual && !this.hasNonVisualSequences) return;
-		if (this.shareNodeTransforms && !this.isMaster) return;
 
-		for (let sequence of this.dts.sequences) {
+		if (!this.shareNodeTransforms || this.isMaster) for (let sequence of this.dts.sequences) {
 			let rot = sequence.rotationMatters[0] ?? 0;
 			let trans = sequence.translationMatters[0] ?? 0;
 			let scale = sequence.scaleMatters[0] ?? 0;

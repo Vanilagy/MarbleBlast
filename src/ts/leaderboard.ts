@@ -136,16 +136,17 @@ export abstract class Leaderboard {
 
 	/** Communicates that the given missions' leaderboards have changed somehow. Causes a visual update to the leaderboard if the missions are currently being viewed. */
 	static registerLeaderboardChange(changedMissions: string[]) {
-		// Legacy stuff here to purge outdated local scores:
 		let localScoreRemoved = false;
-		for (let missionPath in changedMissions) {
+		let submissionQueue = StorageManager.data.bestTimeSubmissionQueue;
+
+		for (let missionPath of changedMissions) {
 			let onlineScore = this.scores.get(missionPath)?.[0];
 			let localScore = StorageManager.data.bestTimes[missionPath]?.[0];
 
-			if (!onlineScore || !localScore) continue;
+			if (!onlineScore || !localScore || missionPath in submissionQueue) continue;
 
-			while (localScore && localScore[1] < Number(onlineScore[1]) && localScore[3] === 0) {
-				// Splice all timestamp 0 times that are faster than the current WR on the leaderboard. We do this because the score is outdated.
+			// Splice all submitted local scores that are faster than the current WR for that level. We do this because the existence of those scores makes no sense (they can happen when the leaderboard is purged server-side)
+			while (localScore && localScore[1] < Number(onlineScore[1])) {
 				StorageManager.data.bestTimes[missionPath].splice(0, 1);
 				localScore = StorageManager.data.bestTimes[missionPath][0];
 				localScoreRemoved = true;
@@ -155,7 +156,8 @@ export abstract class Leaderboard {
 		}
 		if (localScoreRemoved) StorageManager.storeBestTimes();
 
+		// Maybe redraw the leaderboard
 		let currentMission = state.menu.levelSelect.currentMission;
-		if (changedMissions.includes(currentMission?.path)) state.menu.levelSelect.displayBestTimes(); // Redraw the leaderboard
+		if (changedMissions.includes(currentMission?.path)) state.menu.levelSelect.displayBestTimes();
 	}
 }
