@@ -1,5 +1,8 @@
 # Version History
 
+## 2.4.11
+- Improved logic for handling missing level resources
+
 ## 2.4.10
 - Fixed weird physics behavior in slope edges
 - Fixed incorrect camera behavior

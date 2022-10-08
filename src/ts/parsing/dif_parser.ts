@@ -670,19 +670,18 @@ export class DifParser extends BinaryFileParser {
 	static loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
-		let promise = new Promise<DifFile>(async (resolve) => {
+		let promise = (async () => {
 			let blob = await ResourceManager.loadResource(path);
 			if (!blob) {
-				resolve(null);
-				return;
+				return null;
 			}
 
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let parser = new DifParser(arrayBuffer);
 
 			let result = parser.parse();
-			resolve(result);
-		});
+			return result;
+		})();
 		this.cachedFiles.set(path, promise);
 
 		return promise;

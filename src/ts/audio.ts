@@ -71,38 +71,33 @@ export abstract class AudioManager {
 			if (this.audioBufferCache.has(fullPath)) return this.audioBufferCache.get(fullPath);
 		}
 
-		let promise = new Promise<AudioBuffer>(async (resolve, reject) => {
-			try {
-				let blob = zipFile? await zipFile.async('blob') : await ResourceManager.loadResource(fullPath);
-				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
-				let audioBuffer: AudioBuffer;
+		let promise = (async () => {
+			let blob = zipFile? await zipFile.async('blob') : await ResourceManager.loadResource(fullPath);
+			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
+			let audioBuffer: AudioBuffer;
 
-				if (path.endsWith('.ogg') && Util.isSafari()) {
-					// Safari can't deal with .ogg. Apparently Firefox can't deal with some of them either??
+			if (path.endsWith('.ogg') && Util.isSafari()) {
+				// Safari can't deal with .ogg. Apparently Firefox can't deal with some of them either??
+				audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
+			} else if (window.AudioContext) {
+				try {
+					audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+				} catch (e) {
+					// Firefox should hit this case sometimes
 					audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
-				} else if (window.AudioContext) {
-					try {
-						audioBuffer = await this.context.decodeAudioData(arrayBuffer);
-					} catch (e) {
-						// Firefox should hit this case sometimes
-						audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
-					}
-				} else {
-					audioBuffer = await new Promise((res, rej) => {
-						this.context.decodeAudioData(
-							arrayBuffer,
-							buff => res(buff),
-							err => rej(err)
-						);
-					});
 				}
-
-				resolve(audioBuffer);
-			} catch (e) {
-				reject(e);
-				console.log("Errored path: " + path);
+			} else {
+				audioBuffer = await new Promise((res, rej) => {
+					this.context.decodeAudioData(
+						arrayBuffer,
+						buff => res(buff),
+						err => rej(err)
+					);
+				});
 			}
-		});
+
+			return audioBuffer;
+		})();
 
 		if (!zipFile) this.audioBufferCache.set(fullPath, promise);
 		return promise;

@@ -111,14 +111,18 @@ export abstract class ResourceManager {
 		if (cached) return Promise.resolve(cached);
 		if (this.loadResourcePromises.get(path)) return this.loadResourcePromises.get(path);
 
-		let promise = new Promise<Blob>((resolve) => {
+		let promise = new Promise<Blob>((resolve, reject) => {
 			const attempt = async () => {
 				try {
 					let response = await fetch(path);
 
-					if (!response.ok) {
+					if (response.status === 404) {
 						this.cachedResources.set(path, null);
 						resolve(null);
+						return;
+					} else if (!response.ok) {
+						// If we get an error code that isn't 404, the resource isn't just missing, but the request failed somehow. Throw.
+						reject(`Error getting resource (${response.status}): ` + path);
 						return;
 					}
 

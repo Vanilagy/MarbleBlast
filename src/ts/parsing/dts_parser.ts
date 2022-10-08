@@ -1114,19 +1114,18 @@ export class DtsParser extends BinaryFileParser {
 	static loadFile(path: string) {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
-		let promise = new Promise<DtsFile>(async (resolve, reject) => {
+		let promise = (async () => {
 			let blob = await ResourceManager.loadResource(path);
 			if (!blob) {
-				reject("Missing resource: " + path);
-				return;
+				throw new Error("Missing DTS resource: " + path);
 			}
 
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let parser = new DtsParser(arrayBuffer);
 
 			let result = parser.parse();
-			resolve(result);
-		});
+			return result;
+		})();
 		this.cachedFiles.set(path, promise);
 
 		return promise;

@@ -241,9 +241,10 @@ export class Mission {
 		if (this.modification !== 'gold') path = path.replace('data/', 'data_mbp/');
 
 		let dif: DifFile = null;
-		if (this.difCache.get(path)) dif = await this.difCache.get(path); // We've already parsed the dif before
-		else {
-			let promise = new Promise<DifFile>(async (resolve) => {
+		if (this.difCache.get(path)) {
+			dif = await this.difCache.get(path); // We've already parsed the dif before
+		} else {
+			let promise = (async () => {
 				let dif: DifFile;
 
 				if (this.zipDirectory && this.zipDirectory.files[path]) {
@@ -256,8 +257,8 @@ export class Mission {
 					dif = await DifParser.loadFile('./assets/' + path);
 				}
 
-				resolve(dif);
-			});
+				return dif;
+			})();
 
 			this.difCache.set(path, promise);
 			dif = await promise;
@@ -310,10 +311,7 @@ export class Mission {
 		let file = this.zipDirectory.files[path];
 		if (this.fileToBlobPromises.get(file)) return this.fileToBlobPromises.get(file);
 
-		let promise = new Promise<Blob>(async (resolve) => {
-			let blob = await file.async('blob');
-			resolve(blob);
-		});
+		let promise = file.async('blob');
 
 		this.fileToBlobPromises.set(file, promise);
 		return promise;
