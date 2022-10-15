@@ -9,6 +9,7 @@ import { Leaderboard } from "../leaderboard";
 import { Menu } from "./menu";
 import { MissionLibrary } from "../mission_library";
 import { state } from "../state";
+import { VideoRenderer } from "./video_renderer";
 
 export abstract class LevelSelect {
 	menu: Menu;
@@ -505,7 +506,7 @@ export abstract class LevelSelect {
 		}
 	}
 
-	showLoadReplayPrompt() {
+	showLoadReplayPrompt(event: MouseEvent) {
 		// Show a file picker
 		let fileInput = document.createElement('input');
 		fileInput.setAttribute('type', 'file');
@@ -522,12 +523,16 @@ export abstract class LevelSelect {
 
 				if (state.modification === 'gold' && mission.path.startsWith('mbp')) {
 					// We don't allow this
-					state.menu.showAlertPopup('Warning', "You can't watch replays of Platinum level inside Marble Blast Gold.");
+					state.menu.showAlertPopup('Warning', "You can't watch replays of Platinum levels inside Marble Blast Gold.");
 					return;
 				}
 
-				this.div.classList.add('hidden');
-				this.menu.loadingScreen.loadLevel(mission, () => replay);
+				if (event.altKey) {
+					VideoRenderer.show(mission, replay);
+				} else {
+					this.div.classList.add('hidden');
+					this.menu.loadingScreen.loadLevel(mission, () => replay);
+				}
 			} catch (e) {
 				state.menu.showAlertPopup('Error', "There was an error loading the replay.");
 				console.error(e);

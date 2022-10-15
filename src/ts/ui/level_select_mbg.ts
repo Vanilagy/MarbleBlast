@@ -59,8 +59,8 @@ export class MbgLevelSelect extends LevelSelect {
 		setupTab(this.tabAdvanced, MissionLibrary.goldAdvanced);
 		setupTab(this.tabCustom, MissionLibrary.goldCustom);
 
-		this.loadReplayButton.addEventListener('click', async () => {
-			this.showLoadReplayPrompt();
+		this.loadReplayButton.addEventListener('click', async (e) => {
+			this.showLoadReplayPrompt(e);
 		});
 		this.loadReplayButton.addEventListener('mouseenter', () => {
 			AudioManager.play('buttonover.wav');

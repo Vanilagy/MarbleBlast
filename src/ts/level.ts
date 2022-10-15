@@ -177,6 +177,7 @@ export class Level extends Scheduler {
 	/** The last performance.now() time the physics were ticked. */
 	lastPhysicsTick: number = null;
 	lastFrameTime: number = null;
+	offline = false;
 	started = false;
 	paused = true;
 	/** If the level is stopped, it shouldn't be used anymore. */
@@ -241,10 +242,11 @@ export class Level extends Scheduler {
 	originalMusicName: string;
 	replay: Replay;
 
-	constructor(mission: Mission) {
+	constructor(mission: Mission, offline = false) {
 		super();
 		this.mission = mission;
 		this.loadingState = { loaded: 0, total: 0 };
+		this.offline = offline;
 	}
 
 	/** Loads all necessary resources and builds the mission. */
@@ -299,15 +301,21 @@ export class Level extends Scheduler {
 		AudioManager.normalizePositionalAudioVolume();
 
 		resize(false); // To update renderer
-		mainCanvas.classList.remove('hidden');
 		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick for correct positional audio playback
-		this.render(); // This will also do a tick
-		this.lastPhysicsTick = performance.now(); // First render usually takes quite long (shader compile etc), so reset the last physics tick back to now
-		this.tickInterval = setInterval(this.tick.bind(this));
-		this.music.play();
 
 		// Render them once
 		for (let shape of this.shapes) if (shape.isTSStatic) shape.render(this.timeState);
+
+		if (!this.offline) {
+			this.tryRender();
+			this.tickInterval = setInterval(this.tick.bind(this)) as unknown as number;
+			this.music.play();
+			this.lastPhysicsTick = performance.now(); // First render usually takes quite long (shader compile etc), so reset the last physics tick back to now
+			mainCanvas.classList.remove('hidden');
+		} else {
+			this.render(0);
+			this.lastPhysicsTick = 0;
+		}
 	}
 
 	async initScene() {
@@ -856,9 +864,9 @@ export class Level extends Scheduler {
 		});
 	}
 
-	render() {
+	tryRender() {
 		if (this.stopped) return;
-		requestAnimationFrame(this.render.bind(this));
+		requestAnimationFrame(this.tryRender.bind(this));
 
 		let time = performance.now();
 		if (this.lastFrameTime === null) {
@@ -877,6 +885,12 @@ export class Level extends Scheduler {
 			this.lastFrameTime += required;
 			this.lastFrameTime = Math.max(this.lastFrameTime, time - 2 * required); // To avoid the last frame time from lagging behind
 		}
+
+		this.render(time);
+	}
+
+	render(time: number) {
+		if (this.stopped) return;
 
 		this.tick(time);
 
@@ -1310,16 +1324,16 @@ export class Level extends Scheduler {
 		this.world.gravity.copy(gravityVector);
 	}
 
-	onResize() {
+	onResize(width = window.innerWidth, height = window.innerHeight) {
 		if (!this.camera || !this.overlayCamera) return;
 
-		this.camera.aspect = window.innerWidth / window.innerHeight;
+		this.camera.aspect = width / height;
 		this.camera.updateProjectionMatrix();
 
 		this.overlayCamera.left = 0;
-		this.overlayCamera.right = window.innerWidth;
+		this.overlayCamera.right = width;
 		this.overlayCamera.top = 0;
-		this.overlayCamera.bottom = window.innerHeight;
+		this.overlayCamera.bottom = height;
 		this.overlayCamera.updateProjectionMatrix();
 	}
 

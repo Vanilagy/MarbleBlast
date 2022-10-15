@@ -9,7 +9,7 @@ import { Util } from "../util";
 import { Menu } from "./menu";
 
 export abstract class FinishScreen {
-	div:HTMLDivElement;
+	div: HTMLDivElement;
 	time: HTMLParagraphElement;
 	message: HTMLParagraphElement;
 	bestTimeContainer: HTMLDivElement;

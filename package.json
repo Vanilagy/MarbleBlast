@@ -19,11 +19,13 @@
 		"@rollup/plugin-node-resolve": "^9.0.0",
 		"@types/adm-zip": "^0.4.33",
 		"@types/better-sqlite3": "^5.4.1",
+		"@types/dom-webcodecs": "^0.1.4",
 		"@types/finalhandler": "^1.1.0",
 		"@types/fs-extra": "^9.0.7",
 		"@types/jszip": "^3.4.1",
 		"@types/node-fetch": "^2.5.8",
 		"@types/serve-static": "^1.13.9",
+		"@types/wicg-file-system-access": "^2020.9.5",
 		"better-sqlite3": "^7.1.2",
 		"finalhandler": "^1.1.2",
 		"fs-extra": "^9.1.0",
@@ -37,7 +39,7 @@
 		"rollup-plugin-typescript2": "^0.27.2",
 		"sarcina": "^1.7.5",
 		"serve-static": "^1.14.1",
-		"typescript": "^4.5.3"
+		"typescript": "^4.8.4"
 	},
 	"devDependencies": {
 		"@typescript-eslint/eslint-plugin": "^5.4.0",

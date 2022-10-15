@@ -105,8 +105,8 @@ export class MbpLevelSelect extends LevelSelect {
 			}
 		}, undefined, undefined, false);
 
-		this.menu.setupButton(this.loadReplayButton, 'play/replay', () => {
-			this.showLoadReplayPrompt();
+		this.menu.setupButton(this.loadReplayButton, 'play/replay', (e) => {
+			this.showLoadReplayPrompt(e);
 		}, undefined, undefined, false);
 		this.menu.setupButton(this.shuffleButton, 'search/random', () => {
 			this.shuffle();

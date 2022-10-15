@@ -35,7 +35,7 @@ export abstract class PauseScreen {
 		});
 
 		window.addEventListener('keydown', (e) => {
-			if (!state.level) return;
+			if (!state.level || state.level.offline) return;
 			if (state.menu !== menu) return;
 
 			if (e.key === 'Escape') {
@@ -52,7 +52,7 @@ export abstract class PauseScreen {
 		});
 
 		window.addEventListener('keyup', (e) => {
-			if (!state.level) return;
+			if (!state.level || state.level.offline) return;
 			if (state.menu !== menu) return;
 
 			if (state.level.paused && e.key === 'Escape' && this.noButton.src.endsWith('_d.png')) {

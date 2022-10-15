@@ -254,3 +254,8 @@ body {
 	border-radius: 5px;
 	margin-top: 3px;
 }
+
+.disabled {
+	opacity: 0.333;
+	pointer-events: none;
+}

@@ -82,7 +82,7 @@ export abstract class LoadingScreen {
 			this.refresher = setInterval(() => {
 				let completion = Util.clamp((performance.now() - start) / 100, 0, 1);
 				this.progressBar.style.width = (completion * this.maxProgressBarWidth) + 'px';
-			});
+			}) as unknown as number;
 
 			await Util.wait(150);
 
