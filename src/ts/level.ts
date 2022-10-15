@@ -177,6 +177,7 @@ export class Level extends Scheduler {
 	/** The last performance.now() time the physics were ticked. */
 	lastPhysicsTick: number = null;
 	lastFrameTime: number = null;
+	/** Offline levels are meant for video rendering, not real-time play. */
 	offline = false;
 	started = false;
 	paused = true;

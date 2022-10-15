@@ -29,6 +29,8 @@ export const resize = async (wait = true) => {
 	document.body.style.transform = `scale(${1 / ratio})`;
 	SCALING_RATIO = ratio;
 
+	if (state.level && state.level.offline) return; // Disable the resizing logic below when we're rendering an offline level
+
 	mainCanvas.style.width = '100%';
 	mainCanvas.style.height = '100%';
 	mainRenderer?.setSize(window.innerWidth, window.innerHeight);

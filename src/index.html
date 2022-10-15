@@ -217,7 +217,7 @@
 				<img src="./assets/ui_mbp/play/window.png" style="pointer-events: none; display: block;">
 				<img id="mbp-level-select-home-button">
 				<img id="mbp-level-select-view-toggle" title="Show scores">
-				<img id="mbp-load-replay-button" title="Load replay from file (alt-click to render replay to video)">
+				<img id="mbp-load-replay-button" title="Load replay from file (Shift-Click to render replay to video)">
 				<img id="mbp-shuffle-button" title="Go to random level">
 				<img id="mbp-level-select-prev">
 				<img id="mbp-level-select-play">
@@ -362,7 +362,7 @@
 				<img id="level-select-prev">
 				<img id="level-select-play">
 				<img id="level-select-next">
-				<img src="./assets/img/round_play_circle_outline_black_18dp.png" id="load-replay-button" title="Load replay from file (alt-click to render replay to video)">
+				<img src="./assets/img/round_play_circle_outline_black_18dp.png" id="load-replay-button" title="Load replay from file (Shift-Click to render replay to video)">
 				<img src="./assets/img/shuffle.png" id="shuffle-button" title="Go to random level">
 			</div>
 
@@ -628,7 +628,10 @@
 					<div class="_config-row"><p>Fast mode</p><input type="checkbox" checked></div>
 				</div>
 				<p id="video-renderer-overview">&nbsp;</p>
-				<button id="video-renderer-render" class="disabled">Render</button>
+				<div>
+					<button id="video-renderer-render" class="disabled">Render</button>
+					<button id="video-renderer-close">Close</button>
+				</div>
 				<progress style="display: none;" value="0"></progress>
 				<p id="video-renderer-status"></p>
 			</div>

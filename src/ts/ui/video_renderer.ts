@@ -13,6 +13,7 @@ export abstract class VideoRenderer {
 	static selectDestinationButton: HTMLButtonElement;
 	static overviewText: HTMLParagraphElement;
 	static renderButton: HTMLButtonElement;
+	static closeButton: HTMLButtonElement;
 	static progressBar: HTMLProgressElement;
 	static statusText: HTMLParagraphElement;
 
@@ -29,6 +30,7 @@ export abstract class VideoRenderer {
 		this.selectDestinationButton = this.div.querySelector('#video-renderer-select-destination');
 		this.overviewText = this.div.querySelector('#video-renderer-overview');
 		this.renderButton = this.div.querySelector('#video-renderer-render');
+		this.closeButton = this.div.querySelector('#video-renderer-close');
 		this.progressBar = this.div.querySelector('#video-renderer progress');
 		this.statusText = this.div.querySelector('#video-renderer-status');
 
@@ -49,10 +51,14 @@ export abstract class VideoRenderer {
 
 		this.renderButton.addEventListener('click', () => {
 			if (this.renderButton.textContent === 'Stop') {
-				this.stopRender();
+				this.stopRender(false);
 			} else {
 				this.render();
 			}
+		});
+
+		this.closeButton.addEventListener('click', () => {
+			this.stopRender(true);
 		});
 
 		// Update the overview text when the playback speed is modified
@@ -69,6 +75,7 @@ export abstract class VideoRenderer {
 		this.overviewText.textContent = text;
 	}
 
+	/** Creates a Worker that will be responsible for video encoding and writing to disk - it makes sense to perform these operations in a separate thread. */
 	static async createWorker() {
 		const body = () => {
 			let url: string;
@@ -91,6 +98,8 @@ export abstract class VideoRenderer {
 
 				try {
 					if (data.command === 'setup') {
+						// Set up the writable stream, the WebM writer and video encoder.
+
 						fileWritableStream = await data.fileHandle.createWritable();
 
 						webmWriter = new WebMWriter({
@@ -118,6 +127,7 @@ export abstract class VideoRenderer {
 							latencyMode: 'realtime'
 						});
 					} else if (data.command === 'frame') {
+						// Encode a new video frame
 						encoder.encode(data.frame);
 						data.frame.close();
 					} else if (data.command === 'encodeAll') { // Not used atm
@@ -126,6 +136,8 @@ export abstract class VideoRenderer {
 							frame.close();
 						}
 					} else if (data.command === 'finishUp') {
+						// Finishes the remaining work
+
 						await encoder.flush();
 						encoder.close();
 
@@ -135,6 +147,7 @@ export abstract class VideoRenderer {
 						self.postMessage('done');
 					}
 				} catch (e) {
+					// Bubble up the error
 					self.postMessage({
 						command: 'error',
 						error: e
@@ -155,6 +168,7 @@ export abstract class VideoRenderer {
 	}
 
 	static async render() {
+		// Extract the configuration options from the DOM
 		let width = Number((this.div.querySelectorAll('._config-row')[0].children[1] as HTMLInputElement).value);
 		let height = Number((this.div.querySelectorAll('._config-row')[1].children[1] as HTMLInputElement).value);
 		let kilobitRate = Number((this.div.querySelectorAll('._config-row')[2].children[1] as HTMLInputElement).value);
@@ -162,6 +176,7 @@ export abstract class VideoRenderer {
 		let playbackSpeed = Number((this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value);
 		let fastMode = (this.div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked;
 
+		// Check input validity
 		if (!Number.isInteger(width) || width < 1) {
 			state.menu.showAlertPopup("Error", `"Width" has to be a positive integer.`);
 		}
@@ -178,9 +193,10 @@ export abstract class VideoRenderer {
 			state.menu.showAlertPopup("Error", `"Playback speed" has to be positive.`);
 		}
 
+		// Store config for later reuse
 		StorageManager.data.videoRecorderConfig.width = width;
 		StorageManager.data.videoRecorderConfig.height = height;
-		StorageManager.data.videoRecorderConfig.kilobitRate =kilobitRate;
+		StorageManager.data.videoRecorderConfig.kilobitRate = kilobitRate;
 		StorageManager.data.videoRecorderConfig.frameRate = frameRate;
 		StorageManager.data.videoRecorderConfig.playbackSpeed = playbackSpeed;
 		StorageManager.data.videoRecorderConfig.fastMode = fastMode;
@@ -189,21 +205,25 @@ export abstract class VideoRenderer {
 		this.configContainer.classList.add('disabled');
 		this.progressBar.style.display = 'block';
 		this.renderButton.textContent = 'Stop';
+		this.closeButton.style.display = 'none';
 
 		let level: Level;
 
+		// This interval updates the progress bar as the level loads
 		let id = setInterval(() => {
 			let completion = Math.min(level?.getLoadingCompletion() ?? 0, 1);
 
-			this.progressBar.value = completion * 0.1;
+			this.progressBar.value = completion * 0.1; // First 10% of the progress bar
 			this.statusText.textContent = `Loading (${Math.floor(completion * 100)}%)`;
 
 			if (completion >= 1) clearInterval(id);
 		}, 16);
 
+		// Create the worker which will handle video encoding for us
 		let worker = await this.createWorker();
 
 		try {
+			// Load the mission and level
 			await this.mission.load();
 			level = new Level(this.mission, true);
 			state.level = level;
@@ -214,6 +234,7 @@ export abstract class VideoRenderer {
 
 			await level.start();
 
+			// Set up the worker with necessary information
 			worker.postMessage({
 				command: 'setup',
 				width,
@@ -227,6 +248,7 @@ export abstract class VideoRenderer {
 				if (e.data.command === 'error') throw new Error(e.data.error);
 			});
 
+			// We use this variable to compute the completion of the encoding process
 			let lastChunkTimestamp = 0;
 			worker.addEventListener('message', e => {
 				if (e.data.command === 'chunkEncoded') lastChunkTimestamp = e.data.timestamp;
@@ -239,14 +261,16 @@ export abstract class VideoRenderer {
 			mainRenderer.setPixelRatio(1.0);
 			level.onResize(width, height);
 
+			// Now, render all the frames we need
 			for (let frame = 0; frame < totalFrames; frame++) {
-				if (this.stopped) break;
+				if (this.stopped) break; // Abort
 
 				let time = 1000 * frame / frameRate;
 				level.render(time * playbackSpeed);
 
 				if (level.stopped) break;
 
+				// Create the video frame and send it off to the worker
 				let videoFrame = new VideoFrame(mainCanvas, { timestamp: 1000 * time });
 				worker.postMessage({
 					command: 'frame',
@@ -254,9 +278,10 @@ export abstract class VideoRenderer {
 				}, [videoFrame] as any);
 
 				this.statusText.textContent = `Rendering frame ${Math.min(frame + 1, totalFrames)}/${totalFrames}`;
-				this.progressBar.value = 0.1 + 0.6 * Math.min(frame + 1, totalFrames)/totalFrames;
+				this.progressBar.value = 0.1 + 0.6 * Math.min(frame + 1, totalFrames)/totalFrames; // 10%-70% of the progress bar
 
 				if (!fastMode) {
+					// In slow mode, we wait for the frame to be encoded before we begin generating the next frame. This minimizes strain on the hardware and often prevents WebGL context loss.
 					await new Promise<void>(resolve => worker.addEventListener('message', function callback(ev) {
 						if (ev.data.command !== 'chunkEncoded') return;
 
@@ -264,6 +289,7 @@ export abstract class VideoRenderer {
 						resolve();
 					}));
 				} else {
+					// In fast mode, we wait a fixed 16 milliseconds between rendering frames. Rendering any faster has little benefit as we're limited by video encoding speed. Also, we might lose the WebGL context.
 					await new Promise<void>(resolve => workerSetTimeout(resolve, 16));
 				}
 			}
@@ -276,16 +302,19 @@ export abstract class VideoRenderer {
 				return;
 			}
 
+			// Tell the worker that we're done sending frames
 			worker.postMessage({
 				command: 'finishUp'
 			});
 
+			// This varibles lets us make it look like encoding started right when the last frame finished rendering, instead of earlier.
 			let lastChunkTimestampAtRenderFinish = lastChunkTimestamp;
 
+			// This interval updates the progress bar based on the encoding completion
 			id = setInterval(() => {
 				let completion = (lastChunkTimestamp - lastChunkTimestampAtRenderFinish) / (totalTimeUs - lastChunkTimestampAtRenderFinish);
 				this.statusText.textContent = `Encoding (${(100 * completion).toFixed(1)}%)`;
-				this.progressBar.value = 0.7 + 0.3 * completion;
+				this.progressBar.value = 0.7 + 0.3 * completion; // Last 30% of the progress bar
 			}, 16);
 
 			await new Promise<void>(resolve => worker.addEventListener('message', e => e.data === 'done' && resolve()));
@@ -311,6 +340,7 @@ export abstract class VideoRenderer {
 
 			this.hide();
 			if (lostContext) {
+				// Show a more insightful error message when WebGL context loss was the culprit
 				message = `Your WebGL context has been lost during rendering, meaning that your browser thought the rendering task was too taxing on your hardware. Rendering using fast mode might be the cause of this. Please reload the page to restore the context.`;
 			} else {
 				message = "There has been an error during video rendering.";
@@ -326,8 +356,8 @@ export abstract class VideoRenderer {
 		}
 	}
 
-	static async stopRender() {
-		if (!(await state.menu.showConfirmPopup('Stop rendering', "Are you sure you want to cancel the ongoing rendering process?"))) {
+	static async stopRender(force: boolean) {
+		if (!force && !(await state.menu.showConfirmPopup('Stop rendering', "Are you sure you want to cancel the ongoing rendering process?"))) {
 			return;
 		}
 
@@ -335,6 +365,7 @@ export abstract class VideoRenderer {
 		this.hide();
 	}
 
+	/** Opens the video renderer UI, ready to render the specified `replay`. */
 	static show(mission: Mission, replay: Replay) {
 		this.div.classList.remove('hidden');
 		state.menu.levelSelect.hide();
@@ -343,9 +374,12 @@ export abstract class VideoRenderer {
 		this.mission = mission;
 		this.replay = replay;
 
+		// Compute how many simulation ticks the replay is long
 		let tickLength = replay.marblePositions.length;
 		if (replay.finishTime) {
-			tickLength = Math.min(tickLength, replay.finishTime.tickIndex + 2 * PHYSICS_TICK_RATE);
+			// Cap the replay to last only 2 more seconds after the finish has been reached (theoretically, players can idle in the finish animation by waiting to submit their score)
+			let tickIndex = replay.finishTime.tickIndex ?? Math.floor(replay.finishTime.currentAttemptTime * PHYSICS_TICK_RATE / 1000);
+			tickLength = Math.min(tickLength, tickIndex + 2 * PHYSICS_TICK_RATE);
 		}
 		this.tickLength = tickLength;
 
@@ -357,6 +391,7 @@ export abstract class VideoRenderer {
 			let playbackSpeedString = StorageManager.data.videoRecorderConfig.playbackSpeed.toString();
 			if (!playbackSpeedString.includes('.')) playbackSpeedString += '.0';
 
+			// Set the initial values to the ones stored
 			(this.div.querySelectorAll('._config-row')[0].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.width.toString();
 			(this.div.querySelectorAll('._config-row')[1].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.height.toString();
 			(this.div.querySelectorAll('._config-row')[2].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.kilobitRate.toString();
@@ -377,5 +412,6 @@ export abstract class VideoRenderer {
 		this.statusText.textContent = '';
 		this.configContainer.classList.remove('disabled');
 		this.renderButton.textContent = 'Render';
+		this.closeButton.style.display = '';
 	}
 }

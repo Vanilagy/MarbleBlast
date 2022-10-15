@@ -379,9 +379,9 @@ export abstract class LevelSelect {
 	createReplayButton() {
 		let icon = document.createElement('img');
 		icon.src = "./assets/img/round_videocam_black_18dp.png";
-		icon.title = "Alt-Click to download";
+		icon.title = "Alt-Click to download, Shift-Click to render to video";
 
-		const handler = async (download: boolean) => {
+		const handler = async (action: 'watch' | 'download' | 'render') => {
 			let mission = this.currentMission;
 			if (!mission) return;
 
@@ -391,20 +391,26 @@ export abstract class LevelSelect {
 			let replayData = await StorageManager.databaseGet('replays', attr);
 			if (!replayData) return;
 
-			if (!download) {
+			if (action === 'watch') {
 				this.playCurrentMission(replayData);
-			} else {
+			} else if (action === 'download') {
 				Replay.download(replayData, mission);
 				if (Util.isTouchDevice && Util.isInFullscreen()) this.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
+			} else {
+				let replay = Replay.fromSerialized(replayData);
+				VideoRenderer.show(this.currentMission, replay);
 			}
 		};
 
 		icon.addEventListener('click', async (e) => {
 			if (e.button !== 0) return;
-			handler(e.altKey);
+
+			if (e.shiftKey) handler('render');
+			else if (e.altKey) handler('download');
+			else handler('watch');
 		});
 		Util.onLongTouch(icon, () => {
-			handler(true);
+			handler('download');
 		});
 
 		icon.addEventListener('mouseenter', () => {
@@ -527,7 +533,7 @@ export abstract class LevelSelect {
 					return;
 				}
 
-				if (event.altKey) {
+				if (event.shiftKey) {
 					VideoRenderer.show(mission, replay);
 				} else {
 					this.div.classList.add('hidden');
