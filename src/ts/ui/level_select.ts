@@ -529,7 +529,7 @@ export abstract class LevelSelect {
 
 				if (state.modification === 'gold' && mission.path.startsWith('mbp')) {
 					// We don't allow this
-					state.menu.showAlertPopup('Warning', "You can't watch replays of Platinum levels inside Marble Blast Gold.");
+					state.menu.showAlertPopup('Warning', "You can't load replays of Platinum levels inside Marble Blast Gold.");
 					return;
 				}
 

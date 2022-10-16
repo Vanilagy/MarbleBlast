@@ -20,10 +20,14 @@ const MIN_HEIGHT = 600;
 /** Ratio by which the entire body gets scaled by, while still fitting into the screen. */
 export let SCALING_RATIO = 1;
 
+export const computeUiScalingRatio = (width: number, height: number) => {
+	return Math.max(1, MIN_WIDTH / width, MIN_HEIGHT / height);
+};
+
 export const resize = async (wait = true) => {
 	if (wait) await Util.wait(100); // Sometimes you gotta give browser UI elements a little time to update
 
-	let ratio = Math.max(1, MIN_WIDTH / window.innerWidth, MIN_HEIGHT / window.innerHeight);
+	let ratio = computeUiScalingRatio(window.innerWidth, window.innerHeight);
 	document.body.style.width = Math.ceil(window.innerWidth * ratio) + 'px';
 	document.body.style.height = Math.ceil(window.innerHeight * ratio) + 'px';
 	document.body.style.transform = `scale(${1 / ratio})`;
@@ -31,12 +35,14 @@ export const resize = async (wait = true) => {
 
 	if (state.level && state.level.offline) return; // Disable the resizing logic below when we're rendering an offline level
 
+	let pixelRatio = Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]);
+
 	mainCanvas.style.width = '100%';
 	mainCanvas.style.height = '100%';
 	mainRenderer?.setSize(window.innerWidth, window.innerHeight);
-	mainRenderer?.setPixelRatio(Math.min(window.devicePixelRatio, [0.5, 1.0, 1.5, 2.0, Infinity][StorageManager.data?.settings.pixelRatio]));
+	mainRenderer?.setPixelRatio(pixelRatio);
 
-	state.level?.onResize();
+	state.level?.onResize(window.innerWidth, window.innerHeight, pixelRatio);
 };
 window.addEventListener('resize', resize as any);
 

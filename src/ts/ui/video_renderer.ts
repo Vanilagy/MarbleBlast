@@ -1,3 +1,4 @@
+import { AudioManager } from "../audio";
 import { Level, PHYSICS_TICK_RATE } from "../level";
 import { Mission } from "../mission";
 import { Replay } from "../replay";
@@ -35,9 +36,10 @@ export abstract class VideoRenderer {
 		this.statusText = this.div.querySelector('#video-renderer-status');
 
 		this.selectDestinationButton.addEventListener('click', async () => {
+			let suggestedFilename = Util.removeSpecialChars(this.mission.title.toLowerCase().split(' ').map(x => Util.uppercaseFirstLetter(x)).join(''));
 			let fileHandle = await window.showSaveFilePicker({
 				startIn: 'videos',
-				suggestedName: 'myRender.webm',
+				suggestedName: `${suggestedFilename}.webm`,
 				types: [{
 					description: 'Video File',
 					accept: {'video/webm' :['.webm']}
@@ -223,6 +225,9 @@ export abstract class VideoRenderer {
 		let worker = await this.createWorker();
 
 		try {
+			// Disable all new audio for the time being (to silence the level playback)
+			AudioManager.enabled = false;
+
 			// Load the mission and level
 			await this.mission.load();
 			level = new Level(this.mission, true);
@@ -259,7 +264,12 @@ export abstract class VideoRenderer {
 
 			mainRenderer.setSize(width, height);
 			mainRenderer.setPixelRatio(1.0);
-			level.onResize(width, height);
+			level.onResize(width, height, 1.0);
+
+			let compositeCanvas = document.createElement('canvas');
+			compositeCanvas.setAttribute('width', width.toString());
+			compositeCanvas.setAttribute('height', height.toString());
+			let ctx = compositeCanvas.getContext('2d');
 
 			// Now, render all the frames we need
 			for (let frame = 0; frame < totalFrames; frame++) {
@@ -270,8 +280,12 @@ export abstract class VideoRenderer {
 
 				if (level.stopped) break;
 
+				// Compose together the main game canvas and the HUD canvas
+				ctx.drawImage(mainCanvas, 0, 0);
+				ctx.drawImage(state.menu.hud.hudCanvas, 0, 0);
+
 				// Create the video frame and send it off to the worker
-				let videoFrame = new VideoFrame(mainCanvas, { timestamp: 1000 * time });
+				let videoFrame = new VideoFrame(compositeCanvas, { timestamp: 1000 * time });
 				worker.postMessage({
 					command: 'frame',
 					frame: videoFrame
@@ -330,7 +344,6 @@ export abstract class VideoRenderer {
 
 			await Util.wait(200); // Fake some work 😂😂😂😂
 
-			this.hide();
 			state.menu.showAlertPopup("Rendering complete", "The replay has been successfully rendered to the specified destination video file.");
 		} catch (e) {
 			console.error(e);
@@ -338,7 +351,6 @@ export abstract class VideoRenderer {
 			let lostContext = mainRenderer.gl.isContextLost();
 			let message: string;
 
-			this.hide();
 			if (lostContext) {
 				// Show a more insightful error message when WebGL context loss was the culprit
 				message = `Your WebGL context has been lost during rendering, meaning that your browser thought the rendering task was too taxing on your hardware. Rendering using fast mode might be the cause of this. Please reload the page to restore the context.`;
@@ -353,6 +365,8 @@ export abstract class VideoRenderer {
 			clearInterval(id);
 		} finally {
 			worker.terminate();
+			AudioManager.enabled = true;
+			this.hide();
 		}
 	}
 

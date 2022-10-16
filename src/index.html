@@ -59,13 +59,8 @@
 		<div id="popup-container" style="display: none;"></div>
 
 		<div id="game-ui" class="hidden">
-			<img id="powerup-border">
-			<div style="font-family: DomCasualRegular;" id="help-text"></div>
-			<div style="font-family: DomCasualRegular;" id="alert-text"></div>
-			<img id="center-text" src=""></img>
-			<img src="./assets/ui_mbp/game/transparency.png" id="clock-background" class="hidden">
-			<canvas id="clock" height="60" width="300"></canvas>
-			<div id="gem-count"></div>
+			<canvas id="hud-canvas"></canvas>
+
 			<div id="touch-input-container">
 				<div id="movement-area"></div>
 				<div id="movement-joystick">
@@ -84,10 +79,6 @@
 			<div id="fps-meter">
 				<img src="./assets/ui_mbp/game/transparency_fps-flipped.png" id="fps-meter-background">
 				<div id="fps-meter-value">FPS: -</div>
-			</div>
-			<div id="blast-meter">
-				<img id="blast-meter-fill">
-				<img id="blast-meter-body">
 			</div>
 
 			<div id="pause-screen" class="hidden">

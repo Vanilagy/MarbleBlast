@@ -12,6 +12,8 @@ export abstract class AudioManager {
 	static soundGain: GainNode;
 	static musicGain: GainNode;
 
+	/** When disabled, no audio can be played or stopped. */
+	static enabled = true;
 	static assetPath: string;
 	static audioBufferCache = new Map<string, Promise<AudioBuffer>>();
 	/** Stores a list of all currently playing audio sources. */
@@ -148,6 +150,8 @@ export abstract class AudioManager {
 
 	/** Utility method for creating an audio source and playing it immediately. */
 	static play(path: string | string[], volume = 1, destination = this.soundGain, position?: Vector3) {
+		if (!this.enabled) return;
+
 		let audioSource = this.createAudioSource(path, destination, position);
 		audioSource.gain.gain.value = position? 0 : volume;
 		audioSource.play();
@@ -183,6 +187,8 @@ export abstract class AudioManager {
 	}
 
 	static stopAllAudio() {
+		if (!this.enabled) return;
+
 		for (let source of this.audioSources.slice()) {
 			source.stop();
 		}
@@ -280,6 +286,7 @@ export class AudioSource {
 	}
 
 	async play() {
+		if (!AudioManager.enabled) return;
 		if (this.playing) return;
 
 		if (this.stopped) {
@@ -316,8 +323,11 @@ export class AudioSource {
 	}
 
 	stop() {
+		if (!AudioManager.enabled) return;
+
 		this.stopped = true;
 		this.playing = false;
+
 		try {
 			if (this.audioElement) {
 				this.audioElement.pause();
@@ -330,6 +340,7 @@ export class AudioSource {
 				(this.node as AudioBufferSourceNode).stop();
 			}
 		} catch (e) {}
+
 		Util.removeFromArray(AudioManager.audioSources, this);
 	}
 }

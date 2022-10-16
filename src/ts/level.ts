@@ -93,7 +93,7 @@ export const GO_TIME = 3500;
 /** Default camera pitch */
 export const DEFAULT_PITCH = 0.45;
 const BLAST_CHARGE_TIME = 25000;
-const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should be large enough
+export const MAX_TIME = 999 * 60 * 1000 + 59 * 1000 + 999; // 999:59.99, should be large enough
 const MBP_SONGS = ['astrolabe.ogg', 'endurance.ogg', 'flanked.ogg', 'grudge.ogg', 'mbp old shell.ogg', 'quiet lab.ogg', 'rising temper.ogg', 'seaside revisited.ogg', 'the race.ogg'];
 
 // Used for frame rate limiting working correctly
@@ -220,10 +220,6 @@ export class Level extends Scheduler {
 	/** Whether or not the player is currently pressing the restart button. */
 	pressingRestart = false;
 	restartPressTime: number = null;
-	/** The time state at the last point the help text was updated. */
-	helpTextTimeState: TimeState = null;
-	/** The time state at the last point the alert text was updated. */
-	alertTextTimeState: TimeState = null;
 
 	/** Stores the shape that is the destination of the current checkpoint. */
 	currentCheckpoint: Shape = null;
@@ -495,14 +491,6 @@ export class Level extends Scheduler {
 				shape.ambientSpinFactor /= 2;
 				shape.setOpacity(0);
 			}
-		}
-
-		if (this.totalGems > 0) {
-			// Show the gem overlay
-			state.menu.hud.setGemVisibility(true);
-		} else {
-			// Hide the gem UI
-			state.menu.hud.setGemVisibility(false);
 		}
 
 		this.overlayScene.compile();
@@ -787,11 +775,7 @@ export class Level extends Scheduler {
 		this.lastPhysicsTick = null;
 		this.maxDisplayedTime = 0;
 		this.blastAmount = 0;
-
-		if (this.totalGems > 0) {
-			this.gemCount = 0;
-			hud.displayGemCount(this.gemCount, this.totalGems);
-		}
+		this.gemCount = 0;
 
 		this.currentCheckpoint = null;
 		this.currentCheckpointTrigger = null;
@@ -947,48 +931,9 @@ export class Level extends Scheduler {
 		this.overlayScene.prepareForRender(this.overlayCamera);
 		mainRenderer.render(this.overlayScene, this.overlayCamera, null, false);
 
-		// This might seem a bit strange, but the time we display is actually a few milliseconds in the PAST (unless the user is currently in TT or has finished), for the reason that time was able to go backwards upon finishing or collecting TTs due to CCD time correction. That felt wrong, so we accept this inaccuracy in displaying time for now.
-		let timeToDisplay = tempTimeState.gameplayClock;
-		if (this.finishTime) timeToDisplay = this.finishTime.gameplayClock;
-		if (this.currentTimeTravelBonus === 0 && !this.finishTime) timeToDisplay = Math.max(timeToDisplay - 1000 / PHYSICS_TICK_RATE, 0);
-		this.maxDisplayedTime = Math.max(timeToDisplay, this.maxDisplayedTime);
-		if (this.currentTimeTravelBonus === 0 && !this.finishTime) timeToDisplay = this.maxDisplayedTime;
-
-		timeToDisplay = Math.min(timeToDisplay, MAX_TIME);
-
 		let hud = state.menu.hud;
-		hud.displayTime(timeToDisplay / 1000, this.determineClockColor(timeToDisplay));
-		hud.displayBlastMeterFullness(this.blastAmount);
+		hud.renderHud(tempTimeState);
 		hud.displayFps();
-
-		// Update help and alert text visibility
-		let helpTextTime = this.helpTextTimeState?.timeSinceLoad ?? -Infinity;
-		let alertTextTime = this.alertTextTimeState?.timeSinceLoad ?? -Infinity;
-		let helpTextCompletion = Util.clamp((this.timeState.timeSinceLoad - helpTextTime - 3000) / 1000, 0, 1) ** 2;
-		let alertTextCompletion = Util.clamp((this.timeState.timeSinceLoad - alertTextTime - 3000) / 1000, 0, 1) ** 2;
-
-		hud.helpElement.style.opacity = (1 - helpTextCompletion).toString();
-		hud.helpElement.style.filter = `brightness(${Util.lerp(1, 0.25, helpTextCompletion)})`;
-		hud.alertElement.style.opacity = (1 - alertTextCompletion).toString();
-		hud.alertElement.style.filter = `brightness(${Util.lerp(1, 0.25, alertTextCompletion)})`;
-	}
-
-	determineClockColor(timeToDisplay: number) {
-		if (state.modification === 'gold') return;
-
-		if (this.finishTime) return 'green'; // Even if not qualified
-		if (this.timeState.currentAttemptTime < GO_TIME || this.currentTimeTravelBonus > 0) return 'green';
-		if (timeToDisplay >= this.mission.qualifyTime) return 'red';
-
-		if (this.timeState.currentAttemptTime >= GO_TIME && isFinite(this.mission.qualifyTime) && state.modification === 'platinum') {
-			// Create the flashing effect
-			let alarmStart = this.mission.computeAlarmStartTime();
-			let elapsed = timeToDisplay - alarmStart;
-			if (elapsed < 0) return;
-			if (Math.floor(elapsed / 1000) % 2 === 0) return 'red';
-		}
-
-		return; // Default yellow
 	}
 
 	/** Updates the position of the camera based on marble position and orientation. */
@@ -1325,7 +1270,7 @@ export class Level extends Scheduler {
 		this.world.gravity.copy(gravityVector);
 	}
 
-	onResize(width = window.innerWidth, height = window.innerHeight) {
+	onResize(width: number, height: number, pixelRatio: number) {
 		if (!this.camera || !this.overlayCamera) return;
 
 		this.camera.aspect = width / height;
@@ -1336,6 +1281,8 @@ export class Level extends Scheduler {
 		this.overlayCamera.top = 0;
 		this.overlayCamera.bottom = height;
 		this.overlayCamera.updateProjectionMatrix();
+
+		state.menu.hud.setSize(width, height, Math.max(pixelRatio, 1));
 	}
 
 	onMouseMove(e: MouseEvent) {
@@ -1419,7 +1366,6 @@ export class Level extends Scheduler {
 		}
 
 		state.menu.hud.displayAlert(string);
-		state.menu.hud.displayGemCount(this.gemCount, this.totalGems);
 	}
 
 	addTimeTravelBonus(bonus: number, timeToRevert: number) {
@@ -1524,7 +1470,6 @@ export class Level extends Scheduler {
 				this.gemCount--;
 			}
 		}
-		state.menu.hud.displayGemCount(this.gemCount, this.totalGems);
 		state.menu.hud.setCenterText('none');
 
 		// Turn all of these off

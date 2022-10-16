@@ -166,10 +166,10 @@ export abstract class Util {
 
 	static lerpColors(c1: RGBAColor, c2: RGBAColor, t: number) {
 		return {
-			r: Util.lerp(c1.r, c2.r, t),
-			g: Util.lerp(c1.g, c2.g, t),
-			b: Util.lerp(c1.b, c2.b, t),
-			a: Util.lerp(c1.a, c2.a, t)
+			r: Math.floor(Util.lerp(c1.r, c2.r, t)),
+			g: Math.floor(Util.lerp(c1.g, c2.g, t)),
+			b: Math.floor(Util.lerp(c1.b, c2.b, t)),
+			a: Math.floor(Util.lerp(c1.a, c2.a, t))
 		} as RGBAColor;
 	}
 

@@ -545,10 +545,13 @@ export class Replay {
 			type: 'application/octet-stream'
 		});
 		let url = URL.createObjectURL(blob);
+
 		let filename = Util.removeSpecialChars(mission.title.toLowerCase().split(' ').map(x => Util.uppercaseFirstLetter(x)).join(''));
-		for (let i = 0; i < 6; i++) filename += Math.floor(Math.random() * 10); // Add a random string of numbers to the end
+		filename += '-';
+		for (let i = 0; i < 6; i++) filename += '0123456789abcdef'[Math.floor(Math.random() * 16)]; // Add a random hex string to the end
 		if (unfinished) filename += 'u'; // Clearly mark the replay as being unfinished
 		filename += '.wrec';
+
 		Util.download(url, filename);
 		URL.revokeObjectURL(url);
 	}
