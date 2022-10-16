@@ -1,7 +1,7 @@
 # Version History
 
 ## 2.5.0
-- **Added a built-in replay video renderer.** By Shift-Clicking on a replay or the "open replay" button, you can now render the replay to a WebM video file straight from the browser - with arbitrary screen resolution, frame rate and quality. This feature uses rather new browser technologies and is thus currently only avaiable in browsers running Chromium 94 or above (Chrome 94, Edge 94, Opera 80).
+- **Added a built-in replay video renderer.** By Shift-Clicking on a replay or the "open replay" button, you can now render the replay to a WebM video file straight from the browser - with arbitrary screen resolution, frame rate and quality. This feature uses rather new browser technologies and is thus currently only avaiable in browsers running Chromium 94 or above (Chrome 94, Edge 94, Opera 80). Only video is exported, no audio yet.
 
 ## 2.4.14
 - Improved logic for handling missing level resources
