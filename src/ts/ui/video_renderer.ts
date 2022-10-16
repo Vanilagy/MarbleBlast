@@ -8,6 +8,7 @@ import { Util } from "../util";
 import { workerSetTimeout } from "../worker";
 import { mainCanvas, mainRenderer } from "./misc";
 
+/** Handles rendering replays into playable video files. */
 export abstract class VideoRenderer {
 	static div: HTMLDivElement;
 	static configContainer: HTMLDivElement;
@@ -381,6 +382,11 @@ export abstract class VideoRenderer {
 
 	/** Opens the video renderer UI, ready to render the specified `replay`. */
 	static show(mission: Mission, replay: Replay) {
+		if (!('showSaveFilePicker' in window) || !('VideoEncoder' in window)) {
+			state.menu.showAlertPopup("Not supported", "Unfortunately, your browser does not support the technology required by the video renderer. To access this feature, try using Chromium 94 or above (Chrome 94, Edge 94, Opera 80) on desktop.");
+			return;
+		}
+
 		this.div.classList.remove('hidden');
 		state.menu.levelSelect.hide();
 		this.stopped = false;

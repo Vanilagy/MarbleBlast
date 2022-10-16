@@ -1270,7 +1270,7 @@ export class Level extends Scheduler {
 		this.world.gravity.copy(gravityVector);
 	}
 
-	onResize(width: number, height: number, pixelRatio: number) {
+	onResize(width: number, height: number, hudPixelRatio: number) {
 		if (!this.camera || !this.overlayCamera) return;
 
 		this.camera.aspect = width / height;
@@ -1282,7 +1282,7 @@ export class Level extends Scheduler {
 		this.overlayCamera.bottom = height;
 		this.overlayCamera.updateProjectionMatrix();
 
-		state.menu.hud.setSize(width, height, Math.max(pixelRatio, 1));
+		state.menu.hud.setSize(width, height, hudPixelRatio);
 	}
 
 	onMouseMove(e: MouseEvent) {
