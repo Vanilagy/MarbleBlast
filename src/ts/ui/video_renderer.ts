@@ -250,8 +250,12 @@ export abstract class VideoRenderer {
 			});
 
 			// Bubble worker errors up to this context
+			let workerThrew = false;
 			worker.addEventListener('message', e => {
-				if (e.data.command === 'error') throw new Error(e.data.error);
+				if (e.data.command === 'error') {
+					workerThrew = true;
+					console.error(e);
+				}
 			});
 
 			// We use this variable to compute the completion of the encoding process
@@ -307,6 +311,9 @@ export abstract class VideoRenderer {
 					// In fast mode, we wait a fixed 16 milliseconds between rendering frames. Rendering any faster has little benefit as we're limited by video encoding speed. Also, we might lose the WebGL context.
 					await new Promise<void>(resolve => workerSetTimeout(resolve, 16));
 				}
+
+				if (workerThrew) throw new Error("Error in Worker");
+				if (mainRenderer.gl.isContextLost()) throw new Error("Context lost");
 			}
 
 			level.stop();
