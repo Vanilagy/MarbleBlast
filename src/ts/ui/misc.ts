@@ -42,7 +42,7 @@ export const resize = async (wait = true) => {
 	mainRenderer?.setSize(window.innerWidth, window.innerHeight);
 	mainRenderer?.setPixelRatio(pixelRatio);
 
-	state.level?.onResize(window.innerWidth, window.innerHeight, window.devicePixelRatio);
+	state.level?.onResize(window.innerWidth, window.innerHeight, Math.max(pixelRatio, 1));
 };
 window.addEventListener('resize', resize as any);
 
