@@ -300,9 +300,6 @@ export class Level extends Scheduler {
 		resize(false); // To update renderer
 		this.updateCamera(this.timeState); // Ensure that the camera is positioned correctly before the first tick for correct positional audio playback
 
-		// Render them once
-		for (let shape of this.shapes) if (shape.isTSStatic) shape.render(this.timeState);
-
 		if (!this.offline) {
 			this.tryRender();
 			this.tickInterval = setInterval(this.tick.bind(this)) as unknown as number;
@@ -894,7 +891,7 @@ export class Level extends Scheduler {
 
 		this.marble.render(tempTimeState);
 		for (let interior of this.interiors) interior.render(tempTimeState);
-		for (let shape of this.shapes) if (!shape.isTSStatic) shape.render(tempTimeState);
+		for (let shape of this.shapes) shape.render(tempTimeState);
 		this.particles.render(tempTimeState.timeSinceLoad);
 
 		this.updateCamera(tempTimeState);

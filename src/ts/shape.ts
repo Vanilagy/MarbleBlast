@@ -100,6 +100,7 @@ export class Shape {
 	directoryPath: string;
 	/** Whether or not this shape is being used as a TSStatic. TSStatic are static, non-moving shapes that basically can't do anything. */
 	isTSStatic = false;
+	hasBeenRendered = false;
 
 	group: Group;
 	meshes: Mesh[] = [];
@@ -796,6 +797,8 @@ export class Shape {
 	}
 
 	render(time: TimeState) {
+		if (this.isTSStatic && this.hasBeenRendered) return; // Render TSStatic's only once, since after that they don't change
+
 		this.tick(time, true); // Execute an only-visual tick
 
 		if (this.skinMeshInfo && this.isMaster) {
@@ -898,6 +901,8 @@ export class Shape {
 			this.group.orientation.copy(spinAnimation);
 			this.group.recomputeTransform();
 		}
+
+		this.hasBeenRendered = true;
 	}
 
 	/** Updates the transform of the shape's objects and bodies. */
