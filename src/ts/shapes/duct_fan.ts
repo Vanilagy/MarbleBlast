@@ -14,7 +14,7 @@ export class DuctFan extends ForceShape {
 	}
 
 	async onLevelStart() {
-		this.soundSource = AudioManager.createAudioSource(this.sounds[0], AudioManager.soundGain, this.worldPosition);
+		this.soundSource = this.level.audio.createAudioSource(this.sounds[0], undefined, this.worldPosition);
 		this.soundSource.setLoop(true);
 		this.soundSource.play();
 		await this.soundSource.promise;

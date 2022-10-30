@@ -4,7 +4,6 @@ import { IflParser } from "./parsing/ifl_parser";
 import { Util } from "./util";
 import { TimeState, Level } from "./level";
 import { INTERIOR_DEFAULT_RESTITUTION, INTERIOR_DEFAULT_FRICTION } from "./interior";
-import { AudioManager } from "./audio";
 import { MissionElement } from "./parsing/mis_parser";
 import { Group } from "./rendering/group";
 import { Material } from "./rendering/material";
@@ -373,7 +372,7 @@ export class Shape {
 		}
 
 		// Preload all sounds
-		await AudioManager.loadBuffers(this.sounds);
+		await level?.audio.loadBuffers(this.sounds);
 
 		if (this.level) this.level.loadingState.loaded++;
 	}

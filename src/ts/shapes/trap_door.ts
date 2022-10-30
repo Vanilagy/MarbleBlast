@@ -38,7 +38,7 @@ export class TrapDoor extends Shape {
 		let direction = Math.sign(currentCompletion - this.lastCompletion);
 		if (direction !== 0 && direction !== this.lastDirection) {
 			// If the direction has changed, play the sound
-			AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
+			this.level.audio.play(this.sounds[0], 1, undefined, this.worldPosition);
 		}
 
 		this.lastCompletion = currentCompletion;

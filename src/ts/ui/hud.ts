@@ -1,4 +1,3 @@
-import { AudioManager } from "../audio";
 import { actionButtonContainer, blastButton, freeLookButton, JOYSTICK_HANDLE_SIZE_FACTOR, jumpButton, movementJoystick, movementJoystickHandle, pauseButton, restartButton, setUseEnabled, useButton } from "../input";
 import { GO_TIME, MAX_TIME, PHYSICS_TICK_RATE, TimeState } from "../level";
 import { Vector2 } from "../math/vector2";
@@ -407,7 +406,7 @@ export abstract class Hud {
 
 		this.helpText = message;
 		this.helpTextTimeState = Util.jsonClone(state.level.timeState);
-		if (playSound) AudioManager.play('infotutorial.wav');
+		if (playSound) state.level.audio.play('infotutorial.wav');
 	}
 
 	/** Displays an alert at the bottom of the screen. */

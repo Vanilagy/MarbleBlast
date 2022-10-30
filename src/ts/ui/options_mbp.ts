@@ -1,4 +1,4 @@
-import { AudioManager, AudioSource } from "../audio";
+import { AudioSource, mainAudioManager } from "../audio";
 import { currentMousePosition } from "../input";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
@@ -124,14 +124,14 @@ export class MbpOptionsScreen extends OptionsScreen {
 
 		this.addSlider(this.generalContainer, 'fov', 'Field of View', 30, 120, undefined, undefined, 1, x => x.toString());
 
-		this.addSlider(this.generalContainer, 'musicVolume', 'Music Volume', 0, 1, () => AudioManager.updateVolumes(), undefined, undefined, x => Math.ceil(x * 100).toString());
+		this.addSlider(this.generalContainer, 'musicVolume', 'Music Volume', 0, 1, () => mainAudioManager.updateVolumes(), undefined, undefined, x => Math.ceil(x * 100).toString());
 
 		this.addSlider(this.generalContainer, 'mouseSensitivity', 'Mouse Speed', 0, 1);
 
-		this.addSlider(this.generalContainer, 'soundVolume', 'Sound Volume', 0, 1, () => AudioManager.updateVolumes(), () => {
+		this.addSlider(this.generalContainer, 'soundVolume', 'Sound Volume', 0, 1, () => mainAudioManager.updateVolumes(), () => {
 			if (!this.soundTestingSound) {
 				// Play this STUPID honk sound or whatever
-				this.soundTestingSound = AudioManager.createAudioSource('testing.wav');
+				this.soundTestingSound = mainAudioManager.createAudioSource('testing.wav');
 				this.soundTestingSound.setLoop(true);
 				this.soundTestingSound.play();
 			}

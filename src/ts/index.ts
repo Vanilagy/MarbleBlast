@@ -1,6 +1,6 @@
 import './input';
 import { ResourceManager } from "./resources";
-import { AudioManager } from "./audio";
+import { mainAudioManager } from "./audio";
 import { StorageManager } from './storage';
 import { Util } from './util';
 import { Leaderboard } from './leaderboard';
@@ -21,7 +21,7 @@ const init = async () => {
 
 	loadingDetail.textContent = 'Loading levels...';
 	await MissionLibrary.init();
-	AudioManager.init();
+	mainAudioManager.init();
 
 	loadingDetail.textContent = 'Loading UI...';
 	await setMenu(StorageManager.data.modification);
@@ -55,13 +55,13 @@ const init = async () => {
 	const start = async () => {
 		started = true;
 		startGameDialog.style.display = 'none';
-		AudioManager.context.resume();
+		mainAudioManager.context.resume();
 		state.menu.show();
 	};
 
 	loadingMessage.style.display = 'none';
 	loadingDetail.style.display = 'none';
-	if (AudioManager.context.state === "running" && !Util.isSafari()) {
+	if (mainAudioManager.context.state === "running" && !Util.isSafari()) {
 		// Start the game automatically if we already have audio autoplay permission.
 		start();
 		return;
@@ -147,7 +147,7 @@ const sendErrors = () => {
 		fetch('./api/error', {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/json',
+				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
 				userAgent: navigator.userAgent,

@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { AudioManager, mainAudioManager } from "../audio";
 import { ResourceManager } from "../resources";
 import { Util } from "../util";
 import { BestTimes, StorageManager } from "../storage";
@@ -414,10 +414,10 @@ export abstract class LevelSelect {
 		});
 
 		icon.addEventListener('mouseenter', () => {
-			AudioManager.play('buttonover.wav');
+			mainAudioManager.play('buttonover.wav');
 		});
 		icon.addEventListener('mousedown', (e) => {
-			if (e.button === 0) AudioManager.play('buttonpress.wav');
+			if (e.button === 0) mainAudioManager.play('buttonpress.wav');
 		});
 
 		return icon;
@@ -551,7 +551,7 @@ export abstract class LevelSelect {
 		// A button to play
 		if (gamepad.buttons[0].value > 0.5 && !previousButtonState[0]) {
 			this.playCurrentMission();
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		}
 		// LT, RT to change category
 		if (gamepad.buttons[6].value > 0.5 && !previousButtonState[6]) {
@@ -580,7 +580,7 @@ export abstract class LevelSelect {
 				this.setMissionArray(MissionLibrary.ultraIntermediate);
 			else if (this.currentMissionArray === MissionLibrary.ultraCustom)
 				this.setMissionArray(MissionLibrary.ultraAdvanced);
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		}
 		if (gamepad.buttons[7].value > 0.5 && !previousButtonState[7]) {
 			// Should probably have a function for this tbh
@@ -608,16 +608,16 @@ export abstract class LevelSelect {
 				this.setMissionArray(MissionLibrary.ultraAdvanced);
 			else if (this.currentMissionArray === MissionLibrary.ultraAdvanced)
 				this.setMissionArray(MissionLibrary.ultraCustom);
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		}
 		// D-pad left+right to change missions
 		if (gamepad.buttons[14].value > 0.5 && !previousButtonState[14]) {
 			this.cycleMission(-1);
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		}
 		if (gamepad.buttons[15].value > 0.5 && !previousButtonState[15]) {
 			this.cycleMission(1);
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		}
 	}
 }

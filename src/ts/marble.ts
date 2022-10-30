@@ -266,23 +266,23 @@ export class Marble {
 		// Load the necessary rolling sounds
 		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"];
 		if (this.level.mission.hasBlast) toLoad.push("blast.wav");
-		await AudioManager.loadBuffers(toLoad);
+		await this.level.audio.loadBuffers(toLoad);
 
-		this.rollingSound = AudioManager.createAudioSource('rolling_hard.wav');
+		this.rollingSound = this.level.audio.createAudioSource('rolling_hard.wav');
 		this.rollingSound.play();
-		this.rollingSound.gain.gain.value = 0;
+		this.rollingSound.gain.gain.setValueAtTime(0, this.level.audio.currentTime);
 		this.rollingSound.setLoop(true);
 
 		// Check if we need to prep a Mega Marble sound
 		if (this.level.mission.allElements.some(x => x._type === MissionElementType.Item && x.datablock?.toLowerCase() === 'megamarbleitem')) {
-			this.rollingMegaMarbleSound = AudioManager.createAudioSource('mega_roll.wav');
-			this.rollingMegaMarbleSound.gain.gain.value = 0;
+			this.rollingMegaMarbleSound = this.level.audio.createAudioSource('mega_roll.wav');
+			this.rollingMegaMarbleSound.gain.gain.setValueAtTime(0, this.level.audio.currentTime);
 			this.rollingMegaMarbleSound.setLoop(true);
 		}
 
-		this.slidingSound = AudioManager.createAudioSource('sliding.wav');
+		this.slidingSound = this.level.audio.createAudioSource('sliding.wav');
 		this.slidingSound.play();
-		this.slidingSound.gain.gain.value = 0;
+		this.slidingSound.gain.gain.setValueAtTime(0, this.level.audio.currentTime);
 		this.slidingSound.setLoop(true);
 
 		await Promise.all([this.rollingSound.promise, this.slidingSound.promise, this.rollingMegaMarbleSound?.promise]);
@@ -417,9 +417,9 @@ export class Marble {
 			//this.body.addLinearVelocity(airMovementVector);
 			this.body.linearVelocity.add(airMovementVector);
 
-			this.slidingSound.gain.gain.value = 0;
-			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
-			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+			this.slidingSound.gain.gain.setValueAtTime(0, this.level.audio.currentTime);
+			this.rollingSound.gain.gain.linearRampToValueAtTime(0, this.level.audio.currentTime + 0.02);
+			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, this.level.audio.currentTime + 0.02);
 		}
 
 		movementRotationAxis.multiplyScalar(this.speedFac);
@@ -549,22 +549,22 @@ export class Marble {
 			// The expected movement based on the current angular velocity. If actual movement differs too much, we consider the marble to be "sliding".
 
 			if (predictedMovement.dot(surfaceRelativeVelocity) < -0.00001 || (predictedMovement.length() > 0.5 && predictedMovement.length() > surfaceRelativeVelocity.length() * 1.5)) {
-				this.slidingSound.gain.gain.value = 0.6;
-				this.rollingSound.gain.gain.value = 0;
-				if (this.rollingMegaMarbleSound) this.rollingMegaMarbleSound.gain.gain.value = 0;
+				this.slidingSound.gain.gain.setValueAtTime(0.6, this.level.audio.currentTime);
+				this.rollingSound.gain.gain.setValueAtTime(0, this.level.audio.currentTime);
+				if (this.rollingMegaMarbleSound) this.rollingMegaMarbleSound.gain.gain.setValueAtTime(0, this.level.audio.currentTime);
 			} else {
-				this.slidingSound.gain.gain.value = 0;
+				this.slidingSound.gain.gain.setValueAtTime(0, this.level.audio.currentTime);
 				let pitch = Util.clamp(surfaceRelativeVelocity.length() / 15, 0, 1) * 0.75 + 0.75;
 
-				this.rollingSound.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02);
-				this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), AudioManager.context.currentTime + 0.02);
+				this.rollingSound.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), this.level.audio.currentTime + 0.02);
+				this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(Util.clamp(pitch - 0.75, 0, 1), this.level.audio.currentTime + 0.02);
 				this.rollingSound.setPlaybackRate(pitch);
 				this.rollingMegaMarbleSound?.setPlaybackRate(pitch);
 			}
 		} else {
-			this.slidingSound.gain.gain.value = 0;
-			this.rollingSound.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
-			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, AudioManager.context.currentTime + 0.02);
+			this.slidingSound.gain.gain.setValueAtTime(0, this.level.audio.currentTime);
+			this.rollingSound.gain.gain.linearRampToValueAtTime(0, this.level.audio.currentTime + 0.02);
+			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, this.level.audio.currentTime + 0.02);
 		}
 	}
 
@@ -575,7 +575,7 @@ export class Marble {
 			this.shape.restitution = 0.01;  // Yep it's not actually zero
 
 			if (!this.shockAbsorberSound) {
-				this.shockAbsorberSound = AudioManager.createAudioSource('superbounceactive.wav');
+				this.shockAbsorberSound = this.level.audio.createAudioSource('superbounceactive.wav');
 				this.shockAbsorberSound.setLoop(true);
 				this.shockAbsorberSound.play();
 			}
@@ -598,7 +598,7 @@ export class Marble {
 		}
 		if (time.currentAttemptTime - this.superBounceEnableTime < 5000 && !this.superBounceSound) {
 			// Play the super bounce sound
-			this.superBounceSound = AudioManager.createAudioSource('forcefield.wav');
+			this.superBounceSound = this.level.audio.createAudioSource('forcefield.wav');
 			this.superBounceSound.setLoop(true);
 			this.superBounceSound.play();
 		}
@@ -610,7 +610,7 @@ export class Marble {
 			this.level.setGravityIntensity(this.level.defaultGravity * 0.25);
 
 			if (!this.helicopterSound) {
-				this.helicopterSound = AudioManager.createAudioSource('use_gyrocopter.wav');
+				this.helicopterSound = this.level.audio.createAudioSource('use_gyrocopter.wav');
 				this.helicopterSound.setLoop(true);
 				this.helicopterSound.play();
 			}
@@ -636,12 +636,12 @@ export class Marble {
 	}
 
 	playJumpSound() {
-		AudioManager.play(['jump.wav']);
+		this.level.audio.play(['jump.wav']);
 	}
 
 	playBounceSound(volume: number) {
 		let prefix = (this.radius === MEGA_MARBLE_RADIUS)? 'mega_' : '';
-		AudioManager.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'].map(x => prefix + x), volume);
+		this.level.audio.play(['bouncehard1.wav', 'bouncehard2.wav', 'bouncehard3.wav', 'bouncehard4.wav'].map(x => prefix + x), volume);
 	}
 
 	showBounceParticles() {
@@ -754,7 +754,7 @@ export class Marble {
 
 		let impulse = this.level.currentUp.clone().multiplyScalar(Math.max(Math.sqrt(this.level.blastAmount), this.level.blastAmount) * 10);
 		this.body.linearVelocity.add(impulse);
-		AudioManager.play('blast.wav');
+		this.level.audio.play('blast.wav');
 		this.level.particles.createEmitter(
 			(this.level.blastAmount > 1)? blastMaxParticleOptions : blastParticleOptions,
 			null,

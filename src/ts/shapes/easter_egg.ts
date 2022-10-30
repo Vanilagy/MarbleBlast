@@ -19,7 +19,7 @@ export class EasterEgg extends PowerUp {
 			state.menu.levelSelect.displayMission(); // To refresh the icon
 		}
 
-		AudioManager.play(this.sounds[Number(alreadyFound)]); // Holy shit this cast is nasty
+		this.level.audio.play(this.sounds[Number(alreadyFound)]); // Holy shit this cast is nasty
 		this.customPickUpAlert = alreadyFound? "You already found this Easter Egg." : "You found an Easter Egg!";
 
 		return true;

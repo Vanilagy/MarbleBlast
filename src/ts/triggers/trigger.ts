@@ -1,7 +1,6 @@
 import { MissionElementTrigger, MisParser } from "../parsing/mis_parser";
 import { TimeState, Level } from "../level";
 import { Util } from "../util";
-import { AudioManager } from "../audio";
 import { ConvexHullCollisionShape } from "../physics/collision_shape";
 import { RigidBody, RigidBodyType } from "../physics/rigid_body";
 import { Vector3 } from "../math/vector3";
@@ -84,7 +83,7 @@ export class Trigger {
 	async init() {
 		// Preload all sounds
 		for (let sound of this.sounds) {
-			await AudioManager.loadBuffer(sound);
+			await this.level.audio.loadBuffer(sound);
 		}
 	}
 

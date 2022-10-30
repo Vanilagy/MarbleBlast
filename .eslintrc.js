@@ -29,6 +29,8 @@ module.exports = {
 		"no-async-promise-executor": ["off"],
 		"@typescript-eslint/no-this-alias": ["off"],
 		"no-empty": ["error", { "allowEmptyCatch": true }],
-		"no-trailing-spaces": ["warn"]
+		"no-trailing-spaces": ["warn"],
+		"no-warning-comments": ["warn", { "terms": ["todo", "fixme", "temp"] }],
+		"comma-dangle": ["warn", "never"]
 	}
 };

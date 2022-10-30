@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { AudioManager, mainAudioManager } from "../audio";
 import { Mission } from "../mission";
 import { BestTimes } from "../storage";
 import { Util } from "../util";
@@ -50,7 +50,7 @@ export class MbgLevelSelect extends LevelSelect {
 		const setupTab = (element: HTMLImageElement, levels: Mission[]) => {
 			element.addEventListener('mousedown', (e) => {
 				if (e.button !== 0) return;
-				AudioManager.play('buttonpress.wav');
+				mainAudioManager.play('buttonpress.wav');
 			});
 			element.addEventListener('click', (e) => e.button === 0 && this.setMissionArray(levels));
 		};
@@ -63,20 +63,20 @@ export class MbgLevelSelect extends LevelSelect {
 			this.showLoadReplayPrompt(e);
 		});
 		this.loadReplayButton.addEventListener('mouseenter', () => {
-			AudioManager.play('buttonover.wav');
+			mainAudioManager.play('buttonover.wav');
 		});
 		this.loadReplayButton.addEventListener('mousedown', (e) => {
-			if (e.button === 0) AudioManager.play('buttonpress.wav');
+			if (e.button === 0) mainAudioManager.play('buttonpress.wav');
 		});
 
 		this.shuffleButton.addEventListener('click', () => {
 			this.shuffle();
 		});
 		this.shuffleButton.addEventListener('mouseenter', () => {
-			AudioManager.play('buttonover.wav');
+			mainAudioManager.play('buttonover.wav');
 		});
 		this.shuffleButton.addEventListener('mousedown', (e) => {
-			if (e.button === 0) AudioManager.play('buttonpress.wav');
+			if (e.button === 0) mainAudioManager.play('buttonpress.wav');
 		});
 
 		// Preload images and leaderboards

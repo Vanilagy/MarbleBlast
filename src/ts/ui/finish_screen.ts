@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { AudioManager, mainAudioManager } from "../audio";
 import { isPressedByGamepad, getPressedFlag, resetPressedFlag } from "../input";
 import { Leaderboard } from "../leaderboard";
 import { GO_TIME } from "../level";
@@ -201,25 +201,25 @@ export abstract class FinishScreen {
 			if (isPressedByGamepad('jump') && getPressedFlag('jump')) {
 				resetPressedFlag('jump');
 				this.nameEntryButton.click();
-				AudioManager.play('buttonpress.wav');
+				mainAudioManager.play('buttonpress.wav');
 			}
 		} else if (!this.div.classList.contains('hidden')) {
 			// Check for buttons
 			if (isPressedByGamepad('use') && getPressedFlag('use')) {
 				resetPressedFlag('use');
 				this.viewReplayButton.click();
-				AudioManager.play('buttonpress.wav');
+				mainAudioManager.play('buttonpress.wav');
 			}
 			if (isPressedByGamepad('jump') && getPressedFlag('jump')) {
 				resetPressedFlag('jump');
 				this.continueButton.click();
-				AudioManager.play('buttonpress.wav');
+				mainAudioManager.play('buttonpress.wav');
 				return;
 			}
 			if (isPressedByGamepad('restart') && getPressedFlag('restart')) {
 				resetPressedFlag('restart');
 				this.replayButton.click();
-				AudioManager.play('buttonpress.wav');
+				mainAudioManager.play('buttonpress.wav');
 			}
 		}
 	}

@@ -239,8 +239,9 @@ export class Replay {
 		this.cameraOrientations.push({ yaw: this.level.yaw, pitch: this.level.pitch });
 
 		// Store sound state in the replay too
-		this.rollingSoundGain.push(marble.rollingSound.gain.gain.value);
-		this.rollingSoundPlaybackRate.push((marble.rollingSound.node as AudioBufferSourceNode).playbackRate.value);
+		let rollingSound = (marble.rollingMegaMarbleSound?.playing ? marble.rollingMegaMarbleSound : marble.rollingSound);
+		this.rollingSoundGain.push(rollingSound.gain.gain.value);
+		this.rollingSoundPlaybackRate.push((rollingSound.node as AudioBufferSourceNode).playbackRate.value);
 		this.slidingSoundGain.push(marble.slidingSound.gain.gain.value);
 
 		if (this.level.finishTime && this.finishTime === null) this.finishTime = Util.jsonClone(this.level.finishTime);
@@ -382,9 +383,11 @@ export class Replay {
 				if (this.bounceTimes[j].showParticles) this.level.marble.showBounceParticles();
 			}
 		}
-		this.level.marble.rollingSound.gain.gain.value = this.rollingSoundGain[i];
+		this.level.marble.rollingSound.gain.gain.setValueAtTime(this.rollingSoundGain[i], this.level.audio.currentTime);
+		this.level.marble.rollingMegaMarbleSound?.gain.gain.setValueAtTime(this.rollingSoundGain[i], this.level.audio.currentTime);
 		this.level.marble.rollingSound.setPlaybackRate(this.rollingSoundPlaybackRate[i]);
-		this.level.marble.slidingSound.gain.gain.value = this.slidingSoundGain[i];
+		this.level.marble.rollingMegaMarbleSound?.setPlaybackRate(this.rollingSoundPlaybackRate[i]);
+		this.level.marble.slidingSound.gain.gain.setValueAtTime(this.slidingSoundGain[i], this.level.audio.currentTime);
 	}
 
 	isPlaybackComplete() {

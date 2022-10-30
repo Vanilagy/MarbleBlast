@@ -1,4 +1,3 @@
-import { AudioManager } from "../audio";
 import { PowerUp } from "./power_up";
 
 export class MegaMarble extends PowerUp {
@@ -13,6 +12,6 @@ export class MegaMarble extends PowerUp {
 	use() {
 		this.level.marble.enableMegaMarble(this.level.timeState);
 		this.level.deselectPowerUp();
-		AudioManager.play(this.sounds[1]);
+		this.level.audio.play(this.sounds[1]);
 	}
 }

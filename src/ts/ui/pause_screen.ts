@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { AudioManager, mainAudioManager } from "../audio";
 import { previousButtonState, resetPressedFlag } from "../input";
 import { Replay } from "../replay";
 import { state } from "../state";
@@ -94,24 +94,24 @@ export abstract class PauseScreen {
 		// A button to exit
 		if (gamepad.buttons[0].value > 0.5 && !previousButtonState[0]) {
 			state.level.stopAndExit();
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		}
 		// B button or pause button to continue
 		if (gamepad.buttons[1].value > 0.5 && !previousButtonState[1]) {
 			state.level.unpause();
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		}
 		if (gamepad.buttons[9].value > 0.5 && !previousButtonState[9]) {
 			state.level.unpause();
 			resetPressedFlag('pause');
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		}
 		// Restart button to restart
 		if (gamepad.buttons[8].value > 0.5 && !previousButtonState[8]) {
 			state.level.unpause();
 			state.level.restart(true);
 			state.level.pressingRestart = true;
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		}
 	}
 }

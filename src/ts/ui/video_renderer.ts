@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { OFFLINE_CONTEXT_SAMPLE_RATE } from "../audio";
 import { Level, PHYSICS_TICK_RATE } from "../level";
 import { Mission } from "../mission";
 import { Replay } from "../replay";
@@ -44,7 +44,7 @@ export abstract class VideoRenderer {
 				types: [{
 					description: 'Video File',
 					accept: {'video/webm' :['.webm']}
-				}],
+				}]
 			} as any);
 			this.fileHandle = fileHandle;
 
@@ -80,86 +80,7 @@ export abstract class VideoRenderer {
 
 	/** Creates a Worker that will be responsible for video encoding and writing to disk - it makes sense to perform these operations in a separate thread. */
 	static async createWorker() {
-		const body = () => {
-			let url: string;
-			let webmWriter: WebMWriter;
-			let encoder: VideoEncoder;
-			let fileWritableStream: FileSystemWritableFileStream;
-			let frames: VideoFrame[] = [];
-
-			self.onmessage = async (e: MessageEvent) => {
-				if (!url) {
-					// The first message received will be the url
-					url = e.data;
-					self.importScripts(url + 'lib/webm_writer.js');
-
-					self.postMessage('ready');
-					return;
-				}
-
-				let data = e.data;
-
-				try {
-					if (data.command === 'setup') {
-						// Set up the writable stream, the WebM writer and video encoder.
-
-						fileWritableStream = await data.fileHandle.createWritable();
-
-						webmWriter = new WebMWriter({
-							fileWriter: fileWritableStream,
-							codec: 'VP9',
-							width: data.width,
-							height: data.height
-						});
-
-						encoder = new VideoEncoder({
-							output: chunk => {
-								webmWriter.addFrame(chunk);
-								self.postMessage({
-									command: 'chunkEncoded',
-									timestamp: chunk.timestamp
-								});
-							},
-							error: e => console.error(e)
-						});
-						encoder.configure({
-							codec: "vp09.00.10.08",
-							width: data.width,
-							height: data.height,
-							bitrate: 1000 * data.kilobitRate,
-							latencyMode: 'realtime'
-						});
-					} else if (data.command === 'frame') {
-						// Encode a new video frame
-						encoder.encode(data.frame);
-						data.frame.close();
-					} else if (data.command === 'encodeAll') { // Not used atm
-						for (let frame of frames) {
-							encoder.encode(frame);
-							frame.close();
-						}
-					} else if (data.command === 'finishUp') {
-						// Finishes the remaining work
-
-						await encoder.flush();
-						encoder.close();
-
-						await webmWriter.complete();
-						fileWritableStream.close();
-
-						self.postMessage('done');
-					}
-				} catch (e) {
-					// Bubble up the error
-					self.postMessage({
-						command: 'error',
-						error: e
-					});
-				}
-			};
-		};
-
-		let entire = body.toString();
+		let entire = workerBody.toString();
 		let bodyString = entire.slice(entire.indexOf("{") + 1, entire.lastIndexOf("}"));
 		let blob = new Blob([bodyString]);
 		let worker = new Worker(URL.createObjectURL(blob));
@@ -180,11 +101,11 @@ export abstract class VideoRenderer {
 		let fastMode = (this.div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked;
 
 		// Check input validity
-		if (!Number.isInteger(width) || width < 1) {
-			state.menu.showAlertPopup("Error", `"Width" has to be a positive integer.`);
+		if (!Number.isInteger(width) || width < 1 || width % 2 !== 0) {
+			state.menu.showAlertPopup("Error", `"Width" has to be a positive even integer.`);
 		}
-		if (!Number.isInteger(height) || height < 1) {
-			state.menu.showAlertPopup("Error", `"Height" has to be a positive integer.`);
+		if (!Number.isInteger(height) || height < 1 || height % 2 !== 0) {
+			state.menu.showAlertPopup("Error", `"Height" has to be a positive even integer.`);
 		}
 		if (!isFinite(kilobitRate) || kilobitRate < 1) {
 			state.menu.showAlertPopup("Error", `"Bit rate" has an illegal value.`);
@@ -226,12 +147,9 @@ export abstract class VideoRenderer {
 		let worker = await this.createWorker();
 
 		try {
-			// Disable all new audio for the time being (to silence the level playback)
-			AudioManager.enabled = false;
-
 			// Load the mission and level
 			await this.mission.load();
-			level = new Level(this.mission, true);
+			level = new Level(this.mission, { duration: this.tickLength/PHYSICS_TICK_RATE });
 			state.level = level;
 			await level.init();
 			level.replay = this.replay;
@@ -246,15 +164,18 @@ export abstract class VideoRenderer {
 				width,
 				height,
 				kilobitRate,
+				frameRate,
 				fileHandle: this.fileHandle
 			});
 
 			// Bubble worker errors up to this context
-			let workerThrew = false;
 			worker.addEventListener('message', e => {
 				if (e.data.command === 'error') {
-					workerThrew = true;
 					console.error(e);
+
+					level?.stop();
+					clearInterval(id);
+					this.exitWithError();
 				}
 			});
 
@@ -274,7 +195,7 @@ export abstract class VideoRenderer {
 			let compositeCanvas = document.createElement('canvas');
 			compositeCanvas.setAttribute('width', width.toString());
 			compositeCanvas.setAttribute('height', height.toString());
-			let ctx = compositeCanvas.getContext('2d');
+			let ctx = compositeCanvas.getContext('2d', { willReadFrequently: true });
 
 			// Now, render all the frames we need
 			for (let frame = 0; frame < totalFrames; frame++) {
@@ -289,12 +210,12 @@ export abstract class VideoRenderer {
 				ctx.drawImage(mainCanvas, 0, 0);
 				ctx.drawImage(state.menu.hud.hudCanvas, 0, 0);
 
-				// Create the video frame and send it off to the worker
-				let videoFrame = new VideoFrame(compositeCanvas, { timestamp: 1000 * time });
+				let imageBuffer = ctx.getImageData(0, 0, width, height).data.buffer;
 				worker.postMessage({
-					command: 'frame',
-					frame: videoFrame
-				}, [videoFrame] as any);
+					command: 'videoData',
+					data: imageBuffer,
+					timestamp: 1000 * time
+				}, [imageBuffer]);
 
 				this.statusText.textContent = `Rendering frame ${Math.min(frame + 1, totalFrames)}/${totalFrames}`;
 				this.progressBar.value = 0.1 + 0.6 * Math.min(frame + 1, totalFrames)/totalFrames; // 10%-70% of the progress bar
@@ -312,9 +233,30 @@ export abstract class VideoRenderer {
 					await new Promise<void>(resolve => workerSetTimeout(resolve, 16));
 				}
 
-				if (workerThrew) throw new Error("Error in Worker");
 				if (mainRenderer.gl.isContextLost()) throw new Error("Context lost");
 			}
+
+			let context = level.audio.context as OfflineAudioContext;
+			let audioBuffer = await context.startRendering();
+
+			let audioDataData = new Float32Array(audioBuffer.length * 2);
+			audioBuffer.copyFromChannel(audioDataData, 0);
+			audioBuffer.copyFromChannel(audioDataData.subarray(audioBuffer.length), 1);
+
+			// todo this + playbackSpeed
+			let audioData = new AudioData({
+				format: 'f32-planar',
+				sampleRate: OFFLINE_CONTEXT_SAMPLE_RATE,
+				numberOfFrames: audioBuffer.length,
+				numberOfChannels: 2,
+				timestamp: 0,
+				data: audioDataData
+			});
+			console.log(audioData);
+			worker.postMessage({
+				command: 'audioData',
+				audioData
+			}, [audioData as any]);
 
 			level.stop();
 			state.level = null;
@@ -356,24 +298,11 @@ export abstract class VideoRenderer {
 		} catch (e) {
 			console.error(e);
 
-			let lostContext = mainRenderer.gl.isContextLost();
-			let message: string;
-
-			if (lostContext) {
-				// Show a more insightful error message when WebGL context loss was the culprit
-				message = `Your WebGL context has been lost during rendering, meaning that your browser thought the rendering task was too taxing on your hardware. Rendering using fast mode might be the cause of this. Please reload the page to restore the context.`;
-			} else {
-				message = "There has been an error during video rendering.";
-			}
-
-			state.menu.showAlertPopup("Rendering failed", message);
-
 			level?.stop();
-			state.level = null;
 			clearInterval(id);
+			this.exitWithError();
 		} finally {
 			worker.terminate();
-			AudioManager.enabled = true;
 			this.hide();
 		}
 	}
@@ -441,4 +370,194 @@ export abstract class VideoRenderer {
 		this.renderButton.textContent = 'Render';
 		this.closeButton.style.display = '';
 	}
+
+	static exitWithError() {
+		let lostContext = mainRenderer.gl.isContextLost();
+		let message: string;
+
+		if (lostContext) {
+			// Show a more insightful error message when WebGL context loss was the culprit
+			message = `Your WebGL context has been lost during rendering, meaning that your browser thought the rendering task was too taxing on your hardware. Rendering using fast mode might be the cause of this. Please reload the page to restore the context.`;
+		} else {
+			message = "There has been an error during video rendering.";
+		}
+
+		state.menu.showAlertPopup("Rendering failed", message);
+
+		state.level = null;
+		this.stopped = true;
+	}
 }
+
+const workerBody = () => {
+	let url: string;
+	let webmWriter: WebMWriter;
+	let videoEncoder: VideoEncoder;
+	let audioEncoder: AudioEncoder;
+	let fileWritableStream: FileSystemWritableFileStream;
+	let width: number;
+	let height: number;
+	let lastVideoKeyFrame = -Infinity;
+
+	self.onmessage = async (e: MessageEvent) => {
+		if (!url) {
+			// The first message received will be the url
+			url = e.data;
+			self.importScripts(url + 'lib/webm.js');
+
+			self.postMessage('ready');
+			return;
+		}
+
+		let data = e.data;
+
+		try {
+			if (data.command === 'setup') {
+				// Set up the writable stream, the WebM writer and video encoder.
+
+				fileWritableStream = await data.fileHandle.createWritable();
+				width = data.width;
+				height = data.height;
+
+				const audioSampleRate = 48_000;
+
+				webmWriter = new WebMWriter({
+					target: fileWritableStream,
+					video: {
+						codec: 'V_VP9',
+						width: data.width,
+						height: data.height,
+						frameRate: data.frameRate
+					},
+					audio: {
+						codec: 'A_OPUS',
+						numberOfChannels: 2,
+						sampleRate: audioSampleRate
+					}
+				});
+
+				videoEncoder = new VideoEncoder({
+					output: (chunk, metadata) => {
+						webmWriter.addVideoChunk(chunk, metadata);
+						if (chunk.type === 'key') {
+							lastVideoKeyFrame = Math.max(lastVideoKeyFrame, chunk.timestamp);
+						}
+
+						self.postMessage({
+							command: 'chunkEncoded',
+							timestamp: chunk.timestamp
+						});
+					},
+					error: e => console.error(e)
+				});
+				videoEncoder.configure({
+					codec: "vp09.00.10.08",
+					width: data.width,
+					height: data.height,
+					bitrate: 1000 * data.kilobitRate,
+					latencyMode: 'realtime'
+				});
+
+				audioEncoder = new AudioEncoder({
+					output: (chunk, metadata) => {
+						//console.log(chunk);
+						//console.log(metadata);
+						webmWriter.addAudioChunk(chunk, metadata);
+						// self.postMessage({
+						// 	command: 'chunkEncoded',
+						// 	timestamp: chunk.timestamp
+						// });
+					},
+					error: e => console.error(e)
+				});
+				audioEncoder.configure({
+					codec: 'opus',
+					numberOfChannels: 2,
+					sampleRate: audioSampleRate,
+					bitrate: 64_000
+				});
+			} else if (data.command === 'videoData') {
+				// Convert RGBA to YUV manually to avoid unwanted color space conversions by the user agent
+				let yuv = RGBAToYUV420({ width, height, data: new Uint8ClampedArray(data.data) });
+				let videoFrame = new VideoFrame(yuv, {
+					format: 'I420',
+					codedWidth: width,
+					codedHeight: height,
+					timestamp: data.timestamp,
+					colorSpace: {
+						matrix: 'bt709',
+						transfer: 'bt709',
+						primaries: 'bt709',
+						fullRange: false
+					}
+				});
+
+				// Force a video key frame every five seconds for better seeking
+				let needsKeyFrame = videoFrame.timestamp - lastVideoKeyFrame >= 5_000_000;
+				if (needsKeyFrame) lastVideoKeyFrame = videoFrame.timestamp;
+
+				// Encode a new video frame
+				videoEncoder.encode(videoFrame, { keyFrame: needsKeyFrame });
+				videoFrame.close();
+			} else if (data.command === 'audioData') {
+				audioEncoder.encode(data.audioData);
+				data.audioData.close();
+			} else if (data.command === 'finishUp') {
+				// Finishes the remaining work
+
+				await Promise.all([videoEncoder.flush(), audioEncoder.flush()]);
+				videoEncoder.close();
+				audioEncoder.close();
+
+				let clean = webmWriter.finalize();
+				await fileWritableStream.close();
+
+				console.log(clean);
+
+				self.postMessage('done');
+			}
+		} catch (e) {
+			// Bubble up the error
+			self.postMessage({
+				command: 'error',
+				error: e
+			});
+		}
+	};
+
+	/** Converts RGBA image data into Y'UV 4:2:0 using the BT.709 color space. Width and height have to be even. */
+	const RGBAToYUV420 = ({ width, height, data }: { width: number, height: number, data: Uint8ClampedArray }) => {
+		let yuv = new Uint8Array(width * height * 1.5);
+
+		// Using loop tiling as a cache optimization
+		const tileSize = 64;
+		for (let y0 = 0; y0 < height; y0 += tileSize) {
+			for (let x0 = 0; x0 < width; x0 += tileSize) {
+				let limitX = Math.min(width, x0 + tileSize);
+				let limitY = Math.min(height, y0 + tileSize);
+
+				for (let y = y0; y < limitY; y++) {
+					for (let x = x0; x < limitX; x++) {
+						let R = data[4*(y*width + x) + 0];
+						let G = data[4*(y*width + x) + 1];
+						let B = data[4*(y*width + x) + 2];
+
+						// Uses the matrix given in https://en.wikipedia.org/wiki/YCbCr#ITU-R_BT.709_conversion, then adds 128 to the chroma channels, then remaps full range to the condensed, broadcast range (also explained in that article). This entire transformation is condensed into a single matrix, used here:
+						let Y = 0.182586*R + 0.614231*G + 0.0620071*B + 16;
+						let U = -0.100668*R - 0.338547*G + 0.439216*B + 128.439;
+						let V = 0.439216*R - 0.398984*G - 0.0426039*B + 128.439;
+
+						yuv[y*width + x] = Y;
+
+						if (x % 2 === 0 && y % 2 === 0) {
+							yuv[1*width*height + (y*width/4 + x/2)] = U;
+							yuv[1.25*width*height + (y*width/4 + x/2)] = V;
+						}
+					}
+				}
+			}
+		}
+
+		return yuv;
+	};
+};

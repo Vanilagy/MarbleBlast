@@ -131,7 +131,7 @@ class Jukebox {
 		let level = state.level;
 
 		if (level.music) level.music.stop();
-		level.music = AudioManager.createAudioSource('music/' + song, AudioManager.musicGain, undefined, true);
+		level.music = level.audio.createAudioSource('music/' + song, level.audio.musicGain, undefined, true);
 		level.music.setLoop(true);
 		level.music.play();
 

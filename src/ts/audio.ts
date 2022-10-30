@@ -5,25 +5,43 @@ import { TimeState } from "./level";
 import { StorageManager } from "./storage";
 import { Vector3 } from "./math/vector3";
 
+export const OFFLINE_CONTEXT_SAMPLE_RATE = 48_000;
+
 /** A class used as an utility for sound playback. */
-export abstract class AudioManager {
-	static context: AudioContext;
-	static masterGain: GainNode;
-	static soundGain: GainNode;
-	static musicGain: GainNode;
+export class AudioManager {
+	context: AudioContext | OfflineAudioContext;
+	masterGain: GainNode;
+	soundGain: GainNode;
+	musicGain: GainNode;
 
-	/** When disabled, no audio can be played or stopped. */
-	static enabled = true;
-	static assetPath: string;
-	static audioBufferCache = new Map<string, Promise<AudioBuffer>>();
+	assetPath: string;
+	audioBufferCache = new Map<string, Promise<AudioBuffer>>();
 	/** Stores a list of all currently playing audio sources. */
-	static audioSources: AudioSource[] = [];
+	audioSources: AudioSource[] = [];
+	/** Can be set to schedule audio events to happen at a specific time. Useful for offline audio rendering. */
+	currentTimeOverride: number = null;
 
-	static oggDecoder: ReturnType<typeof OggdecModule>; // Because Safari
+	oggDecoder: ReturnType<typeof OggdecModule>; // Because Safari
 
-	static init() {
-		let AudioContext = window.AudioContext ?? (window as any).webkitAudioContext; // Safari
-		this.context = new AudioContext();
+	get currentTime() {
+		return this.currentTimeOverride ?? this.context.currentTime;
+	}
+
+	init(offline?: { duration: number }) {
+		if (window.AudioContext) {
+			if (!offline) {
+				this.context = new AudioContext();
+			} else {
+				this.context = new OfflineAudioContext(2, offline.duration * OFFLINE_CONTEXT_SAMPLE_RATE, OFFLINE_CONTEXT_SAMPLE_RATE);
+			}
+		} else {
+			// Safari
+			if (!offline) {
+				this.context = new (window as any).webkitAudioContext;
+			} else {
+				this.context = new (window as any).webkitOfflineAudioContext(2, offline.duration * OFFLINE_CONTEXT_SAMPLE_RATE, OFFLINE_CONTEXT_SAMPLE_RATE);
+			}
+		}
 
 		this.masterGain = this.context.createGain();
 		this.masterGain.gain.value = 1;
@@ -50,17 +68,17 @@ export abstract class AudioManager {
 		};
 	}
 
-	static setAssetPath(path: string) {
+	setAssetPath(path: string) {
 		this.assetPath = path;
 	}
 
-	static toFullPath(path: string) {
+	toFullPath(path: string) {
 		let fullPath = this.assetPath + path;
 		return fullPath;
 	}
 
 	/** Loads an audio buffer from a path. Returns the cached version whenever possible. */
-	static loadBuffer(path: string) {
+	loadBuffer(path: string) {
 		let fullPath = this.toFullPath(path);
 
 		// If there's a current level, see if there's a sound file for this path contained in it
@@ -105,7 +123,7 @@ export abstract class AudioManager {
 		return promise;
 	}
 
-	static loadBuffers(paths: string[]) {
+	loadBuffers(paths: string[]) {
 		return Promise.all(paths.map((path) => this.loadBuffer(path)));
 	}
 
@@ -116,7 +134,7 @@ export abstract class AudioManager {
 	 * @param position Optional: The position of the audio source in 3D space.
 	 * @param preferStreaming If true, uses a normal <audio> element instead of play the audio as quickly as possible.
 	 */
-	static createAudioSource(path: string | string[], destination = this.soundGain, position?: Vector3, preferStreaming = false) {
+	createAudioSource(path: string | string[], destination = this.soundGain, position?: Vector3, preferStreaming = false) {
 		let chosenPath = (typeof path === "string")? path : Util.randomFromArray(path);
 		let fullPath = this.toFullPath(chosenPath);
 		let audioSource: AudioSource;
@@ -131,17 +149,17 @@ export abstract class AudioManager {
 				let audioElement = new Audio();
 				audioElement.src = fullPath;
 				audioElement.preload = 'auto';
-				audioSource = new AudioSource(audioElement, destination, position);
+				audioSource = new AudioSource(this, audioElement, destination, position);
 			}
 		}
 		if (!preferStreaming) {
 			let bufferPromise = this.loadBuffer(chosenPath);
-			audioSource = new AudioSource(bufferPromise, destination, position);
+			audioSource = new AudioSource(this, bufferPromise, destination, position);
 		}
 
 		if (position) {
 			// Mute the sound by default to avoid any weird audible artifacts.
-			audioSource.gain.gain.value = 0;
+			audioSource.gain.gain.setValueAtTime(0, this.currentTime);
 		}
 
 		this.audioSources.push(audioSource);
@@ -149,16 +167,14 @@ export abstract class AudioManager {
 	}
 
 	/** Utility method for creating an audio source and playing it immediately. */
-	static play(path: string | string[], volume = 1, destination = this.soundGain, position?: Vector3) {
-		if (!this.enabled) return;
-
+	play(path: string | string[], volume = 1, destination = this.soundGain, position?: Vector3) {
 		let audioSource = this.createAudioSource(path, destination, position);
-		audioSource.gain.gain.value = position? 0 : volume;
+		audioSource.gain.gain.setValueAtTime(position? 0 : volume, this.currentTime);
 		audioSource.play();
 	}
 
 	/** Updates the pan and volume of positional audio sources based on the listener's location. */
-	static updatePositionalAudio(time: TimeState, listenerPos: Vector3, listenerYaw: number) {
+	updatePositionalAudio(time: TimeState, listenerPos: Vector3, listenerYaw: number) {
 		let quat = state.level.getOrientationQuat(time);
 		quat.conjugate();
 
@@ -176,26 +192,24 @@ export abstract class AudioManager {
 			let panRemoval = Util.clamp(distance / 1, 0, 1); // If the listener is very close to the center, start moving the audio source to the center.
 
 			source.setPannerValue(-relativePosition.y * 0.7 * panRemoval);
-			source.gain.gain.value = Util.clamp(1 - distance / 30, 0, 1) * source.gainFactor;
+			source.gain.gain.setValueAtTime(Util.clamp(1 - distance / 30, 0, 1) * source.gainFactor, this.currentTime);
 		}
 	}
 
-	static updateVolumes() {
+	updateVolumes() {
 		// Quadratic because it feels better
-		this.musicGain.gain.linearRampToValueAtTime(StorageManager.data.settings.musicVolume ** 2, this.context.currentTime + 0.01);
-		this.soundGain.gain.linearRampToValueAtTime(StorageManager.data.settings.soundVolume ** 2, this.context.currentTime + 0.01);
+		this.musicGain.gain.linearRampToValueAtTime(StorageManager.data.settings.musicVolume ** 2, this.currentTime + 0.01);
+		this.soundGain.gain.linearRampToValueAtTime(StorageManager.data.settings.soundVolume ** 2, this.currentTime + 0.01);
 	}
 
-	static stopAllAudio() {
-		if (!this.enabled) return;
-
+	stopAllAudio() {
 		for (let source of this.audioSources.slice()) {
 			source.stop();
 		}
 	}
 
 	/** Normalizes the volume of positional audio sources based on the sounds around them to prevent the user's permanent loss of hearing. */
-	static normalizePositionalAudioVolume() {
+	normalizePositionalAudioVolume() {
 		let sources = this.audioSources.filter(x => x.position); // Get all positional sources
 
 		for (let i = 0; i < sources.length; i++) {
@@ -219,6 +233,7 @@ export abstract class AudioManager {
 
 /** A small wrapper around audio nodes that are used to play a sound. */
 export class AudioSource {
+	manager: AudioManager;
 	promise: Promise<AudioBuffer | void>;
 	destination: AudioNode;
 	node: AudioBufferSourceNode | MediaElementAudioSourceNode;
@@ -232,7 +247,9 @@ export class AudioSource {
 	loop = false;
 	playbackRate = 1;
 
-	constructor(source: Promise<AudioBuffer> | HTMLAudioElement, destination: AudioNode, position?: Vector3) {
+	constructor(manager: AudioManager, source: Promise<AudioBuffer> | HTMLAudioElement, destination: AudioNode, position?: Vector3) {
+		this.manager = manager;
+
 		if (source instanceof Promise) {
 			this.promise = source;
 		} else {
@@ -245,31 +262,31 @@ export class AudioSource {
 		this.destination = destination;
 		this.position = position;
 
-		this.gain = AudioManager.context.createGain();
+		this.gain = this.manager.context.createGain();
 
-		if (AudioManager.context.createStereoPanner)
-			this.panner = AudioManager.context.createStereoPanner();
+		if (this.manager.context.createStereoPanner)
+			this.panner = this.manager.context.createStereoPanner();
 		else
-			this.panner = AudioManager.context.createPanner();
+			this.panner = this.manager.context.createPanner();
 		this.gain.connect(this.panner);
 		this.panner.connect(this.destination);
 
 		if (source instanceof Promise) {
-			this.node = AudioManager.context.createBufferSource();
+			this.node = this.manager.context.createBufferSource();
 		} else {
-			this.node = AudioManager.context.createMediaElementSource(source);
+			this.node = (this.manager.context as AudioContext).createMediaElementSource(source);
 		}
 
 		this.node.connect(this.gain);
 	}
 
-	setPannerValue(val: number) {
-		if (AudioManager.context.createStereoPanner) {
-			(this.panner as StereoPannerNode).pan.value = val;
+	setPannerValue(value: number) {
+		if (this.manager.context.createStereoPanner) {
+			(this.panner as StereoPannerNode).pan.setValueAtTime(value, this.manager.currentTime);
 		} else {
 			// https://stackoverflow.com/a/59545726
 			(this.panner as PannerNode).panningModel = 'equalpower';
-			(this.panner as PannerNode).setPosition(val, 0, 1 - Math.abs(val));
+			(this.panner as PannerNode).setPosition(value, 0, 1 - Math.abs(value)); // Can't schedule it
 		}
 	}
 
@@ -281,12 +298,11 @@ export class AudioSource {
 
 	setPlaybackRate(playbackRate: number) {
 		if (this.audioElement) this.audioElement.playbackRate = playbackRate;
-		else (this.node as AudioBufferSourceNode).playbackRate.value = playbackRate;
+		else (this.node as AudioBufferSourceNode).playbackRate.setValueAtTime(playbackRate, this.manager.currentTime);
 		this.playbackRate = playbackRate;
 	}
 
 	async play() {
-		if (!AudioManager.enabled) return;
 		if (this.playing) return;
 
 		if (this.stopped) {
@@ -294,12 +310,12 @@ export class AudioSource {
 
 			if (this.node instanceof AudioBufferSourceNode) {
 				// Gotta recreate this stuff
-				this.node = AudioManager.context.createBufferSource();
+				this.node = this.manager.context.createBufferSource();
 				this.node.connect(this.gain);
 				this.node.loop = this.loop;
-				this.node.playbackRate.value = this.playbackRate;
+				this.node.playbackRate.setValueAtTime(this.playbackRate, this.manager.currentTime);
 				this.stopped = false;
-				AudioManager.audioSources.push(this);
+				this.manager.audioSources.push(this);
 			}
 		}
 
@@ -310,7 +326,7 @@ export class AudioSource {
 			if (this.node.buffer) return; // Async stuff idk, could happen
 
 			this.node.buffer = maybeBuffer as AudioBuffer;
-			this.node.start();
+			this.node.start(this.manager.currentTime);
 			this.node.onended = () => {
 				this.stop(); // Call .stop for clean-up purposes
 			};
@@ -323,7 +339,7 @@ export class AudioSource {
 	}
 
 	stop() {
-		if (!AudioManager.enabled) return;
+		if (this.stopped) return;
 
 		this.stopped = true;
 		this.playing = false;
@@ -337,10 +353,12 @@ export class AudioSource {
 				this.audioElement.currentTime = 0;
 				this.audioElement.load();
 			} else {
-				(this.node as AudioBufferSourceNode).stop();
+				(this.node as AudioBufferSourceNode).stop(this.manager.currentTime);
 			}
 		} catch (e) {}
 
-		Util.removeFromArray(AudioManager.audioSources, this);
+		Util.removeFromArray(this.manager.audioSources, this);
 	}
 }
+
+export const mainAudioManager = new AudioManager();

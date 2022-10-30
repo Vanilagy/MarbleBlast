@@ -26,7 +26,7 @@ export class LandMine extends Shape {
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
 
-		AudioManager.play(this.sounds[0]);
+		this.level.audio.play(this.sounds[0]);
 		this.level.particles.createEmitter(landMineParticle, this.worldPosition);
 		this.level.particles.createEmitter(landMineSmokeParticle, this.worldPosition);
 		this.level.particles.createEmitter(landMineSparksParticle, this.worldPosition);

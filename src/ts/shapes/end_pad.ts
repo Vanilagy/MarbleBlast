@@ -2,7 +2,6 @@ import { Shape } from "../shape";
 import { Util, Scheduler } from "../util";
 import { ParticleEmitter } from "../particles";
 import { Level, TimeState } from "../level";
-import { AudioManager } from "../audio";
 import { Matrix4 } from "../math/matrix4";
 import { Vector3 } from "../math/vector3";
 import { Quaternion } from "../math/quaternion";
@@ -50,7 +49,7 @@ export class EndPad extends Shape {
 		let firework = new Firework(this.level, this.worldPosition, time.timeSinceLoad);
 		this.fireworks.push(firework);
 
-		AudioManager.play(this.sounds[0], 1, AudioManager.soundGain, this.worldPosition);
+		this.level.audio.play(this.sounds[0], 1, undefined, this.worldPosition);
 	}
 
 	tick(time: TimeState, onlyVisual: boolean) {

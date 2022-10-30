@@ -1,5 +1,8 @@
 # Version History
 
+## 2.5.2 TODO
+- Fixed missing mega marble rolling sounds in replays
+
 ## 2.5.1
 - Improved HUD rendering performance
 - Fixed some levels crashing on load

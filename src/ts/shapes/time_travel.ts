@@ -31,7 +31,7 @@ export class TimeTravel extends PowerUp {
 	}
 
 	pickUp() {
-		AudioManager.play(this.sounds[0]);
+		this.level.audio.play(this.sounds[0]);
 		return true;
 	}
 

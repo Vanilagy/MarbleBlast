@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { AudioManager, mainAudioManager } from "../audio";
 import { state } from "../state";
 import { BestTimes } from "../storage";
 import { Util } from "../util";
@@ -43,8 +43,8 @@ export class MbgFinishScreen extends FinishScreen {
 			this.onViewReplayButtonClick(e.altKey);
 		});
 		Util.onLongTouch(this.viewReplayButton, () => this.onViewReplayButtonClick(true));
-		this.viewReplayButton.addEventListener('mouseenter', () => AudioManager.play('buttonover.wav'));
-		this.viewReplayButton.addEventListener('mousedown', () => AudioManager.play('buttonpress.wav'));
+		this.viewReplayButton.addEventListener('mouseenter', () => mainAudioManager.play('buttonover.wav'));
+		this.viewReplayButton.addEventListener('mousedown', () => mainAudioManager.play('buttonpress.wav'));
 	}
 
 	showMessage(type: 'failed' | 'qualified' | 'gold' | 'ultimate') {

@@ -25,7 +25,7 @@ export class Nuke extends Shape {
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);
 
-		AudioManager.play(this.sounds[0]);
+		this.level.audio.play(this.sounds[0]);
 		this.level.particles.createEmitter(nukeParticle, this.worldPosition);
 		this.level.particles.createEmitter(nukeSmokeParticle, this.worldPosition);
 		this.level.particles.createEmitter(nukeSparksParticle, this.worldPosition);

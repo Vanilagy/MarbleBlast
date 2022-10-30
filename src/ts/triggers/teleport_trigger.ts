@@ -32,7 +32,7 @@ export class TeleportTrigger extends Trigger {
 
 		this.entryTime = time.currentAttemptTime;
 		state.menu.hud.displayAlert("Teleporter has been activated, please wait.");
-		this.teleportingSound = AudioManager.createAudioSource('teleport.wav');
+		this.teleportingSound = this.level.audio.createAudioSource('teleport.wav');
 		this.teleportingSound.play();
 	}
 
@@ -96,7 +96,7 @@ export class TeleportTrigger extends Trigger {
 			this.level.pitch = DEFAULT_PITCH;
 		}
 
-		AudioManager.play('spawn.wav');
+		this.level.audio.play('spawn.wav');
 		this.teleportingSound?.stop();
 		this.teleportingSound = null;
 	}

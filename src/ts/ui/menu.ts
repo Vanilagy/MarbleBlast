@@ -1,4 +1,4 @@
-import { AudioManager, AudioSource } from "../audio";
+import { AudioManager, AudioSource, mainAudioManager } from "../audio";
 import { currentMousePosition } from "../input";
 import { ResourceManager } from "../resources";
 import { state } from "../state";
@@ -93,7 +93,7 @@ export abstract class Menu {
 			element.setAttribute('data-hovered', '');
 			if (element.style.pointerEvents === 'none') return;
 			if (!element.hasAttribute('data-locked')) element.src = held? down() : hover();
-			if (!held && playHoverSound) AudioManager.play('buttonover.wav');
+			if (!held && playHoverSound) mainAudioManager.play('buttonover.wav');
 		});
 		element.addEventListener('mouseleave', () => {
 			if (Util.isTouchDevice) return;
@@ -112,7 +112,7 @@ export abstract class Menu {
 			if (e.button !== 0) return;
 			held = true;
 			if (!element.hasAttribute('data-locked')) element.src = down();
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 			if (triggerOnMouseDown) {
 				onclick(e);
 				if (rapidFireOnHold) rapidFireId = setTimeout(() => rapidFireId = setInterval(() => onclick(e), 30) as any, 500) as any;
@@ -186,17 +186,17 @@ export abstract class Menu {
 	}
 
 	show() {
-		AudioManager.setAssetPath(this.audioAssetPath);
+		mainAudioManager.setAssetPath(this.audioAssetPath);
 		this.menuDiv.classList.remove('hidden');
 		setEnterFullscreenButtonVisibility(true);
 
 		if (Util.isWeeb) {
-			let before = AudioManager.assetPath;
-			AudioManager.assetPath = ''; // Quick hack
-			this.music = AudioManager.createAudioSource('./assets/music/renai.ogg', AudioManager.musicGain);
-			AudioManager.assetPath = before;
+			let before = mainAudioManager.assetPath;
+			mainAudioManager.assetPath = ''; // Quick hack
+			this.music = mainAudioManager.createAudioSource('./assets/music/renai.ogg', mainAudioManager.musicGain);
+			mainAudioManager.assetPath = before;
 		} else {
-			this.music = AudioManager.createAudioSource(this.menuMusicSrc, AudioManager.musicGain);
+			this.music = mainAudioManager.createAudioSource(this.menuMusicSrc, mainAudioManager.musicGain);
 		}
 		this.music.setLoop(true);
 		this.music.play();
@@ -335,8 +335,8 @@ export abstract class Menu {
 	}
 
 	async init() {
-		AudioManager.setAssetPath(this.audioAssetPath);
-		await AudioManager.loadBuffers([this.menuMusicSrc, 'buttonover.wav', 'buttonpress.wav']);
+		mainAudioManager.setAssetPath(this.audioAssetPath);
+		await mainAudioManager.loadBuffers([this.menuMusicSrc, 'buttonover.wav', 'buttonpress.wav']);
 		await Promise.all([this.home.init(), this.levelSelect.init(), this.finishScreen.init(), this.optionsScreen.init(), this.helpScreen.init()]);
 
 		// Load pop-up stuff:

@@ -1,4 +1,4 @@
-import { AudioManager } from "../audio";
+import { AudioManager, mainAudioManager } from "../audio";
 import { Mission } from "../mission";
 import { BestTimes, StorageManager } from "../storage";
 import { Util } from "../util";
@@ -80,7 +80,7 @@ export class MbpLevelSelect extends LevelSelect {
 		]);
 
 		this.difficultySelectorWindow.querySelector('._click-preventer').addEventListener('mousedown', () => {
-			AudioManager.play('buttonpress.wav');
+			mainAudioManager.play('buttonpress.wav');
 		});
 		this.difficultySelectorWindow.querySelector('._click-preventer').addEventListener('click', () => {
 			this.difficultySelectorWindow.classList.add('hidden');
