@@ -2,6 +2,7 @@
 
 ## 2.5.2 TODO
 - Fixed missing mega marble rolling sounds in replays
+- fixed color space stuf
 
 ## 2.5.1
 - Improved HUD rendering performance

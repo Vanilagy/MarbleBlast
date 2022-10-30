@@ -1219,7 +1219,7 @@ export class Level extends Scheduler {
 	/** Get the current interpolated orientation quaternion. */
 	getOrientationQuat(time: TimeState) {
 		let completion = Util.clamp((time.currentAttemptTime - this.orientationChangeTime) / 300, 0, 1);
-		return this.oldOrientationQuat.clone().slerp(this.newOrientationQuat, completion);
+		return this.oldOrientationQuat.clone().slerp(this.newOrientationQuat, completion).normalize();
 	}
 
 	/** Sets the current up vector and gravity with it. */
@@ -1233,7 +1233,7 @@ export class Level extends Scheduler {
 
 		let currentQuat = this.getOrientationQuat(time);
 		let oldUp = new Vector3(0, 0, 1);
-		oldUp.applyQuaternion(currentQuat);
+		oldUp.applyQuaternion(currentQuat).normalize();
 
 		let quatChange = new Quaternion();
 		let dot = newUp.dot(oldUp);
@@ -1243,13 +1243,13 @@ export class Level extends Scheduler {
 
 			// First rotation to the intermediate vector, then rotate from there to the new up
 			quatChange.setFromUnitVectors(oldUp, intermediateVector);
-			quatChange.multiplyQuaternions(new Quaternion().setFromUnitVectors(intermediateVector, newUp), quatChange);
+			quatChange.premultiply(new Quaternion().setFromUnitVectors(intermediateVector, newUp));
 		} else {
 			// Instead of calculating the new quat from nothing, calculate it from the last one to guarantee the shortest possible rotation.
 			quatChange.setFromUnitVectors(oldUp, newUp);
 		}
 
-		this.newOrientationQuat = quatChange.multiply(currentQuat);
+		this.newOrientationQuat = quatChange.multiply(currentQuat).normalize();
 		this.oldOrientationQuat = currentQuat;
 		this.orientationChangeTime = instant? -Infinity : time.currentAttemptTime;
 	}
