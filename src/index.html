@@ -611,12 +611,21 @@
 				<h1>Video Renderer</h1>
 				<div class="_config">
 					<button id="video-renderer-select-destination">Select destination video file</button>
-					<div class="_config-row"><p>Width</p><input type="text" value="1280"></div>
-					<div class="_config-row"><p>Height</p><input type="text" value="720"></div>
-					<div class="_config-row"><p>Bit rate (kbit/s)</p><input type="text" value="5000"></div>
-					<div class="_config-row"><p>Frame rate</p><input type="text" value="60"></div>
-					<div class="_config-row"><p>Playback speed</p><input type="text" value="1.0"></div>
-					<div class="_config-row"><p>Fast mode</p><input type="checkbox" checked></div>
+					<div>
+						<div style="margin-right: 20px;">
+							<div class="_config-row"><p>Width</p><input type="text" value="1280"></div>
+							<div class="_config-row"><p>Height</p><input type="text" value="720"></div>
+							<div class="_config-row"><p>Video bit rate (kbit/s)</p><input type="text" value="5000"></div>
+							<div class="_config-row"><p>Frame rate</p><input type="text" value="60"></div>
+							<div class="_config-row"><p>Playback speed</p><input type="text" value="1.0"></div>
+							<div class="_config-row"><p>Fast mode</p><input type="checkbox" checked></div>
+						</div>
+						<div>
+							<div class="_config-row"><p>Include audio</p><input type="checkbox" checked></div>
+							<div class="_config-row"><p>Audio bit rate (kbit/s)</p><input type="text" value="64"></div>
+							<div class="_config-row"><p>Music-to-sound volume</p><input type="range" min="0" max="1" value="0.5" step="0.025"><span>1:1</span></div>
+						</div>
+					</div>
 				</div>
 				<p id="video-renderer-overview">&nbsp;</p>
 				<div>

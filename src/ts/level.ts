@@ -179,8 +179,7 @@ export class Level extends Scheduler {
 	lastFrameTime: number = null;
 	/** Offline levels are meant for video rendering, not real-time play. */
 	offline = false;
-	/** How long the offline level will be played for. */
-	offlineDuration: number;
+	offlineSettings: { duration: number, musicVolume: number, soundVolume: number } = null;
 	started = false;
 	paused = true;
 	/** If the level is stopped, it shouldn't be used anymore. */
@@ -242,14 +241,14 @@ export class Level extends Scheduler {
 	originalMusicName: string;
 	replay: Replay;
 
-	constructor(mission: Mission, offline?: { duration: number }) {
+	constructor(mission: Mission, offline: { duration: number, musicVolume: number, soundVolume: number } = null) {
 		super();
 
 		this.mission = mission;
 		this.loadingState = { loaded: 0, total: 0 };
 
 		this.offline = !!offline;
-		this.offlineDuration = offline?.duration;
+		this.offlineSettings = offline;
 	}
 
 	/** Loads all necessary resources and builds the mission. */
@@ -282,10 +281,10 @@ export class Level extends Scheduler {
 			this.audio = mainAudioManager;
 		} else {
 			this.audio = new AudioManager();
-			this.audio.init({ duration: this.offlineDuration });
+			this.audio.init({ duration: this.offlineSettings.duration });
 			this.audio.setAssetPath(mainAudioManager.assetPath);
-			this.audio.soundGain.gain.value = mainAudioManager.soundGain.gain.value;
-			this.audio.musicGain.gain.value = mainAudioManager.musicGain.gain.value;
+			this.audio.soundGain.gain.value = this.offlineSettings.soundVolume**2;
+			this.audio.musicGain.gain.value = this.offlineSettings.musicVolume**2;
 			this.audio.currentTimeOverride = 0;
 		}
 

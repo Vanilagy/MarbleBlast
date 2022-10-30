@@ -74,7 +74,11 @@ export interface StorageData {
 		kilobitRate: number,
 		frameRate: number,
 		playbackSpeed: number,
-		fastMode: boolean
+		fastMode: boolean,
+
+		includeAudio: boolean,
+		audioKilobitRate: number,
+		musicToSoundRatio: number
 	}
 }
 
@@ -139,7 +143,11 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		kilobitRate: 5000,
 		frameRate: 60,
 		playbackSpeed: 1,
-		fastMode: true
+		fastMode: true,
+
+		includeAudio: true,
+		audioKilobitRate: 64,
+		musicToSoundRatio: 0.7
 	}
 };
 

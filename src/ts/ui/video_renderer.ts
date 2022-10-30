@@ -68,6 +68,15 @@ export abstract class VideoRenderer {
 		(this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).addEventListener('input', () => {
 			this.updateOverviewText();
 		});
+
+		(this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).addEventListener('input', () => {
+			this.updateAudioSettingsEnabledness();
+		});
+
+		let musicToSoundRatioSlider = this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement;
+		musicToSoundRatioSlider.addEventListener('input', () => {
+			this.updateMusicToSoundRatioDisplay();
+		});
 	}
 
 	static updateOverviewText() {
@@ -76,6 +85,25 @@ export abstract class VideoRenderer {
 		let text = `Level: ${this.mission.title}\nVideo duration: ${Util.secondsToTimeString(videoLength, 3)}\nDestination file: ${this.fileHandle? this.fileHandle.name : '–'}`; // Yeah I know, VS Code
 
 		this.overviewText.textContent = text;
+	}
+
+	static updateMusicToSoundRatioDisplay() {
+		let musicToSoundRatioSlider = this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement;
+		let musicToSoundRatioDisplay = this.div.querySelectorAll('._config-row')[8].children[2] as HTMLSpanElement;
+
+		// Tan is a fit function for the job, as we want the first half to output values from 0 to 1, and the second value to output values from 1 to infinity. If you take the reciprocal of the second half, it looks like the mirror image of the first half - because tan trig stuff.
+		let ratio = Math.tan(Number(musicToSoundRatioSlider.value) * Math.PI / 2);
+		if (musicToSoundRatioSlider.value === '0.5') ratio = 1;
+		if (musicToSoundRatioSlider.value === '1') ratio = Infinity;
+
+		musicToSoundRatioDisplay.textContent = `${Math.min(Util.cursedRound(ratio, 10), 1)} : ${Math.min(Util.cursedRound(1/ratio, 10), 1)}`;
+	}
+
+	static updateAudioSettingsEnabledness() {
+		let enabled = (this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked;
+
+		this.div.querySelectorAll('._config-row')[7].classList.toggle('disabled', !enabled);
+		this.div.querySelectorAll('._config-row')[8].classList.toggle('disabled', !enabled);
 	}
 
 	/** Creates a Worker that will be responsible for video encoding and writing to disk - it makes sense to perform these operations in a separate thread. */
@@ -100,21 +128,34 @@ export abstract class VideoRenderer {
 		let playbackSpeed = Number((this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value);
 		let fastMode = (this.div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked;
 
+		let includeAudio = (this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked;
+		let audioKilobitRate = Number((this.div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).value);
+		let musicToSoundRatio = Math.tan(Number((this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value) * Math.PI / 2);
+
 		// Check input validity
 		if (!Number.isInteger(width) || width < 1 || width % 2 !== 0) {
 			state.menu.showAlertPopup("Error", `"Width" has to be a positive even integer.`);
+			return;
 		}
 		if (!Number.isInteger(height) || height < 1 || height % 2 !== 0) {
 			state.menu.showAlertPopup("Error", `"Height" has to be a positive even integer.`);
+			return;
 		}
 		if (!isFinite(kilobitRate) || kilobitRate < 1) {
 			state.menu.showAlertPopup("Error", `"Bit rate" has an illegal value.`);
+			return;
 		}
 		if (!isFinite(frameRate) || frameRate <= 0) {
 			state.menu.showAlertPopup("Error", `"Frame rate" has to be positive.`);
+			return;
 		}
 		if (!isFinite(playbackSpeed) || playbackSpeed <= 0) {
 			state.menu.showAlertPopup("Error", `"Playback speed" has to be positive.`);
+			return;
+		}
+		if (!isFinite(audioKilobitRate) || audioKilobitRate < 6) {
+			state.menu.showAlertPopup("Error", `"Audio bit rate" has to be at least 6 kbit/s.`);
+			return;
 		}
 
 		// Store config for later reuse
@@ -124,6 +165,9 @@ export abstract class VideoRenderer {
 		StorageManager.data.videoRecorderConfig.frameRate = frameRate;
 		StorageManager.data.videoRecorderConfig.playbackSpeed = playbackSpeed;
 		StorageManager.data.videoRecorderConfig.fastMode = fastMode;
+		StorageManager.data.videoRecorderConfig.includeAudio = includeAudio;
+		StorageManager.data.videoRecorderConfig.audioKilobitRate = audioKilobitRate;
+		StorageManager.data.videoRecorderConfig.musicToSoundRatio = musicToSoundRatio;
 		StorageManager.store();
 
 		this.configContainer.classList.add('disabled');
@@ -149,7 +193,11 @@ export abstract class VideoRenderer {
 		try {
 			// Load the mission and level
 			await this.mission.load();
-			level = new Level(this.mission, { duration: this.tickLength/PHYSICS_TICK_RATE });
+			level = new Level(this.mission, {
+				duration: this.tickLength/PHYSICS_TICK_RATE,
+				musicVolume: Math.min(musicToSoundRatio, 1),
+				soundVolume: Math.min(1/musicToSoundRatio, 1)
+			});
 			state.level = level;
 			await level.init();
 			level.replay = this.replay;
@@ -165,6 +213,8 @@ export abstract class VideoRenderer {
 				height,
 				kilobitRate,
 				frameRate,
+				includeAudio,
+				audioKilobitRate,
 				fileHandle: this.fileHandle
 			});
 
@@ -179,10 +229,12 @@ export abstract class VideoRenderer {
 				}
 			});
 
-			// We use this variable to compute the completion of the encoding process
-			let lastChunkTimestamp = 0;
+			// We use these variables to compute the completion of the encoding process
+			let lastVideoChunkTimestamp = 0;
+			let lastAudioChunkTimestamp = includeAudio ? 0 : Infinity;
 			worker.addEventListener('message', e => {
-				if (e.data.command === 'chunkEncoded') lastChunkTimestamp = e.data.timestamp;
+				if (e.data.command === 'videoChunkEncoded') lastVideoChunkTimestamp = e.data.timestamp;
+				else if (e.data.command === 'audioChunkEncoded') lastAudioChunkTimestamp = e.data.timestamp;
 			});
 
 			const totalFrames = Math.floor(this.tickLength / PHYSICS_TICK_RATE * frameRate / playbackSpeed);
@@ -223,7 +275,7 @@ export abstract class VideoRenderer {
 				if (!fastMode) {
 					// In slow mode, we wait for the frame to be encoded before we begin generating the next frame. This minimizes strain on the hardware and often prevents WebGL context loss.
 					await new Promise<void>(resolve => worker.addEventListener('message', function callback(ev) {
-						if (ev.data.command !== 'chunkEncoded') return;
+						if (ev.data.command !== 'videoChunkEncoded') return;
 
 						worker.removeEventListener('message', callback);
 						resolve();
@@ -236,27 +288,16 @@ export abstract class VideoRenderer {
 				if (mainRenderer.gl.isContextLost()) throw new Error("Context lost");
 			}
 
-			let context = level.audio.context as OfflineAudioContext;
-			let audioBuffer = await context.startRendering();
+			if (includeAudio) {
+				let audioContext = level.audio.context as OfflineAudioContext;
+				let audioBuffer = await audioContext.startRendering();
+				let audioData = this.createAudioData(audioBuffer, playbackSpeed);
 
-			let audioDataData = new Float32Array(audioBuffer.length * 2);
-			audioBuffer.copyFromChannel(audioDataData, 0);
-			audioBuffer.copyFromChannel(audioDataData.subarray(audioBuffer.length), 1);
-
-			// todo this + playbackSpeed
-			let audioData = new AudioData({
-				format: 'f32-planar',
-				sampleRate: OFFLINE_CONTEXT_SAMPLE_RATE,
-				numberOfFrames: audioBuffer.length,
-				numberOfChannels: 2,
-				timestamp: 0,
-				data: audioDataData
-			});
-			console.log(audioData);
-			worker.postMessage({
-				command: 'audioData',
-				audioData
-			}, [audioData as any]);
+				worker.postMessage({
+					command: 'audioData',
+					audioData
+				}, [audioData as any]);
+			}
 
 			level.stop();
 			state.level = null;
@@ -272,11 +313,12 @@ export abstract class VideoRenderer {
 			});
 
 			// This varibles lets us make it look like encoding started right when the last frame finished rendering, instead of earlier.
-			let lastChunkTimestampAtRenderFinish = lastChunkTimestamp;
+			let getMinChunkTimestamp = () => Math.min(lastVideoChunkTimestamp, lastAudioChunkTimestamp);
+			let lastChunkTimestampAtRenderFinish = getMinChunkTimestamp();
 
 			// This interval updates the progress bar based on the encoding completion
 			id = setInterval(() => {
-				let completion = (lastChunkTimestamp - lastChunkTimestampAtRenderFinish) / (totalTimeUs - lastChunkTimestampAtRenderFinish);
+				let completion = (getMinChunkTimestamp() - lastChunkTimestampAtRenderFinish) / (totalTimeUs - lastChunkTimestampAtRenderFinish);
 				this.statusText.textContent = `Encoding (${(100 * completion).toFixed(1)}%)`;
 				this.progressBar.value = 0.7 + 0.3 * completion; // Last 30% of the progress bar
 			}, 16);
@@ -305,6 +347,45 @@ export abstract class VideoRenderer {
 			worker.terminate();
 			this.hide();
 		}
+	}
+
+	/** Creates an AudioData object from a given AudioBuffer. Also linearly resamples the audio signals if the playback speed isn't 1. */
+	static createAudioData(audioBuffer: AudioBuffer, playbackSpeed: number) {
+		let frameCountPerChannel = Math.floor(audioBuffer.length / playbackSpeed);
+		let audioDataData = new Float32Array(frameCountPerChannel * 2);
+
+		if (playbackSpeed === 1) {
+			// Fast path
+			audioBuffer.copyFromChannel(audioDataData, 0);
+			audioBuffer.copyFromChannel(audioDataData.subarray(frameCountPerChannel), 1);
+		} else {
+			// Linearly resample the audio
+			let channelData = [audioBuffer.getChannelData(0), audioBuffer.getChannelData(1)];
+
+			for (let i = 0; i < frameCountPerChannel; i++) {
+				let index = i * playbackSpeed;
+
+				for (let j = 0; j < 2; j++) {
+					let data = channelData[j];
+					let valueLow = data[Math.floor(index)];
+					let valueHigh = data[Math.ceil(index)];
+					let value = Util.lerp(valueLow, valueHigh, index % 1);
+
+					audioDataData[j*frameCountPerChannel + i] = value;
+				}
+			}
+		}
+
+		let audioData = new AudioData({
+			format: 'f32-planar',
+			sampleRate: OFFLINE_CONTEXT_SAMPLE_RATE,
+			numberOfFrames: frameCountPerChannel,
+			numberOfChannels: 2,
+			timestamp: 0,
+			data: audioDataData
+		});
+
+		return audioData;
 	}
 
 	static async stopRender(force: boolean) {
@@ -354,6 +435,13 @@ export abstract class VideoRenderer {
 			(this.div.querySelectorAll('._config-row')[3].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.frameRate.toString();
 			(this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value = playbackSpeedString;
 			(this.div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.fastMode;
+
+			(this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.includeAudio;
+			(this.div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.audioKilobitRate.toString();
+			(this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value = (2 * Math.atan(StorageManager.data.videoRecorderConfig.musicToSoundRatio) / Math.PI).toString();
+
+			this.updateMusicToSoundRatioDisplay();
+			this.updateAudioSettingsEnabledness();
 		}
 	}
 
@@ -429,11 +517,11 @@ const workerBody = () => {
 						height: data.height,
 						frameRate: data.frameRate
 					},
-					audio: {
+					audio: (data.includeAudio ? {
 						codec: 'A_OPUS',
 						numberOfChannels: 2,
 						sampleRate: audioSampleRate
-					}
+					} : undefined)
 				});
 
 				videoEncoder = new VideoEncoder({
@@ -444,7 +532,7 @@ const workerBody = () => {
 						}
 
 						self.postMessage({
-							command: 'chunkEncoded',
+							command: 'videoChunkEncoded',
 							timestamp: chunk.timestamp
 						});
 					},
@@ -458,24 +546,24 @@ const workerBody = () => {
 					latencyMode: 'realtime'
 				});
 
-				audioEncoder = new AudioEncoder({
-					output: (chunk, metadata) => {
-						//console.log(chunk);
-						//console.log(metadata);
-						webmWriter.addAudioChunk(chunk, metadata);
-						// self.postMessage({
-						// 	command: 'chunkEncoded',
-						// 	timestamp: chunk.timestamp
-						// });
-					},
-					error: e => console.error(e)
-				});
-				audioEncoder.configure({
-					codec: 'opus',
-					numberOfChannels: 2,
-					sampleRate: audioSampleRate,
-					bitrate: 64_000
-				});
+				if (data.includeAudio) {
+					audioEncoder = new AudioEncoder({
+						output: (chunk, metadata) => {
+							webmWriter.addAudioChunk(chunk, metadata);
+							self.postMessage({
+								command: 'audioChunkEncoded',
+								timestamp: chunk.timestamp
+							});
+						},
+						error: e => console.error(e)
+					});
+					audioEncoder.configure({
+						codec: 'opus',
+						numberOfChannels: 2,
+						sampleRate: audioSampleRate,
+						bitrate: 1000 * data.audioKilobitRate
+					});
+				}
 			} else if (data.command === 'videoData') {
 				// Convert RGBA to YUV manually to avoid unwanted color space conversions by the user agent
 				let yuv = RGBAToYUV420({ width, height, data: new Uint8ClampedArray(data.data) });
@@ -505,14 +593,12 @@ const workerBody = () => {
 			} else if (data.command === 'finishUp') {
 				// Finishes the remaining work
 
-				await Promise.all([videoEncoder.flush(), audioEncoder.flush()]);
+				await Promise.all([videoEncoder.flush(), audioEncoder?.flush()]);
 				videoEncoder.close();
-				audioEncoder.close();
+				audioEncoder?.close();
 
-				let clean = webmWriter.finalize();
+				webmWriter.finalize();
 				await fileWritableStream.close();
-
-				console.log(clean);
 
 				self.postMessage('done');
 			}

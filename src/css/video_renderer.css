@@ -41,9 +41,20 @@
 	align-items: center;
 }
 
+#video-renderer ._config > div {
+	display: flex;
+}
+
+#video-renderer ._config > div > div {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
 #video-renderer ._config-row {
-	width: 300px;
+	width: 275px;
 	margin-top: 10px;
+	position: relative;
 }
 
 #video-renderer p {
@@ -63,6 +74,18 @@
 #video-renderer input[type="checkbox"] {
 	height: 24px;
 	width: 24px;
+}
+#video-renderer input[type="range"] {
+	padding: 0;
+	margin-top: 7px;
+}
+
+#video-renderer ._config-row span {
+	top: 0;
+	right: -20px;
+	position: absolute;
+	transform: translateX(100%);
+	margin-top: 4px;
 }
 
 #video-renderer-render {

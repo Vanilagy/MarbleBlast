@@ -55,7 +55,7 @@ export class AudioManager {
 		this.musicGain.gain.value = 0;
 		this.musicGain.connect(this.masterGain);
 
-		this.updateVolumes();
+		if (!offline) this.updateVolumes();
 
 		if (typeof OggdecModule !== 'undefined') this.oggDecoder = OggdecModule();
 

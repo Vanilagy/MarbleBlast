@@ -733,6 +733,11 @@ export abstract class Util {
 			box.max.clone()
 		];
 	}
+
+	/** Rounds a number in [0, 1] to a neighboring multiple of 1/`steps`. Has the additional property that f(x) = 0 -> x = 0 and f(x) = 1 -> 1. */
+	static cursedRound(x: number, steps: number) {
+		return Math.floor(((steps - 1) * x - Number.EPSILON) + 1) / steps;
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 
