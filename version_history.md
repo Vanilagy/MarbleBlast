@@ -1,8 +1,11 @@
 # Version History
 
-## 2.5.2 TODO
+## 2.5.2
+- Added audio support to video renderer
+- Fixed video renderer color issues
+- Fixed video renderer creating invalid files
+- Fixed camera orientation bugs occasionally caused by Gravity Modifiers
 - Fixed missing mega marble rolling sounds in replays
-- fixed color space stuf
 
 ## 2.5.1
 - Improved HUD rendering performance

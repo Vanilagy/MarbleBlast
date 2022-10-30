@@ -465,7 +465,7 @@ export abstract class VideoRenderer {
 
 		if (lostContext) {
 			// Show a more insightful error message when WebGL context loss was the culprit
-			message = `Your WebGL context has been lost during rendering, meaning that your browser thought the rendering task was too taxing on your hardware. Rendering using fast mode might be the cause of this. Please reload the page to restore the context.`;
+			message = `Your WebGL context has been lost during rendering, meaning that your browser thought the rendering task was too taxing on your hardware. Rendering using parallelized encoding might be the cause of this. Please reload the page to restore the context.`;
 		} else {
 			message = "There has been an error during video rendering.";
 		}

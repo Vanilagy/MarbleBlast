@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 const sarcina = require('sarcina');
 
 sarcina.bundle({
@@ -6,7 +7,7 @@ sarcina.bundle({
 	verbose: true,
 	minifyMarkup: false,
 	ignore: ['ts', 'assets'],
-	keep: ['lib/pako.js', 'lib/oggdec.js', 'lib/webm_writer.js', 'manifest.json', 'sw.js'],
+	keep: ['lib/pako.js', 'lib/oggdec.js', 'lib/webm.js', 'manifest.json', 'sw.js'],
 	transpileScript: sarcina.ES2017,
 	insertPolyfill: true,
 	handleInlineScript: false
