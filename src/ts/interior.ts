@@ -53,7 +53,7 @@ const specialResistutionFactor: Record<string, number> = {
 	"water": 0.0,
 	"mmg_water": 0.0,
 	"ice1": 0.95,
-	"mmg_ice": 0.95,
+	"mmg_ice": 0.95
 	//"floor_bounce": 0.0
 };
 const specialForces: Record<string, number> = {
@@ -147,7 +147,7 @@ const customMaterialFactories: Record<string, (interior: Interior) => Promise<Ma
 	'friction_low': (interior: Interior) => createPhongMaterial(interior, 'friction_low.jpg', null/*'friction_low_mbu.spec.png'*/, 'friction_low_mbu.normal.png', 100, 3),
 	'friction_low_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_low_shadow.png', null/*'friction_low_mbu.spec.png'*/, 'friction_low_mbu.normal.png', 100, 3),
 	'friction_high': (interior: Interior) => createPhongMaterial(interior, 'friction_high.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 30, 0.8, 2),
-	'friction_high_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_high_shadow.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 30, 0.8, 2),
+	'friction_high_shadow': (interior: Interior) => createPhongMaterial(interior, 'friction_high_shadow.png', 'friction_high_mbu.spec.png', 'friction_high_mbu.normal.png', 30, 0.8, 2)
 };
 
 /** Stores a list of all vertices with similar face normal. */

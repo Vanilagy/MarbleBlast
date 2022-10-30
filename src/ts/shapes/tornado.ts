@@ -1,5 +1,5 @@
 import { ForceShape } from "./force_shape";
-import { AudioSource, AudioManager } from "../audio";
+import { AudioSource } from "../audio";
 import { Vector3 } from "../math/vector3";
 
 /** Sucks the marble in and then slings it upwards. */

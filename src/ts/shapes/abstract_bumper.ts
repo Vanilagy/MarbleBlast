@@ -1,7 +1,6 @@
 import { Shape } from "../shape";
 import { Util } from "../util";
 import { TimeState } from "../level";
-import { AudioManager } from "../audio";
 import { Collision } from "../physics/collision";
 
 /** A bumper is a shape which knocks the marble away on contact. */
@@ -17,7 +16,6 @@ export abstract class AbstractBumper extends Shape {
 		let time = this.level.timeState;
 
 		this.wiggleAnimationStart = time.timeSinceLoad;
-		this.level.audio.play(this.sounds[0]);
 
 		if (!collision) return; // We're probably in a replay if this is the case
 

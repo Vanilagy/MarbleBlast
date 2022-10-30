@@ -1,4 +1,4 @@
-import { AudioManager, mainAudioManager } from "../audio";
+import { mainAudioManager } from "../audio";
 import { previousButtonState, resetPressedFlag } from "../input";
 import { Replay } from "../replay";
 import { state } from "../state";

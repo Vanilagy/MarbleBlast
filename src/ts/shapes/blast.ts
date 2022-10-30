@@ -1,4 +1,3 @@
-import { AudioManager } from "../audio";
 import { PowerUp } from "./power_up";
 
 export class Blast extends PowerUp {

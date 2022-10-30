@@ -2,7 +2,6 @@ import { Shape } from "../shape";
 import { Util } from "../util";
 import { TimeState } from "../level";
 import { MissionElementStaticShape, MisParser } from "../parsing/mis_parser";
-import { AudioManager } from "../audio";
 
 const RESET_TIME = 5000;
 

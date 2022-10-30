@@ -459,7 +459,6 @@ export class Matrix4 {
 			n43 = te[11],
 			n44 = te[15];
 
-		//TODO: make this more efficient
 		//( based on http://www.euclideanspace.com/maths/algebra/matrix/functions/inverse/fourD/index.htm )
 
 		return (

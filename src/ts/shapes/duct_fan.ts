@@ -1,5 +1,5 @@
 import { ForceShape } from "./force_shape";
-import { AudioSource, AudioManager } from "../audio";
+import { AudioSource } from "../audio";
 
 /** Blows the marble away. */
 export class DuctFan extends ForceShape {

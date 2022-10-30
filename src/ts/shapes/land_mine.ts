@@ -1,7 +1,6 @@
 import { Shape } from "../shape";
 import { Util } from "../util";
 import { TimeState } from "../level";
-import { AudioManager } from "../audio";
 import { Vector3 } from "../math/vector3";
 import { BlendingType } from "../rendering/renderer";
 

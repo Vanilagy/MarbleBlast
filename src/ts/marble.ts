@@ -3,7 +3,7 @@ import { isPressed, gamepadAxes, normalizedJoystickHandlePosition, getPressedFla
 import { TimeState, Level, GO_TIME, PHYSICS_TICK_RATE } from "./level";
 import { Shape } from "./shape";
 import { Util } from "./util";
-import { AudioManager, AudioSource } from "./audio";
+import { AudioSource } from "./audio";
 import { StorageManager } from "./storage";
 import { MisParser, MissionElementType } from "./parsing/mis_parser";
 import { ParticleEmitter, ParticleEmitterOptions } from "./particles";

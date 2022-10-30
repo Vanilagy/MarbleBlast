@@ -3,7 +3,7 @@ import { MissionElementSimGroup, MissionElementType, MissionElementPathedInterio
 import { Util } from "./util";
 import { TimeState, PHYSICS_TICK_RATE, Level } from "./level";
 import { MustChangeTrigger } from "./triggers/must_change_trigger";
-import { AudioManager, AudioSource } from "./audio";
+import { AudioSource } from "./audio";
 import { Matrix4 } from "./math/matrix4";
 import { Vector3 } from "./math/vector3";
 import { Quaternion } from "./math/quaternion";

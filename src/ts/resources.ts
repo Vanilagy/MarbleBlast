@@ -10,7 +10,7 @@ export type DirectoryStructure = {[name: string]: null | DirectoryStructure};
 const MBP_REDIRECT_RULES = {
 	'assets/data_mbp/sound/gotgem.wav': 'assets/data_mbp/sound/gotdiamond.wav',
 	'assets/data_mbp/sound/gotallgems.wav': 'assets/data_mbp/sound/gotalldiamonds.wav',
-	'assets/data_mbp/sound/music/groovepolice': 'assets/data_mbp/sound/music/groove police',
+	'assets/data_mbp/sound/music/groovepolice': 'assets/data_mbp/sound/music/groove police'
 };
 
 /** Manages loading and caching of resources. */

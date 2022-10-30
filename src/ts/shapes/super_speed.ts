@@ -1,5 +1,4 @@
 import { PowerUp } from "./power_up";
-import { AudioManager } from "../audio";
 import { state } from "../state";
 import { Vector3 } from "../math/vector3";
 import { Quaternion } from "../math/quaternion";
