@@ -932,7 +932,7 @@ export class Level extends Scheduler {
 				overlayShape.group.position.z = -35 / SCALING_RATIO;
 			} else {
 				overlayShape.group.scale.setScalar((SHAPE_OVERLAY_SCALES[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_SCALES] ?? 40) / SCALING_RATIO);
-				overlayShape.group.position.y = mainCanvas.width - 55 / SCALING_RATIO;
+				overlayShape.group.position.y = this.overlayCamera.right - 55 / SCALING_RATIO;
 				overlayShape.group.position.z = SHAPE_OVERLAY_OFFSETS[overlayShape.dtsPath as keyof typeof SHAPE_OVERLAY_OFFSETS] / SCALING_RATIO;
 			}
 
