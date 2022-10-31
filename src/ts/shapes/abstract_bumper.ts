@@ -16,6 +16,7 @@ export abstract class AbstractBumper extends Shape {
 		let time = this.level.timeState;
 
 		this.wiggleAnimationStart = time.timeSinceLoad;
+		this.level.audio.play(this.sounds[0]);
 
 		if (!collision) return; // We're probably in a replay if this is the case
 

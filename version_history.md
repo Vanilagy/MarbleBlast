@@ -1,5 +1,8 @@
 # Version History
 
+## 2.5.4
+- Fixed missing bumper sounds
+
 ## 2.5.3
 - Fixed incorrect normal map rendering for some MBU textures
 
