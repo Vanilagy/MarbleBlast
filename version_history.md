@@ -1,5 +1,8 @@
 # Version History
 
+## 2.5.3
+- Fixed incorrect normal map rendering for some MBU textures
+
 ## 2.5.2
 - Added audio support to video renderer
 - Fixed video renderer color issues
