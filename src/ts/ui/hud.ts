@@ -6,7 +6,7 @@ import { state } from "../state";
 import { StorageManager } from "../storage";
 import { RGBAColor, Util } from "../util";
 import { Menu } from "./menu";
-import { computeUiScalingRatio } from "./misc";
+import { computeUiScalingRatio, mainRenderer } from "./misc";
 import { FRAME_RATE_OPTIONS } from "./options_mbp";
 
 const numberSources = {
@@ -249,6 +249,41 @@ export abstract class Hud {
 			for (let i = 0; i < lines.length; i++) {
 				ctx.fillText(lines[i], Math.floor(width / 2), height - 30 - 24*1.2*(lines.length - i - 1));
 			}
+
+			ctx.shadowColor = 'transparent';
+			ctx.shadowOffsetX = 0;
+			ctx.shadowOffsetY = 0;
+			ctx.globalAlpha = 1;
+		}
+
+		// Draw debug mode text
+		if (mainRenderer.debugMode !== 0) {
+			ctx.font = '24px DomCasualRegular';
+			ctx.fillStyle = 'white';
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'bottom';
+			ctx.shadowColor = 'black';
+			ctx.shadowOffsetX = 1;
+			ctx.shadowOffsetY = 1;
+			ctx.globalAlpha = 1;
+
+			let debugText = "Debug Rendering: ";
+			switch (mainRenderer.debugMode) {
+				case 1: debugText += "UV"; break;
+				case 2: debugText += "Normal (World)"; break;
+				case 3: debugText += "Normal (Map)"; break;
+				case 4: debugText += "Normal (Multiplied)"; break;
+				case 5: debugText += "Tangent"; break;
+				case 6: debugText += "Tangent A"; break;
+				case 7: debugText += "TBN[T]"; break;
+				case 8: debugText += "TBN[B]"; break;
+				case 9: debugText += "TBN[N]"; break;
+				default:
+					debugText = "";
+					break;
+			}
+
+			ctx.fillText(debugText, Math.floor(width / 2), 100);
 
 			ctx.shadowColor = 'transparent';
 			ctx.shadowOffsetX = 0;

@@ -19,6 +19,8 @@ export class Material {
 	blending: BlendingType = BlendingType.Normal;
 	/** When set to true, normals will be normalized in the shader before they are used. */
 	normalizeNormals = false;
+	/** Inverts the R value (D3D9-style normal maps) */
+	invertU = false;
 	/** Flips the V texture coordinate. */
 	flipY = false;
 	isSky = false;
@@ -60,6 +62,7 @@ export class Material {
 			this.opacity,
 			this.blending,
 			this.normalizeNormals,
+			this.invertU,
 			this.flipY,
 			this.isSky,
 			this.isShadow,
@@ -91,6 +94,7 @@ export class Material {
 		if (this.emissive) defines.push('EMISSIVE');
 		if (this.transparent) defines.push('TRANSPARENT');
 		if (this.normalizeNormals) defines.push('NORMALIZE_NORMALS');
+		if (this.invertU) defines.push('INVERT_U');
 		if (this.flipY) defines.push('FLIP_Y');
 		if (this.isSky) defines.push('IS_SKY');
 		if (this.isShadow) defines.push('IS_SHADOW');

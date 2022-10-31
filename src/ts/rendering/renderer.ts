@@ -42,6 +42,7 @@ export class Renderer {
 	currentFramebuffer: FramebufferInfo = null;
 	/** Stores the amount of draw calls in the current render. */
 	drawCalls: number;
+	debugMode = 0;
 
 	extensions = {
 		EXT_texture_filter_anisotropic: null as EXT_texture_filter_anisotropic,
@@ -201,6 +202,8 @@ export class Renderer {
 			gl.uniform1i(program.getUniformLocation('normalMap'), 3);
 			gl.uniform1i(program.getUniformLocation('specularMap'), 4);
 			gl.uniform1i(program.getUniformLocation('noiseMap'), 5);
+
+			gl.uniform1i(program.getUniformLocation('debugMode'), Number(this.debugMode));
 		}
 
 		// First, we draw all opaque objects

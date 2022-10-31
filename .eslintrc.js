@@ -31,6 +31,7 @@ module.exports = {
 		"no-empty": ["error", { "allowEmptyCatch": true }],
 		"no-trailing-spaces": ["warn"],
 		"no-warning-comments": ["warn", { "terms": ["todo", "fixme", "temp"] }],
-		"comma-dangle": ["warn", "never"]
+		"comma-dangle": ["warn", "never"],
+		"eqeqeq": ["error", "always"]
 	}
 };

@@ -11,7 +11,20 @@ export const initMainRenderer = () => {
 		canvas: mainCanvas,
 		desynchronized: StorageManager.data.settings.canvasDesynchronized
 	});
+
 	resize(false);
+
+	const enableDebugModeSwitching = false;
+	if (enableDebugModeSwitching) {
+		window.addEventListener('keypress', (e) => {
+			if (e.code === "KeyQ") {
+				mainRenderer.debugMode++;
+			}
+			if (e.code === "KeyZ") {
+				mainRenderer.debugMode--;
+			}
+		});
+	}
 };
 
 const MIN_WIDTH = 640;

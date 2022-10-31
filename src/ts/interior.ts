@@ -72,12 +72,13 @@ const createNormalMapMaterial = async (interior: Interior, baseTexture: string, 
 	mat.diffuseMap = diffuseMap;
 	mat.saturateIncomingLight = false;
 	mat.receiveShadows = true;
+	mat.invertU = true;
 
 	return mat;
 };
 
 /** Creates a material with an additional normal and specularity map. */
-const createPhongMaterial = async (interior: Interior, baseTexture: string, specTexture: string, normalTexture: string, shininess: number, specularIntensity: number, secondaryMapUvFactor = 1) => {
+const createPhongMaterial = async (interior: Interior, baseTexture: string, specTexture: string, normalTexture: string, shininess: number, specularIntensity: number, secondaryMapUvFactor = 1, invertU = true) => {
 	let specularMap = specTexture && await interior.level.mission.getTexture(`shaders/tex/${specTexture}`);
 	let normalMap = normalTexture && await interior.level.mission.getTexture(`shaders/tex/${normalTexture}`);
 	let texture = await interior.level.mission.getTexture(`interiors_mbu/${baseTexture}`);
@@ -92,6 +93,7 @@ const createPhongMaterial = async (interior: Interior, baseTexture: string, spec
 	mat.secondaryMapUvFactor = secondaryMapUvFactor;
 	mat.saturateIncomingLight = false;
 	mat.receiveShadows = true;
+	mat.invertU = invertU;
 
 	return mat;
 };
@@ -113,6 +115,7 @@ const createNoiseTileMaterial = async (interior: Interior, baseTexture: string, 
 	mat.specularIntensity = 0.7;
 	mat.saturateIncomingLight = false;
 	mat.receiveShadows = true;
+	mat.invertU = true;
 
 	return mat;
 };
@@ -140,8 +143,8 @@ const customMaterialFactories: Record<string, (interior: Interior) => Promise<Ma
 	'tile_advanced_green_shadow': (interior: Interior) => createNoiseTileMaterial(interior, 'tile_advanced_green_shadow.png', ''),
 	'tile_underside': (interior: Interior) => createNoiseTileMaterial(interior, 'tile_underside.jpg', ''),
 	'wall_beginner': (interior: Interior) => createPhongMaterial(interior, 'wall_beginner.png', 'wall_mbu.spec.png', 'wall_mbu.normal.png', 30, 0.5),
-	'edge_white': (interior: Interior) => createPhongMaterial(interior, 'edge_white.jpg', 'edge_white_mbu.spec.jpg', 'edge_white_mbu.normal.jpg', 50, 4),
-	'edge_white_shadow': (interior: Interior) => createPhongMaterial(interior, 'edge_white_shadow.png', 'edge_white_mbu.spec.jpg', 'edge_white_mbu.normal.jpg', 50, 4),
+	'edge_white': (interior: Interior) => createPhongMaterial(interior, 'edge_white.jpg', 'edge_white_mbu.spec.jpg', 'edge_white_mbu.normal.jpg', 50, 4, 1, false),
+	'edge_white_shadow': (interior: Interior) => createPhongMaterial(interior, 'edge_white_shadow.png', 'edge_white_mbu.spec.jpg', 'edge_white_mbu.normal.jpg', 50, 4, 1, false),
 	'beam': (interior: Interior) => createNormalMapMaterial(interior, 'beam.png', 'beam_side_mbu.normal.png'),
 	'beam_side': (interior: Interior) => createNormalMapMaterial(interior, 'beam_side.png', 'beam_side_mbu.normal.png'),
 	'friction_low': (interior: Interior) => createPhongMaterial(interior, 'friction_low.jpg', null/*'friction_low_mbu.spec.png'*/, 'friction_low_mbu.normal.png', 100, 3),

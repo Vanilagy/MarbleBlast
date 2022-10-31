@@ -80,11 +80,11 @@ Material Indices: ${this.materials.length/1}
 
 			let uOffset = 0;
 
-			if ( iy == 0 && thetaStart == 0 ) {
+			if ( iy === 0 && thetaStart === 0 ) {
 
 				uOffset = 0.5 / widthSegments;
 
-			} else if ( iy == heightSegments && thetaEnd == Math.PI ) {
+			} else if ( iy === heightSegments && thetaEnd === Math.PI ) {
 
 				uOffset = - 0.5 / widthSegments;
 

@@ -10,6 +10,7 @@ varying vec3 eyeDirection;
 varying vec4 vPosition;
 varying vec2 vUv;
 varying vec3 vNormal;
+varying vec4 vTangent;
 varying float vOpacity;
 varying vec4 vShadowPosition;
 varying vec3 vReflect;
@@ -30,6 +31,7 @@ uniform float specularIntensity;
 uniform float shininess;
 uniform float logDepthBufFC;
 uniform float secondaryMapUvFactor;
+uniform int debugMode;
 
 uniform vec3 ambientLight;
 uniform vec3 directionalLightColor;
@@ -181,6 +183,9 @@ void main() {
 				// Overwrite the normal with the sampled one
 				vec3 map = texture2D(normalMap, secondaryMapUvFactor * vUv).xyz;
 				map = map * 255.0/127.0 - 128.0/127.0;
+				#ifdef INVERT_U
+					map.x = -map.x;
+				#endif
 				normal = vTbn * map; // Don't normalize here! Reduces aliasing effects
 			#endif
 
@@ -242,6 +247,35 @@ void main() {
 			shaded = mix(shaded, sampled, fac * reflectivity);
 		#endif
 
+		#ifdef USE_NORMAL_MAP
+			if (debugMode == 1) {
+				shaded = vec4(mod(vUv, 1.0f), 0, 1);
+			}
+			if (debugMode == 2) {
+				shaded = vec4((vNormal + 1.0f) / 2.0f, 1);
+			}
+			if (debugMode == 3) {
+				shaded = vec4((map + 1.0f) / 2.0f, 1);
+			}
+			if (debugMode == 4) {
+				shaded = vec4((normal + 1.0f) / 2.0f, 1);
+			}
+			if (debugMode == 5) {
+				shaded = vec4((vTangent.xyz + 1.0f) / 2.0f, 1);
+			}
+			if (debugMode == 6) {
+				shaded = vec4(vec3((vTangent.w + 1.0f) / 2.0f), 1);
+			}
+			if (debugMode == 7) {
+				shaded = vec4((vTbn[0] + 1.0f) / 2.0f, 1);
+			}
+			if (debugMode == 8) {
+				shaded = vec4((vTbn[1] + 1.0f) / 2.0f, 1);
+			}
+			if (debugMode == 9) {
+				shaded = vec4((vTbn[2] + 1.0f) / 2.0f, 1);
+			}
+		#endif
 		gl_FragColor = shaded;
 		#ifdef USE_PREMULTIPLIED_ALPHA
 			gl_FragColor.rgb *= gl_FragColor.a;
