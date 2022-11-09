@@ -216,6 +216,12 @@ export abstract class ResourceManager {
 			const attempt = async () => {
 				try {
 					let response = await fetch(input, init);
+
+					if (response.status === 404) {
+						resolve(null);
+						return;
+					}
+
 					let blob = await response.blob();
 					resolve(blob);
 				} catch (e) {

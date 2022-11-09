@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import * as zlib from 'zlib';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import * as url from 'url';
 import fetch from 'node-fetch';
 
 import { shared } from './shared';
@@ -237,4 +238,24 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 		'Cache-Control': 'no-cache, no-store'
 	});
 	res.end(output);
+};
+
+/** Gets the stored .wrec for the best score on a given level. */
+export const getWorldRecordReplay = async (res: http.ServerResponse, urlObject: url.URL) => {
+	let missionPath = urlObject.searchParams.get('missionPath');
+	let missionExists = getMissionNameFromMissionPath(missionPath) !== undefined;
+	if (!missionExists) {
+		res.writeHead(400);
+		res.end();
+	}
+
+	// This cannot be abused for arbitrary file access because the mission is checked for existence beforehand
+	let replay = await fs.readFile(path.join(__dirname, 'storage', 'wrecs', missionPath.replace(/\//g, '_') + '.wrec'));
+
+	res.writeHead(200, {
+		'Content-Type': 'application/octet-stream',
+		'Content-Length': replay.byteLength,
+		'Cache-Control': 'no-cache, no-store' // Don't cache this
+	});
+	res.end(replay);
 };

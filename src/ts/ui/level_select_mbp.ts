@@ -207,7 +207,7 @@ export class MbpLevelSelect extends LevelSelect {
 		this.easterEggIcon.classList.add('hidden');
 	}
 
-	createScoreElement(includeReplayButton: boolean, includeWorldRecordReplayButton: boolean) {
+	createScoreElement(getReplayData: () => Promise<ArrayBuffer>) {
 		let element = document.createElement('div');
 		element.classList.add('mbp-level-select-best-time');
 
@@ -217,21 +217,19 @@ export class MbpLevelSelect extends LevelSelect {
 		let time = document.createElement('div');
 		element.appendChild(time);
 
-		if (includeReplayButton) {
-			element.appendChild(this.createReplayButton());
-		}
-		if (includeWorldRecordReplayButton) {
-			element.appendChild(this.createWorldRecordReplayButton());
-		}
+		element.appendChild(this.createReplayButton(getReplayData));
 
 		return element;
+	}
+
+	getReplayButtonForScoreElement(element: HTMLDivElement): HTMLImageElement {
+		return element.children[2] as HTMLImageElement;
 	}
 
 	updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number) {
 		element.children[0].innerHTML = `<span>${rank}.</span> ${Util.htmlEscape(score[0])}`;
 		element.children[1].textContent = Util.secondsToTimeString(score[1] / 1000);
 		Util.monospaceNumbers(element.children[1]);
-		if (element.children[2]) this.updateReplayButton(element.children[2] as HTMLImageElement, score);
 
 		element.style.color = '';
 		if (!this.currentMission) return;

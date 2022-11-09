@@ -10,8 +10,8 @@ import finalhandler from 'finalhandler';
 const serveStatic = serveStatic_;
 
 import { shared } from './shared';
-import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity, getWorldRecordReplays } from './misc';
-import { getLeaderboard, submitScores, getWorldRecordSheet } from './leaderboard';
+import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity } from './misc';
+import { getLeaderboard, submitScores, getWorldRecordSheet, getWorldRecordReplay } from './leaderboard';
 import { getCustomLevelResource } from './customs';
 
 let db: Database.Database = null;
@@ -89,7 +89,7 @@ const initServer = (port: number) => {
 						case 'error': await logUserError(res, body); break;
 						case 'version_history': await getVersionHistory(res); break;
 						case 'activity': await registerActivity(res, urlObject); break;
-						case 'world_record_replays': await getWorldRecordReplays(res, body); break;
+						case 'world_record_replay': await getWorldRecordReplay(res, urlObject); break;
 						default: break outer; // Incorrect API function
 					}
 

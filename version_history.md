@@ -1,5 +1,8 @@
 # Version History
 
+## 2.5.5
+- Added viewable world record replays for default levels
+
 ## 2.5.4
 - Fixed missing bumper sounds
 

@@ -119,7 +119,7 @@ export class MbgLevelSelect extends LevelSelect {
 		this.levelNumberElement.textContent = `Level ${this.currentMissionIndex + 1}`;
 	}
 
-	createScoreElement(includeReplayButton: boolean, includeWorldRecordReplayButton: boolean) {
+	createScoreElement(getReplayData: () => Promise<ArrayBuffer>) {
 		let element = document.createElement('div');
 		element.classList.add('level-select-best-time');
 
@@ -133,14 +133,13 @@ export class MbgLevelSelect extends LevelSelect {
 		let time = document.createElement('div');
 		element.appendChild(time);
 
-		if (includeReplayButton) {
-			element.appendChild(this.createReplayButton());
-		}
-		if (includeWorldRecordReplayButton) {
-			element.appendChild(this.createWorldRecordReplayButton());
-		}
+		element.appendChild(this.createReplayButton(getReplayData));
 
 		return element;
+	}
+
+	getReplayButtonForScoreElement(element: HTMLDivElement): HTMLImageElement {
+		return element.children[3] as HTMLImageElement;
 	}
 
 	updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number) {
@@ -151,6 +150,5 @@ export class MbgLevelSelect extends LevelSelect {
 		element.children[0].textContent = rank + '. ' + score[0];
 		(element.children[1] as HTMLImageElement).style.opacity = (score[1] <= goldTime)? '' : '0';
 		element.children[2].textContent = Util.secondsToTimeString(score[1] / 1000);
-		if (element.children[3]) this.updateReplayButton(element.children[3] as HTMLImageElement, score);
 	}
 }

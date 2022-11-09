@@ -36,6 +36,9 @@ export abstract class LevelSelect {
 	/** The current words in the search query. Used for matching. */
 	currentQueryWords: string[] = [];
 	lastDisplayBestTimesId: string; // Used to prevent some async issues
+	/** Stores data assigned to a replay button to control which replay is played. */
+	replayButtonData = new WeakMap<HTMLImageElement, string>();
+	fetchingRemoteReplay = false;
 	abstract localScoresCount: number;
 	abstract scorePlaceholderName: string;
 	abstract scoreElementHeight: number;
@@ -63,13 +66,29 @@ export abstract class LevelSelect {
 	async init() {
 		// Create the elements for the local best times
 		for (let i = 0; i < this.localScoresCount; i++) {
-			let element = this.createScoreElement(true, false);
+			let element = this.createScoreElement(async (replayButtonData?: string) => {
+				return await StorageManager.databaseGet('replays', replayButtonData);
+			});
 			this.localBestTimesContainer.appendChild(element);
 		}
 
 		// Create the elements for the online leaderboard (will be reused)
 		for (let i = 0; i < 18; i++) {
-			let element = this.createScoreElement(false, i === 0); // TODO check that the WR wrec actually exists
+			let element = this.createScoreElement(async () => {
+				if (this.fetchingRemoteReplay) return; // Let's wait for the first fetch to finish shall we :)
+
+				try {
+					this.fetchingRemoteReplay = true;
+					let replayDataBlob = await ResourceManager.retryFetch(`./api/world_record_replay?missionPath=${encodeURIComponent(this.currentMission.path)}`);
+					let buffer = await replayDataBlob.arrayBuffer();
+					this.fetchingRemoteReplay = false;
+
+					return buffer;
+				} catch (e) {
+					this.fetchingRemoteReplay = false;
+					return null;
+				}
+			});
 			this.leaderboardScores.appendChild(element);
 		}
 
@@ -180,11 +199,10 @@ export abstract class LevelSelect {
 	abstract displayEmptyMetadata(): void;
 
 	playCurrentMission(replayData?: ArrayBuffer) {
-		let currentMission = this.currentMission;
-		if (!currentMission) return;
+		if (!this.currentMission) return;
 
 		this.div.classList.add('hidden');
-		this.menu.loadingScreen.loadLevel(currentMission, replayData? () => Replay.fromSerialized(replayData) : undefined); // Initiate level loading
+		this.menu.loadingScreen.loadLevel(this.currentMission, replayData? () => Replay.fromSerialized(replayData) : undefined); // Initiate level loading
 	}
 
 	/** Advance the current mission index by the specified count while respecting the search query. That count can be negative. */
@@ -350,9 +368,11 @@ export abstract class LevelSelect {
 	}
 
 	/** Creates a score element that can be used to show local and online scores. */
-	abstract createScoreElement(includeReplayButton: boolean, includeWorldRecordReplayButton: boolean): HTMLDivElement;
+	abstract createScoreElement(getReplayData: () => Promise<ArrayBuffer>): HTMLDivElement;
 	/** Updates a previously created score element. */
 	abstract updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number): void;
+	/** Return the... you know what, the name is kinda self-explanatory. */
+	abstract getReplayButtonForScoreElement(element: HTMLDivElement): HTMLImageElement;
 
 	displayBestTimes() {
 		let randomId = Util.getRandomId();
@@ -360,7 +380,9 @@ export abstract class LevelSelect {
 
 		let bestTimes = StorageManager.getBestTimesForMission(this.currentMission?.path, this.localScoresCount, this.scorePlaceholderName);
 		for (let i = 0; i < this.localScoresCount; i++) {
+			let element = this.localBestTimesContainer.children[i] as HTMLDivElement;
 			this.updateScoreElement(this.localBestTimesContainer.children[i] as HTMLDivElement, bestTimes[i], i+1);
+			this.updateReplayButton(this.getReplayButtonForScoreElement(element), bestTimes[i], i+1, true);
 		}
 
 		if (!this.currentMission) {
@@ -376,7 +398,7 @@ export abstract class LevelSelect {
 	}
 
 	/** Creates a replay button for use in score elements. */
-	createReplayButton() {
+	createReplayButton(getReplayData: (replayButtonData?: string) => Promise<ArrayBuffer>) {
 		let icon = document.createElement('img');
 		icon.src = "./assets/img/round_videocam_black_18dp.png";
 		icon.title = "Alt-Click to download, Shift-Click to render to video";
@@ -385,10 +407,7 @@ export abstract class LevelSelect {
 			let mission = this.currentMission;
 			if (!mission) return;
 
-			let attr = icon.getAttribute('data-score-id');
-			if (!attr) return;
-
-			let replayData = await StorageManager.databaseGet('replays', attr);
+			let replayData = await getReplayData(this.replayButtonData.get(icon));
 			if (!replayData) return;
 
 			if (action === 'watch') {
@@ -423,85 +442,23 @@ export abstract class LevelSelect {
 		return icon;
 	}
 
-	/** Creates a replay button for use in score elements. */
-	createWorldRecordReplayButton() {
-		let icon = document.createElement('img');
-		icon.src = "./assets/img/round_videocam_black_18dp.png";
-		icon.title = "Alt-Click to download, Shift-Click to render to video";
-		icon.setAttribute('world-record', 'true');
-
-		const handler = async (action: 'watch' | 'download' | 'render') => {
-			let mission = this.currentMission;
-			if (!mission) return;
-			console.log(mission);
-
-			let replayDataBlob = await ResourceManager.retryFetch('./api/world_record_replays', {
-				method: 'POST',
-				body: JSON.stringify({
-					missions: [mission.path]
-				})
-			});
-			if (!replayDataBlob) return;
-			let replayDataJson = JSON.parse(await replayDataBlob.text());
-			if (!replayDataJson[mission.path]) return;
-
-			// https://www.isummation.com/blog/convert-arraybuffer-to-base64-string-and-vice-versa/
-			// I feel like there's a better way...
-			var binaryString = window.atob(replayDataJson[mission.path]);
-			var len = binaryString.length;
-			let replayData = new Uint8Array(len);
-			for (var i = 0; i < len; i++)        {
-				replayData[i] = binaryString.charCodeAt(i);
-			}
-
-			if (action === 'watch') {
-				this.playCurrentMission(replayData);
-			} else if (action === 'download') {
-				Replay.download(replayData, mission);
-				if (Util.isTouchDevice && Util.isInFullscreen()) this.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
-			} else {
-				let replay = Replay.fromSerialized(replayData);
-				VideoRenderer.show(this.currentMission, replay);
-			}
-		};
-
-		icon.addEventListener('click', async (e) => {
-			if (e.button !== 0) return;
-
-			if (e.shiftKey) handler('render');
-			else if (e.altKey) handler('download');
-			else handler('watch');
-		});
-		Util.onLongTouch(icon, () => {
-			handler('download');
-		});
-
-		icon.addEventListener('mouseenter', () => {
-			mainAudioManager.play('buttonover.wav');
-		});
-		icon.addEventListener('mousedown', (e) => {
-			if (e.button === 0) mainAudioManager.play('buttonpress.wav');
-		});
-
-		return icon;
-	}
-
-	async updateReplayButton(element: HTMLImageElement, score: BestTimes[number]) {
+	async updateReplayButton(element: HTMLImageElement, score: BestTimes[number], rank: number, isLocal: boolean) {
 		element.style.display = 'none';
-		element.removeAttribute('data-score-id');
-		if (element.hasAttribute('world-record')) {
-			element.style.display = 'block';
-			return;
-		}
-		if (!score[2]) return;
+		this.replayButtonData.delete(element);
 
-		let randomId = this.lastDisplayBestTimesId;
-		let count = await StorageManager.databaseCount('replays', score[2]);
+		if (isLocal) {
+			if (!score[2]) return;
 
-		if (randomId === this.lastDisplayBestTimesId && count > 0) {
-			element.style.display = 'block';
-			element.setAttribute('data-score-id', score[2]);
+			let randomId = this.lastDisplayBestTimesId;
+			let count = await StorageManager.databaseCount('replays', score[2]);
+
+			if (randomId !== this.lastDisplayBestTimesId || count === 0) return;
+			this.replayButtonData.set(element, score[2]);
+		} else {
+			if (rank !== 1 || this.currentMission.type === 'custom') return;
 		}
+
+		element.style.display = 'block';
 	}
 
 	/** Updates the elements in the online leaderboard. Updates only the visible elements and adds padding to increase performance. */
@@ -540,6 +497,7 @@ export abstract class LevelSelect {
 				let score = onlineScores[index];
 				element.style.display = 'block';
 				this.updateScoreElement(element, score as any, index + 1);
+				this.updateReplayButton(this.getReplayButtonForScoreElement(element), score as any, index + 1, false);
 			} else {
 				// Hide the element otherwise
 				element.style.display = 'none';
