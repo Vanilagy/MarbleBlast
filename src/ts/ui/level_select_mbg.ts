@@ -119,7 +119,7 @@ export class MbgLevelSelect extends LevelSelect {
 		this.levelNumberElement.textContent = `Level ${this.currentMissionIndex + 1}`;
 	}
 
-	createScoreElement(includeReplayButton: boolean) {
+	createScoreElement(includeReplayButton: boolean, includeWorldRecordReplayButton: boolean) {
 		let element = document.createElement('div');
 		element.classList.add('level-select-best-time');
 
@@ -135,6 +135,9 @@ export class MbgLevelSelect extends LevelSelect {
 
 		if (includeReplayButton) {
 			element.appendChild(this.createReplayButton());
+		}
+		if (includeWorldRecordReplayButton) {
+			element.appendChild(this.createWorldRecordReplayButton());
 		}
 
 		return element;

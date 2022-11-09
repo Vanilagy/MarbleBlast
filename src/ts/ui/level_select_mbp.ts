@@ -207,7 +207,7 @@ export class MbpLevelSelect extends LevelSelect {
 		this.easterEggIcon.classList.add('hidden');
 	}
 
-	createScoreElement(includeReplayButton: boolean) {
+	createScoreElement(includeReplayButton: boolean, includeWorldRecordReplayButton: boolean) {
 		let element = document.createElement('div');
 		element.classList.add('mbp-level-select-best-time');
 
@@ -219,6 +219,9 @@ export class MbpLevelSelect extends LevelSelect {
 
 		if (includeReplayButton) {
 			element.appendChild(this.createReplayButton());
+		}
+		if (includeWorldRecordReplayButton) {
+			element.appendChild(this.createWorldRecordReplayButton());
 		}
 
 		return element;

@@ -100,6 +100,36 @@ export const registerActivity = async (res: http.ServerResponse, urlObject: url.
 	res.end();
 };
 
+export const getWorldRecordReplays = async (res: http.ServerResponse, body: string) => {
+	if (!body) throw new Error("Missing body.");
+
+	let options: {
+		missions: string[]
+	} = JSON.parse(body);
+
+	let response: Record<string, string> = {};
+
+	for (let mission of options.missions) {
+		try {
+			// TODO: Is this method fully safe against malicious "missions" allowing an attacker to read any arbitrary
+			// file? Replacing the slashes seems pretty solid but I want to be sure.
+			const replay = await fs.readFile(path.join(__dirname, 'storage', 'wrecs', mission.replace(/\//g, '_') + '.wrec'));
+			response[mission] = replay.toString('base64'); // TODO gzip?
+		}
+		catch (error) {
+			// Don't add this to the list
+		}
+	}
+
+	let stringified = JSON.stringify(response);
+	res.writeHead(200, {
+		'Content-Type': 'application/json',
+		'Content-Length': Buffer.byteLength(stringified),
+		'Cache-Control': 'no-cache, no-store' // Don't cache this
+	});
+	res.end(stringified);
+}
+
 setInterval(() => {
 	let now = Date.now();
 	let changed = false;
