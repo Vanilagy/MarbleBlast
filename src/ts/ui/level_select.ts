@@ -63,13 +63,13 @@ export abstract class LevelSelect {
 	async init() {
 		// Create the elements for the local best times
 		for (let i = 0; i < this.localScoresCount; i++) {
-			let element = this.createScoreElement(true);
+			let element = this.createScoreElement(true, false);
 			this.localBestTimesContainer.appendChild(element);
 		}
 
 		// Create the elements for the online leaderboard (will be reused)
 		for (let i = 0; i < 18; i++) {
-			let element = this.createScoreElement(false);
+			let element = this.createScoreElement(false, i === 0); // TODO check that the WR wrec actually exists
 			this.leaderboardScores.appendChild(element);
 		}
 
@@ -350,7 +350,7 @@ export abstract class LevelSelect {
 	}
 
 	/** Creates a score element that can be used to show local and online scores. */
-	abstract createScoreElement(includeReplayButton: boolean): HTMLDivElement;
+	abstract createScoreElement(includeReplayButton: boolean, includeWorldRecordReplayButton: boolean): HTMLDivElement;
 	/** Updates a previously created score element. */
 	abstract updateScoreElement(element: HTMLDivElement, score: BestTimes[number], rank: number): void;
 
@@ -423,9 +423,76 @@ export abstract class LevelSelect {
 		return icon;
 	}
 
+	/** Creates a replay button for use in score elements. */
+	createWorldRecordReplayButton() {
+		let icon = document.createElement('img');
+		icon.src = "./assets/img/round_videocam_black_18dp.png";
+		icon.title = "Alt-Click to download, Shift-Click to render to video";
+		icon.setAttribute('world-record', 'true');
+
+		const handler = async (action: 'watch' | 'download' | 'render') => {
+			let mission = this.currentMission;
+			if (!mission) return;
+			console.log(mission);
+
+			let replayDataBlob = await ResourceManager.retryFetch('./api/world_record_replays', {
+				method: 'POST',
+				body: JSON.stringify({
+					missions: [mission.path]
+				})
+			});
+			if (!replayDataBlob) return;
+			let replayDataJson = JSON.parse(await replayDataBlob.text());
+			if (!replayDataJson[mission.path]) return;
+
+			// https://www.isummation.com/blog/convert-arraybuffer-to-base64-string-and-vice-versa/
+			// I feel like there's a better way...
+			var binaryString = window.atob(replayDataJson[mission.path]);
+			var len = binaryString.length;
+			let replayData = new Uint8Array(len);
+			for (var i = 0; i < len; i++)        {
+				replayData[i] = binaryString.charCodeAt(i);
+			}
+
+			if (action === 'watch') {
+				this.playCurrentMission(replayData);
+			} else if (action === 'download') {
+				Replay.download(replayData, mission);
+				if (Util.isTouchDevice && Util.isInFullscreen()) this.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
+			} else {
+				let replay = Replay.fromSerialized(replayData);
+				VideoRenderer.show(this.currentMission, replay);
+			}
+		};
+
+		icon.addEventListener('click', async (e) => {
+			if (e.button !== 0) return;
+
+			if (e.shiftKey) handler('render');
+			else if (e.altKey) handler('download');
+			else handler('watch');
+		});
+		Util.onLongTouch(icon, () => {
+			handler('download');
+		});
+
+		icon.addEventListener('mouseenter', () => {
+			mainAudioManager.play('buttonover.wav');
+		});
+		icon.addEventListener('mousedown', (e) => {
+			if (e.button === 0) mainAudioManager.play('buttonpress.wav');
+		});
+
+		return icon;
+	}
+
 	async updateReplayButton(element: HTMLImageElement, score: BestTimes[number]) {
 		element.style.display = 'none';
 		element.removeAttribute('data-score-id');
+		if (element.hasAttribute('world-record')) {
+			element.style.display = 'block';
+			return;
+		}
 		if (!score[2]) return;
 
 		let randomId = this.lastDisplayBestTimesId;
