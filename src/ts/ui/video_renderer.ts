@@ -479,7 +479,7 @@ export abstract class VideoRenderer {
 
 const workerBody = () => {
 	let url: string;
-	let webmWriter: WebMWriter;
+	let muxer: WebMMuxer;
 	let videoEncoder: VideoEncoder;
 	let audioEncoder: AudioEncoder;
 	let fileWritableStream: FileSystemWritableFileStream;
@@ -509,7 +509,7 @@ const workerBody = () => {
 
 				const audioSampleRate = 48_000;
 
-				webmWriter = new WebMWriter({
+				muxer = new WebMMuxer({
 					target: fileWritableStream,
 					video: {
 						codec: 'V_VP9',
@@ -526,7 +526,7 @@ const workerBody = () => {
 
 				videoEncoder = new VideoEncoder({
 					output: (chunk, metadata) => {
-						webmWriter.addVideoChunk(chunk, metadata);
+						muxer.addVideoChunk(chunk, metadata);
 						if (chunk.type === 'key') {
 							lastVideoKeyFrame = Math.max(lastVideoKeyFrame, chunk.timestamp);
 						}
@@ -549,7 +549,7 @@ const workerBody = () => {
 				if (data.includeAudio) {
 					audioEncoder = new AudioEncoder({
 						output: (chunk, metadata) => {
-							webmWriter.addAudioChunk(chunk, metadata);
+							muxer.addAudioChunk(chunk, metadata);
 							self.postMessage({
 								command: 'audioChunkEncoded',
 								timestamp: chunk.timestamp
@@ -597,7 +597,7 @@ const workerBody = () => {
 				videoEncoder.close();
 				audioEncoder?.close();
 
-				webmWriter.finalize();
+				muxer.finalize();
 				await fileWritableStream.close();
 
 				self.postMessage('done');
