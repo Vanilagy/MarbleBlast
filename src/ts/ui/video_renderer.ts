@@ -24,7 +24,7 @@ export abstract class VideoRenderer {
 	static replay: Replay;
 	static tickLength: number;
 	static fileHandle: FileSystemFileHandle;
-	static stopped = false;
+	static process: RenderingProcess = null;
 
 	static {
 		this.div = document.querySelector('#video-renderer');
@@ -38,15 +38,19 @@ export abstract class VideoRenderer {
 
 		this.selectDestinationButton.addEventListener('click', async () => {
 			let suggestedFilename = Util.removeSpecialChars(this.mission.title.toLowerCase().split(' ').map(x => Util.uppercaseFirstLetter(x)).join(''));
-			let fileHandle = await window.showSaveFilePicker({
-				startIn: 'videos',
-				suggestedName: `${suggestedFilename}.webm`,
-				types: [{
-					description: 'Video File',
-					accept: {'video/webm' :['.webm']}
-				}]
-			} as any);
-			this.fileHandle = fileHandle;
+
+			try {
+				this.fileHandle = await window.showSaveFilePicker({
+					startIn: 'videos',
+					suggestedName: `${suggestedFilename}.webm`,
+					types: [{
+						description: 'Video File',
+						accept: {'video/webm' :['.webm']}
+					}]
+				} as any);
+			} catch (e) {
+				return;
+			}
 
 			this.updateOverviewText();
 			this.renderButton.classList.remove('disabled');
@@ -120,237 +124,355 @@ export abstract class VideoRenderer {
 	}
 
 	static async render() {
-		// Extract the configuration options from the DOM
-		let width = Number((this.div.querySelectorAll('._config-row')[0].children[1] as HTMLInputElement).value);
-		let height = Number((this.div.querySelectorAll('._config-row')[1].children[1] as HTMLInputElement).value);
-		let kilobitRate = Number((this.div.querySelectorAll('._config-row')[2].children[1] as HTMLInputElement).value);
-		let frameRate = Number((this.div.querySelectorAll('._config-row')[3].children[1] as HTMLInputElement).value);
-		let playbackSpeed = Number((this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value);
-		let fastMode = (this.div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked;
+		this.process = new RenderingProcess();
+		await this.process.run();
+		this.hide();
+	}
 
-		let includeAudio = (this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked;
-		let audioKilobitRate = Number((this.div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).value);
-		let musicToSoundRatio = Math.tan(Number((this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value) * Math.PI / 2);
-
-		// Check input validity
-		if (!Number.isInteger(width) || width < 1 || width % 2 !== 0) {
-			state.menu.showAlertPopup("Error", `"Width" has to be a positive even integer.`);
-			return;
-		}
-		if (!Number.isInteger(height) || height < 1 || height % 2 !== 0) {
-			state.menu.showAlertPopup("Error", `"Height" has to be a positive even integer.`);
-			return;
-		}
-		if (!isFinite(kilobitRate) || kilobitRate < 1) {
-			state.menu.showAlertPopup("Error", `"Bit rate" has an illegal value.`);
-			return;
-		}
-		if (!isFinite(frameRate) || frameRate <= 0) {
-			state.menu.showAlertPopup("Error", `"Frame rate" has to be positive.`);
-			return;
-		}
-		if (!isFinite(playbackSpeed) || playbackSpeed <= 0) {
-			state.menu.showAlertPopup("Error", `"Playback speed" has to be positive.`);
-			return;
-		}
-		if (!isFinite(audioKilobitRate) || audioKilobitRate < 6) {
-			state.menu.showAlertPopup("Error", `"Audio bit rate" has to be at least 6 kbit/s.`);
+	static async stopRender(force: boolean) {
+		if (!force && !(await state.menu.showConfirmPopup('Stop rendering', "Are you sure you want to cancel the ongoing rendering process?"))) {
 			return;
 		}
 
-		// Store config for later reuse
-		StorageManager.data.videoRecorderConfig.width = width;
-		StorageManager.data.videoRecorderConfig.height = height;
-		StorageManager.data.videoRecorderConfig.kilobitRate = kilobitRate;
-		StorageManager.data.videoRecorderConfig.frameRate = frameRate;
-		StorageManager.data.videoRecorderConfig.playbackSpeed = playbackSpeed;
-		StorageManager.data.videoRecorderConfig.fastMode = fastMode;
-		StorageManager.data.videoRecorderConfig.includeAudio = includeAudio;
-		StorageManager.data.videoRecorderConfig.audioKilobitRate = audioKilobitRate;
-		StorageManager.data.videoRecorderConfig.musicToSoundRatio = musicToSoundRatio;
-		StorageManager.store();
+		this.process.stop();
+		this.hide();
+	}
 
-		this.configContainer.classList.add('disabled');
-		this.progressBar.style.display = 'block';
-		this.renderButton.textContent = 'Stop';
-		this.closeButton.style.display = 'none';
+	/** Opens the video renderer UI, ready to render the specified `replay`. */
+	static show(mission: Mission, replay: Replay) {
+		if (!('showSaveFilePicker' in window) || !('VideoEncoder' in window)) {
+			state.menu.showAlertPopup("Not supported", "Unfortunately, your browser does not support the technology required by the video renderer. To access this feature, try using Chromium 94 or above (Chrome 94, Edge 94, Opera 80) on desktop.");
+			return;
+		}
 
-		let level: Level;
+		this.div.classList.remove('hidden');
+		state.menu.levelSelect.hide();
 
-		// This interval updates the progress bar as the level loads
-		let id = setInterval(() => {
-			let completion = Math.min(level?.getLoadingCompletion() ?? 0, 1);
+		this.mission = mission;
+		this.replay = replay;
 
-			this.progressBar.value = completion * 0.1; // First 10% of the progress bar
-			this.statusText.textContent = `Loading (${Math.floor(completion * 100)}%)`;
+		// Compute how many simulation ticks the replay is long
+		let tickLength = replay.marblePositions.length;
+		if (replay.finishTime) {
+			// Cap the replay to last only 2 more seconds after the finish has been reached (theoretically, players can idle in the finish animation by waiting to submit their score)
+			let tickIndex = replay.finishTime.tickIndex ?? Math.floor(replay.finishTime.currentAttemptTime * PHYSICS_TICK_RATE / 1000);
+			tickLength = Math.min(tickLength, tickIndex + 2 * PHYSICS_TICK_RATE);
+		}
+		this.tickLength = tickLength;
 
-			if (completion >= 1) clearInterval(id);
-		}, 16);
+		this.updateOverviewText();
+		if (!this.loaded) this.initUiFromStoredConfig();
+	}
 
-		// Create the worker which will handle video encoding for us
-		let worker = await this.createWorker();
+	static initUiFromStoredConfig() {
+		this.loaded = true;
 
+		let playbackSpeedString = StorageManager.data.videoRecorderConfig.playbackSpeed.toString();
+		if (!playbackSpeedString.includes('.')) playbackSpeedString += '.0';
+
+		// Set the initial values to the ones stored
+		(this.div.querySelectorAll('._config-row')[0].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.width.toString();
+		(this.div.querySelectorAll('._config-row')[1].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.height.toString();
+		(this.div.querySelectorAll('._config-row')[2].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.kilobitRate.toString();
+		(this.div.querySelectorAll('._config-row')[3].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.frameRate.toString();
+		(this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value = playbackSpeedString;
+		(this.div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.fastMode;
+
+		(this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.includeAudio;
+		(this.div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.audioKilobitRate.toString();
+		(this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value = (2 * Math.atan(StorageManager.data.videoRecorderConfig.musicToSoundRatio) / Math.PI).toString();
+
+		this.updateMusicToSoundRatioDisplay();
+		this.updateAudioSettingsEnabledness();
+	}
+
+	static hide() {
+		this.div.classList.add('hidden');
+		state.menu.levelSelect.show();
+
+		this.fileHandle = null;
+		this.process = null;
+		this.renderButton.classList.add('disabled');
+		this.progressBar.style.display = 'none';
+		this.progressBar.value = 0;
+		this.statusText.textContent = '';
+		this.configContainer.classList.remove('disabled');
+		this.renderButton.textContent = 'Render';
+		this.closeButton.style.display = '';
+	}
+}
+
+class RenderingProcess {
+	// Config:
+	width: number;
+	height: number;
+	kilobitRate: number;
+	frameRate: number;
+	playbackSpeed: number;
+	fastMode: boolean;
+	includeAudio: boolean;
+	audioKilobitRate: number;
+	musicToSoundRatio: number;
+
+	level: Level;
+	worker: Worker;
+	lastVideoChunkTimestamp: number;
+	lastAudioChunkTimestamp: number;
+	ctx: CanvasRenderingContext2D;
+	totalTimeUs: number;
+	intervalId: any;
+	stopped = false;
+
+	async run() {
 		try {
-			// Load the mission and level
-			await this.mission.load();
-			level = new Level(this.mission, {
-				duration: this.tickLength/PHYSICS_TICK_RATE,
-				musicVolume: Math.min(musicToSoundRatio, 1),
-				soundVolume: Math.min(1/musicToSoundRatio, 1)
-			});
-			state.level = level;
-			await level.init();
-			level.replay = this.replay;
-			this.replay.level = level;
-			this.replay.mode = 'playback';
+			this.readConfiguration();
+			let configValid = this.validateConfiguration();
+			if (!configValid) return;
+			this.storeConfiguration();
 
-			await level.start();
+			this.prepareUi();
+			await this.createWorker();
+			await this.loadLevel();
+			this.setUpWorker();
+			this.initRendering();
+			await this.renderFrames();
+			await this.renderAudio();
+			this.initFinalization();
 
-			// Set up the worker with necessary information
-			worker.postMessage({
-				command: 'setup',
-				width,
-				height,
-				kilobitRate,
-				frameRate,
-				includeAudio,
-				audioKilobitRate,
-				fileHandle: this.fileHandle
-			});
+			if (this.stopped) return;
 
-			// Bubble worker errors up to this context
-			worker.addEventListener('message', e => {
-				if (e.data.command === 'error') {
-					console.error(e);
-
-					level?.stop();
-					clearInterval(id);
-					this.exitWithError();
-				}
-			});
-
-			// We use these variables to compute the completion of the encoding process
-			let lastVideoChunkTimestamp = 0;
-			let lastAudioChunkTimestamp = includeAudio ? 0 : Infinity;
-			worker.addEventListener('message', e => {
-				if (e.data.command === 'videoChunkEncoded') lastVideoChunkTimestamp = e.data.timestamp;
-				else if (e.data.command === 'audioChunkEncoded') lastAudioChunkTimestamp = e.data.timestamp;
-			});
-
-			const totalFrames = Math.floor(this.tickLength / PHYSICS_TICK_RATE * frameRate / playbackSpeed);
-			const totalTimeUs = 1e6 * totalFrames / frameRate;
-
-			mainRenderer.setSize(width, height);
-			mainRenderer.setPixelRatio(1.0);
-			level.onResize(width, height, 1.0);
-
-			let compositeCanvas = document.createElement('canvas');
-			compositeCanvas.setAttribute('width', width.toString());
-			compositeCanvas.setAttribute('height', height.toString());
-			let ctx = compositeCanvas.getContext('2d', { willReadFrequently: true });
-
-			// Now, render all the frames we need
-			for (let frame = 0; frame < totalFrames; frame++) {
-				if (this.stopped) break; // Abort
-
-				let time = 1000 * frame / frameRate;
-				level.render(time * playbackSpeed);
-
-				if (level.stopped) break;
-
-				// Compose together the main game canvas and the HUD canvas
-				ctx.drawImage(mainCanvas, 0, 0);
-				ctx.drawImage(state.menu.hud.hudCanvas, 0, 0);
-
-				let imageBuffer = ctx.getImageData(0, 0, width, height).data.buffer;
-				worker.postMessage({
-					command: 'videoData',
-					data: imageBuffer,
-					timestamp: 1000 * time
-				}, [imageBuffer]);
-
-				this.statusText.textContent = `Rendering frame ${Math.min(frame + 1, totalFrames)}/${totalFrames}`;
-				this.progressBar.value = 0.1 + 0.6 * Math.min(frame + 1, totalFrames)/totalFrames; // 10%-70% of the progress bar
-
-				if (!fastMode) {
-					// In slow mode, we wait for the frame to be encoded before we begin generating the next frame. This minimizes strain on the hardware and often prevents WebGL context loss.
-					await new Promise<void>(resolve => worker.addEventListener('message', function callback(ev) {
-						if (ev.data.command !== 'videoChunkEncoded') return;
-
-						worker.removeEventListener('message', callback);
-						resolve();
-					}));
-				} else {
-					// In fast mode, we wait a fixed 16 milliseconds between rendering frames. Rendering any faster has little benefit as we're limited by video encoding speed. Also, we might lose the WebGL context.
-					await new Promise<void>(resolve => workerSetTimeout(resolve, 16));
-				}
-
-				if (mainRenderer.gl.isContextLost()) throw new Error("Context lost");
-			}
-
-			if (includeAudio) {
-				let audioContext = level.audio.context as OfflineAudioContext;
-				let audioBuffer = await audioContext.startRendering();
-				let audioData = this.createAudioData(audioBuffer, playbackSpeed);
-
-				worker.postMessage({
-					command: 'audioData',
-					audioData
-				}, [audioData as any]);
-			}
-
-			level.stop();
-			state.level = null;
-
-			if (this.stopped) {
-				worker.terminate();
-				return;
-			}
-
-			// Tell the worker that we're done sending frames
-			worker.postMessage({
-				command: 'finishUp'
-			});
-
-			// This varibles lets us make it look like encoding started right when the last frame finished rendering, instead of earlier.
-			let getMinChunkTimestamp = () => Math.min(lastVideoChunkTimestamp, lastAudioChunkTimestamp);
-			let lastChunkTimestampAtRenderFinish = getMinChunkTimestamp();
-
-			// This interval updates the progress bar based on the encoding completion
-			id = setInterval(() => {
-				let completion = (getMinChunkTimestamp() - lastChunkTimestampAtRenderFinish) / (totalTimeUs - lastChunkTimestampAtRenderFinish);
-				this.statusText.textContent = `Encoding (${(100 * completion).toFixed(1)}%)`;
-				this.progressBar.value = 0.7 + 0.3 * completion; // Last 30% of the progress bar
-			}, 16);
-
-			await new Promise<void>(resolve => worker.addEventListener('message', e => e.data === 'done' && resolve()));
-			clearInterval(id);
-
-			if (this.stopped) {
-				worker.terminate();
-				return;
-			}
-
-			this.statusText.textContent = `Finalizing...`;
-			this.progressBar.value = 1.0;
-
-			await Util.wait(200); // Fake some work 😂😂😂😂
-
-			state.menu.showAlertPopup("Rendering complete", "The replay has been successfully rendered to the specified destination video file.");
+			await this.awaitEncoding();
+			await this.finalize();
 		} catch (e) {
 			console.error(e);
-
-			level?.stop();
-			clearInterval(id);
+			this.level?.stop();
+			clearInterval(this.intervalId);
 			this.exitWithError();
 		} finally {
-			worker.terminate();
-			this.hide();
+			this.worker?.terminate();
+		}
+	}
+
+	readConfiguration() {
+		const div = VideoRenderer.div;
+
+		// Video config
+		this.width = Number((div.querySelectorAll('._config-row')[0].children[1] as HTMLInputElement).value);
+		this.height = Number((div.querySelectorAll('._config-row')[1].children[1] as HTMLInputElement).value);
+		this.kilobitRate = Number((div.querySelectorAll('._config-row')[2].children[1] as HTMLInputElement).value);
+		this.frameRate = Number((div.querySelectorAll('._config-row')[3].children[1] as HTMLInputElement).value);
+		this.playbackSpeed = Number((div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value);
+		this.fastMode = (div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked;
+
+		// Audio config
+		this.includeAudio = (div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked;
+		this.audioKilobitRate = Number((div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).value);
+		this.musicToSoundRatio = Math.tan(Number((div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value) * Math.PI / 2);
+	}
+
+	validateConfiguration() {
+		if (!Number.isInteger(this.width) || this.width < 1 || this.width % 2 !== 0) {
+			state.menu.showAlertPopup("Error", `"Width" has to be a positive even integer.`);
+			return false;
+		}
+		if (!Number.isInteger(this.height) || this.height < 1 || this.height % 2 !== 0) {
+			state.menu.showAlertPopup("Error", `"Height" has to be a positive even integer.`);
+			return false;
+		}
+		if (!isFinite(this.kilobitRate) || this.kilobitRate < 1) {
+			state.menu.showAlertPopup("Error", `"Bit rate" has an illegal value.`);
+			return false;
+		}
+		if (!isFinite(this.frameRate) || this.frameRate <= 0) {
+			state.menu.showAlertPopup("Error", `"Frame rate" has to be positive.`);
+			return false;
+		}
+		if (!isFinite(this.playbackSpeed) || this.playbackSpeed <= 0) {
+			state.menu.showAlertPopup("Error", `"Playback speed" has to be positive.`);
+			return false;
+		}
+		if (!isFinite(this.audioKilobitRate) || this.audioKilobitRate < 6) {
+			state.menu.showAlertPopup("Error", `"Audio bit rate" has to be at least 6 kbit/s.`);
+			return false;
+		}
+
+		return true;
+	}
+
+	storeConfiguration() {
+		StorageManager.data.videoRecorderConfig.width = this.width;
+		StorageManager.data.videoRecorderConfig.height = this.height;
+		StorageManager.data.videoRecorderConfig.kilobitRate = this.kilobitRate;
+		StorageManager.data.videoRecorderConfig.frameRate = this.frameRate;
+		StorageManager.data.videoRecorderConfig.playbackSpeed = this.playbackSpeed;
+		StorageManager.data.videoRecorderConfig.fastMode = this.fastMode;
+		StorageManager.data.videoRecorderConfig.includeAudio = this.includeAudio;
+		StorageManager.data.videoRecorderConfig.audioKilobitRate = this.audioKilobitRate;
+		StorageManager.data.videoRecorderConfig.musicToSoundRatio = this.musicToSoundRatio;
+		StorageManager.store();
+	}
+
+	prepareUi() {
+		VideoRenderer.configContainer.classList.add('disabled');
+		VideoRenderer.progressBar.style.display = 'block';
+		VideoRenderer.renderButton.textContent = 'Stop';
+		VideoRenderer.closeButton.style.display = 'none';
+	}
+
+	async createWorker() {
+		let entire = workerBody.toString();
+		let bodyString = entire.slice(entire.indexOf("{") + 1, entire.lastIndexOf("}"));
+		let blob = new Blob([bodyString]);
+		let worker = new Worker(URL.createObjectURL(blob));
+
+		worker.postMessage(window.location.href.slice(0, window.location.href.lastIndexOf('/') + 1));
+		await new Promise<void>(resolve => worker.addEventListener('message', e => e.data === 'ready' && resolve()));
+
+		this.worker = worker;
+	}
+
+	async loadLevel() {
+		this.beginUpdatingUiBasedOnLoadingProgress();
+
+		await VideoRenderer.mission.load();
+		this.level = new Level(VideoRenderer.mission, {
+			duration: VideoRenderer.tickLength/PHYSICS_TICK_RATE,
+			musicVolume: Math.min(this.musicToSoundRatio, 1),
+			soundVolume: Math.min(1/this.musicToSoundRatio, 1)
+		});
+		state.level = this.level;
+		await this.level.init();
+
+		this.level.replay = VideoRenderer.replay;
+		VideoRenderer.replay.level = this.level;
+		VideoRenderer.replay.mode = 'playback';
+
+		await this.level.start();
+	}
+
+	beginUpdatingUiBasedOnLoadingProgress() {
+		this.intervalId = setInterval(() => {
+			let completion = Math.min(this.level?.getLoadingCompletion() ?? 0, 1);
+
+			VideoRenderer.progressBar.value = completion * 0.1; // First 10% of the progress bar
+			VideoRenderer.statusText.textContent = `Loading (${Math.floor(completion * 100)}%)`;
+
+			if (completion >= 1) clearInterval(this.intervalId);
+		}, 16);
+	}
+
+	setUpWorker() {
+		this.worker.postMessage({
+			command: 'setup',
+			width: this.width,
+			height: this.height,
+			kilobitRate: this.kilobitRate,
+			frameRate: this.frameRate,
+			includeAudio: this.includeAudio,
+			audioKilobitRate: this.audioKilobitRate,
+			fileHandle: VideoRenderer.fileHandle
+		});
+
+		// Bubble worker errors up to this context
+		this.worker.addEventListener('message', e => {
+			if (e.data.command === 'error') {
+				console.error(e);
+
+				this.level?.stop();
+				clearInterval(this.intervalId);
+				this.exitWithError();
+			}
+		});
+
+		// We use these variables to compute the completion of the encoding process
+		this.lastVideoChunkTimestamp = 0;
+		this.lastAudioChunkTimestamp = this.includeAudio ? 0 : Infinity;
+		this.worker.addEventListener('message', e => {
+			if (e.data.command === 'videoChunkEncoded') this.lastVideoChunkTimestamp = e.data.timestamp;
+			else if (e.data.command === 'audioChunkEncoded') this.lastAudioChunkTimestamp = e.data.timestamp;
+		});
+	}
+
+	initRendering() {
+		mainRenderer.setSize(this.width, this.height);
+		mainRenderer.setPixelRatio(1.0);
+		this.level.onResize(this.width, this.height, 1.0);
+
+		let compositeCanvas = document.createElement('canvas');
+		compositeCanvas.setAttribute('width', this.width.toString());
+		compositeCanvas.setAttribute('height', this.height.toString());
+		this.ctx = compositeCanvas.getContext('2d', { willReadFrequently: true });
+	}
+
+	async renderFrames() {
+		const totalFrames = Math.floor(VideoRenderer.tickLength / PHYSICS_TICK_RATE * this.frameRate / this.playbackSpeed);
+		this.totalTimeUs = 1e6 * totalFrames / this.frameRate;
+
+		// Now, render all the frames we need
+		for (let frame = 0; frame < totalFrames; frame++) {
+			if (this.stopped) break; // Abort
+
+			let time = 1000 * frame / this.frameRate;
+			this.level.render(time * this.playbackSpeed);
+			if (this.level.stopped) break;
+
+			this.composeFrame();
+			this.sendFrameToWorker(time);
+
+			VideoRenderer.statusText.textContent = `Rendering frame ${Math.min(frame + 1, totalFrames)}/${totalFrames}`;
+			VideoRenderer.progressBar.value = 0.1 + 0.6 * Math.min(frame + 1, totalFrames)/totalFrames; // 10%-70% of the progress bar
+
+			await this.waitBeforeRenderingNextFrame();
+
+			if (mainRenderer.gl.isContextLost()) throw new Error("Context lost");
+		}
+	}
+
+	composeFrame() {
+		// Compose together the main game canvas and the HUD canvas
+		this.ctx.drawImage(mainCanvas, 0, 0);
+		this.ctx.drawImage(state.menu.hud.hudCanvas, 0, 0);
+	}
+
+	sendFrameToWorker(time: number) {
+		let imageBuffer = this.ctx.getImageData(0, 0, this.width, this.height).data.buffer;
+		this.worker.postMessage({
+			command: 'videoData',
+			data: imageBuffer,
+			timestamp: 1000 * time
+		}, [imageBuffer]);
+	}
+
+	async waitBeforeRenderingNextFrame() {
+		if (!this.fastMode) {
+			// In slow mode, we wait for the frame to be encoded before we begin generating the next frame. This minimizes strain on the hardware and often prevents WebGL context loss.
+			let self = this;
+			await new Promise<void>(resolve => this.worker.addEventListener('message', function callback(ev) {
+				if (ev.data.command !== 'videoChunkEncoded') return;
+				self.worker.removeEventListener('message', callback);
+				resolve();
+			}));
+		} else {
+			// In fast mode, we wait a fixed 16 milliseconds between rendering frames. Rendering any faster has little benefit as we're limited by video encoding speed. Also, we might lose the WebGL context.
+			await new Promise<void>(resolve => workerSetTimeout(resolve, 16));
+		}
+	}
+
+	async renderAudio() {
+		if (this.includeAudio) {
+			let audioContext = this.level.audio.context as OfflineAudioContext;
+			let audioBuffer = await audioContext.startRendering();
+			let audioData = this.createAudioData(audioBuffer, this.playbackSpeed);
+
+			this.worker.postMessage({
+				command: 'audioData',
+				audioData
+			}, [audioData as any]);
 		}
 	}
 
 	/** Creates an AudioData object from a given AudioBuffer. Also linearly resamples the audio signals if the playback speed isn't 1. */
-	static createAudioData(audioBuffer: AudioBuffer, playbackSpeed: number) {
+	createAudioData(audioBuffer: AudioBuffer, playbackSpeed: number) {
 		let frameCountPerChannel = Math.floor(audioBuffer.length / playbackSpeed);
 		let audioDataData = new Float32Array(frameCountPerChannel * 2);
 
@@ -388,78 +510,52 @@ export abstract class VideoRenderer {
 		return audioData;
 	}
 
-	static async stopRender(force: boolean) {
-		if (!force && !(await state.menu.showConfirmPopup('Stop rendering', "Are you sure you want to cancel the ongoing rendering process?"))) {
+	initFinalization() {
+		this.level.stop();
+		state.level = null;
+
+		if (this.stopped) {
+			this.worker.terminate();
 			return;
 		}
 
-		this.stopped = true;
-		this.hide();
+		// Tell the worker that we're done sending frames
+		this.worker.postMessage({
+			command: 'finishUp'
+		});
 	}
 
-	/** Opens the video renderer UI, ready to render the specified `replay`. */
-	static show(mission: Mission, replay: Replay) {
-		if (!('showSaveFilePicker' in window) || !('VideoEncoder' in window)) {
-			state.menu.showAlertPopup("Not supported", "Unfortunately, your browser does not support the technology required by the video renderer. To access this feature, try using Chromium 94 or above (Chrome 94, Edge 94, Opera 80) on desktop.");
+	async awaitEncoding() {
+		// This varibles lets us make it look like encoding started right when the last frame finished rendering, instead of earlier.
+		let getMinChunkTimestamp = () => Math.min(this.lastVideoChunkTimestamp, this.lastAudioChunkTimestamp);
+		let lastChunkTimestampAtRenderFinish = getMinChunkTimestamp();
+
+		// This interval updates the progress bar based on the encoding completion
+		this.intervalId = setInterval(() => {
+			let completion = (getMinChunkTimestamp() - lastChunkTimestampAtRenderFinish) / (this.totalTimeUs - lastChunkTimestampAtRenderFinish);
+			VideoRenderer.statusText.textContent = `Encoding (${(100 * completion).toFixed(1)}%)`;
+			VideoRenderer.progressBar.value = 0.7 + 0.3 * completion; // Last 30% of the progress bar
+		}, 16);
+
+		await new Promise<void>(resolve => this.worker.addEventListener('message', e => e.data === 'done' && resolve()));
+		clearInterval(this.intervalId);
+	}
+
+	async finalize() {
+		if (this.stopped) {
+			this.worker.terminate();
 			return;
 		}
 
-		this.div.classList.remove('hidden');
-		state.menu.levelSelect.hide();
-		this.stopped = false;
+		VideoRenderer.statusText.textContent = `Finalizing...`;
+		VideoRenderer.progressBar.value = 1.0;
 
-		this.mission = mission;
-		this.replay = replay;
+		await Util.wait(200); // Fake some work 😂😂😂😂
 
-		// Compute how many simulation ticks the replay is long
-		let tickLength = replay.marblePositions.length;
-		if (replay.finishTime) {
-			// Cap the replay to last only 2 more seconds after the finish has been reached (theoretically, players can idle in the finish animation by waiting to submit their score)
-			let tickIndex = replay.finishTime.tickIndex ?? Math.floor(replay.finishTime.currentAttemptTime * PHYSICS_TICK_RATE / 1000);
-			tickLength = Math.min(tickLength, tickIndex + 2 * PHYSICS_TICK_RATE);
-		}
-		this.tickLength = tickLength;
-
-		this.updateOverviewText();
-
-		if (!this.loaded) {
-			this.loaded = true;
-
-			let playbackSpeedString = StorageManager.data.videoRecorderConfig.playbackSpeed.toString();
-			if (!playbackSpeedString.includes('.')) playbackSpeedString += '.0';
-
-			// Set the initial values to the ones stored
-			(this.div.querySelectorAll('._config-row')[0].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.width.toString();
-			(this.div.querySelectorAll('._config-row')[1].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.height.toString();
-			(this.div.querySelectorAll('._config-row')[2].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.kilobitRate.toString();
-			(this.div.querySelectorAll('._config-row')[3].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.frameRate.toString();
-			(this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value = playbackSpeedString;
-			(this.div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.fastMode;
-
-			(this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.includeAudio;
-			(this.div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.audioKilobitRate.toString();
-			(this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value = (2 * Math.atan(StorageManager.data.videoRecorderConfig.musicToSoundRatio) / Math.PI).toString();
-
-			this.updateMusicToSoundRatioDisplay();
-			this.updateAudioSettingsEnabledness();
-		}
+		state.menu.showAlertPopup("Rendering complete", "The replay has been successfully rendered to the specified destination video file.");
 	}
 
-	static hide() {
-		this.div.classList.add('hidden');
-		state.menu.levelSelect.show();
-
-		this.fileHandle = null;
-		this.renderButton.classList.add('disabled');
-		this.progressBar.style.display = 'none';
-		this.progressBar.value = 0;
-		this.statusText.textContent = '';
-		this.configContainer.classList.remove('disabled');
-		this.renderButton.textContent = 'Render';
-		this.closeButton.style.display = '';
-	}
-
-	static exitWithError() {
+	exitWithError() {
 		let lostContext = mainRenderer.gl.isContextLost();
 		let message: string;
 
@@ -475,6 +571,11 @@ export abstract class VideoRenderer {
 		state.level = null;
 		this.stopped = true;
 	}
+
+	stop() {
+		this.stopped = true;
+		clearInterval(this.intervalId);
+	}
 }
 
 const workerBody = () => {
@@ -487,121 +588,145 @@ const workerBody = () => {
 	let height: number;
 	let lastVideoKeyFrame = -Infinity;
 
+	const onSetup = async (data: {
+		fileHandle: FileSystemFileHandle,
+		width: number,
+		height: number,
+		frameRate: number,
+		kilobitRate: number,
+		includeAudio: boolean
+		audioKilobitRate: number
+	}) => {
+		// Set up the writable stream, the WebM writer and video encoder.
+
+		fileWritableStream = await data.fileHandle.createWritable();
+		width = data.width;
+		height = data.height;
+
+		const audioSampleRate = 48_000;
+
+		muxer = new WebMMuxer({
+			target: fileWritableStream,
+			video: {
+				codec: 'V_VP9',
+				width: data.width,
+				height: data.height,
+				frameRate: data.frameRate
+			},
+			audio: (data.includeAudio ? {
+				codec: 'A_OPUS',
+				numberOfChannels: 2,
+				sampleRate: audioSampleRate
+			} : undefined)
+		});
+
+		videoEncoder = new VideoEncoder({
+			output: (chunk, metadata) => {
+				muxer.addVideoChunk(chunk, metadata);
+				if (chunk.type === 'key') {
+					lastVideoKeyFrame = Math.max(lastVideoKeyFrame, chunk.timestamp);
+				}
+
+				self.postMessage({
+					command: 'videoChunkEncoded',
+					timestamp: chunk.timestamp
+				});
+			},
+			error: e => console.error(e)
+		});
+		videoEncoder.configure({
+			codec: "vp09.00.10.08",
+			width: data.width,
+			height: data.height,
+			bitrate: 1000 * data.kilobitRate,
+			latencyMode: 'realtime'
+		});
+
+		if (data.includeAudio) {
+			audioEncoder = new AudioEncoder({
+				output: (chunk, metadata) => {
+					muxer.addAudioChunk(chunk, metadata);
+					self.postMessage({
+						command: 'audioChunkEncoded',
+						timestamp: chunk.timestamp
+					});
+				},
+				error: e => console.error(e)
+			});
+			audioEncoder.configure({
+				codec: 'opus',
+				numberOfChannels: 2,
+				sampleRate: audioSampleRate,
+				bitrate: 1000 * data.audioKilobitRate
+			});
+		}
+	};
+
+	const onVideoData = (data: {
+		data: ArrayBuffer,
+		timestamp: number
+	}) => {
+		// Convert RGBA to YUV manually to avoid unwanted color space conversions by the user agent
+		let yuv = RGBAToYUV420({ width, height, data: new Uint8ClampedArray(data.data) });
+		let videoFrame = new VideoFrame(yuv, {
+			format: 'I420',
+			codedWidth: width,
+			codedHeight: height,
+			timestamp: data.timestamp,
+			colorSpace: {
+				matrix: 'bt709',
+				transfer: 'bt709',
+				primaries: 'bt709',
+				fullRange: false
+			}
+		});
+
+		// Force a video key frame every five seconds for better seeking
+		let needsKeyFrame = videoFrame.timestamp - lastVideoKeyFrame >= 5_000_000;
+		if (needsKeyFrame) lastVideoKeyFrame = videoFrame.timestamp;
+
+		// Encode a new video frame
+		videoEncoder.encode(videoFrame, { keyFrame: needsKeyFrame });
+		videoFrame.close();
+	};
+
+	const onAudioData = (data: {
+		audioData: AudioData
+	}) => {
+		audioEncoder.encode(data.audioData);
+		data.audioData.close();
+	};
+
+	const finishUp = async () => {
+		// Finishes the remaining work
+
+		await Promise.all([videoEncoder.flush(), audioEncoder?.flush()]);
+		videoEncoder.close();
+		audioEncoder?.close();
+
+		muxer.finalize();
+		await fileWritableStream.close();
+
+		self.postMessage('done');
+	};
+
 	self.onmessage = async (e: MessageEvent) => {
 		if (!url) {
 			// The first message received will be the url
 			url = e.data;
 			self.importScripts(url + 'lib/webm.js');
-
 			self.postMessage('ready');
+
 			return;
 		}
 
 		let data = e.data;
 
 		try {
-			if (data.command === 'setup') {
-				// Set up the writable stream, the WebM writer and video encoder.
-
-				fileWritableStream = await data.fileHandle.createWritable();
-				width = data.width;
-				height = data.height;
-
-				const audioSampleRate = 48_000;
-
-				muxer = new WebMMuxer({
-					target: fileWritableStream,
-					video: {
-						codec: 'V_VP9',
-						width: data.width,
-						height: data.height,
-						frameRate: data.frameRate
-					},
-					audio: (data.includeAudio ? {
-						codec: 'A_OPUS',
-						numberOfChannels: 2,
-						sampleRate: audioSampleRate
-					} : undefined)
-				});
-
-				videoEncoder = new VideoEncoder({
-					output: (chunk, metadata) => {
-						muxer.addVideoChunk(chunk, metadata);
-						if (chunk.type === 'key') {
-							lastVideoKeyFrame = Math.max(lastVideoKeyFrame, chunk.timestamp);
-						}
-
-						self.postMessage({
-							command: 'videoChunkEncoded',
-							timestamp: chunk.timestamp
-						});
-					},
-					error: e => console.error(e)
-				});
-				videoEncoder.configure({
-					codec: "vp09.00.10.08",
-					width: data.width,
-					height: data.height,
-					bitrate: 1000 * data.kilobitRate,
-					latencyMode: 'realtime'
-				});
-
-				if (data.includeAudio) {
-					audioEncoder = new AudioEncoder({
-						output: (chunk, metadata) => {
-							muxer.addAudioChunk(chunk, metadata);
-							self.postMessage({
-								command: 'audioChunkEncoded',
-								timestamp: chunk.timestamp
-							});
-						},
-						error: e => console.error(e)
-					});
-					audioEncoder.configure({
-						codec: 'opus',
-						numberOfChannels: 2,
-						sampleRate: audioSampleRate,
-						bitrate: 1000 * data.audioKilobitRate
-					});
-				}
-			} else if (data.command === 'videoData') {
-				// Convert RGBA to YUV manually to avoid unwanted color space conversions by the user agent
-				let yuv = RGBAToYUV420({ width, height, data: new Uint8ClampedArray(data.data) });
-				let videoFrame = new VideoFrame(yuv, {
-					format: 'I420',
-					codedWidth: width,
-					codedHeight: height,
-					timestamp: data.timestamp,
-					colorSpace: {
-						matrix: 'bt709',
-						transfer: 'bt709',
-						primaries: 'bt709',
-						fullRange: false
-					}
-				});
-
-				// Force a video key frame every five seconds for better seeking
-				let needsKeyFrame = videoFrame.timestamp - lastVideoKeyFrame >= 5_000_000;
-				if (needsKeyFrame) lastVideoKeyFrame = videoFrame.timestamp;
-
-				// Encode a new video frame
-				videoEncoder.encode(videoFrame, { keyFrame: needsKeyFrame });
-				videoFrame.close();
-			} else if (data.command === 'audioData') {
-				audioEncoder.encode(data.audioData);
-				data.audioData.close();
-			} else if (data.command === 'finishUp') {
-				// Finishes the remaining work
-
-				await Promise.all([videoEncoder.flush(), audioEncoder?.flush()]);
-				videoEncoder.close();
-				audioEncoder?.close();
-
-				muxer.finalize();
-				await fileWritableStream.close();
-
-				self.postMessage('done');
-			}
+			if (data.command === 'setup') onSetup(data);
+			else if (data.command === 'videoData') onVideoData(data);
+			else if (data.command === 'audioData') onAudioData(data);
+			else if (data.command === 'finishUp') finishUp();
 		} catch (e) {
 			// Bubble up the error
 			self.postMessage({
