@@ -2,6 +2,7 @@
 
 ## 2.5.5
 - Added viewable world record replays for default levels
+- Added a compilation renderer, tutorial [here](https://github.com/Vanilagy/MarbleBlast/tree/master/docs/compilation_how_to.md).
 
 ## 2.5.4
 - Fixed missing bumper sounds

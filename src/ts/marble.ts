@@ -156,7 +156,7 @@ export class Marble {
 
 		// Get the correct texture
 		let marbleTexture: Texture;
-		let customTextureBlob = await StorageManager.databaseGet('keyvalue', 'marbleTexture');
+		let customTextureBlob = this.level.offlineSettings?.marbleTexture ?? await StorageManager.databaseGet('keyvalue', 'marbleTexture');
 		if (customTextureBlob) {
 			try {
 				let url = ResourceManager.getUrlToBlob(customTextureBlob);
@@ -290,6 +290,8 @@ export class Marble {
 
 	/** Returns true iff the marble should use special reflective shaders. */
 	isReflective() {
+		if (this.level.offlineSettings?.reflectiveMarble !== undefined)
+			return this.level.offlineSettings.reflectiveMarble;
 		return (StorageManager.data.settings.marbleReflectivity === 2 || (StorageManager.data.settings.marbleReflectivity === 0 && this.level.mission.modification === 'ultra')) && !Util.isIOS();
 		// On some iOS devices, the reflective marble is invisible. That implies a shader compilation error but I sadly cannot check the console on there so we're just disabling them for all iOS devices.
 	}

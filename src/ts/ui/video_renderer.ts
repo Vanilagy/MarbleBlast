@@ -1,12 +1,39 @@
 import { OFFLINE_CONTEXT_SAMPLE_RATE } from "../audio";
-import { Level, PHYSICS_TICK_RATE } from "../level";
+import { GO_TIME, Level, PHYSICS_TICK_RATE } from "../level";
 import { Mission } from "../mission";
+import { MissionLibrary } from "../mission_library";
 import { Replay } from "../replay";
 import { state } from "../state";
 import { StorageManager } from "../storage";
 import { Util } from "../util";
 import { workerSetTimeout } from "../worker";
 import { mainCanvas, mainRenderer } from "./misc";
+
+interface CompilationDefinition {
+	schedule: ({
+		type: 'replay',
+		filename: string,
+		runner?: string,
+		replay?: Replay,
+		mission?: Mission
+	} | {
+		type: 'sectionStart',
+		name: string
+	} | {
+		type: 'sectionEnd',
+		name: string
+	})[],
+	runners?: {
+		name: string,
+		id: string,
+		marbleTexture?: string,
+		reflectiveMarble?: boolean
+	}[],
+	showInfo?: boolean,
+	outputFilename?: string
+}
+
+type ReplayEntry = CompilationDefinition['schedule'][number] & { type: 'replay' };
 
 /** Handles rendering replays into playable video files. */
 export abstract class VideoRenderer {
@@ -18,13 +45,18 @@ export abstract class VideoRenderer {
 	static closeButton: HTMLButtonElement;
 	static progressBar: HTMLProgressElement;
 	static statusText: HTMLParagraphElement;
+	static compilationLoadingElement: HTMLDivElement;
 
 	static loaded = false;
-	static mission: Mission;
-	static replay: Replay;
 	static tickLength: number;
 	static fileHandle: FileSystemFileHandle;
+	static directoryHandle: FileSystemDirectoryHandle;
+	static compilation: CompilationDefinition = null;
 	static process: RenderingProcess = null;
+
+	static get isCompilation() {
+		return !!this.directoryHandle;
+	}
 
 	static {
 		this.div = document.querySelector('#video-renderer');
@@ -35,9 +67,11 @@ export abstract class VideoRenderer {
 		this.closeButton = this.div.querySelector('#video-renderer-close');
 		this.progressBar = this.div.querySelector('#video-renderer progress');
 		this.statusText = this.div.querySelector('#video-renderer-status');
+		this.compilationLoadingElement = this.div.querySelector('#video-renderer-compilation-loading');
 
 		this.selectDestinationButton.addEventListener('click', async () => {
-			let suggestedFilename = Util.removeSpecialChars(this.mission.title.toLowerCase().split(' ').map(x => Util.uppercaseFirstLetter(x)).join(''));
+			let mission = (this.compilation.schedule[0] as ReplayEntry).mission;
+			let suggestedFilename = Util.removeSpecialChars(mission.title.toLowerCase().split(' ').map(x => Util.uppercaseFirstLetter(x)).join(''));
 
 			try {
 				this.fileHandle = await window.showSaveFilePicker({
@@ -86,7 +120,15 @@ export abstract class VideoRenderer {
 	static updateOverviewText() {
 		let playbackSpeed = Number((this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value) || 1;
 		let videoLength = this.tickLength / PHYSICS_TICK_RATE / playbackSpeed;
-		let text = `Level: ${this.mission.title}\nVideo duration: ${Util.secondsToTimeString(videoLength, 3)}\nDestination file: ${this.fileHandle? this.fileHandle.name : '–'}`; // Yeah I know, VS Code
+		let text = `Video duration: ${Util.secondsToTimeString(videoLength, 3)}\nDestination file: ${this.fileHandle? this.fileHandle.name : '–'}`; // Yeah I know, VS Code
+
+		if (this.isCompilation) {
+			let levelCount = this.compilation.schedule.filter(x => x.type === 'replay').length;
+			text = `Levels: ${levelCount}\n` + text;
+		} else {
+			let mission = (this.compilation.schedule[0] as ReplayEntry).mission;
+			text = `Level: ${mission.title}\n` + text;
+		}
 
 		this.overviewText.textContent = text;
 	}
@@ -134,23 +176,101 @@ export abstract class VideoRenderer {
 			return;
 		}
 
-		this.process.stop();
+		this.process?.stop();
 		this.hide();
 	}
 
+	static show() {
+		this.div.classList.remove('hidden');
+		state.menu.levelSelect.hide();
+		if (!this.loaded) this.initUiFromStoredConfig();
+	}
+
 	/** Opens the video renderer UI, ready to render the specified `replay`. */
-	static show(mission: Mission, replay: Replay) {
+	static showForSingleReplay(mission: Mission, replay: Replay) {
 		if (!('showSaveFilePicker' in window) || !('VideoEncoder' in window)) {
-			state.menu.showAlertPopup("Not supported", "Unfortunately, your browser does not support the technology required by the video renderer. To access this feature, try using Chromium 94 or above (Chrome 94, Edge 94, Opera 80) on desktop.");
+			this.showNotSupportedAlert();
 			return;
 		}
 
-		this.div.classList.remove('hidden');
-		state.menu.levelSelect.hide();
+		this.show();
 
-		this.mission = mission;
-		this.replay = replay;
+		// Create a simple "compilation" that will model recording a single replay with no extra text
+		this.compilation = {
+			schedule: [{
+				type: 'replay',
+				filename: null,
+				replay,
+				mission
+			}],
+			showInfo: false
+		};
 
+		this.computeLength();
+		this.updateOverviewText();
+		this.selectDestinationButton.style.display = '';
+	}
+
+	/** Opens the video renderer UI, ready to render the compilation specified in the given directory.. */
+	static async showForCompilation(directoryHandle: FileSystemDirectoryHandle) {
+		this.directoryHandle = directoryHandle;
+
+		let compilationDefinitionFile: FileSystemFileHandle;
+		try {
+			compilationDefinitionFile = await directoryHandle.getFileHandle('compilation.json');
+		} catch (e) {
+			state.menu.showAlertPopup('Missing compilation definition file', "The selected directory does not contain a compilation.json file, which is required. For a tutorial on how to render compilations, click [here](https://github.com/Vanilagy/MarbleBlast/tree/master/docs/compilation_how_to.md).");
+			return;
+		}
+
+		this.show();
+		this.selectDestinationButton.style.display = 'none';
+		this.compilationLoadingElement.classList.remove('hidden');
+
+		try {
+			let fileText = await (await compilationDefinitionFile.getFile()).text();
+			this.compilation = JSON.parse(fileText);
+
+			let replayCount = this.compilation.schedule.filter(x => x.type === 'replay').length;
+
+			// Load and check all of the replays
+			let i = 0;
+			for (let entry of this.compilation.schedule) {
+				if (entry.type !== 'replay') continue;
+
+				let loaded = i++ / replayCount;
+				this.compilationLoadingElement.textContent = `Loading... (${Math.floor(loaded * 100)}%)`;
+
+				let replayFile = await directoryHandle.getFileHandle(entry.filename);
+				let arrayBuffer = await (await replayFile.getFile()).arrayBuffer();
+				let replay = Replay.fromSerialized(arrayBuffer);
+				let mission = MissionLibrary.allMissions.find(x => x.path === replay.missionPath);
+				if (!mission) throw new Error("Mission not found.");
+
+				entry.replay = replay;
+				entry.mission = mission;
+
+				if (typeof entry.runner === 'string') {
+					let runner = entry.runner;
+					let runnerExists = this.compilation.runners.some(x => x.id === runner);
+					if (!runnerExists) throw new Error("Runner definition not found.");
+				}
+			}
+
+			this.fileHandle = await directoryHandle.getFileHandle(this.compilation.outputFilename ?? 'output.webm', { create: true });
+
+			this.compilationLoadingElement.classList.add('hidden');
+			this.renderButton.classList.remove('disabled');
+			this.computeLength();
+			this.updateOverviewText();
+		} catch (e) {
+			console.error(e);
+			this.hide();
+			state.menu.showAlertPopup('Error', "An error occurred while loading the compilation. Your compilation definition might be malformed.");
+		}
+	}
+
+	static computeLengthForReplay(replay: Replay) {
 		// Compute how many simulation ticks the replay is long
 		let tickLength = replay.marblePositions.length;
 		if (replay.finishTime) {
@@ -158,10 +278,19 @@ export abstract class VideoRenderer {
 			let tickIndex = replay.finishTime.tickIndex ?? Math.floor(replay.finishTime.currentAttemptTime * PHYSICS_TICK_RATE / 1000);
 			tickLength = Math.min(tickLength, tickIndex + 2 * PHYSICS_TICK_RATE);
 		}
-		this.tickLength = tickLength;
 
-		this.updateOverviewText();
-		if (!this.loaded) this.initUiFromStoredConfig();
+		return tickLength;
+	}
+
+	static computeLength() {
+		this.tickLength = 0;
+
+		for (let entry of this.compilation.schedule) {
+			if (entry.type !== 'replay') continue;
+
+			let replay = entry.replay;
+			this.tickLength += this.computeLengthForReplay(replay);
+		}
 	}
 
 	static initUiFromStoredConfig() {
@@ -199,6 +328,11 @@ export abstract class VideoRenderer {
 		this.configContainer.classList.remove('disabled');
 		this.renderButton.textContent = 'Render';
 		this.closeButton.style.display = '';
+		this.compilationLoadingElement.classList.add('hidden');
+	}
+
+	static showNotSupportedAlert() {
+		state.menu.showAlertPopup("Not supported", "Unfortunately, your browser does not support the technology required by the video renderer. To access this feature, try using Chromium 94 or above (Chrome 94, Edge 94, Opera 80) on desktop.");
 	}
 }
 
@@ -219,9 +353,14 @@ class RenderingProcess {
 	lastVideoChunkTimestamp: number;
 	lastAudioChunkTimestamp: number;
 	ctx: CanvasRenderingContext2D;
+	renderedFrames = 0;
+	totalFrameCount: number;
 	totalTimeUs: number;
+	levelCount: number;
+	renderedLevels = 0;
 	intervalId: any;
 	stopped = false;
+	currentEntry: ReplayEntry;
 
 	async run() {
 		try {
@@ -232,11 +371,10 @@ class RenderingProcess {
 
 			this.prepareUi();
 			await this.createWorker();
-			await this.loadLevel();
 			this.setUpWorker();
-			this.initRendering();
-			await this.renderFrames();
-			await this.renderAudio();
+
+			await this.renderLevels();
+
 			this.initFinalization();
 
 			if (this.stopped) return;
@@ -250,6 +388,25 @@ class RenderingProcess {
 			this.exitWithError();
 		} finally {
 			this.worker?.terminate();
+		}
+	}
+
+	async renderLevels() {
+		for (let entry of VideoRenderer.compilation.schedule) {
+			if (entry.type !== 'replay') continue;
+
+			this.currentEntry = entry;
+			let { mission, replay } = entry;
+
+			await this.loadLevel(mission, replay);
+			this.initRendering();
+			await this.renderFrames();
+			await this.renderAudio();
+
+			this.level.stop();
+			state.level = null;
+
+			this.renderedLevels++;
 		}
 	}
 
@@ -317,6 +474,10 @@ class RenderingProcess {
 		VideoRenderer.progressBar.style.display = 'block';
 		VideoRenderer.renderButton.textContent = 'Stop';
 		VideoRenderer.closeButton.style.display = 'none';
+
+		this.totalFrameCount = Math.floor(VideoRenderer.tickLength / PHYSICS_TICK_RATE * this.frameRate / this.playbackSpeed);
+		this.totalTimeUs = 1e6 * this.totalFrameCount / this.frameRate;
+		this.levelCount = VideoRenderer.compilation.schedule.filter(x => x.type === 'replay').length;
 	}
 
 	async createWorker() {
@@ -331,30 +492,48 @@ class RenderingProcess {
 		this.worker = worker;
 	}
 
-	async loadLevel() {
+	async loadLevel(mission: Mission, replay: Replay) {
 		this.beginUpdatingUiBasedOnLoadingProgress();
 
-		await VideoRenderer.mission.load();
-		this.level = new Level(VideoRenderer.mission, {
-			duration: VideoRenderer.tickLength/PHYSICS_TICK_RATE,
+		await mission.load();
+
+		this.level = new Level(mission, {
+			duration: VideoRenderer.computeLengthForReplay(replay) / PHYSICS_TICK_RATE,
 			musicVolume: Math.min(this.musicToSoundRatio, 1),
-			soundVolume: Math.min(1/this.musicToSoundRatio, 1)
+			soundVolume: Math.min(1/this.musicToSoundRatio, 1),
+			...await this.getMarbleConfigForCurrentRunner()
 		});
 		state.level = this.level;
 		await this.level.init();
 
-		this.level.replay = VideoRenderer.replay;
-		VideoRenderer.replay.level = this.level;
-		VideoRenderer.replay.mode = 'playback';
+		this.level.replay = replay;
+		replay.level = this.level;
+		replay.mode = 'playback';
 
 		await this.level.start();
+	}
+
+	async getMarbleConfigForCurrentRunner() {
+		let marbleTexture: Blob;
+		let reflectiveMarble: boolean;
+		if (typeof this.currentEntry.runner === 'string') {
+			let runner = VideoRenderer.compilation.runners.find(x => x.id === this.currentEntry.runner);
+			let marbleTextureFilename = runner.marbleTexture;
+			if (marbleTextureFilename) {
+				marbleTexture = await (await VideoRenderer.directoryHandle.getFileHandle(marbleTextureFilename)).getFile();
+			}
+			reflectiveMarble = runner.reflectiveMarble;
+		}
+
+		return { marbleTexture, reflectiveMarble };
 	}
 
 	beginUpdatingUiBasedOnLoadingProgress() {
 		this.intervalId = setInterval(() => {
 			let completion = Math.min(this.level?.getLoadingCompletion() ?? 0, 1);
 
-			VideoRenderer.progressBar.value = completion * 0.1; // First 10% of the progress bar
+			VideoRenderer.progressBar.value = (this.renderedLevels + completion * 0.1) / this.levelCount;
+			VideoRenderer.progressBar.value *= 0.8;
 			VideoRenderer.statusText.textContent = `Loading (${Math.floor(completion * 100)}%)`;
 
 			if (completion >= 1) clearInterval(this.intervalId);
@@ -405,22 +584,23 @@ class RenderingProcess {
 	}
 
 	async renderFrames() {
-		const totalFrames = Math.floor(VideoRenderer.tickLength / PHYSICS_TICK_RATE * this.frameRate / this.playbackSpeed);
-		this.totalTimeUs = 1e6 * totalFrames / this.frameRate;
+		const frameCount = Math.floor(VideoRenderer.computeLengthForReplay(this.currentEntry.replay) / PHYSICS_TICK_RATE * this.frameRate / this.playbackSpeed);
 
 		// Now, render all the frames we need
-		for (let frame = 0; frame < totalFrames; frame++) {
+		for (let frame = 0; frame < frameCount; frame++) {
 			if (this.stopped) break; // Abort
 
 			let time = 1000 * frame / this.frameRate;
 			this.level.render(time * this.playbackSpeed);
 			if (this.level.stopped) break;
 
-			this.composeFrame();
-			this.sendFrameToWorker(time);
+			this.composeFrame(time);
+			this.sendFrameToWorker();
 
-			VideoRenderer.statusText.textContent = `Rendering frame ${Math.min(frame + 1, totalFrames)}/${totalFrames}`;
-			VideoRenderer.progressBar.value = 0.1 + 0.6 * Math.min(frame + 1, totalFrames)/totalFrames; // 10%-70% of the progress bar
+			this.renderedFrames++;
+			VideoRenderer.statusText.textContent = `Rendering frame ${Math.min(this.renderedFrames, this.totalFrameCount)}/${this.totalFrameCount}`;
+			VideoRenderer.progressBar.value = (this.renderedLevels + 0.1 + 0.9 * Math.min(frame + 1, frameCount)/frameCount) / this.levelCount;
+			VideoRenderer.progressBar.value *= 0.8;
 
 			await this.waitBeforeRenderingNextFrame();
 
@@ -428,18 +608,105 @@ class RenderingProcess {
 		}
 	}
 
-	composeFrame() {
+	composeFrame(time: number) {
+		this.ctx.globalAlpha = 1;
+		this.ctx.shadowColor = 'transparent';
+		this.ctx.resetTransform();
+
 		// Compose together the main game canvas and the HUD canvas
 		this.ctx.drawImage(mainCanvas, 0, 0);
 		this.ctx.drawImage(state.menu.hud.hudCanvas, 0, 0);
+
+		this.maybeDrawRunInfo(time);
+		this.drawSectionText(time);
 	}
 
-	sendFrameToWorker(time: number) {
+	maybeDrawRunInfo(time: number) {
+		if (VideoRenderer.compilation.showInfo === false) return;
+
+		let fadeDuration = 1000;
+		this.ctx.globalAlpha = 1 - Util.clamp((time - (GO_TIME - fadeDuration)) / fadeDuration, 0, 1);
+
+		if (this.ctx.globalAlpha === 0) return;
+
+		let fontSizeScaling = this.width / 1920;
+
+		let scaleCompletion = 1 - (1 - Util.clamp(time / 500, 0, 1))**2;
+		let scale = Util.lerp(1.05, 1, scaleCompletion);
+		this.ctx.translate(this.width/2, this.height);
+		this.ctx.scale(scale, scale);
+		this.ctx.translate(-this.width/2, -this.height);
+
+		// Draw the level name and time
+		this.ctx.fillStyle = 'white';
+		this.ctx.font = `${64*fontSizeScaling}px Chakra Petch`;
+		this.ctx.textAlign = 'center';
+		this.ctx.textBaseline = 'top';
+		this.ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+		this.ctx.shadowBlur = 4;
+		this.ctx.shadowOffsetX = 1;
+		this.ctx.shadowOffsetY = 2;
+		let text = this.level.mission.title;
+		let { replay } = this.currentEntry;
+		if (replay.finishTime) text += ' - ' + Util.secondsToTimeString(replay.finishTime.gameplayClock / 1000);
+		this.ctx.fillText(text, this.width/2, this.height * 0.73);
+
+		// Maybe draw the runner
+		if (typeof this.currentEntry.runner === 'string') {
+			let runnerName = VideoRenderer.compilation.runners.find(x => x.id === this.currentEntry.runner).name;
+			this.ctx.font = `${48*fontSizeScaling}px Chakra Petch`;
+			this.ctx.fillText(`Runner: ${runnerName}`, this.width/2, this.height * 0.8);
+		}
+	}
+
+	/** Draws the text of all the sections that have ended with this level. */
+	drawSectionText(time: number) {
+		let replayLength = 1000 * this.currentEntry.replay.marblePositions.length / PHYSICS_TICK_RATE;
+		let animationTime = time - (replayLength - 3000);
+		let animationCompletion = Util.clamp(animationTime / 500, 0, 1);
+		if (animationCompletion === 0) return;
+
+		let schedule = VideoRenderer.compilation.schedule;
+		let index = schedule.findIndex(x => x === this.currentEntry) + 1;
+
+		// Find all sections that end with this level
+		type SectionEndEntry = CompilationDefinition['schedule'][number] & { type: 'sectionEnd' };
+		let currentEnds: SectionEndEntry[] = [];
+		while (schedule[index] && schedule[index].type === 'sectionEnd') {
+			currentEnds.push(schedule[index] as SectionEndEntry);
+			index++;
+		}
+
+		for (let [i, end] of currentEnds.reverse().entries()) {
+			let startIndex = Util.findLastIndex(schedule, x => x.type === 'sectionStart' && x.name === end.name, index - 1);
+			if (startIndex === -1) continue;
+
+			let totalTime = 0;
+			for (let j = startIndex + 1; j < index; j++) {
+				let entry = schedule[j];
+				if (entry.type !== 'replay' || !entry.replay.finishTime) continue;
+				totalTime += entry.replay.finishTime.gameplayClock;
+			}
+
+			let fontSizeScaling = this.width / 1920;
+			this.ctx.globalAlpha = animationCompletion;
+			this.ctx.fillStyle = 'white';
+			this.ctx.font = `${64*fontSizeScaling}px Chakra Petch`;
+			this.ctx.textAlign = 'center';
+			this.ctx.textBaseline = 'top';
+			this.ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+			this.ctx.shadowBlur = 4;
+			this.ctx.shadowOffsetX = 1;
+			this.ctx.shadowOffsetY = 2;
+			this.ctx.fillText(`${end.name}: ${Util.secondsToTimeString(totalTime / 1000)}`, this.width/2, this.height * 0.73 - this.height*0.07 * i);
+		}
+	}
+
+	sendFrameToWorker() {
 		let imageBuffer = this.ctx.getImageData(0, 0, this.width, this.height).data.buffer;
 		this.worker.postMessage({
 			command: 'videoData',
-			data: imageBuffer,
-			timestamp: 1000 * time
+			data: imageBuffer
 		}, [imageBuffer]);
 	}
 
@@ -511,9 +778,6 @@ class RenderingProcess {
 	}
 
 	initFinalization() {
-		this.level.stop();
-		state.level = null;
-
 		if (this.stopped) {
 			this.worker.terminate();
 			return;
@@ -534,7 +798,7 @@ class RenderingProcess {
 		this.intervalId = setInterval(() => {
 			let completion = (getMinChunkTimestamp() - lastChunkTimestampAtRenderFinish) / (this.totalTimeUs - lastChunkTimestampAtRenderFinish);
 			VideoRenderer.statusText.textContent = `Encoding (${(100 * completion).toFixed(1)}%)`;
-			VideoRenderer.progressBar.value = 0.7 + 0.3 * completion; // Last 30% of the progress bar
+			VideoRenderer.progressBar.value = 0.8 + 0.2 * completion; // Last 20% of the progress bar
 		}, 16);
 
 		await new Promise<void>(resolve => this.worker.addEventListener('message', e => e.data === 'done' && resolve()));
@@ -586,6 +850,7 @@ const workerBody = () => {
 	let fileWritableStream: FileSystemWritableFileStream;
 	let width: number;
 	let height: number;
+	let frameRate: number;
 	let lastVideoKeyFrame = -Infinity;
 
 	const onSetup = async (data: {
@@ -602,6 +867,7 @@ const workerBody = () => {
 		fileWritableStream = await data.fileHandle.createWritable();
 		width = data.width;
 		height = data.height;
+		frameRate = data.frameRate;
 
 		const audioSampleRate = 48_000;
 
@@ -662,6 +928,7 @@ const workerBody = () => {
 		}
 	};
 
+	let nextTimestamp = 0;
 	const onVideoData = (data: {
 		data: ArrayBuffer,
 		timestamp: number
@@ -672,7 +939,7 @@ const workerBody = () => {
 			format: 'I420',
 			codedWidth: width,
 			codedHeight: height,
-			timestamp: data.timestamp,
+			timestamp: nextTimestamp,
 			colorSpace: {
 				matrix: 'bt709',
 				transfer: 'bt709',
@@ -680,6 +947,7 @@ const workerBody = () => {
 				fullRange: false
 			}
 		});
+		nextTimestamp += 1e6 / frameRate;
 
 		// Force a video key frame every five seconds for better seeking
 		let needsKeyFrame = videoFrame.timestamp - lastVideoKeyFrame >= 5_000_000;
@@ -723,10 +991,10 @@ const workerBody = () => {
 		let data = e.data;
 
 		try {
-			if (data.command === 'setup') onSetup(data);
+			if (data.command === 'setup') await onSetup(data);
 			else if (data.command === 'videoData') onVideoData(data);
 			else if (data.command === 'audioData') onAudioData(data);
-			else if (data.command === 'finishUp') finishUp();
+			else if (data.command === 'finishUp') await finishUp();
 		} catch (e) {
 			// Bubble up the error
 			self.postMessage({

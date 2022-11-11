@@ -245,6 +245,7 @@ export abstract class Menu {
 		let bodyElem = document.createElement('p');
 		bodyElem.classList.add('_body');
 		bodyElem.innerHTML = body;
+		bodyElem.innerHTML = bodyElem.innerHTML.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>');
 
 		div.append(clickPreventer, img, headingElem, bodyElem);
 		if (custom) {

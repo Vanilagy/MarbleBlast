@@ -23,6 +23,11 @@
 	src: url("../assets/font/MarkerFelt/Marker Felt.ttf");
 }
 
+@font-face {
+	font-family: "Chakra Petch";
+	src: url("../assets/font/ChakraPetch/ChakraPetch-Bold.ttf");
+}
+
 @keyframes pulse-opacity {
 	0% { opacity: 1; }
 	50% { opacity: 0.666; }

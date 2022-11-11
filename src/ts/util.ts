@@ -401,13 +401,17 @@ export abstract class Util {
 
 	/** Finds the last element in an array that fulfills a predicate. */
 	static findLast<T>(arr: T[], predicate: (elem: T) => boolean) {
-		let candidate: T = undefined;
-
-		for (let item of arr) {
-			if (predicate(item)) candidate = item;
+		for (let i = arr.length - 1; i >= 0; i--) {
+			if (predicate(arr[i])) return arr[i];
 		}
+	}
 
-		return candidate;
+	/** Finds the last element in an array that fulfills a predicate. */
+	static findLastIndex<T>(arr: T[], predicate: (elem: T) => boolean, start = arr.length - 1) {
+		for (let i = start; i >= 0; i--) {
+			if (predicate(arr[i])) return i;
+		}
+		return -1;
 	}
 
 	/** Removes diacritics from a string. */

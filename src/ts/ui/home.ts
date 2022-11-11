@@ -91,6 +91,7 @@ export abstract class HomeScreen {
 		text = text.replace(/(^|\n)## (.*)/g, `$1<span class="${classPrefix}-h2">$2</span>`);
 		text = text.replace(/(^|\n)### (.*)/g, `$1<span class="${classPrefix}-h3">$2</span>`);
 		text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+		text = text.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>');
 
 		this.changelogContent.innerHTML = text;
 

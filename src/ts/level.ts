@@ -145,6 +145,14 @@ interface LoadingState {
 	total: number
 }
 
+interface OfflineSettings {
+	duration: number,
+	musicVolume: number,
+	soundVolume: number,
+	marbleTexture?: Blob,
+	reflectiveMarble?: boolean
+}
+
 /** The central control unit of gameplay. Handles loading, simulation and rendering. */
 export class Level extends Scheduler {
 	mission: Mission;
@@ -179,7 +187,7 @@ export class Level extends Scheduler {
 	lastFrameTime: number = null;
 	/** Offline levels are meant for video rendering, not real-time play. */
 	offline = false;
-	offlineSettings: { duration: number, musicVolume: number, soundVolume: number } = null;
+	offlineSettings: OfflineSettings = null;
 	started = false;
 	paused = true;
 	/** If the level is stopped, it shouldn't be used anymore. */
@@ -241,7 +249,7 @@ export class Level extends Scheduler {
 	originalMusicName: string;
 	replay: Replay;
 
-	constructor(mission: Mission, offline: { duration: number, musicVolume: number, soundVolume: number } = null) {
+	constructor(mission: Mission, offline: OfflineSettings = null) {
 		super();
 
 		this.mission = mission;

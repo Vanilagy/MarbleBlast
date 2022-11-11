@@ -417,7 +417,7 @@ export abstract class LevelSelect {
 				if (Util.isTouchDevice && Util.isInFullscreen()) this.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
 			} else {
 				let replay = Replay.fromSerialized(replayData);
-				VideoRenderer.show(this.currentMission, replay);
+				VideoRenderer.showForSingleReplay(this.currentMission, replay);
 			}
 		};
 
@@ -538,6 +538,11 @@ export abstract class LevelSelect {
 	}
 
 	showLoadReplayPrompt(event: MouseEvent) {
+		if (event.shiftKey && event.altKey) {
+			this.showCompilationDirectoryPrompt();
+			return;
+		}
+
 		// Show a file picker
 		let fileInput = document.createElement('input');
 		fileInput.setAttribute('type', 'file');
@@ -559,7 +564,7 @@ export abstract class LevelSelect {
 				}
 
 				if (event.shiftKey) {
-					VideoRenderer.show(mission, replay);
+					VideoRenderer.showForSingleReplay(mission, replay);
 				} else {
 					this.div.classList.add('hidden');
 					this.menu.loadingScreen.loadLevel(mission, () => replay);
@@ -570,6 +575,24 @@ export abstract class LevelSelect {
 			}
 		};
 		fileInput.click();
+	}
+
+	async showCompilationDirectoryPrompt() {
+		if (!('showDirectoryPicker' in window) || !('VideoEncoder' in window)) {
+			VideoRenderer.showNotSupportedAlert();
+			return;
+		}
+
+		let directoryHandle: FileSystemDirectoryHandle;
+		try {
+			directoryHandle = await window.showDirectoryPicker({
+				mode: 'readwrite'
+			});
+		} catch (e) {
+			return;
+		}
+
+		VideoRenderer.showForCompilation(directoryHandle);
 	}
 
 	handleControllerInput(gamepad: Gamepad) {
