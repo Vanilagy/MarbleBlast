@@ -119,7 +119,7 @@ export abstract class VideoRenderer {
 
 	static updateOverviewText() {
 		let playbackSpeed = Number((this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value) || 1;
-		let videoLength = this.tickLength / PHYSICS_TICK_RATE / playbackSpeed;
+		let videoLength = this.tickLength / PHYSICS_TICK_RATE / playbackSpeed; // Somewhat approximate since it doesn't factor in FPS
 		let text = `Video duration: ${Util.secondsToTimeString(videoLength, 3)}\nDestination file: ${this.fileHandle? this.fileHandle.name : '–'}`; // Yeah I know, VS Code
 
 		if (this.isCompilation) {
@@ -361,6 +361,7 @@ class RenderingProcess {
 	intervalId: any;
 	stopped = false;
 	currentEntry: ReplayEntry;
+	wakeLock: WakeLockSentinel;
 
 	async run() {
 		try {
@@ -372,6 +373,7 @@ class RenderingProcess {
 			this.prepareUi();
 			await this.createWorker();
 			this.setUpWorker();
+			await this.keepScreenAwake();
 
 			await this.renderLevels();
 
@@ -388,6 +390,7 @@ class RenderingProcess {
 			this.exitWithError();
 		} finally {
 			this.worker?.terminate();
+			this.releaseWakeLock();
 		}
 	}
 
@@ -469,15 +472,21 @@ class RenderingProcess {
 		StorageManager.store();
 	}
 
+	computeFrameCountForReplay(replay: Replay) {
+		return Math.floor(VideoRenderer.computeLengthForReplay(replay) / PHYSICS_TICK_RATE * this.frameRate / this.playbackSpeed);
+	}
+
 	prepareUi() {
 		VideoRenderer.configContainer.classList.add('disabled');
 		VideoRenderer.progressBar.style.display = 'block';
 		VideoRenderer.renderButton.textContent = 'Stop';
 		VideoRenderer.closeButton.style.display = 'none';
 
-		this.totalFrameCount = Math.floor(VideoRenderer.tickLength / PHYSICS_TICK_RATE * this.frameRate / this.playbackSpeed);
+		let replayEntries = VideoRenderer.compilation.schedule.filter(x => x.type === 'replay') as ReplayEntry[];
+
+		this.totalFrameCount = replayEntries.reduce((acc, entry) => acc + this.computeFrameCountForReplay(entry.replay), 0);
 		this.totalTimeUs = 1e6 * this.totalFrameCount / this.frameRate;
-		this.levelCount = VideoRenderer.compilation.schedule.filter(x => x.type === 'replay').length;
+		this.levelCount = replayEntries.length;
 	}
 
 	async createWorker() {
@@ -584,7 +593,7 @@ class RenderingProcess {
 	}
 
 	async renderFrames() {
-		const frameCount = Math.floor(VideoRenderer.computeLengthForReplay(this.currentEntry.replay) / PHYSICS_TICK_RATE * this.frameRate / this.playbackSpeed);
+		const frameCount = this.computeFrameCountForReplay(this.currentEntry.replay);
 
 		// Now, render all the frames we need
 		for (let frame = 0; frame < frameCount; frame++) {
@@ -839,6 +848,18 @@ class RenderingProcess {
 	stop() {
 		this.stopped = true;
 		clearInterval(this.intervalId);
+	}
+
+	async keepScreenAwake() {
+		if (!('wakeLock' in navigator)) return;
+
+		try {
+			this.wakeLock = await navigator.wakeLock.request('screen');
+		} catch (e) {}
+	}
+
+	releaseWakeLock() {
+		this.wakeLock?.release();
 	}
 }
 

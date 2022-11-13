@@ -10,7 +10,7 @@
 		"strictNullChecks": false,
 		"lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"],
 		"allowSyntheticDefaultImports": true,
-		"types": ["@types/wicg-file-system-access", "@types/dom-webcodecs"]
+		"types": ["@types/wicg-file-system-access", "@types/dom-webcodecs", "@types/dom-screen-wake-lock"]
 	},
 	"include": [
 		"src/ts/**/*",

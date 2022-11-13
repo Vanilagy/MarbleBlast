@@ -19,6 +19,7 @@
 		"@rollup/plugin-node-resolve": "^9.0.0",
 		"@types/adm-zip": "^0.4.33",
 		"@types/better-sqlite3": "^5.4.1",
+		"@types/dom-screen-wake-lock": "^1.0.0",
 		"@types/dom-webcodecs": "^0.1.4",
 		"@types/finalhandler": "^1.1.0",
 		"@types/fs-extra": "^9.0.7",
