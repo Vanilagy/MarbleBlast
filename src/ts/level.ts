@@ -71,6 +71,7 @@ import { Quaternion } from "./math/quaternion";
 import { Euler } from "./math/euler";
 import { OrthographicCamera, PerspectiveCamera } from "./rendering/camera";
 import { Plane } from "./math/plane";
+import { CollisionDetection } from "./physics/collision_detection";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -1592,6 +1593,7 @@ export class Level extends Scheduler {
 		this.stopped = true;
 		clearInterval(this.tickInterval);
 		this.dispose();
+		CollisionDetection.clearReferences();
 
 		this.music.stop();
 		for (let interior of this.interiors) {

@@ -664,25 +664,33 @@ export class DifParser extends BinaryFileParser {
 		return { red, green, blue, alpha };
 	}
 
-	static cachedFiles = new Map<string, Promise<DifFile>>();
+	static cachedFilePromises = new Map<string, Promise<DifFile>>();
+	static cachedFiles = new Map<string, DifFile>();
 
 	/** Loads and parses a .dif file. Returns a cached version if already loaded. */
-	static loadFile(path: string) {
+	static async loadFile(path: string) {
+		await this.cachedFilePromises.get(path);
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
 		let promise = (async () => {
 			let blob = await ResourceManager.loadResource(path);
+			let result: DifFile;
+
 			if (!blob) {
-				return null;
+				result = null;
+			} else {
+				let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
+				let parser = new DifParser(arrayBuffer);
+
+				result = parser.parse();
 			}
 
-			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
-			let parser = new DifParser(arrayBuffer);
+			this.cachedFiles.set(path, result);
+			this.cachedFilePromises.delete(path);
 
-			let result = parser.parse();
 			return result;
 		})();
-		this.cachedFiles.set(path, promise);
+		this.cachedFilePromises.set(path, promise);
 
 		return promise;
 	}

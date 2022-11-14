@@ -54,6 +54,7 @@ export abstract class ResourceManager {
 			texture.getGLTexture(mainRenderer); // Any texture is immediately uploaded to the main renderer context as a preloading measure. This avoids flickering later.
 
 			this.textureCache.set(fullPath, texture);
+			this.loadTexturePromises.delete(fullPath);
 			resolve(texture);
 		});
 		this.loadTexturePromises.set(fullPath, promise);
@@ -118,17 +119,20 @@ export abstract class ResourceManager {
 
 					if (response.status === 404) {
 						this.cachedResources.set(path, null);
+						this.loadResourcePromises.delete(path);
 						resolve(null);
 						return;
 					} else if (!response.ok) {
 						// If we get an error code that isn't 404, the resource isn't just missing, but the request failed somehow. Throw.
 						reject(`Error getting resource (${response.status}): ` + path);
+						this.loadResourcePromises.delete(path);
 						return;
 					}
 
 					// Retrieve the blob and store it
 					let blob = await response.blob();
 					this.cachedResources.set(path, blob);
+					this.loadResourcePromises.delete(path);
 					resolve(blob);
 				} catch (e) {
 					// Try again in a second
@@ -154,7 +158,10 @@ export abstract class ResourceManager {
 			image.onload = () => {
 				imageCacheElement.appendChild(image);
 				this.loadedImages.set(path, image);
+				this.loadImagePromises.delete(path);
 				resolve(image);
+
+				image.onload = null; // GC requires me to do this
 			};
 		});
 		this.loadImagePromises.set(path, promise);

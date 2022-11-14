@@ -57,7 +57,8 @@ export class Mission {
 	modification: 'gold' | 'platinum' | 'ultra';
 	zipDirectory: JSZip = null;
 	fileToBlobPromises = new Map<JSZip['files'][number], Promise<Blob>>();
-	difCache = new Map<string, Promise<DifFile>>();
+	difCachePromises = new Map<string, Promise<DifFile>>();
+	difCache = new Map<string, DifFile>();
 	isNew = false;
 	hasEasterEgg = false;
 	hasBlast = false;
@@ -241,8 +242,9 @@ export class Mission {
 		if (this.modification !== 'gold') path = path.replace('data/', 'data_mbp/');
 
 		let dif: DifFile = null;
+		await this.difCachePromises.get(path);
 		if (this.difCache.get(path)) {
-			dif = await this.difCache.get(path); // We've already parsed the dif before
+			dif = this.difCache.get(path); // We've already parsed the dif before
 		} else {
 			let promise = (async () => {
 				let dif: DifFile;
@@ -257,10 +259,13 @@ export class Mission {
 					dif = await DifParser.loadFile('./assets/' + path);
 				}
 
+				this.difCache.set(path, dif);
+				this.difCachePromises.delete(path);
+
 				return dif;
 			})();
 
-			this.difCache.set(path, promise);
+			this.difCachePromises.set(path, promise);
 			dif = await promise;
 		}
 

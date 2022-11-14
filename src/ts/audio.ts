@@ -6,6 +6,8 @@ import { StorageManager } from "./storage";
 import { Vector3 } from "./math/vector3";
 
 export const OFFLINE_CONTEXT_SAMPLE_RATE = 48_000;
+const audioBufferCachePromises = new Map<string, Promise<AudioBuffer>>();
+const audioBufferCache = new Map<string, AudioBuffer>();
 
 /** A class used as an utility for sound playback. */
 export class AudioManager {
@@ -15,13 +17,10 @@ export class AudioManager {
 	musicGain: GainNode;
 
 	assetPath: string;
-	audioBufferCache = new Map<string, Promise<AudioBuffer>>();
 	/** Stores a list of all currently playing audio sources. */
 	audioSources: AudioSource[] = [];
 	/** Can be set to schedule audio events to happen at a specific time. Useful for offline audio rendering. */
 	currentTimeOverride: number = null;
-
-	oggDecoder: ReturnType<typeof OggdecModule>; // Because Safari
 
 	get currentTime() {
 		return this.currentTimeOverride ?? this.context.currentTime;
@@ -57,8 +56,6 @@ export class AudioManager {
 
 		if (!offline) this.updateVolumes();
 
-		if (typeof OggdecModule !== 'undefined') this.oggDecoder = OggdecModule();
-
 		window.onfocus = () => {
 			if (Util.isTouchDevice) this.masterGain.gain.value = 1;
 		};
@@ -78,7 +75,7 @@ export class AudioManager {
 	}
 
 	/** Loads an audio buffer from a path. Returns the cached version whenever possible. */
-	loadBuffer(path: string) {
+	async loadBuffer(path: string) {
 		let fullPath = this.toFullPath(path);
 
 		// If there's a current level, see if there's a sound file for this path contained in it
@@ -88,7 +85,8 @@ export class AudioManager {
 			zipFile = mission.zipDirectory.files['data/sound/' + path];
 		} else {
 			// Return the cached version if there is one
-			if (this.audioBufferCache.has(fullPath)) return this.audioBufferCache.get(fullPath);
+			await audioBufferCachePromises.get(fullPath);
+			if (audioBufferCache.has(fullPath)) return audioBufferCache.get(fullPath);
 		}
 
 		let promise = (async () => {
@@ -98,13 +96,13 @@ export class AudioManager {
 
 			if (path.endsWith('.ogg') && Util.isSafari()) {
 				// Safari can't deal with .ogg. Apparently Firefox can't deal with some of them either??
-				audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
+				audioBuffer = await oggDecoder.decodeOggData(arrayBuffer);
 			} else if (window.AudioContext) {
 				try {
 					audioBuffer = await this.context.decodeAudioData(arrayBuffer);
 				} catch (e) {
 					// Firefox should hit this case sometimes
-					audioBuffer = await this.oggDecoder.decodeOggData(arrayBuffer);
+					audioBuffer = await oggDecoder.decodeOggData(arrayBuffer);
 				}
 			} else {
 				audioBuffer = await new Promise((res, rej) => {
@@ -116,10 +114,13 @@ export class AudioManager {
 				});
 			}
 
+			audioBufferCache.set(fullPath, audioBuffer);
+			audioBufferCachePromises.delete(fullPath);
+
 			return audioBuffer;
 		})();
 
-		if (!zipFile) this.audioBufferCache.set(fullPath, promise);
+		if (!zipFile) audioBufferCachePromises.set(fullPath, promise);
 		return promise;
 	}
 
@@ -142,7 +143,7 @@ export class AudioManager {
 		if (chosenPath.endsWith('.ogg') && Util.isSafari()) preferStreaming = false; // We can't
 
 		if (preferStreaming) {
-			if (this.audioBufferCache.has(fullPath)) {
+			if (audioBufferCache.has(fullPath)) {
 				// We already got the buffer, prefer that over streaming
 				preferStreaming = false;
 			} else {
@@ -361,4 +362,5 @@ export class AudioSource {
 	}
 }
 
+const oggDecoder = OggdecModule();
 export const mainAudioManager = new AudioManager();

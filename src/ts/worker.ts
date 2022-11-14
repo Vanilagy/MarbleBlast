@@ -89,11 +89,16 @@ let timerBody = timerEntire.slice(timerEntire.indexOf("{") + 1, timerEntire.last
 let timerWorker = new Worker(URL.createObjectURL(new Blob([timerBody])));
 
 let timerId = 0;
-let handlerMap = new Map<number, () => void>();
+let handlerMap = new Map<number, {
+	func: () => void,
+	once: boolean
+}>();
 
 timerWorker.onmessage = (ev) => {
 	let handler = handlerMap.get(ev.data.externalId);
-	handler?.();
+
+	handler?.func();
+	if (handler?.once) handlerMap.delete(ev.data.externalId);
 };
 
 /** Works exactly like setTimeout, except that the timer runs on a Web Worker that keeps running in background tabs. */
@@ -104,7 +109,7 @@ export const workerSetTimeout = (handler: () => void, timeout = 0) => {
 		externalId: timerId
 	});
 
-	handlerMap.set(timerId, handler);
+	handlerMap.set(timerId, { func: handler, once: true });
 	return timerId++;
 };
 
@@ -116,7 +121,7 @@ export const workerSetInterval = (handler: () => void, timeout = 0) => {
 		externalId: timerId
 	});
 
-	handlerMap.set(timerId, handler);
+	handlerMap.set(timerId, { func: handler, once: false });
 	return timerId++;
 };
 

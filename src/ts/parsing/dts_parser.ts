@@ -1108,10 +1108,12 @@ export class DtsParser extends BinaryFileParser {
 		}
 	}
 
-	static cachedFiles = new Map<string, Promise<DtsFile>>();
+	static cachedFilePromises = new Map<string, Promise<DtsFile>>();
+	static cachedFiles = new Map<string, DtsFile>();
 
 	/** Loads and parses a .dts file. Returns a cached version if already loaded. */
-	static loadFile(path: string) {
+	static async loadFile(path: string) {
+		await this.cachedFilePromises.get(path);
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
 		let promise = (async () => {
@@ -1124,9 +1126,12 @@ export class DtsParser extends BinaryFileParser {
 			let parser = new DtsParser(arrayBuffer);
 
 			let result = parser.parse();
+			this.cachedFiles.set(path, result);
+			this.cachedFilePromises.delete(path);
+
 			return result;
 		})();
-		this.cachedFiles.set(path, promise);
+		this.cachedFilePromises.set(path, promise);
 
 		return promise;
 	}

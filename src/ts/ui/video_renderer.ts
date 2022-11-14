@@ -321,6 +321,7 @@ export abstract class VideoRenderer {
 
 		this.fileHandle = null;
 		this.process = null;
+		this.compilation = null;
 		this.renderButton.classList.add('disabled');
 		this.progressBar.style.display = 'none';
 		this.progressBar.value = 0;
@@ -329,6 +330,7 @@ export abstract class VideoRenderer {
 		this.renderButton.textContent = 'Render';
 		this.closeButton.style.display = '';
 		this.compilationLoadingElement.classList.add('hidden');
+		document.title = 'Marble Blast Web';
 	}
 
 	static showNotSupportedAlert() {
@@ -397,6 +399,7 @@ class RenderingProcess {
 	async renderLevels() {
 		for (let entry of VideoRenderer.compilation.schedule) {
 			if (entry.type !== 'replay') continue;
+			if (this.stopped) break;
 
 			this.currentEntry = entry;
 			let { mission, replay } = entry;
@@ -408,6 +411,7 @@ class RenderingProcess {
 
 			this.level.stop();
 			state.level = null;
+			replay.level = null; // GC
 
 			this.renderedLevels++;
 		}
@@ -507,7 +511,7 @@ class RenderingProcess {
 		await mission.load();
 
 		this.level = new Level(mission, {
-			duration: VideoRenderer.computeLengthForReplay(replay) / PHYSICS_TICK_RATE,
+			duration: this.computeFrameCountForReplay(replay) / this.frameRate * this.playbackSpeed,
 			musicVolume: Math.min(this.musicToSoundRatio, 1),
 			soundVolume: Math.min(1/this.musicToSoundRatio, 1),
 			...await this.getMarbleConfigForCurrentRunner()
@@ -520,6 +524,8 @@ class RenderingProcess {
 		replay.mode = 'playback';
 
 		await this.level.start();
+
+		clearInterval(this.intervalId);
 	}
 
 	async getMarbleConfigForCurrentRunner() {
@@ -544,8 +550,6 @@ class RenderingProcess {
 			VideoRenderer.progressBar.value = (this.renderedLevels + completion * 0.1) / this.levelCount;
 			VideoRenderer.progressBar.value *= 0.8;
 			VideoRenderer.statusText.textContent = `Loading (${Math.floor(completion * 100)}%)`;
-
-			if (completion >= 1) clearInterval(this.intervalId);
 		}, 16);
 	}
 
@@ -599,14 +603,15 @@ class RenderingProcess {
 		for (let frame = 0; frame < frameCount; frame++) {
 			if (this.stopped) break; // Abort
 
-			let time = 1000 * frame / this.frameRate;
-			this.level.render(time * this.playbackSpeed);
+			let time = 1000 * frame * this.playbackSpeed / this.frameRate;
+			this.level.render(time);
 			if (this.level.stopped) break;
 
 			this.composeFrame(time);
 			this.sendFrameToWorker();
 
 			this.renderedFrames++;
+			document.title = `Rendering (${Math.floor(100 * this.renderedFrames / this.totalFrameCount)}%) - Marble Blast Web`;
 			VideoRenderer.statusText.textContent = `Rendering frame ${Math.min(this.renderedFrames, this.totalFrameCount)}/${this.totalFrameCount}`;
 			VideoRenderer.progressBar.value = (this.renderedLevels + 0.1 + 0.9 * Math.min(frame + 1, frameCount)/frameCount) / this.levelCount;
 			VideoRenderer.progressBar.value *= 0.8;
@@ -620,6 +625,9 @@ class RenderingProcess {
 	composeFrame(time: number) {
 		this.ctx.globalAlpha = 1;
 		this.ctx.shadowColor = 'transparent';
+		this.ctx.shadowBlur = 0;
+		this.ctx.shadowOffsetX = 0;
+		this.ctx.shadowOffsetY = 0;
 		this.ctx.resetTransform();
 
 		// Compose together the main game canvas and the HUD canvas
@@ -652,9 +660,9 @@ class RenderingProcess {
 		this.ctx.textAlign = 'center';
 		this.ctx.textBaseline = 'top';
 		this.ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-		this.ctx.shadowBlur = 4;
-		this.ctx.shadowOffsetX = 1;
-		this.ctx.shadowOffsetY = 2;
+		this.ctx.shadowBlur = 4*fontSizeScaling;
+		this.ctx.shadowOffsetX = 1*fontSizeScaling;
+		this.ctx.shadowOffsetY = 2*fontSizeScaling;
 		let text = this.level.mission.title;
 		let { replay } = this.currentEntry;
 		if (replay.finishTime) text += ' - ' + Util.secondsToTimeString(replay.finishTime.gameplayClock / 1000);
@@ -704,9 +712,9 @@ class RenderingProcess {
 			this.ctx.textAlign = 'center';
 			this.ctx.textBaseline = 'top';
 			this.ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-			this.ctx.shadowBlur = 4;
-			this.ctx.shadowOffsetX = 1;
-			this.ctx.shadowOffsetY = 2;
+			this.ctx.shadowBlur = 4*fontSizeScaling;
+			this.ctx.shadowOffsetX = 1*fontSizeScaling;
+			this.ctx.shadowOffsetY = 2*fontSizeScaling;
 			this.ctx.fillText(`${end.name}: ${Util.secondsToTimeString(totalTime / 1000)}`, this.width/2, this.height * 0.73 - this.height*0.07 * i);
 		}
 	}
@@ -722,12 +730,9 @@ class RenderingProcess {
 	async waitBeforeRenderingNextFrame() {
 		if (!this.fastMode) {
 			// In slow mode, we wait for the frame to be encoded before we begin generating the next frame. This minimizes strain on the hardware and often prevents WebGL context loss.
-			let self = this;
-			await new Promise<void>(resolve => this.worker.addEventListener('message', function callback(ev) {
-				if (ev.data.command !== 'videoChunkEncoded') return;
-				self.worker.removeEventListener('message', callback);
-				resolve();
-			}));
+			await new Promise<void>(resolve => this.worker.addEventListener('message', (ev) => {
+				if (ev.data.command === 'videoChunkEncoded') resolve();
+			}, { once: true }));
 		} else {
 			// In fast mode, we wait a fixed 16 milliseconds between rendering frames. Rendering any faster has little benefit as we're limited by video encoding speed. Also, we might lose the WebGL context.
 			await new Promise<void>(resolve => workerSetTimeout(resolve, 16));

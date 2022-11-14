@@ -167,14 +167,17 @@ const VERSION_UPGRADE_PROCEDURES: Record<string, () => Promise<any>> = {
 /** Manages storage and persistence. */
 export abstract class StorageManager {
 	static data: StorageData;
-	static idbDatabase: Promise<IDBDatabase>;
+	static idbDatabaseLoading: Promise<void>;
+	static idbDatabase: IDBDatabase;
 
 	static async init() {
 		// Setup the IndexedDB
-		this.idbDatabase = new Promise((resolve) => {
+		this.idbDatabaseLoading = new Promise((resolve) => {
 			let request = indexedDB.open("mb-database", 3);
 			request.onsuccess = (e) => {
-				resolve((e.target as any).result);
+				resolve();
+				this.idbDatabase = (e.target as any).result;
+				this.idbDatabaseLoading = null;
 			};
 
 			request.onupgradeneeded = (e) => {
@@ -337,7 +340,9 @@ export abstract class StorageManager {
 
 	/** Gets an entry from an IndexedDB store by key. */
 	static async databaseGet(storeName: string, key: string) {
-		let db = await this.idbDatabase;
+		await this.idbDatabaseLoading;
+
+		let db = this.idbDatabase;
 		let transaction = db.transaction(storeName, 'readonly');
 		let store = transaction.objectStore(storeName);
 		let request = store.get(key);
@@ -348,7 +353,9 @@ export abstract class StorageManager {
 
 	/** Puts an entry into an IndexedDB store by key. */
 	static async databasePut(storeName: string, value: any, key?: string) {
-		let db = await this.idbDatabase;
+		await this.idbDatabaseLoading;
+
+		let db = this.idbDatabase;
 		let transaction = db.transaction(storeName, 'readwrite');
 		let store = transaction.objectStore(storeName);
 		store.put(value, key);
@@ -358,7 +365,9 @@ export abstract class StorageManager {
 
 	/** Deletes an entry from an IndexedDB store by key. */
 	static async databaseDelete(storeName: string, key: string) {
-		let db = await this.idbDatabase;
+		await this.idbDatabaseLoading;
+
+		let db = this.idbDatabase;
 		let transaction = db.transaction(storeName, 'readwrite');
 		let store = transaction.objectStore(storeName);
 		store.delete(key);
@@ -368,7 +377,9 @@ export abstract class StorageManager {
 
 	/** Counts all entries in an IndexedDB store with a specific key. */
 	static async databaseCount(storeName: string, key: string): Promise<number> {
-		let db = await this.idbDatabase;
+		await this.idbDatabaseLoading;
+
+		let db = this.idbDatabase;
 		let transaction = db.transaction(storeName, 'readonly');
 		let store = transaction.objectStore(storeName);
 		let request = store.count(key);

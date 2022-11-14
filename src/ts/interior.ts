@@ -196,7 +196,8 @@ export class Interior {
 	specialMaterials: Set<string>;
 
 	/** Avoids recomputation of the same interior. */
-	static initCache = new WeakMap<InteriorDetailLevel, Promise<InitCacheType>>();
+	static initCache = new WeakMap<InteriorDetailLevel, InitCacheType>();
+	static initCachePromises = new WeakMap<InteriorDetailLevel, Promise<void>>();
 
 	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
 		this.dif = file;
@@ -219,7 +220,8 @@ export class Interior {
 	async init(id: number) {
 		this.id = id;
 
-		let cached = await Interior.initCache.get(this.detailLevel);
+		await Interior.initCachePromises.get(this.detailLevel);
+		let cached = Interior.initCache.get(this.detailLevel);
 		if (cached && cached.fancyShaders !== StorageManager.data.settings.fancyShaders) {
 			// The cached interior was created with a different shader setting, so assume it's invalid
 			Interior.initCache.delete(this.detailLevel);
@@ -229,9 +231,9 @@ export class Interior {
 		if (!cached) {
 			// There is no cached init data for this detail level yet, so go and create it, girl
 
-			let resolveFunc: (data: InitCacheType) => any;
-			let promise = new Promise<InitCacheType>(resolve => resolveFunc = resolve);
-			Interior.initCache.set(this.detailLevel, promise);
+			let resolveFunc: () => any;
+			let promise = new Promise<void>(resolve => resolveFunc = resolve);
+			Interior.initCachePromises.set(this.detailLevel, promise);
 
 			let materials: Material[] = [];
 
@@ -322,7 +324,9 @@ export class Interior {
 				materials,
 				fancyShaders: StorageManager.data.settings.fancyShaders
 			};
-			resolveFunc(cached);
+			Interior.initCache.set(this.detailLevel, cached);
+			Interior.initCachePromises.delete(this.detailLevel);
+			resolveFunc();
 		}
 
 		// Create the mesh, add it to the scene, and done

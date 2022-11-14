@@ -722,4 +722,10 @@ export abstract class CollisionDetection {
 
 		return dst;
 	}
+
+	static clearReferences() {
+		// To allow GC
+		lastS1 = null;
+		lastS2 = null;
+	}
 }
