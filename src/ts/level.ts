@@ -72,6 +72,7 @@ import { Euler } from "./math/euler";
 import { OrthographicCamera, PerspectiveCamera } from "./rendering/camera";
 import { Plane } from "./math/plane";
 import { CollisionDetection } from "./physics/collision_detection";
+import { MissionLibrary } from "./mission_library";
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -329,11 +330,8 @@ export class Level extends Scheduler {
 		if (!this.offline) {
 			this.tryRender();
 			this.tickInterval = setInterval(this.tick.bind(this)) as unknown as number;
-			this.lastPhysicsTick = performance.now(); // First render usually takes quite long (shader compile etc), so reset the last physics tick back to now
+			this.lastPhysicsTick = performance.now(); // First render usually takes longer (JIT moment), so reset the last physics tick back to now
 			mainCanvas.classList.remove('hidden');
-		} else {
-			this.render(0);
-			this.lastPhysicsTick = 0;
 		}
 	}
 
@@ -532,7 +530,8 @@ export class Level extends Scheduler {
 		} else {
 			if (this.mission.modification === 'gold') {
 				// Play the song based on the level index
-				let levelIndex = state.menu.levelSelect.currentMissionArray.indexOf(this.mission);
+				let missionArray = MissionLibrary.allCategories.find(x => x.includes(this.mission));
+				let levelIndex = missionArray.indexOf(this.mission);
 				musicFileName = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3]; // The default music choice is based off of level index
 				// Yes, the extra space is intentional
 				this.originalMusicName = ['groove police.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
@@ -1083,9 +1082,11 @@ export class Level extends Scheduler {
 			this.pause();
 		}
 
+		let forcePhysicsTick = false;
 		if (this.lastPhysicsTick === null) {
 			// If there hasn't been a physics tick yet, ensure there is one now
-			this.lastPhysicsTick = time - 1000 / PHYSICS_TICK_RATE * 1.1 / PLAYBACK_SPEED;
+			this.lastPhysicsTick = time - 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
+			forcePhysicsTick = true;
 		}
 
 		/** Time since the last physics tick */
@@ -1098,7 +1099,7 @@ export class Level extends Scheduler {
 
 		let tickDone = false;
 		// Make sure to execute the correct amount of ticks
-		while (elapsed >= 1000 / PHYSICS_TICK_RATE) {
+		while (elapsed >= 1000 / PHYSICS_TICK_RATE || forcePhysicsTick) {
 			let prevGameplayClock = this.timeState.gameplayClock;
 
 			// Update gameplay clock, taking into account the Time Travel state
@@ -1132,6 +1133,7 @@ export class Level extends Scheduler {
 			this.timeState.tickIndex++;
 			this.lastPhysicsTick += 1000 / PHYSICS_TICK_RATE / PLAYBACK_SPEED;
 			elapsed -= 1000 / PHYSICS_TICK_RATE;
+			forcePhysicsTick = false;
 
 			this.tickSchedule(this.timeState.currentAttemptTime);
 

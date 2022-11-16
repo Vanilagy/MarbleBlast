@@ -1,8 +1,11 @@
 # Version History
 
 ## 2.5.5
-- Added viewable world record replays in the leaderboard for default levels
+- Added viewable world record replays in the leaderboards for default levels
 - Added a compilation renderer, tutorial [here](https://github.com/Vanilagy/MarbleBlast/tree/master/docs/compilation_how_to.md).
+- Fixed incorrect music playing in replays
+- Fixed multiple memory leaks
+- Fixed trapdoor sound bugs
 
 ## 2.5.4
 - Fixed missing bumper sounds

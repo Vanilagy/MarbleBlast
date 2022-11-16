@@ -43,8 +43,13 @@ This is a necessary file in the directory that defines the compilation. Here's a
 	"showInfo": true,
 
 	// Optional: The file where the video should be saved (default is output.webm)
-	"outputFilename": "rampage.webm"
+	"outputFilename": "rampage.webm",
+
+	// Optional: The file where a list of chapters (see later) should be saved (default is chapters.txt)
+	"chaptersFilename": "rampage_chapters.txt"
 }
 ```
 
 All the files referenced in `compilation.json`, like replays and marble textures, also have to be included in the directory.
+
+The chapters file exported by the renderer contains a list of levels included in the video and timestamps for each. It is intended for use in YouTube descriptions.

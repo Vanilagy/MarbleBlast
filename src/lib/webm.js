@@ -226,11 +226,11 @@ var WebMMuxer = (() => {
     }
   };
   var FILE_CHUNK_SIZE = __pow(2, 24);
+  var MAX_CHUNKS_AT_ONCE = 2;
   var FileSystemWritableFileStreamWriteTarget = class extends WriteTarget {
     constructor(stream) {
       super();
       this.chunks = [];
-      this.toFlush = [];
       this.stream = stream;
     }
     write(data) {
@@ -252,8 +252,13 @@ var WebMMuxer = (() => {
       };
       insertSectionIntoFileChunk(chunk, section);
       if (chunk.written[0].start === 0 && chunk.written[0].end === FILE_CHUNK_SIZE) {
-        this.toFlush.push(chunk);
-        this.chunks.splice(chunkIndex, 1);
+        chunk.shouldFlush = true;
+      }
+      if (this.chunks.length > MAX_CHUNKS_AT_ONCE) {
+        for (let i = 0; i < this.chunks.length - 1; i++) {
+          this.chunks[i].shouldFlush = true;
+        }
+        this.flushChunks();
       }
       if (toWrite.byteLength < data.byteLength) {
         this.writeDataIntoChunks(data.subarray(toWrite.byteLength), position + toWrite.byteLength);
@@ -264,32 +269,33 @@ var WebMMuxer = (() => {
       let chunk = {
         start,
         data: new Uint8Array(FILE_CHUNK_SIZE),
-        written: []
+        written: [],
+        shouldFlush: false
       };
       this.chunks.push(chunk);
-      return this.chunks.length - 1;
+      this.chunks.sort((a, b) => a.start - b.start);
+      return this.chunks.indexOf(chunk);
     }
-    flushChunks() {
-      if (this.toFlush.length > 0) {
-        for (let chunk of this.toFlush) {
-          for (let section of chunk.written) {
-            this.stream.write({
-              type: "write",
-              data: chunk.data.subarray(section.start, section.end),
-              position: chunk.start + section.start
-            });
-          }
+    flushChunks(force = false) {
+      for (let i = 0; i < this.chunks.length; i++) {
+        let chunk = this.chunks[i];
+        if (!chunk.shouldFlush && !force)
+          continue;
+        for (let section of chunk.written) {
+          this.stream.write({
+            type: "write",
+            data: chunk.data.subarray(section.start, section.end),
+            position: chunk.start + section.start
+          });
         }
-        this.toFlush.length = 0;
+        this.chunks.splice(i--, 1);
       }
     }
     seek(newPos) {
       this.pos = newPos;
     }
     finalize() {
-      this.toFlush.push(...this.chunks);
-      this.chunks.length = 0;
-      this.flushChunks();
+      this.flushChunks(true);
     }
   };
   var insertSectionIntoFileChunk = (chunk, section) => {
@@ -452,7 +458,10 @@ var WebMMuxer = (() => {
       this.ensureNotFinalized();
       if (!this.options.video)
         throw new Error("No video track declared.");
+      this.writeVideoDecoderConfig(meta);
       let internalChunk = this.createInternalChunk(chunk, timestamp);
+      if (this.options.video.codec === "V_VP9")
+        this.fixVP9ColorSpace(internalChunk);
       this.lastVideoTimestamp = internalChunk.timestamp;
       while (this.audioChunkQueue.length > 0 && this.audioChunkQueue[0].timestamp <= internalChunk.timestamp) {
         let audioChunk = this.audioChunkQueue.shift();
@@ -463,9 +472,12 @@ var WebMMuxer = (() => {
       } else {
         this.videoChunkQueue.push(internalChunk);
       }
+    }
+    writeVideoDecoderConfig(meta) {
       if (meta.decoderConfig) {
         if (meta.decoderConfig.colorSpace) {
           let colorSpace = meta.decoderConfig.colorSpace;
+          this.colorSpace = colorSpace;
           this.colourElement.data = [
             { id: 21937 /* MatrixCoefficients */, data: {
               "rgb": 1,
@@ -494,6 +506,42 @@ var WebMMuxer = (() => {
           this.writeCodecPrivate(this.videoCodecPrivate, meta.decoderConfig.description);
         }
       }
+    }
+    fixVP9ColorSpace(chunk) {
+      if (chunk.type !== "key")
+        return;
+      if (!this.colorSpace)
+        return;
+      let i = 0;
+      if (readBits(chunk.data, 0, 2) !== 2)
+        return;
+      i += 2;
+      let profile = (readBits(chunk.data, i + 1, i + 2) << 1) + readBits(chunk.data, i + 0, i + 1);
+      i += 2;
+      if (profile === 3)
+        i++;
+      let showExistingFrame = readBits(chunk.data, i + 0, i + 1);
+      i++;
+      if (showExistingFrame)
+        return;
+      let frameType = readBits(chunk.data, i + 0, i + 1);
+      i++;
+      if (frameType !== 0)
+        return;
+      i += 2;
+      let syncCode = readBits(chunk.data, i + 0, i + 24);
+      i += 24;
+      if (syncCode !== 4817730)
+        return;
+      if (profile >= 2)
+        i++;
+      let colorSpaceID = {
+        "rgb": 7,
+        "bt709": 2,
+        "bt470bg": 1,
+        "smpte170m": 3
+      }[this.colorSpace.matrix];
+      writeBits(chunk.data, i + 0, i + 3, colorSpaceID);
     }
     addAudioChunk(chunk, meta, timestamp) {
       this.ensureNotFinalized();
@@ -619,6 +667,28 @@ var WebMMuxer = (() => {
     }
   };
   var main_default = WebMMuxer;
+  var readBits = (bytes, start, end) => {
+    let result = 0;
+    for (let i = start; i < end; i++) {
+      let byteIndex = Math.floor(i / 8);
+      let byte = bytes[byteIndex];
+      let bitIndex = 7 - (i & 7);
+      let bit = (byte & 1 << bitIndex) >> bitIndex;
+      result <<= 1;
+      result |= bit;
+    }
+    return result;
+  };
+  var writeBits = (bytes, start, end, value) => {
+    for (let i = start; i < end; i++) {
+      let byteIndex = Math.floor(i / 8);
+      let byte = bytes[byteIndex];
+      let bitIndex = 7 - (i & 7);
+      byte &= ~(1 << bitIndex);
+      byte |= (value & 1 << end - i - 1) >> end - i - 1 << bitIndex;
+      bytes[byteIndex] = byte;
+    }
+  };
   return __toCommonJS(main_exports);
 })();
 WebMMuxer = WebMMuxer.default;

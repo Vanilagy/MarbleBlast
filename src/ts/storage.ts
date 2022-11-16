@@ -75,6 +75,7 @@ export interface StorageData {
 		frameRate: number,
 		playbackSpeed: number,
 		fastMode: boolean,
+		bt709: boolean,
 
 		includeAudio: boolean,
 		audioKilobitRate: number,
@@ -144,6 +145,7 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		frameRate: 60,
 		playbackSpeed: 1,
 		fastMode: true,
+		bt709: false,
 
 		includeAudio: true,
 		audioKilobitRate: 64,

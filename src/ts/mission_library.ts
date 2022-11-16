@@ -5,6 +5,7 @@ import { Util } from "./util";
 
 export abstract class MissionLibrary {
 	static allMissions: Mission[] = [];
+	static allCategories: Mission[][] = [];
 
 	static goldBeginner: Mission[] = [];
 	static goldIntermediate: Mission[] = [];
@@ -175,6 +176,22 @@ export abstract class MissionLibrary {
 		for (let i = 0; i < this.ultraIntermediate.length; i++) this.ultraIntermediate[i].initSearchString(i);
 		for (let i = 0; i < this.ultraAdvanced.length; i++) this.ultraAdvanced[i].initSearchString(i);
 		for (let i = 0; i < this.ultraCustom.length; i++) this.ultraCustom[i].initSearchString(i);
+
+		this.allCategories.push(
+			this.goldBeginner,
+			this.goldIntermediate,
+			this.goldAdvanced,
+			this.goldCustom,
+			this.platinumBeginner,
+			this.platinumIntermediate,
+			this.platinumAdvanced,
+			this.platinumExpert,
+			this.platinumCustom,
+			this.ultraBeginner,
+			this.ultraIntermediate,
+			this.ultraAdvanced,
+			this.ultraCustom
+		);
 	}
 
 	static getModification(arr: Mission[]) {

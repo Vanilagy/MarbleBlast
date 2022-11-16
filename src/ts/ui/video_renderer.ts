@@ -30,7 +30,8 @@ interface CompilationDefinition {
 		reflectiveMarble?: boolean
 	}[],
 	showInfo?: boolean,
-	outputFilename?: string
+	outputFilename?: string,
+	chaptersFilename?: string
 }
 
 type ReplayEntry = CompilationDefinition['schedule'][number] & { type: 'replay' };
@@ -53,6 +54,7 @@ export abstract class VideoRenderer {
 	static directoryHandle: FileSystemDirectoryHandle;
 	static compilation: CompilationDefinition = null;
 	static process: RenderingProcess = null;
+	static chapterFileHandle: FileSystemFileHandle;
 
 	static get isCompilation() {
 		return !!this.directoryHandle;
@@ -107,7 +109,7 @@ export abstract class VideoRenderer {
 			this.updateOverviewText();
 		});
 
-		(this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).addEventListener('input', () => {
+		(this.div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).addEventListener('input', () => {
 			this.updateAudioSettingsEnabledness();
 		});
 
@@ -134,8 +136,8 @@ export abstract class VideoRenderer {
 	}
 
 	static updateMusicToSoundRatioDisplay() {
-		let musicToSoundRatioSlider = this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement;
-		let musicToSoundRatioDisplay = this.div.querySelectorAll('._config-row')[8].children[2] as HTMLSpanElement;
+		let musicToSoundRatioSlider = this.div.querySelectorAll('._config-row')[9].children[1] as HTMLInputElement;
+		let musicToSoundRatioDisplay = this.div.querySelectorAll('._config-row')[9].children[2] as HTMLSpanElement;
 
 		// Tan is a fit function for the job, as we want the first half to output values from 0 to 1, and the second value to output values from 1 to infinity. If you take the reciprocal of the second half, it looks like the mirror image of the first half - because tan trig stuff.
 		let ratio = Math.tan(Number(musicToSoundRatioSlider.value) * Math.PI / 2);
@@ -146,10 +148,10 @@ export abstract class VideoRenderer {
 	}
 
 	static updateAudioSettingsEnabledness() {
-		let enabled = (this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked;
+		let enabled = (this.div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).checked;
 
-		this.div.querySelectorAll('._config-row')[7].classList.toggle('disabled', !enabled);
 		this.div.querySelectorAll('._config-row')[8].classList.toggle('disabled', !enabled);
+		this.div.querySelectorAll('._config-row')[9].classList.toggle('disabled', !enabled);
 	}
 
 	/** Creates a Worker that will be responsible for video encoding and writing to disk - it makes sense to perform these operations in a separate thread. */
@@ -258,6 +260,7 @@ export abstract class VideoRenderer {
 			}
 
 			this.fileHandle = await directoryHandle.getFileHandle(this.compilation.outputFilename ?? 'output.webm', { create: true });
+			this.chapterFileHandle = await directoryHandle.getFileHandle(this.compilation.chaptersFilename ?? 'chapters.txt', { create: true });
 
 			this.compilationLoadingElement.classList.add('hidden');
 			this.renderButton.classList.remove('disabled');
@@ -270,9 +273,10 @@ export abstract class VideoRenderer {
 		}
 	}
 
-	static computeLengthForReplay(replay: Replay) {
+	static computeTickLengthForReplay(replay: Replay) {
 		// Compute how many simulation ticks the replay is long
-		let tickLength = replay.marblePositions.length;
+
+		let tickLength = replay.marblePositions.length - 1; // The last tick always means the end of the replay, so don't include it
 		if (replay.finishTime) {
 			// Cap the replay to last only 2 more seconds after the finish has been reached (theoretically, players can idle in the finish animation by waiting to submit their score)
 			let tickIndex = replay.finishTime.tickIndex ?? Math.floor(replay.finishTime.currentAttemptTime * PHYSICS_TICK_RATE / 1000);
@@ -289,7 +293,7 @@ export abstract class VideoRenderer {
 			if (entry.type !== 'replay') continue;
 
 			let replay = entry.replay;
-			this.tickLength += this.computeLengthForReplay(replay);
+			this.tickLength += this.computeTickLengthForReplay(replay);
 		}
 	}
 
@@ -306,10 +310,11 @@ export abstract class VideoRenderer {
 		(this.div.querySelectorAll('._config-row')[3].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.frameRate.toString();
 		(this.div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value = playbackSpeedString;
 		(this.div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.fastMode;
+		(this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.bt709;
 
-		(this.div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.includeAudio;
-		(this.div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.audioKilobitRate.toString();
-		(this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value = (2 * Math.atan(StorageManager.data.videoRecorderConfig.musicToSoundRatio) / Math.PI).toString();
+		(this.div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).checked = StorageManager.data.videoRecorderConfig.includeAudio;
+		(this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value = StorageManager.data.videoRecorderConfig.audioKilobitRate.toString();
+		(this.div.querySelectorAll('._config-row')[9].children[1] as HTMLInputElement).value = (2 * Math.atan(StorageManager.data.videoRecorderConfig.musicToSoundRatio) / Math.PI).toString();
 
 		this.updateMusicToSoundRatioDisplay();
 		this.updateAudioSettingsEnabledness();
@@ -319,7 +324,9 @@ export abstract class VideoRenderer {
 		this.div.classList.add('hidden');
 		state.menu.levelSelect.show();
 
+		this.directoryHandle = null;
 		this.fileHandle = null;
+		this.chapterFileHandle = null;
 		this.process = null;
 		this.compilation = null;
 		this.renderButton.classList.add('disabled');
@@ -346,6 +353,7 @@ class RenderingProcess {
 	frameRate: number;
 	playbackSpeed: number;
 	fastMode: boolean;
+	bt709: boolean;
 	includeAudio: boolean;
 	audioKilobitRate: number;
 	musicToSoundRatio: number;
@@ -364,6 +372,7 @@ class RenderingProcess {
 	stopped = false;
 	currentEntry: ReplayEntry;
 	wakeLock: WakeLockSentinel;
+	chaptersText = "";
 
 	async run() {
 		try {
@@ -427,11 +436,12 @@ class RenderingProcess {
 		this.frameRate = Number((div.querySelectorAll('._config-row')[3].children[1] as HTMLInputElement).value);
 		this.playbackSpeed = Number((div.querySelectorAll('._config-row')[4].children[1] as HTMLInputElement).value);
 		this.fastMode = (div.querySelectorAll('._config-row')[5].children[1] as HTMLInputElement).checked;
+		this.bt709 = (div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked;
 
 		// Audio config
-		this.includeAudio = (div.querySelectorAll('._config-row')[6].children[1] as HTMLInputElement).checked;
-		this.audioKilobitRate = Number((div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).value);
-		this.musicToSoundRatio = Math.tan(Number((div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value) * Math.PI / 2);
+		this.includeAudio = (div.querySelectorAll('._config-row')[7].children[1] as HTMLInputElement).checked;
+		this.audioKilobitRate = Number((div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement).value);
+		this.musicToSoundRatio = Math.tan(Number((div.querySelectorAll('._config-row')[9].children[1] as HTMLInputElement).value) * Math.PI / 2);
 	}
 
 	validateConfiguration() {
@@ -470,6 +480,7 @@ class RenderingProcess {
 		StorageManager.data.videoRecorderConfig.frameRate = this.frameRate;
 		StorageManager.data.videoRecorderConfig.playbackSpeed = this.playbackSpeed;
 		StorageManager.data.videoRecorderConfig.fastMode = this.fastMode;
+		StorageManager.data.videoRecorderConfig.bt709 = this.bt709;
 		StorageManager.data.videoRecorderConfig.includeAudio = this.includeAudio;
 		StorageManager.data.videoRecorderConfig.audioKilobitRate = this.audioKilobitRate;
 		StorageManager.data.videoRecorderConfig.musicToSoundRatio = this.musicToSoundRatio;
@@ -477,7 +488,7 @@ class RenderingProcess {
 	}
 
 	computeFrameCountForReplay(replay: Replay) {
-		return Math.floor(VideoRenderer.computeLengthForReplay(replay) / PHYSICS_TICK_RATE * this.frameRate / this.playbackSpeed);
+		return Math.floor(VideoRenderer.computeTickLengthForReplay(replay) / PHYSICS_TICK_RATE * this.frameRate / this.playbackSpeed);
 	}
 
 	prepareUi() {
@@ -609,9 +620,10 @@ class RenderingProcess {
 
 			this.composeFrame(time);
 			this.sendFrameToWorker();
+			if (frame === 0) this.appendToChaptersText();
 
 			this.renderedFrames++;
-			document.title = `Rendering (${Math.floor(100 * this.renderedFrames / this.totalFrameCount)}%) - Marble Blast Web`;
+			document.title = `Rendering (${(100 * this.renderedFrames / this.totalFrameCount).toFixed(1)}%) - Marble Blast Web`;
 			VideoRenderer.statusText.textContent = `Rendering frame ${Math.min(this.renderedFrames, this.totalFrameCount)}/${this.totalFrameCount}`;
 			VideoRenderer.progressBar.value = (this.renderedLevels + 0.1 + 0.9 * Math.min(frame + 1, frameCount)/frameCount) / this.levelCount;
 			VideoRenderer.progressBar.value *= 0.8;
@@ -678,8 +690,8 @@ class RenderingProcess {
 
 	/** Draws the text of all the sections that have ended with this level. */
 	drawSectionText(time: number) {
-		let replayLength = 1000 * this.currentEntry.replay.marblePositions.length / PHYSICS_TICK_RATE;
-		let animationTime = time - (replayLength - 3000);
+		let replayDuration = 1000 * VideoRenderer.computeTickLengthForReplay(this.currentEntry.replay) / PHYSICS_TICK_RATE;
+		let animationTime = time - (replayDuration - 3000);
 		let animationCompletion = Util.clamp(animationTime / 500, 0, 1);
 		if (animationCompletion === 0) return;
 
@@ -720,11 +732,29 @@ class RenderingProcess {
 	}
 
 	sendFrameToWorker() {
-		let imageBuffer = this.ctx.getImageData(0, 0, this.width, this.height).data.buffer;
-		this.worker.postMessage({
-			command: 'videoData',
-			data: imageBuffer
-		}, [imageBuffer]);
+		if (this.bt709) {
+			let imageBuffer = this.ctx.getImageData(0, 0, this.width, this.height).data.buffer;
+			this.worker.postMessage({
+				command: 'imageBuffer',
+				imageBuffer: imageBuffer
+			}, [imageBuffer]);
+		} else {
+			let frame = new VideoFrame(this.ctx.canvas, { timestamp: 1e6 * this.renderedFrames / this.frameRate });
+			this.worker.postMessage({
+				command: 'videoFrame',
+				videoFrame: frame
+			}, [frame as any]);
+		}
+	}
+
+	appendToChaptersText() {
+		let time = this.renderedFrames / this.frameRate;
+
+		this.chaptersText += `${Math.floor(time / 60)}:${Math.floor(time % 60).toString().padStart(2, '0')} - ${this.level.mission.title}`;
+		if (typeof this.currentEntry.runner === 'string')
+			this.chaptersText += ` - ${VideoRenderer.compilation.runners.find(x => x.id === this.currentEntry.runner).name}`;
+
+		this.chaptersText += '\n';
 	}
 
 	async waitBeforeRenderingNextFrame() {
@@ -792,10 +822,7 @@ class RenderingProcess {
 	}
 
 	initFinalization() {
-		if (this.stopped) {
-			this.worker.terminate();
-			return;
-		}
+		if (this.stopped) return;
 
 		// Tell the worker that we're done sending frames
 		this.worker.postMessage({
@@ -815,18 +842,27 @@ class RenderingProcess {
 			VideoRenderer.progressBar.value = 0.8 + 0.2 * completion; // Last 20% of the progress bar
 		}, 16);
 
-		await new Promise<void>(resolve => this.worker.addEventListener('message', e => e.data === 'done' && resolve()));
+		await new Promise<void>(resolve => this.worker.addEventListener('message', e => e.data === 'closing' && resolve()));
 		clearInterval(this.intervalId);
 	}
 
 	async finalize() {
-		if (this.stopped) {
-			this.worker.terminate();
-			return;
-		}
+		if (this.stopped) return;
+
+		// https://twitter.com/sayhello/status/1256498167593361409
+		VideoRenderer.statusText.textContent = 'Writing and checking file... (might take a while)';
+		VideoRenderer.progressBar.value = 1;
+
+		await new Promise<void>(resolve => this.worker.addEventListener('message', e => e.data === 'done' && resolve()));
 
 		VideoRenderer.statusText.textContent = `Finalizing...`;
 		VideoRenderer.progressBar.value = 1.0;
+
+		if (VideoRenderer.chapterFileHandle) {
+			let writable = await VideoRenderer.chapterFileHandle.createWritable();
+			await writable.write(this.chaptersText);
+			await writable.close();
+		}
 
 		await Util.wait(200); // Fake some work 😂😂😂😂
 
@@ -955,12 +991,11 @@ const workerBody = () => {
 	};
 
 	let nextTimestamp = 0;
-	const onVideoData = (data: {
-		data: ArrayBuffer,
-		timestamp: number
+	const onImageBuffer = (data: {
+		imageBuffer: ArrayBuffer
 	}) => {
 		// Convert RGBA to YUV manually to avoid unwanted color space conversions by the user agent
-		let yuv = RGBAToYUV420({ width, height, data: new Uint8ClampedArray(data.data) });
+		let yuv = RGBAToYUV420({ width, height, data: new Uint8ClampedArray(data.imageBuffer) });
 		let videoFrame = new VideoFrame(yuv, {
 			format: 'I420',
 			codedWidth: width,
@@ -975,6 +1010,10 @@ const workerBody = () => {
 		});
 		nextTimestamp += 1e6 / frameRate;
 
+		encodeVideoFrame(videoFrame);
+	};
+
+	const encodeVideoFrame = (videoFrame: VideoFrame) => {
 		// Force a video key frame every five seconds for better seeking
 		let needsKeyFrame = videoFrame.timestamp - lastVideoKeyFrame >= 5_000_000;
 		if (needsKeyFrame) lastVideoKeyFrame = videoFrame.timestamp;
@@ -999,6 +1038,8 @@ const workerBody = () => {
 		audioEncoder?.close();
 
 		muxer.finalize();
+
+		self.postMessage('closing');
 		await fileWritableStream.close();
 
 		self.postMessage('done');
@@ -1018,7 +1059,8 @@ const workerBody = () => {
 
 		try {
 			if (data.command === 'setup') await onSetup(data);
-			else if (data.command === 'videoData') onVideoData(data);
+			else if (data.command === 'imageBuffer') onImageBuffer(data);
+			else if (data.command === 'videoFrame') encodeVideoFrame(data.videoFrame);
 			else if (data.command === 'audioData') onAudioData(data);
 			else if (data.command === 'finishUp') await finishUp();
 		} catch (e) {

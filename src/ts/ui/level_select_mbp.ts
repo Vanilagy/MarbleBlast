@@ -113,19 +113,9 @@ export class MbpLevelSelect extends LevelSelect {
 		}, undefined, undefined, false);
 
 		// Preload images and leaderboards
-		this.setMissionArray(MissionLibrary.goldCustom, false); // Make sure to disable the image timeouts so that no funky stuff happens
-		this.setMissionArray(MissionLibrary.goldAdvanced, false);
-		this.setMissionArray(MissionLibrary.goldIntermediate, false);
-		this.setMissionArray(MissionLibrary.goldBeginner, false);
-		this.setMissionArray(MissionLibrary.platinumCustom, false);
-		this.setMissionArray(MissionLibrary.platinumExpert, false);
-		this.setMissionArray(MissionLibrary.platinumAdvanced, false);
-		this.setMissionArray(MissionLibrary.platinumIntermediate, false);
-		this.setMissionArray(MissionLibrary.platinumBeginner, false);
-		this.setMissionArray(MissionLibrary.ultraCustom, false);
-		this.setMissionArray(MissionLibrary.ultraAdvanced, false);
-		this.setMissionArray(MissionLibrary.ultraIntermediate, false);
-		this.setMissionArray(MissionLibrary.ultraBeginner, false);
+		for (let category of MissionLibrary.allCategories) {
+			this.setMissionArray(category, false); // Make sure to disable the image timeouts so that no funky stuff happens
+		}
 
 		// Show a random beginner category at the start
 		this.setMissionArray(Util.randomFromArray([MissionLibrary.goldBeginner, MissionLibrary.platinumBeginner, MissionLibrary.ultraBeginner]), false);
