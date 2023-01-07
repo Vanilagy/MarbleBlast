@@ -6,6 +6,7 @@
 - Fixed incorrect music playing in replays
 - Fixed multiple memory leaks
 - Fixed trapdoor sound bugs
+- Fixed shader errors on Safari
 
 ## 2.5.4
 - Fixed missing bumper sounds

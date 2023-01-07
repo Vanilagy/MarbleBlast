@@ -10,7 +10,7 @@ varying vec3 eyeDirection;
 varying vec4 vPosition;
 varying vec2 vUv;
 varying vec3 vNormal;
-varying vec4 vTangent;
+//varying vec4 vTangent; // Using this drops support with WebGL 1 on iOS, too many varyings
 varying float vOpacity;
 varying vec4 vShadowPosition;
 varying vec3 vReflect;
@@ -248,31 +248,34 @@ void main() {
 		#endif
 
 		#ifdef USE_NORMAL_MAP
-			if (debugMode == 1) {
+			if (debugMode == 0) {}
+			else if (debugMode == 1) {
 				shaded = vec4(mod(vUv, 1.0f), 0, 1);
 			}
-			if (debugMode == 2) {
+			else if (debugMode == 2) {
 				shaded = vec4((vNormal + 1.0f) / 2.0f, 1);
 			}
-			if (debugMode == 3) {
+			else if (debugMode == 3) {
 				shaded = vec4((map + 1.0f) / 2.0f, 1);
 			}
-			if (debugMode == 4) {
+			else if (debugMode == 4) {
 				shaded = vec4((normal + 1.0f) / 2.0f, 1);
 			}
+			/*
 			if (debugMode == 5) {
 				shaded = vec4((vTangent.xyz + 1.0f) / 2.0f, 1);
 			}
 			if (debugMode == 6) {
 				shaded = vec4(vec3((vTangent.w + 1.0f) / 2.0f), 1);
 			}
-			if (debugMode == 7) {
+			*/
+			else if (debugMode == 7) {
 				shaded = vec4((vTbn[0] + 1.0f) / 2.0f, 1);
 			}
-			if (debugMode == 8) {
+			else if (debugMode == 8) {
 				shaded = vec4((vTbn[1] + 1.0f) / 2.0f, 1);
 			}
-			if (debugMode == 9) {
+			else if (debugMode == 9) {
 				shaded = vec4((vTbn[2] + 1.0f) / 2.0f, 1);
 			}
 		#endif
