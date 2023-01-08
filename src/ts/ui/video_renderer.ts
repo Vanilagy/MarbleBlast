@@ -9,7 +9,7 @@ import { Util } from "../util";
 import { workerSetTimeout } from "../worker";
 import { mainCanvas, mainRenderer } from "./misc";
 
-interface CompilationDefinition {
+interface CompilationManifest {
 	schedule: ({
 		type: 'replay',
 		filename: string,
@@ -34,7 +34,7 @@ interface CompilationDefinition {
 	chaptersFilename?: string
 }
 
-type ReplayEntry = CompilationDefinition['schedule'][number] & { type: 'replay' };
+type ReplayEntry = CompilationManifest['schedule'][number] & { type: 'replay' };
 
 /** Handles rendering replays into playable video files. */
 export abstract class VideoRenderer {
@@ -52,7 +52,7 @@ export abstract class VideoRenderer {
 	static tickLength: number;
 	static fileHandle: FileSystemFileHandle;
 	static directoryHandle: FileSystemDirectoryHandle;
-	static compilation: CompilationDefinition = null;
+	static compilation: CompilationManifest = null;
 	static process: RenderingProcess = null;
 	static chapterFileHandle: FileSystemFileHandle;
 
@@ -217,11 +217,11 @@ export abstract class VideoRenderer {
 	static async showForCompilation(directoryHandle: FileSystemDirectoryHandle) {
 		this.directoryHandle = directoryHandle;
 
-		let compilationDefinitionFile: FileSystemFileHandle;
+		let compilationManifestFile: FileSystemFileHandle;
 		try {
-			compilationDefinitionFile = await directoryHandle.getFileHandle('compilation.json');
+			compilationManifestFile = await directoryHandle.getFileHandle('manifest.json');
 		} catch (e) {
-			state.menu.showAlertPopup('Missing compilation definition file', "The selected directory does not contain a compilation.json file, which is required. For a tutorial on how to render compilations, click [here](https://github.com/Vanilagy/MarbleBlast/tree/master/docs/compilation_how_to.md).");
+			state.menu.showAlertPopup('Missing compilation manifest file', "The selected directory does not contain a manifest.json file, which is required. For a tutorial on how to render compilations, click [here](https://github.com/Vanilagy/MarbleBlast/tree/master/docs/compilation_how_to.md).");
 			return;
 		}
 
@@ -230,7 +230,7 @@ export abstract class VideoRenderer {
 		this.compilationLoadingElement.classList.remove('hidden');
 
 		try {
-			let fileText = await (await compilationDefinitionFile.getFile()).text();
+			let fileText = await (await compilationManifestFile.getFile()).text();
 			this.compilation = JSON.parse(fileText);
 
 			let replayCount = this.compilation.schedule.filter(x => x.type === 'replay').length;
@@ -269,7 +269,7 @@ export abstract class VideoRenderer {
 		} catch (e) {
 			console.error(e);
 			this.hide();
-			state.menu.showAlertPopup('Error', "An error occurred while loading the compilation. Your compilation definition might be malformed.");
+			state.menu.showAlertPopup('Error', "An error occurred while loading the compilation. Your compilation manifest might be malformed.");
 		}
 	}
 
@@ -699,7 +699,7 @@ class RenderingProcess {
 		let index = schedule.findIndex(x => x === this.currentEntry) + 1;
 
 		// Find all sections that end with this level
-		type SectionEndEntry = CompilationDefinition['schedule'][number] & { type: 'sectionEnd' };
+		type SectionEndEntry = CompilationManifest['schedule'][number] & { type: 'sectionEnd' };
 		let currentEnds: SectionEndEntry[] = [];
 		while (schedule[index] && schedule[index].type === 'sectionEnd') {
 			currentEnds.push(schedule[index] as SectionEndEntry);
