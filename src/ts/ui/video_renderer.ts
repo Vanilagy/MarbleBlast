@@ -752,7 +752,7 @@ class RenderingProcess {
 
 		this.chaptersText += `${Math.floor(time / 60)}:${Math.floor(time % 60).toString().padStart(2, '0')} - ${this.level.mission.title}`;
 		if (typeof this.currentEntry.runner === 'string')
-			this.chaptersText += ` - ${VideoRenderer.compilation.runners.find(x => x.id === this.currentEntry.runner).name}`;
+			this.chaptersText += ` | ${VideoRenderer.compilation.runners.find(x => x.id === this.currentEntry.runner).name}`;
 
 		this.chaptersText += '\n';
 	}
