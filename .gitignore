@@ -9,3 +9,4 @@ dist
 todo.txt
 .rpt2_cache
 .vscode
+**/*.DS_STORE
