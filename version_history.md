@@ -1,5 +1,8 @@
 # Version History
 
+## 2.5.6
+- Fixed incorrect sky colors in some custom levels
+
 ## 2.5.5
 - Added viewable world record replays in the leaderboards for default levels
 - Added a compilation renderer, tutorial [here](https://github.com/Vanilagy/MarbleBlast/tree/master/docs/compilation_how_to.md).

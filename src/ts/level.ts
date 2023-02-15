@@ -369,14 +369,14 @@ export class Level extends Scheduler {
 		let skyElement = this.mission.allElements.find((element) => element._type === MissionElementType.Sky) as MissionElementSky;
 
 		let fogColor = MisParser.parseVector4(skyElement.fogcolor);
+		let skySolidColor = MisParser.parseVector4(skyElement.skysolidcolor);
+		// This is kind of a weird situation here. It seems as if when the skysolidcolor isn't the default value, it's used as the skycolor; otherwise, fog color is used. Strange.
+		if (skySolidColor.x !== 0.6 || skySolidColor.y !== 0.6 || skySolidColor.z !== 0.6) fogColor = skySolidColor;
+
 		// Uber strange way Torque maps these values:
 		if (fogColor.x > 1) fogColor.x = 1 - (fogColor.x - 1) % 256 / 256;
 		if (fogColor.y > 1) fogColor.y = 1 - (fogColor.y - 1) % 256 / 256;
 		if (fogColor.z > 1) fogColor.z = 1 - (fogColor.z - 1) % 256 / 256;
-
-		let skySolidColor = MisParser.parseVector4(skyElement.skysolidcolor);
-		// This is kind of a weird situation here. It seems as if when the skysolidcolor isn't the default value, it's used as the skycolor; otherwise, fog color is used. Strange.
-		if (skySolidColor.x !== 0.6 || skySolidColor.y !== 0.6 || skySolidColor.z !== 0.6) fogColor = skySolidColor;
 
 		mainRenderer.setClearColor(fogColor.x, fogColor.y, fogColor.z, 1);
 
