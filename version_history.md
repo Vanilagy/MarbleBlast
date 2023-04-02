@@ -1,5 +1,9 @@
 # Version History
 
+## 2.5.7
+- Slightly increased marble speed
+- Slightly buffed power-ups
+
 ## 2.5.6
 - Fixed incorrect sky colors in some custom levels
 

@@ -654,7 +654,7 @@ export abstract class Util {
 	}
 
 	/** Produces a funny easter egg once in a while based on a stupid pun. */
-	static isWeeb = Math.random() < 0.001; // Mazik <3
+	static isWeeb = true || Math.random() < 0.001; // Mazik <3
 
 	/** Turns each component's value into its absolute value. */
 	static absVector(vec: Vector3) {

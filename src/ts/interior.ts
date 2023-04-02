@@ -57,7 +57,7 @@ const specialResistutionFactor: Record<string, number> = {
 	//"floor_bounce": 0.0
 };
 const specialForces: Record<string, number> = {
-	"floor_bounce": 15
+	"floor_bounce": 20
 };
 const specialMaterials = new Set([...Object.keys(specialFrictionFactor), ...Object.keys(specialResistutionFactor), ...Object.keys(specialForces)]);
 

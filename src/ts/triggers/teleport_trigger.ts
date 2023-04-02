@@ -10,7 +10,7 @@ import { Trigger } from "./trigger";
 /** A teleport trigger teleports the marble to a specified destination after some time of being inside it. */
 export class TeleportTrigger extends Trigger {
 	/** How long after entry until the teleport happens */
-	delay = 2000;
+	delay = 200;
 	entryTime: number = null;
 	exitTime: number = null;
 	sounds = ["teleport.wav"];
