@@ -99,7 +99,8 @@ export abstract class Leaderboard {
 			randomId: StorageManager.data.randomId,
 			bestTimes: Object.keys(queue).length? await Util.arrayBufferToBase64(await executeOnWorker('compress', JSON.stringify(payloadBestTimes))) : null, // Compress and encode the best times a bit for security™
 			latestTimestamp: this.latestTimestamp,
-			replays: payloadReplays
+			replays: payloadReplays,
+			version: 1
 		};
 
 		let blob = await ResourceManager.retryFetch('./api/submit', {

@@ -50,16 +50,19 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 	let data: {
 		randomId: string,
 		bestTimes: string, // String, because it's compressed and encoded
-		latestTimestamp: number
-		replays: Record<string, string>
+		latestTimestamp: number,
+		replays: Record<string, string>,
+		version: number
 	} = JSON.parse(body);
 
 	// Unpack best times
 	let bestTimes: Record<string, [string, number]> = data.bestTimes? JSON.parse((await promisify(zlib.inflate)(Buffer.from(data.bestTimes, 'base64'))).toString()) : {};
 	let promises: Promise<void>[] = [];
 
+	let hasCorrectVersion = data.version === 1; // This way we can reject scores submitted from an outdated client
+
 	// Loop over all new scores
-	for (let missionPath in bestTimes) {
+	if (hasCorrectVersion) for (let missionPath in bestTimes) {
 		let score = bestTimes[missionPath];
 		score[0] = score[0].slice(0, 16); // Fuck you
 		let existingRow: ScoreRow = shared.getScoreByUserStatement.get(missionPath, score[0], data.randomId); // See if a score by this player already exists on this mission

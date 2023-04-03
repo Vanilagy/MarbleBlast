@@ -1,5 +1,8 @@
 # Version History
 
+## 2.5.8
+- Reverted April Fools' 2023 changes (thank you for participating <3)
+
 ## 2.5.7
 - Slightly increased marble speed
 - Slightly buffed power-ups
