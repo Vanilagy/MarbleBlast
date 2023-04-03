@@ -27,7 +27,7 @@ import { BlendingType } from "./rendering/renderer";
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
 const MEGA_MARBLE_RADIUS = 0.6666;
-export const MARBLE_ROLL_FORCE = 100 || 40;
+export const MARBLE_ROLL_FORCE = 40 || 40;
 const TELEPORT_FADE_DURATION = 500;
 
 export const bounceParticleOptions: ParticleEmitterOptions = {
@@ -104,7 +104,7 @@ export class Marble {
 	/** The radius of the marble. */
 	radius: number = null;
 	/** The default jump impulse of the marble. */
-	jumpImpulse = 10; // For now, seems to fit more than the "actual" 7.5.
+	jumpImpulse = 0 || 7.3; // For now, seems to fit more than the "actual" 7.5.
 	/** The default restitution of the marble. */
 	bounceRestitution = 0.5;
 
@@ -398,9 +398,9 @@ export class Marble {
 			angVel.addScaledVector(surfaceRotationAxis, dot3);
 			angVel.addScaledVector(direction, dot2);
 
-			if (false) if (angVel.length() > 300 * this.speedFac) angVel.multiplyScalar(300 * this.speedFac / angVel.length()); // Absolute max angular speed
+			if (angVel.length() > 300 * this.speedFac) angVel.multiplyScalar(300 * this.speedFac / angVel.length()); // Absolute max angular speed
 
-			if (false) if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot * this.speedFac) {
+			if (dot2 + movementRotationAxis.length() > 12 * Math.PI*2 * inputStrength / contactNormalUpDot * this.speedFac) {
 				// Cap the rolling velocity
 				let newLength = Math.max(0, 12 * Math.PI*2 * inputStrength / contactNormalUpDot * this.speedFac - dot2);
 				movementRotationAxis.normalize().multiplyScalar(newLength);
@@ -414,7 +414,6 @@ export class Marble {
 
 			let airMovementVector = movementVec.clone();
 			let airVelocity = (time.currentAttemptTime - this.helicopterEnableTime) < 5000 ? 5 : 3.2; // Change air velocity for the helicopter
-			airVelocity *= 1.5;
 			if (this.level.finishTime) airVelocity = 0;
 			airMovementVector.multiplyScalar(airVelocity * dt);
 			//this.body.addLinearVelocity(airMovementVector);
@@ -427,7 +426,7 @@ export class Marble {
 
 		movementRotationAxis.multiplyScalar(this.speedFac);
 		// Apply angular acceleration, but make sure the angular velocity doesn't exceed some maximum
-		Util.addToVectorCapped(this.body.angularVelocity, movementRotationAxis, 12000 * this.speedFac);
+		Util.addToVectorCapped(this.body.angularVelocity, movementRotationAxis, 120 * this.speedFac);
 
 		if (this.level.finishTime) this.body.linearVelocity.multiplyScalar(0.9);
 
@@ -465,11 +464,11 @@ export class Marble {
 
 			let angVel = this.body.angularVelocity;
 			// Cap the angular velocity so it doesn't go haywire
-			if (angVel.length() > 100) angVel.normalize().multiplyScalar(100);
+			if (angVel.length() > 60) angVel.normalize().multiplyScalar(60);
 
 			this.shape.friction = 0;
 		} else {
-			this.shape.friction = 1000;
+			this.shape.friction = 1;
 		}
 	}
 
@@ -606,7 +605,7 @@ export class Marble {
 			this.superBounceSound.play();
 		}
 
-		if (time.currentAttemptTime - this.helicopterEnableTime < 10000) {
+		if (time.currentAttemptTime - this.helicopterEnableTime < 5000) {
 			// Show the helicopter
 			this.helicopter.setOpacity(1);
 			this.helicopter.setTransform(new Vector3(0, 0, this.radius - DEFAULT_RADIUS).applyQuaternion(this.level.newOrientationQuat), this.level.newOrientationQuat, new Vector3(1, 1, 1));

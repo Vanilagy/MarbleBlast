@@ -19,7 +19,7 @@ export class Nuke extends Shape {
 
 		// Add velocity to the marble
 		let explosionForce = this.computeExplosionForce(marble.body.position.clone().sub(nukePos));
-		marble.body.linearVelocity.addScaledVector(explosionForce, 2);
+		marble.body.linearVelocity.add(explosionForce);
 		marble.slidingTimeout = 2;
 		this.disappearTime = time.timeSinceLoad;
 		this.setCollisionEnabled(false);

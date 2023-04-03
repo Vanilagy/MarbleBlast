@@ -29,7 +29,7 @@ export class SuperSpeed extends PowerUp {
 		quat2.setFromUnitVectors(this.level.currentUp, marble.lastContactNormal); // Determine the necessary rotation to rotate the up vector to the contact normal.
 		movementVector.applyQuaternion(quat2); // ...then rotate the movement bonus vector by that amount.
 
-		marble.body.linearVelocity.addScaledVector(movementVector, 100); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)
+		marble.body.linearVelocity.addScaledVector(movementVector, 24.7); // Whirligig's determined value (ok it's actually 25 but we ain't changing it)
 
 		this.level.audio.play(this.sounds[1]);
 		this.level.particles.createEmitter(superSpeedParticleOptions, null, () => marble.body.position.clone());
@@ -39,7 +39,7 @@ export class SuperSpeed extends PowerUp {
 }
 
 export const superSpeedParticleOptions = {
-	ejectionPeriod: 1,
+	ejectionPeriod: 5,
 	ambientVelocity: new Vector3(0, 0, 0.2),
 	ejectionVelocity: 1 * 0.5,
 	velocityVariance: 0.25 * 0.5,
