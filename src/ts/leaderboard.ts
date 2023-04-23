@@ -1,3 +1,4 @@
+import { Replay } from "./replay";
 import { ResourceManager } from "./resources";
 import { state } from "./state";
 import { BestTimes, StorageManager } from "./storage";
@@ -77,6 +78,7 @@ export abstract class Leaderboard {
 		let queue = StorageManager.data.bestTimeSubmissionQueue;
 		let payloadBestTimes: Record<string, [string, number]> = {};
 		let payloadReplays: Record<string, string> = {};
+		let payloadReplayTimes = '';
 
 		// Go over all scores in the submission queue
 		for (let missionPath in queue) {
@@ -92,16 +94,28 @@ export abstract class Leaderboard {
 				// Convert to base64 because we can't ship binary data over JSON
 				let base64 = await Util.arrayBufferToBase64(replayData);
 				payloadReplays[missionPath] = base64;
+
+				let replay = Replay.fromSerialized(replayData);
+				payloadReplayTimes += replay.finishTime.gameplayClock;
 			}
 		}
 
 		let payload = {
 			randomId: StorageManager.data.randomId,
-			bestTimes: Object.keys(queue).length? await Util.arrayBufferToBase64(await executeOnWorker('compress', JSON.stringify(payloadBestTimes))) : null, // Compress and encode the best times a bit for security™
+			bestTimes: Object.keys(queue).length? await Util.arrayBufferToBase64(await executeOnWorker('compress', JSON.stringify(payloadBestTimes))) : null, // Compress and encode the best times a bit
 			latestTimestamp: this.latestTimestamp,
 			replays: payloadReplays,
-			version: 1
+			hash: '',
+			version: StorageManager.data.lastSeenVersion
 		};
+
+		let hashInput = iife.toString() + payload.bestTimes + payloadReplayTimes;
+		let hashBuffer = await crypto.subtle.digest(
+			'SHA-256',
+			new Uint8Array(hashInput.split('').map(x => x.charCodeAt(0)))
+		);
+		let hashHex = [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, '0')).join('');
+		payload.hash = hashHex;
 
 		let blob = await ResourceManager.retryFetch('./api/submit', {
 			method: 'POST',
@@ -162,3 +176,6 @@ export abstract class Leaderboard {
 		if (changedMissions.includes(currentMission?.path)) state.menu.levelSelect.displayBestTimes();
 	}
 }
+
+/* eslint-disable @typescript-eslint/ban-types */
+declare let iife: Function;

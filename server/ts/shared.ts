@@ -39,12 +39,15 @@ export const shared: {
 		/** The Discord webhook URL to send world record annoucements to */
 		discordWebhookUrl: string,
 		/** Make sure custom levels have at least this many scores before broadcasting an annoucement. */
-		webhookCustomMinScoreThreshold: number
+		webhookCustomMinScoreThreshold: number,
+		/** The origin in which the website runs. */
+		origin: string
 	},
 	/** List of all custom levels */
 	claList: CLAEntry[],
 	/** Maps mission path to level name */
 	levelNameMap: Record<string, string>,
+	versionedIifeCode: Record<string, string>,
 
 	db: Database.Database,
 	getScoresForMissionStatement: Database.Statement,

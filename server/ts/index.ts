@@ -127,6 +127,15 @@ const initServer = (port: number) => {
 const init = () => {
 	console.log("Starting...");
 
+	// Ensure certain directories and files exist
+	fs.ensureDirSync(path.join(__dirname, 'storage'));
+	fs.ensureDirSync(path.join(__dirname, 'storage', 'wrecs'));
+	fs.ensureDirSync(path.join(__dirname, 'storage', 'customs'));
+	fs.ensureDirSync(path.join(__dirname, 'storage', 'backups'));
+	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'user_errors.log'));
+	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'hash_mismatches.log'));
+	fs.ensureFileSync(path.join(__dirname, 'storage', 'versioned_iife_code.json'));
+
 	shared.config = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'config.json')).toString());
 	shared.directoryPath = path.join(__dirname, '..', shared.config.useDist? 'dist' : 'src');
 	shared.levelNameMap = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'level_name_map.json')).toString());
@@ -135,12 +144,20 @@ const init = () => {
 	shared.claList.push(...JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'customs_ultra.json')).toString()));
 	let port = Number(shared.config.port);
 
-	// Ensure certain directories and files exist
-	fs.ensureDirSync(path.join(__dirname, 'storage'));
-	fs.ensureDirSync(path.join(__dirname, 'storage', 'wrecs'));
-	fs.ensureDirSync(path.join(__dirname, 'storage', 'customs'));
-	fs.ensureDirSync(path.join(__dirname, 'storage', 'backups'));
-	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'user_errors.log'));
+	let htmlContents = fs.readFileSync(path.join(shared.directoryPath, 'index.html')).toString();
+	let mainBundleSrc = /src="(.+?)"/.exec(htmlContents.split('<!-- Main bundle -->')[1])[1];
+	let mainBundlePath = path.join(shared.directoryPath, mainBundleSrc);
+	let mainBundleContents = fs.readFileSync(mainBundlePath).toString();
+	let iifeCode = mainBundleContents.slice(mainBundleContents.indexOf('function'), mainBundleContents.lastIndexOf('}') + 1);
+
+	let versionHistory = fs.readFileSync(path.join(__dirname, '../version_history.md')).toString();
+	let latestVersion = /(^|\n)## (\d+\.\d+\.\d+)/.exec(versionHistory)[2];
+
+	let versionedIifeCode: Record<string, string>
+		= JSON.parse(fs.readFileSync(path.join(__dirname, 'storage', 'versioned_iife_code.json')).toString() || '{}');
+	versionedIifeCode[latestVersion] = iifeCode;
+	fs.writeFileSync(path.join(__dirname, 'storage', 'versioned_iife_code.json'), JSON.stringify(versionedIifeCode));
+	shared.versionedIifeCode = versionedIifeCode;
 
 	setupDb();
 	initServer(port);

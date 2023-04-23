@@ -24,7 +24,9 @@ export default (typescript) => [{
 	output: {
 		format: 'iife',
 		file: './src/js/bundle.js',
-		name: '' // Empty string here to create an unnamed IIFE
+		name: '', // Empty string here to create an unnamed IIFE
+		banner: '(function iife() {',
+		footer: '})()'
 	},
 	onwarn: function (message) {
 		if (message.code === 'CIRCULAR_DEPENDENCY' || message.code === "MISSING_GLOBAL_NAME") {
