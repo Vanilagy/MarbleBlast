@@ -74,6 +74,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 
 	// Unpack best times
 	let bestTimes: Record<string, [string, number]> = data.bestTimes? JSON.parse((await promisify(zlib.inflate)(Buffer.from(data.bestTimes, 'base64'))).toString()) : {};
+
 	let promises: Promise<void>[] = [];
 
 	let hashInput = shared.versionedIifeCode[data.version]
