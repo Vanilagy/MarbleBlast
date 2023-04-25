@@ -1,5 +1,8 @@
 # Version History
 
+## 2.5.9
+- Fixed custom level record submission
+
 ## 2.5.8
 - Reverted April Fools' 2023 changes (thank you for participating <3)
 

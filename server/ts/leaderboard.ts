@@ -46,8 +46,20 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 /** Submits new scores to the leaderboard. */
 export const submitScores = async (res: http.ServerResponse, body: string) => {
 	if (!body) throw new Error("Missing body.");
-	if (shared.config.origin !== null && !res.req.headers.referer.startsWith(shared.config.origin))
+
+	if (shared.config.origin !== null && !res.req.headers.referer.startsWith(shared.config.origin)) {
+		let str = "";
+
+		// Add the date
+		str += new Date().toISOString() + '\n';
+		str += 'Referer: ' + res.req.headers.referer;
+		str += '\n';
+
+		// Append at the end
+		fs.appendFile(path.join(__dirname, 'storage', 'logs', 'hash_mismatches.log'), str);
+
 		throw new Error("Referer/origin mismatch.");
+	}
 
 	let timestamp = Date.now();
 	let data: {
@@ -56,7 +68,8 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 		latestTimestamp: number,
 		replays: Record<string, string>,
 		hash: string,
-		version: string
+		version: string,
+		userAgent: string
 	} = JSON.parse(body);
 
 	// Unpack best times
@@ -78,7 +91,8 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 			replayKeys: Object.keys(data.replays),
 			sentHash: data.hash,
 			actualHash: hashHex,
-			version: data.version
+			version: data.version,
+			userAgent: res.req.headers['user-agent']
 		};
 
 		// Add the date
