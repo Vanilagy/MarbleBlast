@@ -27,7 +27,7 @@ const getCustomLevelBitmap = async (res: http.ServerResponse, id: number) => {
 
 	if (!exists) {
 		// If it doesn't exist yet, fetch it from the Marbleland API
-		let response = await fetch(`https://marbleland.vani.ga/api/level/${id}/image?width=258&height=194`);
+		let response = await fetch(`https://marbleland.vaniverse.io/api/level/${id}/image?width=258&height=194`);
 		if (!response.ok) {
 			res.writeHead(404);
 			res.end();
@@ -56,7 +56,7 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 
 	if (!exists) {
 		// If it doesn't exist yet, fetch it from the Marbleland API
-		let response = await fetch(`https://marbleland.vani.ga/api/level/${id}/zip?assuming=none`);
+		let response = await fetch(`https://marbleland.vaniverse.io/api/level/${id}/zip?assuming=none`);
 		if (!response.ok) throw new Error("CLA archive request error.");
 
 		let buffer = await response.buffer();
