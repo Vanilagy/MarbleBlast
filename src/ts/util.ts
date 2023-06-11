@@ -17,8 +17,10 @@ export abstract class Util {
 	static keyboardMap: Map<string, string>;
 
 	static async init() {
-		// Fetch the keyboard map for instant access later
-		this.keyboardMap = await (navigator as any).keyboard?.getLayoutMap();
+		try {
+			// Fetch the keyboard map for instant access later
+			this.keyboardMap = await (navigator as any).keyboard?.getLayoutMap();
+		} catch (e) {}
 	}
 
 	static degToRad(deg: number) {
