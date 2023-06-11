@@ -256,7 +256,7 @@ export abstract class StorageManager {
 		Util.getDefaultSecondsToTimeStringDecimalDigits = () => this.data.settings.showThousandths? 3 : 2;
 
 		if (location.search.includes('migrate-domains')) this.transmitDomainMigration();
-		else if (!this.data.domainMigrationDone) this.receiveDomainMigration();
+		else if (!this.data.domainMigrationDone && location.origin.includes('marbleblast.vaniverse.io')) this.receiveDomainMigration();
 	}
 
 	/** Migrates from localStorage to IndexedDB. */
