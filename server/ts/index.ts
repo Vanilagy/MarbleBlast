@@ -38,7 +38,7 @@ const setupDb = () => {
 	shared.getScoresForMissionStatement = db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC;`);
 	shared.getScoreByUserStatement = db.prepare(`SELECT rowid, time FROM score WHERE mission=? AND (username=? OR user_random_id=?) ORDER BY time ASC;`);
 	shared.deleteScoresStatement = db.prepare(`DELETE FROM score WHERE mission=? AND (username=? OR user_random_id=?);`);
-	shared.insertScoreStatement = db.prepare(`INSERT INTO score VALUES (?, ?, ?, ?, ?);`);
+	shared.insertScoreStatement = db.prepare(`INSERT INTO score (mission, time, username, user_random_id, timestamp) VALUES (?, ?, ?, ?, ?);`);
 	shared.getTopScoreStatement = db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC LIMIT 1;`);
 	shared.getMissionScoreCount = db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);
 	shared.getNewerScoresStatement = db.prepare(`SELECT mission, time, username FROM score WHERE timestamp>?;`);
@@ -133,8 +133,6 @@ const init = () => {
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'customs'));
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'backups'));
 	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'user_errors.log'));
-	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'hash_mismatches.log'));
-	fs.ensureFileSync(path.join(__dirname, 'storage', 'versioned_iife_code.json'));
 
 	shared.config = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'config.json')).toString());
 	shared.directoryPath = path.join(__dirname, '..', shared.config.useDist? 'dist' : 'src');
@@ -143,21 +141,6 @@ const init = () => {
 	shared.claList.push(...JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'customs_platinum.json')).toString()));
 	shared.claList.push(...JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'customs_ultra.json')).toString()));
 	let port = Number(shared.config.port);
-
-	let htmlContents = fs.readFileSync(path.join(shared.directoryPath, 'index.html')).toString();
-	let mainBundleSrc = /src="(.+?)"/.exec(htmlContents.split('<!-- Main bundle -->')[1])[1];
-	let mainBundlePath = path.join(shared.directoryPath, mainBundleSrc);
-	let mainBundleContents = fs.readFileSync(mainBundlePath).toString();
-	let iifeCode = mainBundleContents.slice(mainBundleContents.indexOf('function'), mainBundleContents.lastIndexOf('}') + 1);
-
-	let versionHistory = fs.readFileSync(path.join(__dirname, '../version_history.md')).toString();
-	let latestVersion = /(^|\n)## (\d+\.\d+\.\d+)/.exec(versionHistory)[2];
-
-	let versionedIifeCode: Record<string, string>
-		= JSON.parse(fs.readFileSync(path.join(__dirname, 'storage', 'versioned_iife_code.json')).toString() || '{}');
-	versionedIifeCode[latestVersion] = iifeCode;
-	fs.writeFileSync(path.join(__dirname, 'storage', 'versioned_iife_code.json'), JSON.stringify(versionedIifeCode));
-	shared.versionedIifeCode = versionedIifeCode;
 
 	setupDb();
 	initServer(port);

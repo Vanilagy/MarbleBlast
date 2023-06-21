@@ -4,7 +4,6 @@ import * as zlib from 'zlib';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as url from 'url';
-import * as crypto from 'crypto';
 import fetch from 'node-fetch';
 
 import { shared } from './shared';
@@ -47,29 +46,13 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 export const submitScores = async (res: http.ServerResponse, body: string) => {
 	if (!body) throw new Error("Missing body.");
 
-	if (shared.config.origin !== null && !res.req.headers.referer.startsWith(shared.config.origin)) {
-		let str = "";
-
-		// Add the date
-		str += new Date().toISOString() + '\n';
-		str += 'Referer: ' + res.req.headers.referer;
-		str += '\n';
-
-		// Append at the end
-		fs.appendFile(path.join(__dirname, 'storage', 'logs', 'hash_mismatches.log'), str);
-
-		throw new Error("Referer/origin mismatch.");
-	}
-
 	let timestamp = Date.now();
 	let data: {
 		randomId: string,
 		bestTimes: string, // String, because it's compressed and encoded
 		latestTimestamp: number,
 		replays: Record<string, string>,
-		hash: string,
-		version: string,
-		userAgent: string
+		version: string
 	} = JSON.parse(body);
 
 	// Unpack best times
@@ -77,73 +60,45 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 
 	let promises: Promise<void>[] = [];
 
-	let hashInput = shared.versionedIifeCode[data.version]
-		+ data.bestTimes
-		+ Object.keys(data.replays).map(missionPath => bestTimes[missionPath][1]).join('');
-	let hashHex = crypto.createHash('sha256')
-		.update(new Uint8Array(hashInput.split('').map(x => x.charCodeAt(0))))
-		.digest('hex');
+	// Loop over all new scores
+	for (let missionPath in bestTimes) {
+		let score = bestTimes[missionPath];
+		score[0] = score[0].slice(0, 16); // Fuck you
+		let existingRow: ScoreRow = shared.getScoreByUserStatement.get(missionPath, score[0], data.randomId); // See if a score by this player already exists on this mission
+		let oldTopScore: ScoreRow = shared.getTopScoreStatement.get(missionPath);
+		let isTopScore = !oldTopScore || oldTopScore.time > score[1];
 
-	if (hashHex !== data.hash) {
-		let str = "";
+		if (isTopScore && !data.replays[missionPath]) continue; // Top scores NEED a replay
 
-		let debugObj = {
-			bestTimes,
-			replayKeys: Object.keys(data.replays),
-			sentHash: data.hash,
-			actualHash: hashHex,
-			version: data.version,
-			userAgent: res.req.headers['user-agent']
-		};
-
-		// Add the date
-		str += new Date().toISOString() + '\n';
-		str += JSON.stringify(debugObj, null, 2);
-		str += '\n';
-
-		// Append at the end
-		fs.appendFile(path.join(__dirname, 'storage', 'logs', 'hash_mismatches.log'), str);
-	} else {
-		// Loop over all new scores
-		for (let missionPath in bestTimes) {
-			let score = bestTimes[missionPath];
-			score[0] = score[0].slice(0, 16); // Fuck you
-			let existingRow: ScoreRow = shared.getScoreByUserStatement.get(missionPath, score[0], data.randomId); // See if a score by this player already exists on this mission
-			let oldTopScore: ScoreRow = shared.getTopScoreStatement.get(missionPath);
-			let isTopScore = !oldTopScore || oldTopScore.time > score[1];
-
-			if (isTopScore && !data.replays[missionPath]) continue; // Top scores NEED a replay
-
-			if (existingRow) {
-				if (existingRow.time > score[1]) {
+		if (existingRow) {
+			if (existingRow.time > score[1]) {
 				// If the new score is faster, delete all the old ones and then insert; otherwise do nothing
 
-					// Make sure this step is atomic
-					shared.db.transaction(() => {
-						shared.deleteScoresStatement.run(missionPath, score[0], data.randomId); // Could be multiple scores!
-						shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp);
-					})();
-				}
-			} else {
-			// Add the new score to the leaderboard
-				shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp);
+				// Make sure this step is atomic
+				shared.db.transaction(() => {
+					shared.deleteScoresStatement.run(missionPath, score[0], data.randomId); // Could be multiple scores!
+					shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp);
+				})();
 			}
+		} else {
+			// Add the new score to the leaderboard
+			shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp);
+		}
 
-			if (isTopScore) {
+		if (isTopScore) {
 			// Store the replay
-				let replayBuffer = Buffer.from(data.replays[missionPath], 'base64');
-				promises.push(fs.writeFile(path.join(__dirname, 'storage', 'wrecs', missionPath.replace(/\//g, '_') + '.wrec'), replayBuffer));
+			let replayBuffer = Buffer.from(data.replays[missionPath], 'base64');
+			promises.push(fs.writeFile(path.join(__dirname, 'storage', 'wrecs', missionPath.replace(/\//g, '_') + '.wrec'), replayBuffer));
 
-				if (shared.config.discordWebhookUrl) {
+			if (shared.config.discordWebhookUrl) {
 				// Broadcast a world record message to the webhook URL
-					let allowed = true;
-					if (missionPath.includes('custom/')) {
-						let scoreCount: number = shared.getMissionScoreCount.pluck().get(missionPath);
-						if (scoreCount < shared.config.webhookCustomMinScoreThreshold) allowed = false; // Not enough scores yet, don't broadcast
-					}
-
-					if (allowed) broadcastToWebhook(missionPath, score, oldTopScore);
+				let allowed = true;
+				if (missionPath.includes('custom/')) {
+					let scoreCount: number = shared.getMissionScoreCount.pluck().get(missionPath);
+					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) allowed = false; // Not enough scores yet, don't broadcast
 				}
+
+				if (allowed) broadcastToWebhook(missionPath, score, oldTopScore);
 			}
 		}
 	}

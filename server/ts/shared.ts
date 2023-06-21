@@ -47,7 +47,6 @@ export const shared: {
 	claList: CLAEntry[],
 	/** Maps mission path to level name */
 	levelNameMap: Record<string, string>,
-	versionedIifeCode: Record<string, string>,
 
 	db: Database.Database,
 	getScoresForMissionStatement: Database.Statement,
