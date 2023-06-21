@@ -398,12 +398,12 @@ export abstract class StorageManager {
 	}
 
 	/** Makes sure the second parameter has the same deep structure as the first. */
-	static correctFields<T>(truth: T, obj: T) {
+	static correctFields<T extends object>(truth: T, obj: T) {
 		// Look for all fields present in the truth but not present in the object
 		for (let key in truth) {
 			if (!(key in obj)) obj[key] = truth[key]; // Copy the value
 			// If it's a non-empty non-array object, recurse
-			if (truth[key] && typeof truth[key] === 'object' && !Array.isArray(truth[key]) && Object.keys(truth[key]).length) this.correctFields(truth[key], obj[key]);
+			if (truth[key] && typeof truth[key] === 'object' && !Array.isArray(truth[key]) && Object.keys(truth[key]).length) this.correctFields(truth[key] as any, obj[key]);
 		}
 
 		// Look for all fields not present in the truth but present in the object
