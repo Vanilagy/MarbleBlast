@@ -1,4 +1,4 @@
-import { Mission, CLAEntry } from "./mission";
+import { CustomLevelInfo, Mission } from "./mission";
 import { MisFile, MisParser } from "./parsing/mis_parser";
 import { ResourceManager, DirectoryStructure } from "./resources";
 import { Util } from "./util";
@@ -56,10 +56,8 @@ export abstract class MissionLibrary {
 			mbuPromises.push(MisParser.loadFile("./assets/data_mbp/missions_mbu/" + filename));
 		}
 
-		// Get the list of all custom levels in the CLA
-		let goldCustomLevelListPromise = ResourceManager.loadResource('./assets/customs_gold.json');
-		let platinumCustomLevelListPromise = ResourceManager.loadResource('./assets/customs_platinum.json');
-		let ultraCustomLevelListPromise = ResourceManager.loadResource('./assets/customs_ultra.json');
+		// Get the list of all custom levels
+		let customLevelListPromise = ResourceManager.loadResource('/api/customs');
 
 		let mbgMisFiles = await Promise.all(mbgPromises);
 		let mbpMisFiles = await Promise.all(mbpPromises);
@@ -96,30 +94,16 @@ export abstract class MissionLibrary {
 		mbpMissions.sort(sortFn);
 		mbuMissions.sort(sortFn);
 
-		// Read the custom level lists
-		let goldCustoms = await ResourceManager.readBlobAsJson(await goldCustomLevelListPromise) as CLAEntry[];
-		goldCustoms = goldCustoms.filter(x => x.modification === 'gold'); // Apparently some platinum levels snuck in
-		let platCustoms = await ResourceManager.readBlobAsJson(await platinumCustomLevelListPromise) as CLAEntry[];
-		platCustoms = platCustoms.filter(x => x.gameType === 'single' && (!x.gameMode || x.gameMode === 'null')); // Whoops, forgot to filter the JSON
-		let ultraCustoms = await ResourceManager.readBlobAsJson(await ultraCustomLevelListPromise) as CLAEntry[];
-		ultraCustoms = ultraCustoms.filter(x => x.gameType === 'single');
+		// Read the custom level list
+		let customs = await ResourceManager.readBlobAsJson(await customLevelListPromise) as CustomLevelInfo[];
 
-		// Remove duplicate platinum levels
-		let platCustomNames = new Set<string>();
-		for (let i = 0; i < platCustoms.length; i++) {
-			let mission = platCustoms[i];
-			let identifier = mission.name + mission.desc; // Assume this makes a mission unique
-
-			if (platCustomNames.has(identifier)) {
-				platCustoms.splice(i--, 1);
-			} else {
-				platCustomNames.add(identifier);
-			}
-		}
+		let goldCustoms = customs.filter(x => x.modification === 'gold');
+		let platCustoms = customs.filter(x => x.modification === 'platinum');
+		let ultraCustoms = customs.filter(x => x.modification === 'ultra');
 
 		// Create all custom missions
 		for (let custom of [...goldCustoms, ...platCustoms, ...ultraCustoms]) {
-			let mission = Mission.fromCLAEntry(custom, false);
+			let mission = Mission.fromCustomLevelInfo(custom, false);
 			if (mission.modification === 'gold') mbgMissions.push(mission);
 			else if (mission.modification === 'ultra') mbuMissions.push(mission);
 			else mbpMissions.push(mission);
@@ -155,11 +139,10 @@ export abstract class MissionLibrary {
 		// Strange case, but these two levels are in opposite order in the original game.
 		Util.swapInArray(this.goldIntermediate, 11, 12);
 
-		// Sort all custom levels alphabetically
-		const sortFn2 = (a: Mission, b: Mission) => Util.normalizeString(a.title).localeCompare(Util.normalizeString(b.title), undefined, { numeric: true, sensitivity: 'base' });
-		this.goldCustom.sort(sortFn2);
-		this.platinumCustom.sort(sortFn2);
-		this.ultraCustom.sort(sortFn2);
+		// Sort all custom levels lexicographically
+		this.goldCustom.sort(Mission.compareLexicographically);
+		this.platinumCustom.sort(Mission.compareLexicographically);
+		this.ultraCustom.sort(Mission.compareLexicographically);
 
 		for (let i = 0; i < this.goldBeginner.length; i++) this.goldBeginner[i].initSearchString(i);
 		for (let i = 0; i < this.goldIntermediate.length; i++) this.goldIntermediate[i].initSearchString(i);

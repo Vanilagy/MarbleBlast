@@ -44,6 +44,7 @@ export class MbpLevelSelect extends LevelSelect {
 		this.leaderboardScores = document.querySelector('#mbp-leaderboard-scores') as HTMLDivElement;
 		this.scrollWindow = document.querySelector('#mbp-level-select-text-window') as HTMLDivElement;
 		this.searchInput = document.querySelector('#mbp-search-input') as HTMLInputElement;
+		this.sortToggleButton = document.querySelector('#mbp-sort-icon') as HTMLImageElement;
 	}
 
 	async init() {

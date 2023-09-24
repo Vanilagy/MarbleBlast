@@ -80,9 +80,7 @@ export interface StorageData {
 		includeAudio: boolean,
 		audioKilobitRate: number,
 		musicToSoundRatio: number
-	},
-
-	domainMigrationDone: boolean
+	}
 }
 
 const DEFAULT_STORAGE_DATA: StorageData = {
@@ -152,9 +150,7 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 		includeAudio: true,
 		audioKilobitRate: 64,
 		musicToSoundRatio: 0.7
-	},
-
-	domainMigrationDone: false
+	}
 };
 
 const VERSION_UPGRADE_PROCEDURES: Record<string, () => Promise<any>> = {
@@ -254,9 +250,6 @@ export abstract class StorageManager {
 		if (changed) await this.storeBestTimes();
 
 		Util.getDefaultSecondsToTimeStringDecimalDigits = () => this.data.settings.showThousandths? 3 : 2;
-
-		if (location.search.includes('migrate-domains')) this.transmitDomainMigration();
-		else if (!this.data.domainMigrationDone && location.origin.includes('marbleblast.vaniverse.io')) this.receiveDomainMigration();
 	}
 
 	/** Migrates from localStorage to IndexedDB. */
@@ -420,70 +413,5 @@ export abstract class StorageManager {
 			if (Util.compareVersions(from, vers) >= 0) continue;
 			await VERSION_UPGRADE_PROCEDURES[vers]();
 		}
-	}
-
-	static async transmitDomainMigration() {
-		await this.idbDatabaseLoading;
-		console.log("Sending migration data...");
-
-		window.parent.postMessage({
-			type: 'bestTimes',
-			data: this.data.bestTimes
-		}, 'https://marbleblast.vaniverse.io');
-
-		let transaction = this.idbDatabase.transaction(["replays"], "readonly");
-		let objectStore = transaction.objectStore("replays");
-
-		objectStore.openCursor().onsuccess = (event) => {
-			const cursor = (event.target as any).result as IDBCursorWithValue;
-
-			if (cursor) {
-				window.parent.postMessage({
-					type: 'replay',
-					key: cursor.key,
-					data: cursor.value
-				}, 'https://marbleblast.vaniverse.io');
-
-				cursor.continue();
-			} else {
-				window.parent.postMessage({
-					type: 'done'
-				}, 'https://marbleblast.vaniverse.io');
-			}
-		};
-	}
-
-	static async receiveDomainMigration() {
-		console.log("Receiving migration data...");
-
-		const iframe = document.createElement('iframe');
-		iframe.src = 'https://marbleblast.vani.ga/?migrate-domains';
-		iframe.style.display = 'none';
-
-		document.body.appendChild(iframe);
-
-		window.addEventListener('message', (e) => {
-			const message = e.data;
-
-			console.log(message);
-
-			if (message.type === 'bestTimes') {
-				for (let missionPath in message.data) {
-					let localScores = this.data.bestTimes[missionPath];
-					if (!localScores) localScores = this.data.bestTimes[missionPath] = [];
-
-					localScores.push(...message.data[missionPath]);
-					localScores.sort((a, b) => a[1] - b[1]);
-					this.data.bestTimes[missionPath] = localScores.slice(0, 5);
-				}
-
-				this.storeBestTimes();
-			} else if (message.type === 'replay') {
-				this.databasePut('replays', message.data, message.key);
-			} else if (message.type === 'done') {
-				this.data.domainMigrationDone = true;
-				this.store();
-			}
-		});
 	}
 }

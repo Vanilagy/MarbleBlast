@@ -1,4 +1,3 @@
-import { DifFile, InteriorDetailLevel } from "./parsing/dif_parser";
 import { TimeState, Level, PHYSICS_TICK_RATE } from "./level";
 import { Util } from "./util";
 import { Point3F } from "./parsing/binary_file_parser";
@@ -13,6 +12,7 @@ import { Vector3 } from "./math/vector3";
 import { Matrix4 } from "./math/matrix4";
 import { Plane } from "./math/plane";
 import { Quaternion } from "./math/quaternion";
+import hxDif from './parsing/hx_dif';
 
 export const INTERIOR_DEFAULT_FRICTION = 1;
 export const INTERIOR_DEFAULT_RESTITUTION = 1;
@@ -180,13 +180,13 @@ export class Interior {
 	/** The unique id of this interior. */
 	id: number;
 	level: Level;
-	dif: DifFile;
+	dif: hxDif.Dif;
 	difPath: string;
 	mesh: Mesh;
 	/** The collision body of the interior. */
 	body: RigidBody;
 	/** The relevant detail level to read from (non-default for pathed interiors) */
-	detailLevel: DifFile["detailLevels"][number];
+	detailLevel: hxDif.Interior;
 	worldMatrix = new Matrix4();
 	scale: Vector3;
 	/** Simply contains the file names of the materials without the path to them. */
@@ -196,15 +196,15 @@ export class Interior {
 	specialMaterials: Set<string>;
 
 	/** Avoids recomputation of the same interior. */
-	static initCache = new WeakMap<InteriorDetailLevel, InitCacheType>();
-	static initCachePromises = new WeakMap<InteriorDetailLevel, Promise<void>>();
+	static initCache = new WeakMap<hxDif.Interior, InitCacheType>();
+	static initCachePromises = new WeakMap<hxDif.Interior, Promise<void>>();
 
-	constructor(file: DifFile, path: string, level: Level, subObjectIndex?: number) {
+	constructor(file: hxDif.Dif, path: string, level: Level, subObjectIndex?: number) {
 		this.dif = file;
 		this.difPath = path;
 		this.level = level;
-		this.detailLevel = (subObjectIndex === undefined)? file.detailLevels[0] : file.subObjects[subObjectIndex];
-		this.materialNames = this.detailLevel.materialList.materials.map(x => x.split('/').pop().toLowerCase());
+		this.detailLevel = (subObjectIndex === undefined)? file.interiors[0] : file.subObjects[subObjectIndex];
+		this.materialNames = this.detailLevel.materialList.map(x => x.split('/').pop().toLowerCase());
 
 		this.body = new RigidBody();
 		this.body.type = RigidBodyType.Static;
@@ -237,8 +237,8 @@ export class Interior {
 
 			let materials: Material[] = [];
 
-			for (let i = 0; i < this.detailLevel.materialList.materials.length; i++) {
-				let texName = this.detailLevel.materialList.materials[i].toLowerCase();
+			for (let i = 0; i < this.detailLevel.materialList.length; i++) {
+				let texName = this.detailLevel.materialList[i].toLowerCase();
 				let fileName = texName.split('/').pop();
 
 				if (StorageManager.data.settings.fancyShaders && this.level.mission.modification === 'ultra' && customMaterialFactories[fileName]) {
@@ -337,13 +337,13 @@ export class Interior {
 	}
 
 	/** Adds one surface worth of geometry. */
-	addSurface(geometry: Geometry, surface: InteriorDetailLevel["surfaces"][number], vertexBuckets: Map<Point3F, VertexBucket[]>) {
+	addSurface(geometry: Geometry, surface: hxDif.Surface, vertexBuckets: Map<Point3F, VertexBucket[]>) {
 		let detailLevel = this.detailLevel;
-		let texGenEqs = detailLevel.texGenEqs[surface.texGenIndex];
+		let texGenEqs = detailLevel.texGenEQs[surface.texGenIndex];
 		// These are needed for UVs
 		let texPlaneX = new Plane(new Vector3(texGenEqs.planeX.x, texGenEqs.planeX.y, texGenEqs.planeX.z), texGenEqs.planeX.d);
 		let texPlaneY = new Plane(new Vector3(texGenEqs.planeY.x, texGenEqs.planeY.y, texGenEqs.planeY.z), texGenEqs.planeY.d);
-		let planeData = detailLevel.planes[surface.planeIndex & ~0x8000]; // Mask it here because the bit at 0x8000 specifies whether or not to invert the plane's normal.
+		let planeData = detailLevel.planes[surface.planeIndex];
 		let planeNormal = detailLevel.normals[planeData.normalIndex];
 		//let geometryData = this.materialGeometry[surface.textureIndex];
 		let material = this.materialNames[surface.textureIndex];
@@ -362,7 +362,7 @@ export class Interior {
 			}
 
 			let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
-			if (surface.planeIndex & 0x8000) faceNormal.negate(); // Invert the plane if so specified
+			if (surface.planeFlipped) faceNormal.negate();
 
 			for (let index of [i1, i2, i3]) {
 				let position = this.detailLevel.points[index];
@@ -455,10 +455,10 @@ export class Interior {
 				let material = this.materialNames[surface.textureIndex];
 				if (!material) continue;
 
-				let planeData = this.detailLevel.planes[surface.planeIndex & ~0x8000];
+				let planeData = this.detailLevel.planes[surface.planeIndex];
 				let planeNormal = this.detailLevel.normals[planeData.normalIndex];
 				let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
-				if (surface.planeIndex & 0x8000) faceNormal.negate();
+				if (surface.planeFlipped) faceNormal.negate();
 
 				let properties = this.getCollisionMaterialProperties(material);
 				shape.materialOverrides.set(faceNormal, properties);

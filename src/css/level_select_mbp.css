@@ -341,13 +341,25 @@
 	background: none;
 	border: none;
 	font-family: 'MarkerFelt';
-	width: 230px;
+	width: 203px;
 	padding-left: 5px;
 	font-size: 14px;
 }
 
 #mbp-search-input:focus {
 	outline: none;
+}
+
+#mbp-sort-icon {
+	position: absolute;
+	top: 295px;
+	left: 650px;
+	width: 18px;
+	opacity: 0.5;
+}
+
+#mbp-sort-icon:hover {
+	opacity: 1;
 }
 
 #mbp-level-select-egg {

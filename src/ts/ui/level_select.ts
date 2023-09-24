@@ -29,12 +29,14 @@ export abstract class LevelSelect {
 	playButton: HTMLImageElement;
 	nextButton: HTMLImageElement;
 	searchInput: HTMLInputElement;
+	sortToggleButton: HTMLImageElement;
 
 	setImagesTimeout: number = null;
 	clearImageTimeout: number = null;
 	currentQuery = '';
 	/** The current words in the search query. Used for matching. */
 	currentQueryWords: string[] = [];
+	currentSort: 'lexicographical' | 'chronological' = 'chronological';
 	lastDisplayBestTimesId: string; // Used to prevent some async issues
 	/** Stores data assigned to a replay button to control which replay is played. */
 	replayButtonData = new WeakMap<HTMLImageElement, string>();
@@ -44,8 +46,9 @@ export abstract class LevelSelect {
 	abstract scoreElementHeight: number;
 
 	currentMissionArray: Mission[];
+	sortedMissionArray: Mission[];
 	currentMissionIndex: number;
-	get currentMission() { return this.currentMissionArray?.[this.currentMissionIndex]; }
+	get currentMission() { return this.sortedMissionArray?.[this.currentMissionIndex]; }
 
 	constructor(menu: Menu) {
 		this.menu = menu;
@@ -56,9 +59,32 @@ export abstract class LevelSelect {
 			menu.home.show();
 		}, undefined, undefined, state.modification === 'gold');
 
-		menu.setupButton(this.prevButton, 'play/prev', () => this.cycleMission(-1), true, true, state.modification === 'gold', true);
-		menu.setupButton(this.playButton, 'play/play', () => this.playCurrentMission(), true, undefined, state.modification === 'gold');
-		menu.setupButton(this.nextButton, 'play/next', () => this.cycleMission(1), true, true, state.modification === 'gold', true);
+		menu.setupButton(
+			this.prevButton,
+			'play/prev',
+			(e) => this.cycleMission(-1 * this.computeSeekMultiplier(e)),
+			true,
+			true,
+			state.modification === 'gold',
+			true
+		);
+		menu.setupButton(
+			this.playButton,
+			'play/play',
+			() => this.playCurrentMission(),
+			true,
+			undefined,
+			state.modification === 'gold'
+		);
+		menu.setupButton(
+			this.nextButton,
+			'play/next',
+			(e) => this.cycleMission(1 * this.computeSeekMultiplier(e)),
+			true,
+			true,
+			state.modification === 'gold',
+			true
+		);
 	}
 
 	abstract initProperties(): void;
@@ -98,10 +124,10 @@ export abstract class LevelSelect {
 			if (this.div.classList.contains('hidden')) return;
 
 			if (e.code === 'ArrowLeft' && (!this.searchInput.value || document.activeElement === document.body)) {
-				this.cycleMission(-1);
+				this.cycleMission(-1 * this.computeSeekMultiplier(e));
 				if (!this.prevButton.style.pointerEvents) this.prevButton.src = this.menu.uiAssetPath + 'play/prev_d.png';
 			} else if (e.code === 'ArrowRight' && (!this.searchInput.value || document.activeElement === document.body)) {
-				this.cycleMission(1);
+				this.cycleMission(1 * this.computeSeekMultiplier(e));
 				if (!this.nextButton.style.pointerEvents) this.nextButton.src = this.menu.uiAssetPath + 'play/next_d.png';
 			} else if (e.code === 'Escape') {
 				this.homeButton.src = this.menu.uiAssetPath + this.homeButtonSrc + '_d.png';
@@ -128,6 +154,22 @@ export abstract class LevelSelect {
 			this.searchInput.value = '';
 			this.onSearchInputChange();
 		});
+
+		this.sortToggleButton.addEventListener('mouseenter', () => {
+			mainAudioManager.play('buttonover.wav');
+		});
+		this.sortToggleButton.addEventListener('mousedown', () => {
+			mainAudioManager.play('buttonpress.wav');
+
+			this.currentSort = this.currentSort === 'lexicographical' ? 'chronological' : 'lexicographical';
+			this.sortToggleButton.src = this.currentSort === 'lexicographical'
+				? './assets/svg/sort_by_alpha_FILL0_wght400_GRAD0_opsz24.svg'
+				: './assets/svg/event_FILL0_wght400_GRAD0_opsz24.svg';
+
+			this.sortMissions();
+			this.selectBasedOnSearchQuery(false);
+			this.displayMission();
+		});
 	}
 
 	show() {
@@ -143,8 +185,14 @@ export abstract class LevelSelect {
 		this.currentMissionArray = arr;
 		this.currentMissionIndex = this.getDefaultMissionIndex();
 
+		this.sortMissions();
 		this.selectBasedOnSearchQuery(false);
 		this.displayMission(doImageTimeout);
+	}
+
+	sortMissions() {
+		let fn = this.currentSort === 'lexicographical' ? Mission.compareLexicographically : Mission.compareChronologically;
+		this.sortedMissionArray = [...this.currentMissionArray].sort(fn);
 	}
 
 	getDefaultMissionIndex() {
@@ -218,20 +266,34 @@ export abstract class LevelSelect {
 	getCycleMissionIndex(direction: number) {
 		if (direction === 0) return this.currentMissionIndex;
 
-		for (let i = this.currentMissionIndex + Math.sign(direction); i >= 0 && i < this.currentMissionArray.length; i += Math.sign(direction)) {
-			if (this.currentMissionArray[i].matchesSearch(this.currentQueryWords, this.currentQuery))
-				direction = Math.sign(direction) * (Math.abs(direction) - 1);
-			if (direction === 0) return i;
+		let bestResult: number = null;
+
+		for (
+			let i = this.currentMissionIndex + Math.sign(direction);
+			i >= 0 && i < this.sortedMissionArray.length && direction !== 0;
+			i += Math.sign(direction)
+		) {
+			let outOfBounds = i < 0 || i >= this.sortedMissionArray.length;
+			i = Util.clamp(i, 0, this.sortedMissionArray.length - 1);
+
+			if (this.sortedMissionArray[i].matchesSearch(this.currentQueryWords, this.currentQuery)) {
+				direction -= 1 * Math.sign(direction);
+				bestResult = i;
+			}
+
+			if (outOfBounds) {
+				break;
+			}
 		}
 
-		return null;
+		return bestResult;
 	}
 
 	/** Returns true if there is a next mission to go to. */
 	canGoNext() {
 		let canGoNext = false;
-		for (let i = this.currentMissionIndex + 1; i < this.currentMissionArray.length; i++) {
-			if (this.currentMissionArray[i].matchesSearch(this.currentQueryWords, this.currentQuery)) {
+		for (let i = this.currentMissionIndex + 1; i < this.sortedMissionArray.length; i++) {
+			if (this.sortedMissionArray[i].matchesSearch(this.currentQueryWords, this.currentQuery)) {
 				canGoNext = true;
 				break;
 			}
@@ -244,7 +306,7 @@ export abstract class LevelSelect {
 	canGoPrev() {
 		let canGoPrev = false;
 		for (let i = this.currentMissionIndex - 1; i >= 0; i--) {
-			if (this.currentMissionArray[i].matchesSearch(this.currentQueryWords, this.currentQuery)) {
+			if (this.sortedMissionArray[i].matchesSearch(this.currentQueryWords, this.currentQuery)) {
 				canGoPrev = true;
 				break;
 			}
@@ -294,7 +356,7 @@ export abstract class LevelSelect {
 		// Preload the neighboring-mission images for faster flicking between missions without having to wait for images to load.
 		for (let i = 0; i <= 10; i++) {
 			let index = this.getCycleMissionIndex(Math.ceil(i / 2) * ((i % 2)? 1 : -1)); // Go in an outward spiral pattern, but only visit the missions that match the current search
-			let mission = this.currentMissionArray[index];
+			let mission = this.sortedMissionArray[index];
 			if (!mission) continue;
 
 			toLoad.add(mission);
@@ -330,12 +392,12 @@ export abstract class LevelSelect {
 	}
 
 	shuffle() {
-		if (this.currentMissionArray.length <= 1) return;
+		if (this.sortedMissionArray.length <= 1) return;
 
 		// Find a random mission that isn't the current one
 		let nextIndex = this.currentMissionIndex;
 		while (nextIndex === this.currentMissionIndex) {
-			nextIndex = Math.floor(Util.popRandomNumber() * this.currentMissionArray.length);
+			nextIndex = Math.floor(Util.popRandomNumber() * this.sortedMissionArray.length);
 		}
 
 		this.currentMissionIndex = nextIndex;
@@ -346,16 +408,16 @@ export abstract class LevelSelect {
 	getNextShuffledMissions() {
 		let missions: Mission[] = [];
 
-		if (this.currentMissionArray.length > 1) {
+		if (this.sortedMissionArray.length > 1) {
 			let lastIndex = this.currentMissionIndex;
 			let i = 0;
 			let count = 0;
 			while (count < 5) {
 				let randomNumber = Util.peekRandomNumber(i++);
-				let nextIndex = Math.floor(randomNumber * this.currentMissionArray.length);
+				let nextIndex = Math.floor(randomNumber * this.sortedMissionArray.length);
 
 				if (lastIndex !== nextIndex) {
-					let mission = this.currentMissionArray[nextIndex];
+					let mission = this.sortedMissionArray[nextIndex];
 					missions.push(mission);
 					count++;
 				}
@@ -527,8 +589,8 @@ export abstract class LevelSelect {
 		if (this.currentMission?.matchesSearch(this.currentQueryWords, this.currentQuery)) return;
 
 		// Find the first matching mission
-		for (let i = 0; i < this.currentMissionArray.length; i++) {
-			let mis = this.currentMissionArray[i];
+		for (let i = 0; i < this.sortedMissionArray.length; i++) {
+			let mis = this.sortedMissionArray[i];
 			if (mis.matchesSearch(this.currentQueryWords, this.currentQuery)) {
 				this.currentMissionIndex = i;
 				if (display) this.displayMission();
@@ -667,5 +729,9 @@ export abstract class LevelSelect {
 			this.cycleMission(1);
 			mainAudioManager.play('buttonpress.wav');
 		}
+	}
+
+	computeSeekMultiplier(event: MouseEvent | KeyboardEvent) {
+		return event.ctrlKey ? 100 : event.shiftKey ? 10 : 1;
 	}
 }

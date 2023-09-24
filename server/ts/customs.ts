@@ -4,8 +4,52 @@ import * as path from 'path';
 import * as url from 'url';
 import fetch from 'node-fetch';
 import JSZip from 'jszip';
+import writeFileAtomic from 'write-file-atomic';
 
 import { shared } from './shared';
+import { CustomLevelInfo } from '../../src/ts/mission';
+
+export const getCustomLevelList = async (res: http.ServerResponse) => {
+	let stringified = JSON.stringify(shared.customLevelList);
+
+	res.writeHead(200, {
+		'Content-Type': 'application/zip',
+		'Content-Length': Buffer.byteLength(stringified),
+		'Access-Control-Allow-Origin': '*'
+	});
+	res.end(stringified);
+};
+
+export const periodicallyUpdateCustomLevelList = async () => {
+	try {
+		let response = await fetch(`https://marbleland.vaniverse.io/api/level/list`);
+		let levels = await response.json() as CustomLevelInfo[];
+
+		let filteredLevels = levels.filter(level => {
+			if (!['mbg', 'mbw'].includes(level.compatibility)) return false;
+			if (!['gold', 'platinum', 'ultra'].includes(level.modification)) return false;
+			return true;
+		});
+
+		// Remove duplicate levels in each category
+		let seenLevelIdentifiers = new Set<string>();
+		for (let i = 0; i < filteredLevels.length; i++) {
+			let level = filteredLevels[i];
+			let identifier = level.name + ' - ' + level.desc + ' - ' + level.modification; // Assume this is what makes a level unique
+
+			if (seenLevelIdentifiers.has(identifier)) {
+				filteredLevels.splice(i--, 1);
+			} else {
+				seenLevelIdentifiers.add(identifier);
+			}
+		}
+
+		shared.customLevelList = filteredLevels;
+		await writeFileAtomic(shared.customLevelListPath, JSON.stringify(filteredLevels));
+	} catch (e) {}
+
+	setTimeout(periodicallyUpdateCustomLevelList, 1000 * 60 * 3); // Every three minutes
+};
 
 /** Transmits a custom level resource, so either an image or an archive. */
 export const getCustomLevelResource = async (res: http.ServerResponse, urlObject: url.URL) => {
@@ -62,7 +106,7 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
 		let buffer = await response.buffer();
 		let zip = await JSZip.loadAsync(buffer);
 		let promises: Promise<void>[] = [];
-		let modification = shared.claList.find(x => x.id === id).modification;
+		let modification = shared.customLevelList.find(x => x.id === id).modification;
 
 		// Clean up the archive a bit:
 		zip.forEach((_, entry) => {

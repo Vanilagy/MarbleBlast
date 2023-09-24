@@ -1,21 +1,22 @@
 import { MissionElementSimGroup, MisParser, MissionElementType, MissionElementScriptObject, MisFile, MissionElement } from "./parsing/mis_parser";
 import { ResourceManager } from "./resources";
-import { DifParser, DifFile } from "./parsing/dif_parser";
 import { Util } from "./util";
 import { DtsFile, DtsParser } from "./parsing/dts_parser";
 import { state } from "./state";
+import hxDif from './parsing/hx_dif';
 
-/** A custom levels archive entry. */
-export interface CLAEntry {
+/** A Marbleland level entry. */
+export interface CustomLevelInfo {
 	id: number,
 	baseName: string,
-	gameType: string,
-	modification: string,
+	gameType: 'single' | 'multi',
+	modification: 'gold' | 'platinum' | 'fubar' | 'ultra' | 'platinumquest',
 	name: string,
 	artist: string,
 	desc: string,
 	addedAt: number,
 	gameMode: string,
+	editedAt: number,
 
 	qualifyingTime: number,
 	goldTime: number,
@@ -30,7 +31,13 @@ export interface CLAEntry {
 	awesomeScore: number,
 
 	gems: number,
-	hasEasterEgg: boolean
+	hasEasterEgg: boolean,
+
+	downloads: number,
+	lovedCount: number,
+
+	hasCustomCode: boolean,
+	compatibility: 'mbg' | 'mbw' | 'pq'
 }
 
 /** Represents a playable mission. Contains all the necessary metadata, as well as methods for loading the mission and gettings its resources. */
@@ -57,9 +64,10 @@ export class Mission {
 	modification: 'gold' | 'platinum' | 'ultra';
 	zipDirectory: JSZip = null;
 	fileToBlobPromises = new Map<JSZip['files'][number], Promise<Blob>>();
-	difCachePromises = new Map<string, Promise<DifFile>>();
-	difCache = new Map<string, DifFile>();
+	difCachePromises = new Map<string, Promise<hxDif.Dif>>();
+	difCache = new Map<string, hxDif.Dif>();
 	isNew = false;
+	createdAt = 0;
 	hasEasterEgg = false;
 	hasBlast = false;
 	hasUltraMarble = false;
@@ -96,22 +104,23 @@ export class Mission {
 	}
 
 	/** Creates a new mission from a CLA entry. */
-	static fromCLAEntry(entry: CLAEntry, isNew: boolean) {
-		let path = 'custom/' + entry.id;
-		if (entry.modification === 'platinum') path = 'mbp/' + path;
-		if (entry.modification === 'ultra') path = 'mbu/' + path;
+	static fromCustomLevelInfo(info: CustomLevelInfo, isNew: boolean) {
+		let path = 'custom/' + info.id;
+		if (info.modification === 'platinum') path = 'mbp/' + path;
+		if (info.modification === 'ultra') path = 'mbu/' + path;
 		let mission = new Mission(path);
-		mission.title = entry.name.trim();
-		mission.artist = entry.artist ?? '';
-		mission.description = entry.desc ?? '';
-		if (entry.qualifyingTime) mission.qualifyTime = entry.qualifyingTime;
-		if (entry.goldTime) mission.goldTime = entry.goldTime;
-		if (entry.platinumTime) mission.goldTime = entry.platinumTime;
-		if (entry.ultimateTime) mission.ultimateTime = entry.ultimateTime;
-		mission.id = entry.id;
+		mission.title = info.name.trim();
+		mission.artist = info.artist ?? '';
+		mission.description = info.desc ?? '';
+		if (info.qualifyingTime) mission.qualifyTime = info.qualifyingTime;
+		if (info.goldTime) mission.goldTime = info.goldTime;
+		if (info.platinumTime) mission.goldTime = info.platinumTime;
+		if (info.ultimateTime) mission.ultimateTime = info.ultimateTime;
+		mission.id = info.id;
 		mission.isNew = isNew;
-		mission.modification = entry.modification as ('gold' | 'platinum' | 'ultra');
-		mission.hasEasterEgg = entry.hasEasterEgg;
+		mission.createdAt = info.addedAt;
+		mission.modification = info.modification as ('gold' | 'platinum' | 'ultra');
+		mission.hasEasterEgg = info.hasEasterEgg;
 
 		return mission;
 	}
@@ -241,22 +250,27 @@ export class Mission {
 		if (this.modification === 'gold' && path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
 		if (this.modification !== 'gold') path = path.replace('data/', 'data_mbp/');
 
-		let dif: DifFile = null;
+		let dif: hxDif.Dif = null;
 		await this.difCachePromises.get(path);
 		if (this.difCache.get(path)) {
 			dif = this.difCache.get(path); // We've already parsed the dif before
 		} else {
 			let promise = (async () => {
-				let dif: DifFile;
+				let dif: hxDif.Dif;
 
 				if (this.zipDirectory && this.zipDirectory.files[path]) {
 					// Get it from the zip
 					let arrayBuffer = await this.zipDirectory.files[path].async('arraybuffer');
-					let parser = new DifParser(arrayBuffer);
-					let result = parser.parse();
-					dif = result;
+					dif = hxDif.Dif.LoadFromArrayBuffer(arrayBuffer);
 				} else {
-					dif = await DifParser.loadFile('./assets/' + path);
+					let blob = await ResourceManager.loadResource('./assets/' + path);
+
+					if (!blob) {
+						dif = null;
+					} else {
+						let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
+						dif = hxDif.Dif.LoadFromArrayBuffer(arrayBuffer);
+					}
 				}
 
 				this.difCache.set(path, dif);
@@ -388,5 +402,17 @@ export class Mission {
 		alarmStart = Math.max(0, alarmStart);
 
 		return alarmStart;
+	}
+
+	static compareLexicographically(a: Mission, b: Mission) {
+		return Util.normalizeString(a.title).localeCompare(
+			Util.normalizeString(b.title),
+			undefined,
+			{ numeric: true, sensitivity: 'base' }
+		);
+	}
+
+	static compareChronologically(a: Mission, b: Mission) {
+		return a.createdAt - b.createdAt;
 	}
 }

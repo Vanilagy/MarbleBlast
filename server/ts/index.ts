@@ -12,7 +12,7 @@ const serveStatic = serveStatic_;
 import { shared } from './shared';
 import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity } from './misc';
 import { getLeaderboard, submitScores, getWorldRecordSheet, getWorldRecordReplay } from './leaderboard';
-import { getCustomLevelResource } from './customs';
+import { getCustomLevelList, getCustomLevelResource, periodicallyUpdateCustomLevelList } from './customs';
 
 let db: Database.Database = null;
 
@@ -84,6 +84,7 @@ const initServer = (port: number) => {
 						case 'directory_structure_mbp': await getDirectoryStructure(res, true); break;
 						case 'scores': await getLeaderboard(res, body); break;
 						case 'submit': await submitScores(res, body); break;
+						case 'customs': await getCustomLevelList(res); break;
 						case 'custom': await getCustomLevelResource(res, urlObject); break;
 						case 'sheet': await getWorldRecordSheet(res); break;
 						case 'error': await logUserError(res, body); break;
@@ -134,16 +135,19 @@ const init = () => {
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'backups'));
 	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'user_errors.log'));
 
+	shared.customLevelListPath = path.join(__dirname, 'storage', 'customs.json');
+	if (!fs.existsSync(shared.customLevelListPath)) fs.writeFileSync(shared.customLevelListPath, '[]');
+
 	shared.config = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'config.json')).toString());
 	shared.directoryPath = path.join(__dirname, '..', shared.config.useDist? 'dist' : 'src');
 	shared.levelNameMap = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'level_name_map.json')).toString());
-	shared.claList = JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'customs_gold.json')).toString());
-	shared.claList.push(...JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'customs_platinum.json')).toString()));
-	shared.claList.push(...JSON.parse(fs.readFileSync(path.join(shared.directoryPath, 'assets', 'customs_ultra.json')).toString()));
+	shared.customLevelList = JSON.parse(fs.readFileSync(shared.customLevelListPath).toString());
+
 	let port = Number(shared.config.port);
 
 	setupDb();
 	initServer(port);
+	periodicallyUpdateCustomLevelList();
 };
 init();
 

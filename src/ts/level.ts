@@ -38,7 +38,6 @@ import { StorageManager } from "./storage";
 import { Replay } from "./replay";
 import { Mission } from "./mission";
 import { PushButton } from "./shapes/push_button";
-import { DifFile } from "./parsing/dif_parser";
 import { state } from "./state";
 import { Sign } from "./shapes/sign";
 import { Magnet } from "./shapes/magnet";
@@ -73,6 +72,7 @@ import { OrthographicCamera, PerspectiveCamera } from "./rendering/camera";
 import { Plane } from "./math/plane";
 import { CollisionDetection } from "./physics/collision_detection";
 import { MissionLibrary } from "./mission_library";
+import hxDif from './parsing/hx_dif';
 
 /** How often the physics will be updated, per second. */
 export const PHYSICS_TICK_RATE = 120;
@@ -168,7 +168,7 @@ export class Level extends Scheduler {
 	particles: ParticleManager;
 	marble: Marble;
 	interiors: Interior[] = [];
-	sharedInteriorData = new Map<DifFile["detailLevels"][number], any>();
+	sharedInteriorData = new Map<hxDif.Interior, any>();
 	triggers: Trigger[] = [];
 
 	shapes: Shape[] = [];
@@ -269,7 +269,12 @@ export class Level extends Scheduler {
 				this.loadingState.total++;
 
 				// Override the end pad element. We do this because only the last finish pad element will actually do anything.
-				if (element._type === MissionElementType.StaticShape && element.datablock?.toLowerCase() === 'endpad') this.endPadElement = element;
+				if (
+					element._type === MissionElementType.StaticShape &&
+					['endpad', 'endpad_mbg', 'endpad_mbp'].includes(element.datablock?.toLowerCase())
+				) {
+					this.endPadElement = element;
+				}
 			}
 		}
 		this.loadingState.total += 6 + 1 + 3 + 6 + 1; // For the scene, marble, UI, sounds (includes music!), and scene compile
@@ -642,8 +647,8 @@ export class Level extends Scheduler {
 		// Add the correct shape based on type
 		let dataBlockLowerCase = element.datablock?.toLowerCase();
 		if (!dataBlockLowerCase) { /* Make sure we don't do anything if there's no data block */ }
-		else if (dataBlockLowerCase === "startpad") shape = new StartPad();
-		else if (dataBlockLowerCase === "endpad") shape = new EndPad(element === this.endPadElement);
+		else if (["startpad", "startpad_mbg", "startpad_mbp"].includes(dataBlockLowerCase)) shape = new StartPad();
+		else if (["endpad", "endpad_mbg", "endpad_mbp"].includes(dataBlockLowerCase)) shape = new EndPad(element === this.endPadElement);
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
 		else if (dataBlockLowerCase.startsWith("signplain")) shape = new SignPlain(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase.startsWith("gemitem")) shape = new Gem(element as MissionElementItem), this.totalGems++;

@@ -40,6 +40,7 @@ export class MbgLevelSelect extends LevelSelect {
 		this.playButton = document.querySelector('#level-select-play') as HTMLImageElement;
 		this.nextButton = document.querySelector('#level-select-next') as HTMLImageElement;
 		this.searchInput = document.querySelector('#search-input') as HTMLInputElement;
+		this.sortToggleButton = document.querySelector('#sort-icon') as HTMLImageElement;
 		this.loadReplayButton = document.querySelector('#load-replay-button') as HTMLImageElement;
 		this.shuffleButton = document.querySelector('#shuffle-button') as HTMLImageElement;
 	}

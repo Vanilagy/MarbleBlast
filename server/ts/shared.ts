@@ -1,16 +1,17 @@
 import * as Database from 'better-sqlite3';
 
 /** A custom levels archive entry. */
-interface CLAEntry {
+interface CustomLevelInfo {
 	id: number,
 	baseName: string,
-	gameType: string,
-	modification: string,
+	gameType: 'single' | 'multi',
+	modification: 'gold' | 'platinum' | 'fubar' | 'ultra' | 'platinumquest',
 	name: string,
 	artist: string,
 	desc: string,
 	addedAt: number,
 	gameMode: string,
+	editedAt: number,
 
 	qualifyingTime: number,
 	goldTime: number,
@@ -25,7 +26,13 @@ interface CLAEntry {
 	awesomeScore: number,
 
 	gems: number,
-	hasEasterEgg: boolean
+	hasEasterEgg: boolean,
+
+	downloads: number,
+	lovedCount: number,
+
+	hasCustomCode: boolean,
+	compatibility: 'mbg' | 'mbw' | 'pq'
 }
 
 export const shared: {
@@ -43,8 +50,9 @@ export const shared: {
 		/** The origin in which the website runs. */
 		origin: string
 	},
+	customLevelListPath: string,
 	/** List of all custom levels */
-	claList: CLAEntry[],
+	customLevelList: CustomLevelInfo[],
 	/** Maps mission path to level name */
 	levelNameMap: Record<string, string>,
 

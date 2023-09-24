@@ -93,10 +93,12 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 			if (shared.config.discordWebhookUrl) {
 				// Broadcast a world record message to the webhook URL
 				let allowed = true;
+				/*
 				if (missionPath.includes('custom/')) {
 					let scoreCount: number = shared.getMissionScoreCount.pluck().get(missionPath);
 					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) allowed = false; // Not enough scores yet, don't broadcast
 				}
+				*/
 
 				if (allowed) broadcastToWebhook(missionPath, score, oldTopScore);
 			}
@@ -157,7 +159,7 @@ const broadcastToWebhook = (missionPath: string, score: [string, number], previo
 const getMissionNameFromMissionPath = (missionPath: string) => {
 	if (missionPath.includes('custom/')) {
 		// Find the corresponding CLA entry
-		let claEntry = shared.claList.find(x => x.id === Number(missionPath.slice(missionPath.lastIndexOf('/') + 1)));
+		let claEntry = shared.customLevelList.find(x => x.id === Number(missionPath.slice(missionPath.lastIndexOf('/') + 1)));
 		return claEntry.name;
 	} else {
 		return shared.levelNameMap[missionPath];

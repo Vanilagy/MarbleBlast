@@ -265,11 +265,23 @@
 	background: transparent;
 	border: none;
 	font-family: Arial, sans-serif;
-	width: 210px;
+	width: 200px;
 }
 
 #search-input:focus {
 	outline: none;
+}
+
+#sort-icon {
+	position: absolute;
+	top: -20px;
+	left: 225px;
+	width: 16px;
+	opacity: 0.5;
+}
+
+#sort-icon:hover {
+	opacity: 1;
 }
 
 #load-replay-button {

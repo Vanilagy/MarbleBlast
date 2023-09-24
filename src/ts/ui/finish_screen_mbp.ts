@@ -167,7 +167,7 @@ export class MbpFinishScreen extends FinishScreen {
 	/** Figures out what the next level after this one should be. */
 	getNextLevel() {
 		let levelSelect = state.menu.levelSelect;
-		let currIndex = levelSelect.currentMissionArray.indexOf(state.level.mission); // Get it like this because the index might have already changed
+		let currIndex = levelSelect.sortedMissionArray.indexOf(state.level.mission); // Get it like this because the index might have already changed
 
 		if (currIndex < levelSelect.currentMissionArray.length-1) {
 			// Just the next level in the current array
