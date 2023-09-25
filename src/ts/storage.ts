@@ -2,7 +2,7 @@ import { Util } from "./util";
 import { executeOnWorker } from "./worker";
 
 /** name, time, scoreId, timestamp */
-export type BestTimes = [string, number, string, number][];
+export type BestTimes = [name: string, time: number, scoreId: string, timestamp: number][];
 
 const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999.99; // The 99:59.999 thing
 
@@ -61,7 +61,10 @@ export interface StorageData {
 	/** A random ID to somewhat uniquely identify this user, even if they change their username. */
 	randomId: string,
 	/** The queue of scores that are still to be sent to the server. */
-	bestTimeSubmissionQueue: Record<string, BestTimes[number]>,
+	bestTimeSubmissionQueue: {
+		missionPath: string,
+		score: BestTimes[number]
+	}[],
 	/** The last-seen version of the game. */
 	lastSeenVersion: string,
 	/** Mission paths whose eggs have been collected. */
@@ -134,7 +137,7 @@ const DEFAULT_STORAGE_DATA: StorageData = {
 	bestTimes: {},
 	lastUsedName: '',
 	randomId: Util.getRandomId(),
-	bestTimeSubmissionQueue: {},
+	bestTimeSubmissionQueue: [],
 	lastSeenVersion: null,
 	collectedEggs: [],
 	modification: 'platinum',
@@ -175,7 +178,7 @@ export abstract class StorageManager {
 	static async init() {
 		// Setup the IndexedDB
 		this.idbDatabaseLoading = new Promise((resolve) => {
-			let request = indexedDB.open("mb-database", 3);
+			let request = indexedDB.open("mbw", 3);
 			request.onsuccess = (e) => {
 				resolve();
 				this.idbDatabase = (e.target as any).result;
@@ -230,24 +233,6 @@ export abstract class StorageManager {
 				console.error("Error decoding best times!", e);
 			}
 		}
-
-		// Here we correct an oopsie: Because I accidentally released MBU levels too early, remove all local scores on those levels that happened before the *proper* MBU level release, as they are invalid.
-		let changed = false;
-		for (let missionPath in this.data.bestTimes) {
-			if (!missionPath.startsWith('mbu/')) continue;
-
-			for (let i = 0; i < this.data.bestTimes[missionPath].length; i++) {
-				let score = this.data.bestTimes[missionPath][i];
-				if (score[3] < 1634861292099) {
-					this.data.bestTimes[missionPath].splice(i--, 1);
-					changed = true;
-				}
-			}
-
-			if (this.data.bestTimes[missionPath].length === 0) delete this.data.bestTimes[missionPath];
-		}
-
-		if (changed) await this.storeBestTimes();
 
 		Util.getDefaultSecondsToTimeStringDecimalDigits = () => this.data.settings.showThousandths? 3 : 2;
 	}

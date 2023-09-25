@@ -64,9 +64,12 @@ export abstract class Leaderboard {
 		return this.loading.has(missionPath);
 	}
 
-	/** Submits a new personal best time to the leaderboard. */
-	static async submitBestTime(missionPath: string, score: BestTimes[number]) {
-		StorageManager.data.bestTimeSubmissionQueue[missionPath] = score;
+	/** Submits a new score to the leaderboard. */
+	static async submitScore(missionPath: string, score: BestTimes[number]) {
+		StorageManager.data.bestTimeSubmissionQueue.push({
+			missionPath,
+			score
+		});
 		StorageManager.store();
 
 		this.syncLeaderboard();
@@ -75,13 +78,21 @@ export abstract class Leaderboard {
 	/** Synchronizes the leaderboard: Uploads new personal best times and gets all new/changed online scores and updates the leaderboard accordingly. */
 	static async syncLeaderboard() {
 		let queue = StorageManager.data.bestTimeSubmissionQueue;
-		let payloadBestTimes: Record<string, [string, number]> = {};
+		let payloadScores: {
+			id: string,
+			missionPath: string,
+			score: [string, number]
+		}[] = [];
 		let payloadReplays: Record<string, string> = {};
 
 		// Go over all scores in the submission queue
-		for (let missionPath in queue) {
-			let score = queue[missionPath];
-			payloadBestTimes[missionPath] = [score[0], score[1]];
+		for (let { missionPath, score } of queue) {
+			let payloadScore = {
+				id: score[2],
+				missionPath,
+				score: [score[0], score[1]] as [string, number]
+			};
+			payloadScores.push(payloadScore);
 
 			let onlineScore = this.scores.get(missionPath)?.[0];
 			if (!onlineScore || score[1] < onlineScore[1]) {
@@ -91,13 +102,13 @@ export abstract class Leaderboard {
 
 				// Convert to base64 because we can't ship binary data over JSON
 				let base64 = await Util.arrayBufferToBase64(replayData);
-				payloadReplays[missionPath] = base64;
+				payloadReplays[payloadScore.id] = base64;
 			}
 		}
 
 		let payload = {
 			randomId: StorageManager.data.randomId,
-			bestTimes: Object.keys(queue).length? await Util.arrayBufferToBase64(await executeOnWorker('compress', JSON.stringify(payloadBestTimes))) : null, // Compress and encode the best times a bit
+			scores: Object.keys(queue).length? await Util.arrayBufferToBase64(await executeOnWorker('compress', JSON.stringify(payloadScores))) : null, // Compress and encode the best times a bit
 			latestTimestamp: this.latestTimestamp,
 			replays: payloadReplays,
 			version: StorageManager.data.lastSeenVersion
@@ -131,7 +142,7 @@ export abstract class Leaderboard {
 		this.registerLeaderboardChange(Object.keys(data.scores));
 
 		// Since a response arrived, empty the queue
-		StorageManager.data.bestTimeSubmissionQueue = {};
+		StorageManager.data.bestTimeSubmissionQueue = [];
 		StorageManager.store();
 	}
 
@@ -144,10 +155,12 @@ export abstract class Leaderboard {
 			let onlineScore = this.scores.get(missionPath)?.[0];
 			let localScore = StorageManager.data.bestTimes[missionPath]?.[0];
 
-			if (!onlineScore || !localScore || missionPath in submissionQueue) continue;
+			if (!localScore || submissionQueue.some(x => x.missionPath === missionPath)) {
+				continue;
+			}
 
 			// Splice all submitted local scores that are faster than the current WR for that level. We do this because the existence of those scores makes no sense (they can happen when the leaderboard is purged server-side)
-			while (localScore && localScore[1] < Number(onlineScore[1])) {
+			while (localScore && (!onlineScore || localScore[1] < Number(onlineScore[1]))) {
 				StorageManager.data.bestTimes[missionPath].splice(0, 1);
 				localScore = StorageManager.data.bestTimes[missionPath][0];
 				localScoreRemoved = true;

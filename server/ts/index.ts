@@ -10,11 +10,12 @@ import finalhandler from 'finalhandler';
 const serveStatic = serveStatic_;
 
 import { shared } from './shared';
-import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity } from './misc';
+import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity, registerLevelStatistics } from './misc';
 import { getLeaderboard, submitScores, getWorldRecordSheet, getWorldRecordReplay } from './leaderboard';
 import { getCustomLevelList, getCustomLevelResource, periodicallyUpdateCustomLevelList } from './customs';
 
 let db: Database.Database = null;
+const doBackup = false;
 
 /** Sets up the database and creates tables, indices and prepared statements. */
 const setupDb = () => {
@@ -27,25 +28,95 @@ const setupDb = () => {
 			time DOUBLE,
 			username VARCHAR(255),
 			user_random_id VARCHAR(255),
-			timestamp BIGINT
+			timestamp BIGINT,
+			wrec BLOB
 		);
-		CREATE INDEX IF NOT EXISTS mission_index ON score (mission);
-		CREATE INDEX IF NOT EXISTS timestamp_index ON score (timestamp);
+		CREATE INDEX IF NOT EXISTS index_1 ON score(mission, username, time);
+		CREATE INDEX IF NOT EXISTS index_2 ON score(mission, user_random_id, time);
+		CREATE INDEX IF NOT EXISTS index_3 ON score(mission, time, username);
+		CREATE INDEX IF NOT EXISTS index_4 ON score(timestamp);
+
+		CREATE TABLE IF NOT EXISTS level_statistics (
+			mission VARCHAR(255),
+			start_time BIGINT,
+			tries INTEGER,
+			finishes INTEGER,
+			out_of_bounds_count INTEGER,
+			time_paused INTEGER,
+			end_time BIGINT,
+			user_random_id VARCHAR(255)
+		);
 	`);
 	db.pragma('journal_mode = WAL'); // Significantly improves performance
 
 	// Prepare the statements now for later use
-	shared.getScoresForMissionStatement = db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC;`);
-	shared.getScoreByUserStatement = db.prepare(`SELECT rowid, time FROM score WHERE mission=? AND (username=? OR user_random_id=?) ORDER BY time ASC;`);
-	shared.deleteScoresStatement = db.prepare(`DELETE FROM score WHERE mission=? AND (username=? OR user_random_id=?);`);
-	shared.insertScoreStatement = db.prepare(`INSERT INTO score (mission, time, username, user_random_id, timestamp) VALUES (?, ?, ?, ?, ?);`);
-	shared.getTopScoreStatement = db.prepare(`SELECT time, username FROM score WHERE mission=? ORDER BY time ASC, timestamp ASC LIMIT 1;`);
-	shared.getMissionScoreCount = db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);
-	shared.getNewerScoresStatement = db.prepare(`SELECT mission, time, username FROM score WHERE timestamp>?;`);
-	shared.getLatestTimestampStatement = db.prepare(`SELECT MAX(timestamp) FROM score;`);
 
-	setInterval(backupStuff, 3.5 * 24 * 60 * 60 * 1000); // Biweekly
-	backupStuff();
+	shared.getLeaderboardForMissionStatement = db.prepare(`
+		SELECT s1.username, s1.time
+		FROM score s1
+		WHERE mission = ?
+		AND (
+			s1.time = (
+				SELECT MIN(s2.time)
+				FROM score s2
+				WHERE s2.mission = s1.mission AND s2.username = s1.username
+			)
+			OR
+			s1.time = (
+				SELECT MIN(s2.time)
+				FROM score s2
+				WHERE s2.mission = s1.mission AND s2.user_random_id = s1.user_random_id
+			)
+		)
+		ORDER BY s1.time ASC;
+	`);
+	shared.insertScoreStatement = db.prepare(`
+		INSERT INTO score (mission, time, username, user_random_id, timestamp, wrec)
+		VALUES (?, ?, ?, ?, ?, ?);
+	`);
+	shared.getTopScoreStatement = db.prepare(`
+		SELECT time, username
+		FROM score
+		WHERE mission = ?
+		ORDER BY time ASC, timestamp ASC
+		LIMIT 1;
+	`);
+	shared.getTopScoreWrecStatement = db.prepare(`
+		SELECT wrec
+		FROM score
+		WHERE mission = ?
+		ORDER BY time ASC, timestamp ASC
+		LIMIT 1;
+	`);
+	shared.getMissionScoreCount = db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);
+	shared.getNewerTopScoresStatement = db.prepare(`
+		SELECT s1.mission, s1.time, s1.username
+		FROM score s1
+		WHERE timestamp > ?
+		AND (
+			s1.time = (
+				SELECT MIN(s2.time)
+				FROM score s2
+				WHERE s2.mission = s1.mission AND s2.username = s1.username
+			)
+			OR
+			s1.time = (
+				SELECT MIN(s2.time)
+				FROM score s2
+				WHERE s2.mission = s1.mission AND s2.user_random_id = s1.user_random_id
+			)
+		);
+	`);
+	shared.getLatestTimestampStatement = db.prepare(`SELECT MAX(timestamp) FROM score;`);
+	shared.insertLevelStatistics = db.prepare(`
+		INSERT INTO level_statistics (mission, start_time, tries, finishes, out_of_bounds_count, time_paused, end_time, user_random_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+	`);
+
+	if (doBackup) {
+		setInterval(backupStuff, 3.5 * 24 * 60 * 60 * 1000); // Biweekly
+		backupStuff();
+	}
 };
 
 const backupStuff = () => {
@@ -91,6 +162,7 @@ const initServer = (port: number) => {
 						case 'version_history': await getVersionHistory(res); break;
 						case 'activity': await registerActivity(res, urlObject); break;
 						case 'world_record_replay': await getWorldRecordReplay(res, urlObject); break;
+						case 'statistics': await registerLevelStatistics(res, body); break;
 						default: break outer; // Incorrect API function
 					}
 

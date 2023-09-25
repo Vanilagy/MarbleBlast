@@ -29,7 +29,7 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 	let response: Record<string, [string, number][]> = {};
 
 	for (let mission of options.missions) {
-		let rows: ScoreRow[] = shared.getScoresForMissionStatement.all(mission);
+		let rows: ScoreRow[] = shared.getLeaderboardForMissionStatement.all(mission);
 		response[mission] = rows.map(x => [x.username.slice(0, 16), x.time]);
 	}
 
@@ -49,47 +49,37 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 	let timestamp = Date.now();
 	let data: {
 		randomId: string,
-		bestTimes: string, // String, because it's compressed and encoded
+		scores: string, // String, because it's compressed and encoded
 		latestTimestamp: number,
 		replays: Record<string, string>,
 		version: string
 	} = JSON.parse(body);
 
 	// Unpack best times
-	let bestTimes: Record<string, [string, number]> = data.bestTimes? JSON.parse((await promisify(zlib.inflate)(Buffer.from(data.bestTimes, 'base64'))).toString()) : {};
+	let bestTimes: {
+		id: string,
+		missionPath: string,
+		score: [string, number]
+	}[] = data.scores? JSON.parse((await promisify(zlib.inflate)(Buffer.from(data.scores, 'base64'))).toString()) : [];
 
 	let promises: Promise<void>[] = [];
 
 	// Loop over all new scores
-	for (let missionPath in bestTimes) {
-		let score = bestTimes[missionPath];
+	for (let { missionPath, score, id } of bestTimes) {
 		score[0] = score[0].slice(0, 16); // Fuck you
-		let existingRow: ScoreRow = shared.getScoreByUserStatement.get(missionPath, score[0], data.randomId); // See if a score by this player already exists on this mission
 		let oldTopScore: ScoreRow = shared.getTopScoreStatement.get(missionPath);
 		let isTopScore = !oldTopScore || oldTopScore.time > score[1];
 
-		if (isTopScore && !data.replays[missionPath]) continue; // Top scores NEED a replay
+		if (isTopScore && !data.replays[id]) continue; // Top scores NEED a replay
 
-		if (existingRow) {
-			if (existingRow.time > score[1]) {
-				// If the new score is faster, delete all the old ones and then insert; otherwise do nothing
-
-				// Make sure this step is atomic
-				shared.db.transaction(() => {
-					shared.deleteScoresStatement.run(missionPath, score[0], data.randomId); // Could be multiple scores!
-					shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp);
-				})();
-			}
-		} else {
-			// Add the new score to the leaderboard
-			shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp);
+		let wrecBuffer: Buffer = null;
+		if (data.replays[id]) {
+			wrecBuffer = Buffer.from(data.replays[id], 'base64');
 		}
 
-		if (isTopScore) {
-			// Store the replay
-			let replayBuffer = Buffer.from(data.replays[missionPath], 'base64');
-			promises.push(fs.writeFile(path.join(__dirname, 'storage', 'wrecs', missionPath.replace(/\//g, '_') + '.wrec'), replayBuffer));
+		shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp, wrecBuffer);
 
+		if (isTopScore) {
 			if (shared.config.discordWebhookUrl) {
 				// Broadcast a world record message to the webhook URL
 				let allowed = true;
@@ -172,7 +162,7 @@ const sendNewScores = (res: http.ServerResponse, timestamp: number) => {
 
 	if (timestamp || timestamp === 0) {
 		// Send all new scores since that that last timestamp; let the client insert them at the right spot
-		let newScores: ScoreRow[] = shared.getNewerScoresStatement.all(timestamp);
+		let newScores: ScoreRow[] = shared.getNewerTopScoresStatement.all(timestamp);
 		for (let score of newScores) {
 			if (!result[score.mission]) result[score.mission] = [];
 			result[score.mission].push([score.username.slice(0, 16), score.time]);
@@ -246,13 +236,18 @@ export const getWorldRecordReplay = async (res: http.ServerResponse, urlObject: 
 		res.end();
 	}
 
-	// This cannot be abused for arbitrary file access because the mission is checked for existence beforehand
-	let replay = await fs.readFile(path.join(__dirname, 'storage', 'wrecs', missionPath.replace(/\//g, '_') + '.wrec'));
+	let row = shared.getTopScoreWrecStatement.get(missionPath) as { wrec: Buffer };
+	if (!row) {
+		res.writeHead(400);
+		res.end('400');
+	}
+
+	let buffer = row.wrec;
 
 	res.writeHead(200, {
 		'Content-Type': 'application/octet-stream',
-		'Content-Length': replay.byteLength,
+		'Content-Length': buffer.byteLength,
 		'Cache-Control': 'no-cache, no-store' // Don't cache this
 	});
-	res.end(replay);
+	res.end(buffer);
 };

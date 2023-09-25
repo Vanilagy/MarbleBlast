@@ -117,3 +117,32 @@ setInterval(() => {
 const appendToActivityFile = () => {
 	fs.appendFile(path.join(__dirname, 'storage/activity.txt'), new Date().toISOString() + ' - ' + idActivityTimes.size + '\n');
 };
+
+export const registerLevelStatistics = async (res: http.ServerResponse, body: string) => {
+	let data: {
+		missionPath: string,
+		startTime: number,
+		tries: number,
+		finishes: number,
+		outOfBoundsCount: number,
+		timePaused: number,
+		endTime: number,
+		userRandomId: string
+	} = JSON.parse(atob(body));
+
+	shared.insertLevelStatistics.run(
+		data.missionPath,
+		data.startTime,
+		data.tries,
+		data.finishes,
+		data.outOfBoundsCount,
+		data.timePaused,
+		data.endTime,
+		data.userRandomId
+	);
+
+	res.writeHead(200, {
+		'Cache-Control': 'no-cache, no-store' // Don't cache this
+	});
+	res.end();
+};

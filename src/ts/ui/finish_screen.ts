@@ -73,9 +73,11 @@ export abstract class FinishScreen {
 					let serialized = await level.replay.serialize();
 					await StorageManager.databasePut('replays', serialized, inserted.score[2]);
 				}
+			}
 
-				// Submit the score to the leaderboard but only if it's the local top time and qualified
-				if (inserted.index === 0 && level.finishTime.gameplayClock <= level.mission.qualifyTime) Leaderboard.submitBestTime(level.mission.path, inserted.score);
+			// Submit the score to the leaderboard if it's qualified
+			if (level.finishTime.gameplayClock <= level.mission.qualifyTime) {
+				Leaderboard.submitScore(level.mission.path, inserted.score);
 			}
 		}, undefined, undefined, state.modification === 'gold');
 

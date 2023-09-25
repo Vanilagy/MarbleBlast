@@ -57,12 +57,12 @@ export const shared: {
 	levelNameMap: Record<string, string>,
 
 	db: Database.Database,
-	getScoresForMissionStatement: Database.Statement,
-	getScoreByUserStatement: Database.Statement,
-	deleteScoresStatement: Database.Statement,
+	getLeaderboardForMissionStatement: Database.Statement,
 	insertScoreStatement: Database.Statement,
 	getTopScoreStatement: Database.Statement,
+	getTopScoreWrecStatement: Database.Statement,
 	getMissionScoreCount: Database.Statement,
-	getNewerScoresStatement: Database.Statement,
-	getLatestTimestampStatement: Database.Statement
+	getNewerTopScoresStatement: Database.Statement,
+	getLatestTimestampStatement: Database.Statement,
+	insertLevelStatistics: Database.Statement
 } = {} as any;

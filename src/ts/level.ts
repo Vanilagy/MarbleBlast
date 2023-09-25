@@ -192,6 +192,7 @@ export class Level extends Scheduler {
 	offlineSettings: OfflineSettings = null;
 	started = false;
 	paused = true;
+	pausedAt: number = null;
 	/** If the level is stopped, it shouldn't be used anymore. */
 	stopped = false;
 	/** The timestate at the moment of finishing. */
@@ -251,6 +252,17 @@ export class Level extends Scheduler {
 	originalMusicName: string;
 	replay: Replay;
 
+	analytics = {
+		missionPath: null as string,
+		startTime: Date.now(),
+		tries: 0,
+		finishes: 0,
+		outOfBoundsCount: 0,
+		timePaused: 0,
+		endTime: null as number,
+		userRandomId: StorageManager.data.randomId
+	};
+
 	constructor(mission: Mission, offline: OfflineSettings = null) {
 		super();
 
@@ -259,6 +271,8 @@ export class Level extends Scheduler {
 
 		this.offline = !!offline;
 		this.offlineSettings = offline;
+
+		this.analytics.missionPath = mission.path;
 	}
 
 	/** Loads all necessary resources and builds the mission. */
@@ -853,6 +867,8 @@ export class Level extends Scheduler {
 
 		this.replay.init();
 
+		this.analytics.tries++;
+
 		// Queue the ready-set-go events
 
 		this.audio.play('spawn.wav');
@@ -1420,6 +1436,7 @@ export class Level extends Scheduler {
 		this.oobCameraPosition = this.camera.position.clone();
 		state.menu.hud.setCenterText('outofbounds');
 		this.audio.play('whoosh.wav');
+		this.analytics.outOfBoundsCount++;
 
 		if (this.replay.mode !== 'playback') this.schedule(this.timeState.currentAttemptTime + 2000, () => this.restart(false), 'oobRestart');
 	}
@@ -1572,6 +1589,8 @@ export class Level extends Scheduler {
 				resetPressedFlag('jump');
 				resetPressedFlag('restart');
 			});
+
+			this.analytics.finishes++;
 		}
 	}
 
@@ -1580,6 +1599,7 @@ export class Level extends Scheduler {
 		if (this.paused || (state.level.finishTime && state.level.replay.mode === 'record')) return;
 
 		this.paused = true;
+		this.pausedAt = Date.now();
 		document.exitPointerLock?.();
 		releaseAllButtons(); // Safety measure to prevent keys from getting stuck
 		state.menu.pauseScreen.show();
@@ -1593,6 +1613,11 @@ export class Level extends Scheduler {
 		state.menu.pauseScreen.hide();
 		this.lastPhysicsTick = performance.now();
 		maybeShowTouchControls();
+
+		if (this.pausedAt !== null) {
+			this.analytics.timePaused += Date.now() - this.pausedAt;
+			this.pausedAt = null;
+		}
 	}
 
 	/** Ends the level irreversibly. */
@@ -1633,6 +1658,19 @@ export class Level extends Scheduler {
 		state.menu.show();
 
 		document.exitPointerLock?.();
+
+		if (this.replay.mode !== 'playback') {
+			// Send some analytics to the server
+			if (this.pausedAt !== null) this.analytics.timePaused += Date.now() - this.pausedAt;
+			this.analytics.endTime = Date.now();
+			ResourceManager.retryFetch('/api/statistics', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'text/plain'
+				},
+				body: btoa(JSON.stringify(this.analytics))
+			});
+		}
 	}
 
 	/** Returns how much percent the level has finished loading. */
