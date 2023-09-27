@@ -174,9 +174,15 @@ export abstract class StorageManager {
 	static data: StorageData;
 	static idbDatabaseLoading: Promise<void>;
 	static idbDatabase: IDBDatabase;
+	static hadOldDatabase = false;
 
 	static async init() {
 		// Setup the IndexedDB
+		let allDatabases = await indexedDB.databases();
+		if (allDatabases.find(x => x.name === 'mb-database')) {
+			this.hadOldDatabase = true;
+		}
+
 		this.idbDatabaseLoading = new Promise((resolve) => {
 			let request = indexedDB.open("mbw", 3);
 			request.onsuccess = (e) => {

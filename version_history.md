@@ -1,5 +1,18 @@
 # Version History
 
+## 2.6.0
+On September 20, the datacenter that Marble Blast Web ran on experienced a catastrophic failure resulting in the loss of all data. This site now runs on a new, much more reliable machine. It does, however, mean that all leaderboard data is gone. For this, I can't apologize enough. But it's time to move on; time for a fresh start.
+
+With this update, the leaderboards are empty again and so are all local scores. For a long time, the leaderboards have been plagued by inconsistencies caused by physics differences in older versions. This time around, let's get it right.
+
+In addition to the game being up again, I've refreshed the game with some new goodies:
+
+- **Full [Marbleland](https://marbleland.vaniverse.io/) integration.** Custom levels on this site are now automatically kept up-to-date with those on Marbleland, meaning new levels will automatically appear every few days.
+- **Level select sorting.** To better navigate the influx of new levels, you can now sort levels both alphabetically and by their release date.
+- **Tracking more stuff.** The server now keeps a record of everybody's level finishes ever, not just their top score, which will allow for some very powerful data analysis.
+
+I'm confident the game will be just as fun as before, even if the leaderboards will feel a little empty for a while. Let's get grinding!
+
 ## 2.5.9
 - Fixed custom level record submission
 
