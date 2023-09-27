@@ -1,8 +1,6 @@
 import * as http from 'http';
 import { promisify } from 'util';
 import * as zlib from 'zlib';
-import * as fs from 'fs-extra';
-import * as path from 'path';
 import * as url from 'url';
 import fetch from 'node-fetch';
 
@@ -83,12 +81,10 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 			if (shared.config.discordWebhookUrl) {
 				// Broadcast a world record message to the webhook URL
 				let allowed = true;
-				/*
 				if (missionPath.includes('custom/')) {
 					let scoreCount: number = shared.getMissionScoreCount.pluck().get(missionPath);
 					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) allowed = false; // Not enough scores yet, don't broadcast
 				}
-				*/
 
 				if (allowed) broadcastToWebhook(missionPath, score, oldTopScore);
 			}
@@ -211,9 +207,7 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 			username: 'Nardo Polo'
 		};
 
-		// Check if a .wrec for this mission exists
-		let wrecPath = path.join(__dirname, 'storage', 'wrecs', missionPath.replace(/\//g, '_') + '.wrec');
-		let wrecExists = await fs.pathExists(wrecPath);
+		let wrecExists = true; // We've improved :)
 
 		// Add row
 		output += `${shared.levelNameMap[missionPath]},${topScore.time},${topScore.username.slice(0, 16)},${wrecExists? 'Yes' : 'No'}\n`;

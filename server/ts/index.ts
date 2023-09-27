@@ -127,9 +127,6 @@ const backupStuff = () => {
 	db.backup(path.join(__dirname, 'storage', 'backups', fileName))
 		.then(() => console.log(`Successfully created database backup file ${fileName}.`))
 		.catch((err) => console.error("Backup failed: ", err));
-
-	// To be safe, back up wrecs too. Really, these should be in the SQLite database.
-	fs.copy(path.join(__dirname, 'storage', 'wrecs'), path.join(__dirname, 'storage', 'backups', `wrecs_${yyyymmdd}`));
 };
 
 /** Starts the HTTP server. */
@@ -202,7 +199,6 @@ const init = () => {
 
 	// Ensure certain directories and files exist
 	fs.ensureDirSync(path.join(__dirname, 'storage'));
-	fs.ensureDirSync(path.join(__dirname, 'storage', 'wrecs'));
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'customs'));
 	fs.ensureDirSync(path.join(__dirname, 'storage', 'backups'));
 	fs.ensureFileSync(path.join(__dirname, 'storage', 'logs', 'user_errors.log'));
