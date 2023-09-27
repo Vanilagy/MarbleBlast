@@ -24,6 +24,7 @@
 		"@types/finalhandler": "^1.1.0",
 		"@types/fs-extra": "^9.0.7",
 		"@types/jszip": "^3.4.1",
+		"@types/node": "^20.6.4",
 		"@types/node-fetch": "^2.5.8",
 		"@types/serve-static": "^1.13.9",
 		"@types/wicg-file-system-access": "^2020.9.5",
