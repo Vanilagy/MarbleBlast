@@ -177,10 +177,17 @@ export abstract class StorageManager {
 	static hadOldDatabase = false;
 
 	static async init() {
-		// Setup the IndexedDB
-		let allDatabases = await indexedDB.databases();
-		if (allDatabases.find(x => x.name === 'mb-database')) {
-			this.hadOldDatabase = true;
+		// Set up the IndexedDB
+
+		if (indexedDB.databases) {
+			let allDatabases = await indexedDB.databases();
+			if (allDatabases.find(x => x.name === 'mb-database')) {
+				this.hadOldDatabase = true;
+			}
+		} else {
+			if (Util.checkDatabaseExists('mb-database')) {
+				this.hadOldDatabase = true;
+			}
 		}
 
 		this.idbDatabaseLoading = new Promise((resolve) => {

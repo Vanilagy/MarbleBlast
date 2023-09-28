@@ -744,6 +744,28 @@ export abstract class Util {
 	static cursedRound(x: number, steps: number) {
 		return Math.floor(((steps - 1) * x - Number.EPSILON) + 1) / steps;
 	}
+
+	static async checkDatabaseExists(dbName: string): Promise<boolean> {
+		return new Promise((resolve, reject) => {
+			let existed = true;
+			const req: IDBOpenDBRequest = indexedDB.open(dbName);
+
+			req.onsuccess = function() {
+				req.result.close();
+				if (!existed)
+					indexedDB.deleteDatabase(dbName);
+				resolve(existed);
+			};
+
+			req.onerror = function() {
+				reject(new Error('Error opening database'));
+			};
+
+			req.onupgradeneeded = function() {
+				existed = false;
+			};
+		});
+	}
 }
 Util.isTouchDevice = Util.checkIsTouchDevice(); // Precompute the thing
 
