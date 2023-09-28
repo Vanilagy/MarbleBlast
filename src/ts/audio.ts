@@ -94,14 +94,17 @@ export class AudioManager {
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let audioBuffer: AudioBuffer;
 
+			console.log(fullPath, arrayBuffer);
+
 			if (path.endsWith('.ogg') && Util.isSafari()) {
 				// Safari can't deal with .ogg. Apparently Firefox can't deal with some of them either??
 				audioBuffer = await oggDecoder.decodeOggData(arrayBuffer);
 			} else if (window.AudioContext) {
 				try {
-					// Temporary fix: Firefox 118 fails to decode OGG and zeroes out the input ArrayBuffer while doing so.
-					let bufferToUse = Util.isFirefox() ? arrayBuffer.slice(0, arrayBuffer.byteLength) : arrayBuffer;
-					audioBuffer = await this.context.decodeAudioData(bufferToUse);
+					// Since decoding an ArrayBuffer detaches it, but we might need it later in this function, we need
+					// to clone the buffer here.
+					let clonedBuffer = arrayBuffer.slice(0, arrayBuffer.byteLength);
+					audioBuffer = await this.context.decodeAudioData(clonedBuffer);
 				} catch (e) {
 					// Firefox should hit this case sometimes
 					audioBuffer = await oggDecoder.decodeOggData(arrayBuffer);
