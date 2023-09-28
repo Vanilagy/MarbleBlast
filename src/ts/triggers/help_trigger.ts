@@ -6,7 +6,7 @@ export class HelpTrigger extends Trigger {
 	sounds = ['infotutorial.wav'];
 
 	onMarbleEnter() {
-		state.menu.hud.displayHelp(this.element.text, true);
+		if (this.element.text) state.menu.hud.displayHelp(this.element.text, true);
 		this.level.replay.recordMarbleEnter(this);
 	}
 }
