@@ -99,7 +99,9 @@ export class AudioManager {
 				audioBuffer = await oggDecoder.decodeOggData(arrayBuffer);
 			} else if (window.AudioContext) {
 				try {
-					audioBuffer = await this.context.decodeAudioData(arrayBuffer);
+					// Temporary fix: Firefox 118 fails to decode OGG and zeroes out the input ArrayBuffer while doing so.
+					let bufferToUse = Util.isFirefox() ? arrayBuffer.slice(0, arrayBuffer.byteLength) : arrayBuffer;
+					audioBuffer = await this.context.decodeAudioData(bufferToUse);
 				} catch (e) {
 					// Firefox should hit this case sometimes
 					audioBuffer = await oggDecoder.decodeOggData(arrayBuffer);
