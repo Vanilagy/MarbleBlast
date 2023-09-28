@@ -517,7 +517,7 @@ export abstract class LevelSelect {
 			if (randomId !== this.lastDisplayBestTimesId || count === 0) return;
 			this.replayButtonData.set(element, score[2]);
 		} else {
-			if (rank !== 1 || this.currentMission.type === 'custom') return;
+			if (rank !== 1) return; // Every top score on the leaderboard should have a replay
 		}
 
 		element.style.display = 'block';

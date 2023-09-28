@@ -9,7 +9,7 @@ In addition to the game being up again, I've refreshed the game with some new go
 
 - **Full [Marbleland](https://marbleland.vaniverse.io/) integration.** Custom levels on this site are now automatically kept up-to-date with those on Marbleland, meaning new levels will automatically appear every few days.
 - **Level select sorting.** To better navigate the influx of new levels, you can now sort levels both alphabetically and by their release date.
-- **Tracking more stuff.** The server now keeps a record of everybody's level finishes ever, not just their top score, which will allow for some very powerful data analysis.
+- **Tracking more stuff.** The server now keeps a record of everybody's level finishes ever, not just their top score, which will allow for some very powerful data analysis. This also means that world record replays are now stored and viewable for all custom levels.
 - Other small fixes and improvements
 
 I'm confident the game will be just as fun as before, even if the leaderboards will feel a little empty for a while. Let's get grinding!
