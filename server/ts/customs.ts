@@ -28,6 +28,8 @@ export const periodicallyUpdateCustomLevelList = async () => {
 		let filteredLevels = levels.filter(level => {
 			if (!['mbg', 'mbw'].includes(level.compatibility)) return false;
 			if (!['gold', 'platinum', 'ultra'].includes(level.modification)) return false;
+			if (level.gameMode && level.gameMode !== 'null') return false;
+
 			return true;
 		});
 

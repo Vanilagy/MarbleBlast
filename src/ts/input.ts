@@ -208,7 +208,7 @@ export const previousButtonState = [false, false, false, false, false, false, fa
 
 /** Update the input from the gamepad, if it is connected. */
 const updateGamepadInput = () => {
-	let gamepads = [...navigator.getGamepads()].filter(x => x);
+	let gamepads = 'getGamepads' in navigator ? [...navigator.getGamepads()].filter(x => x) : [];
 	if (gamepads.length === 0) {
 		// No gamepad active
 		for (let key in gamepadAxes) gamepadAxes[key as keyof typeof gamepadAxes] = 0.0;
