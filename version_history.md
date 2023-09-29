@@ -1,5 +1,8 @@
 # Version History
 
+## 2.6.1
+- Fixed local scores vanishing on reload
+
 ## 2.6.0
 On September 20, the datacenter that Marble Blast Web ran on experienced a catastrophic failure resulting in the loss of all data. This site now runs on a new, much more reliable machine. It does, however, mean that all leaderboard data is gone. For this, I can't apologize enough. But it's time to move on; time for a fresh start.
 

@@ -152,12 +152,14 @@ export abstract class Leaderboard {
 		let submissionQueue = StorageManager.data.bestTimeSubmissionQueue;
 
 		for (let missionPath of changedMissions) {
-			let onlineScore = this.scores.get(missionPath)?.[0];
+			let onlineScores = this.scores.get(missionPath);
 			let localScore = StorageManager.data.bestTimes[missionPath]?.[0];
 
-			if (!localScore || submissionQueue.some(x => x.missionPath === missionPath)) {
+			if (!onlineScores || !localScore || submissionQueue.some(x => x.missionPath === missionPath)) {
 				continue;
 			}
+
+			let onlineScore = onlineScores[0];
 
 			// Splice all submitted local scores that are faster than the current WR for that level. We do this because the existence of those scores makes no sense (they can happen when the leaderboard is purged server-side)
 			while (localScore && (!onlineScore || localScore[1] < Number(onlineScore[1]))) {
