@@ -50,11 +50,14 @@ export class MbgFinishScreen extends FinishScreen {
 	showMessage(type: 'failed' | 'qualified' | 'gold' | 'ultimate') {
 		this.message.style.color = '';
 
-		if (type === 'gold') {
+		if (type === 'ultimate') {
+			// This message doesn't really exist in MBG, but can't hurt to add it here for completeness.
+			this.message.innerHTML = 'You beat the <span style="color: #fff700;">ULTIMATE</span> time!';
+		} else if (type === 'gold') {
 			this.message.innerHTML = 'You beat the <span style="color: #fff700;">GOLD</span> time!';
 		} else if (type === 'qualified') {
 			this.message.innerHTML = "You've qualified!";
-		} else {
+		} else if (type === 'failed') {
 			this.message.innerHTML = "You failed to qualify!";
 			this.message.style.color = 'red';
 		}

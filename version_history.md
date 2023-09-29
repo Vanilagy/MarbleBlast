@@ -1,6 +1,9 @@
 # Version History
 
 ## 2.6.1
+- Fixed a few minor bugs
+
+## 2.6.1
 - Fixed local scores vanishing on reload
 
 ## 2.6.0

@@ -13,7 +13,7 @@ export const getCustomLevelList = async (res: http.ServerResponse) => {
 	let stringified = JSON.stringify(shared.customLevelList);
 
 	res.writeHead(200, {
-		'Content-Type': 'application/zip',
+		'Content-Type': 'application/json',
 		'Content-Length': Buffer.byteLength(stringified),
 		'Access-Control-Allow-Origin': '*'
 	});

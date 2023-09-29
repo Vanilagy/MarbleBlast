@@ -94,8 +94,6 @@ export class AudioManager {
 			let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 			let audioBuffer: AudioBuffer;
 
-			console.log(fullPath, arrayBuffer);
-
 			if (path.endsWith('.ogg') && Util.isSafari()) {
 				// Safari can't deal with .ogg. Apparently Firefox can't deal with some of them either??
 				audioBuffer = await oggDecoder.decodeOggData(arrayBuffer);
