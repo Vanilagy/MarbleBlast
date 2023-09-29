@@ -92,14 +92,13 @@ const setupDb = () => {
 		SELECT s1.mission, s1.time, s1.username
 		FROM score s1
 		WHERE timestamp > ?
-		AND (
-			s1.time = (
+		AND s1.time = min(
+			(
 				SELECT MIN(s2.time)
 				FROM score s2
 				WHERE s2.mission = s1.mission AND s2.username = s1.username
-			)
-			OR
-			s1.time = (
+			),
+			(
 				SELECT MIN(s2.time)
 				FROM score s2
 				WHERE s2.mission = s1.mission AND s2.user_random_id = s1.user_random_id
