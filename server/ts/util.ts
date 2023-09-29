@@ -7,6 +7,7 @@ export const escapeDiscord = (message: string) => {
 	message = message.replace(/-/g, "\\-");
 	message = message.replace(/`/g, "\\`");
 	message = message.replace(/:/g, "\\:");
+	message = message.replace(/#/g, "\\#");
 
 	// To prevent people from @everyone and causing a problem
 	message = message.replace(/@/g, "@﻿");

@@ -1,6 +1,6 @@
 # Version History
 
-## 2.6.1
+## 2.6.2
 - Fixed a few minor bugs
 
 ## 2.6.1
