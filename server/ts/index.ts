@@ -52,7 +52,7 @@ const setupDb = () => {
 	// Prepare the statements now for later use
 
 	shared.getLeaderboardForMissionStatement = db.prepare(`
-		SELECT s1.username, s1.time
+		SELECT s1.username, MIN(s1.time)
 		FROM score s1
 		WHERE mission = ?
 		AND s1.time = min(
@@ -67,6 +67,7 @@ const setupDb = () => {
 				WHERE s2.mission = s1.mission AND s2.user_random_id = s1.user_random_id
 			)
 		)
+		GROUP BY s1.username
 		ORDER BY s1.time ASC;
 	`);
 	shared.insertScoreStatement = db.prepare(`
@@ -89,7 +90,7 @@ const setupDb = () => {
 	`);
 	shared.getMissionScoreCount = db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);
 	shared.getNewerTopScoresStatement = db.prepare(`
-		SELECT s1.mission, s1.time, s1.username
+		SELECT s1.mission, MIN(s1.time), s1.username
 		FROM score s1
 		WHERE timestamp > ?
 		AND s1.time = min(
@@ -103,7 +104,8 @@ const setupDb = () => {
 				FROM score s2
 				WHERE s2.mission = s1.mission AND s2.user_random_id = s1.user_random_id
 			)
-		);
+		)
+		GROUP BY s1.mission, s1.username;
 	`);
 	shared.getLatestTimestampStatement = db.prepare(`SELECT MAX(timestamp) FROM score;`);
 	shared.insertLevelStatistics = db.prepare(`
