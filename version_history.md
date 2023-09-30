@@ -1,5 +1,9 @@
 # Version History
 
+## 2.6.3
+- Fixed leaderboard bugs
+- Fixed incorrect "Next level" button in the MBP finish screen
+
 ## 2.6.2
 - Fixed a few minor bugs
 

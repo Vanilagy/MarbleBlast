@@ -82,7 +82,8 @@ export class MbpFinishScreen extends FinishScreen {
 		super.show();
 
 		let nextLevel = this.getNextLevel();
-		let mission = nextLevel.array[nextLevel.index];
+		let sortedArray = [...nextLevel.array].sort(state.menu.levelSelect.currentSortFn);
+		let mission = sortedArray[nextLevel.index];
 
 		this.nextLevelImage.src = mission.getImagePath();
 	}

@@ -190,9 +190,12 @@ export abstract class LevelSelect {
 		this.displayMission(doImageTimeout);
 	}
 
+	get currentSortFn() {
+		return this.currentSort === 'lexicographical' ? Mission.compareLexicographically : Mission.compareChronologically;
+	}
+
 	sortMissions() {
-		let fn = this.currentSort === 'lexicographical' ? Mission.compareLexicographically : Mission.compareChronologically;
-		this.sortedMissionArray = [...this.currentMissionArray].sort(fn);
+		this.sortedMissionArray = [...this.currentMissionArray].sort(this.currentSortFn);
 	}
 
 	getDefaultMissionIndex() {
