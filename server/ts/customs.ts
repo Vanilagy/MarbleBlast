@@ -29,22 +29,10 @@ export const periodicallyUpdateCustomLevelList = async () => {
 			if (!['mbg', 'mbw'].includes(level.compatibility)) return false;
 			if (!['gold', 'platinum', 'ultra'].includes(level.modification)) return false;
 			if (level.gameMode && level.gameMode !== 'null') return false;
+			if (level.gameType !== 'single') return false;
 
 			return true;
 		});
-
-		// Remove duplicate levels in each category
-		let seenLevelIdentifiers = new Set<string>();
-		for (let i = 0; i < filteredLevels.length; i++) {
-			let level = filteredLevels[i];
-			let identifier = level.name + ' - ' + level.desc + ' - ' + level.modification; // Assume this is what makes a level unique
-
-			if (seenLevelIdentifiers.has(identifier)) {
-				filteredLevels.splice(i--, 1);
-			} else {
-				seenLevelIdentifiers.add(identifier);
-			}
-		}
 
 		shared.customLevelList = filteredLevels;
 		await writeFileAtomic(shared.customLevelListPath, JSON.stringify(filteredLevels));
