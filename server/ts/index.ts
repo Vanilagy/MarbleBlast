@@ -52,7 +52,7 @@ const setupDb = () => {
 	// Prepare the statements now for later use
 
 	shared.getLeaderboardForMissionStatement = db.prepare(`
-		SELECT s1.username, MIN(s1.time)
+		SELECT s1.username, MIN(s1.time) as time
 		FROM score s1
 		WHERE mission = ?
 		AND s1.time = min(
@@ -90,7 +90,7 @@ const setupDb = () => {
 	`);
 	shared.getMissionScoreCount = db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);
 	shared.getNewerTopScoresStatement = db.prepare(`
-		SELECT s1.mission, MIN(s1.time), s1.username
+		SELECT s1.mission, MIN(s1.time) as time, s1.username
 		FROM score s1
 		WHERE timestamp > ?
 		AND s1.time = min(
