@@ -32,7 +32,7 @@ interface CustomLevelInfo {
 	lovedCount: number,
 
 	hasCustomCode: boolean,
-	compatibility: 'mbg' | 'mbw' | 'pq'
+	datablockCompatibility: 'mbg' | 'mbw' | 'pq'
 }
 
 export const shared: {

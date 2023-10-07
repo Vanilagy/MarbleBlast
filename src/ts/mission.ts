@@ -37,7 +37,7 @@ export interface CustomLevelInfo {
 	lovedCount: number,
 
 	hasCustomCode: boolean,
-	compatibility: 'mbg' | 'mbw' | 'pq'
+	datablockCompatibility: 'mbg' | 'mbw' | 'pq'
 }
 
 /** Represents a playable mission. Contains all the necessary metadata, as well as methods for loading the mission and gettings its resources. */

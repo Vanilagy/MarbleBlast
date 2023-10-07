@@ -26,7 +26,7 @@ export const periodicallyUpdateCustomLevelList = async () => {
 		let levels = await response.json() as CustomLevelInfo[];
 
 		let filteredLevels = levels.filter(level => {
-			if (!['mbg', 'mbw'].includes(level.compatibility)) return false;
+			if (!['mbg', 'mbw'].includes(level.datablockCompatibility)) return false;
 			if (!['gold', 'platinum', 'ultra'].includes(level.modification)) return false;
 			if (level.gameMode && level.gameMode !== 'null') return false;
 			if (level.gameType !== 'single') return false;
