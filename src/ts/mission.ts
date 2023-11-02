@@ -376,7 +376,7 @@ export class Mission {
 		if (this.zipDirectory && this.zipDirectory.files[base + path]) {
 			let blob = await this.getBlobForFile(base + path);
 			let url = ResourceManager.getUrlToBlob(blob);
-			return await ResourceManager.loadImage(url);
+			return await ResourceManager.loadImage(url, base + path);
 		} else {
 			return await ResourceManager.loadImage('./assets/' + base + path);
 		}

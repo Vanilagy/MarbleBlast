@@ -1,3 +1,4 @@
+import { DdsParser } from "./parsing/dds_parser";
 import { Texture } from "./rendering/texture";
 import { state } from "./state";
 import { mainRenderer } from "./ui/misc";
@@ -147,11 +148,25 @@ export abstract class ResourceManager {
 	}
 
 	/** Preloads an image at a given path. */
-	static loadImage(path: string) {
+	static loadImage(path: string, originalPath = path) {
 		if (this.loadedImages.get(path)) return Promise.resolve(this.loadedImages.get(path));
 		if (this.loadImagePromises.get(path)) return this.loadImagePromises.get(path);
 
-		let promise = new Promise<HTMLImageElement>((resolve, reject) => {
+		let promise = new Promise<HTMLImageElement>(async (resolve, reject) => {
+			if (originalPath.toLowerCase().endsWith('.dds')) {
+				// DDS images can't be loaded normally, so let's do it ourselves:
+
+				let arrayBuffer = await this.readBlobAsArrayBuffer(await this.loadResource(path));
+				try {
+					let image = await DdsParser.toImage(arrayBuffer);
+					resolve(image);
+				} catch (e) {
+					reject(e);
+				}
+
+				return;
+			}
+
 			let image = new Image();
 			image.src = path;
 
