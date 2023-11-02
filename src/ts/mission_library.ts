@@ -144,21 +144,21 @@ export abstract class MissionLibrary {
 		this.platinumCustom.sort(Mission.compareLexicographically);
 		this.ultraCustom.sort(Mission.compareLexicographically);
 
-		for (let i = 0; i < this.goldBeginner.length; i++) this.goldBeginner[i].initSearchString(i);
-		for (let i = 0; i < this.goldIntermediate.length; i++) this.goldIntermediate[i].initSearchString(i);
-		for (let i = 0; i < this.goldAdvanced.length; i++) this.goldAdvanced[i].initSearchString(i);
-		for (let i = 0; i < this.goldCustom.length; i++) this.goldCustom[i].initSearchString(i);
+		for (let i = 0; i < this.goldBeginner.length; i++) this.goldBeginner[i].initSearchString();
+		for (let i = 0; i < this.goldIntermediate.length; i++) this.goldIntermediate[i].initSearchString();
+		for (let i = 0; i < this.goldAdvanced.length; i++) this.goldAdvanced[i].initSearchString();
+		for (let i = 0; i < this.goldCustom.length; i++) this.goldCustom[i].initSearchString();
 
-		for (let i = 0; i < this.platinumBeginner.length; i++) this.platinumBeginner[i].initSearchString(i);
-		for (let i = 0; i < this.platinumIntermediate.length; i++) this.platinumIntermediate[i].initSearchString(i);
-		for (let i = 0; i < this.platinumAdvanced.length; i++) this.platinumAdvanced[i].initSearchString(i);
-		for (let i = 0; i < this.platinumExpert.length; i++) this.platinumExpert[i].initSearchString(i);
-		for (let i = 0; i < this.platinumCustom.length; i++) this.platinumCustom[i].initSearchString(i);
+		for (let i = 0; i < this.platinumBeginner.length; i++) this.platinumBeginner[i].initSearchString();
+		for (let i = 0; i < this.platinumIntermediate.length; i++) this.platinumIntermediate[i].initSearchString();
+		for (let i = 0; i < this.platinumAdvanced.length; i++) this.platinumAdvanced[i].initSearchString();
+		for (let i = 0; i < this.platinumExpert.length; i++) this.platinumExpert[i].initSearchString();
+		for (let i = 0; i < this.platinumCustom.length; i++) this.platinumCustom[i].initSearchString();
 
-		for (let i = 0; i < this.ultraBeginner.length; i++) this.ultraBeginner[i].initSearchString(i);
-		for (let i = 0; i < this.ultraIntermediate.length; i++) this.ultraIntermediate[i].initSearchString(i);
-		for (let i = 0; i < this.ultraAdvanced.length; i++) this.ultraAdvanced[i].initSearchString(i);
-		for (let i = 0; i < this.ultraCustom.length; i++) this.ultraCustom[i].initSearchString(i);
+		for (let i = 0; i < this.ultraBeginner.length; i++) this.ultraBeginner[i].initSearchString();
+		for (let i = 0; i < this.ultraIntermediate.length; i++) this.ultraIntermediate[i].initSearchString();
+		for (let i = 0; i < this.ultraAdvanced.length; i++) this.ultraAdvanced[i].initSearchString();
+		for (let i = 0; i < this.ultraCustom.length; i++) this.ultraCustom[i].initSearchString();
 
 		this.allCategories.push(
 			this.goldBeginner,

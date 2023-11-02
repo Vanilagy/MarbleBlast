@@ -1,5 +1,10 @@
 # Version History
 
+## 2.6.4
+- Fixed some levels being stuck on load
+- Fixed some levels missing a skybox
+- Small performance improvements and fixes
+
 ## 2.6.3
 - Fixed leaderboard bugs
 - Fixed incorrect "Next level" button in the MBP finish screen

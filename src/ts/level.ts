@@ -434,31 +434,45 @@ export class Level extends Scheduler {
 		this.envMap = envmapCubeTexture;
 	}
 
-	async createSkyboxCubeTexture(dmlPath: string, increaseLoading: boolean, downsampleTo?: number) {
+	async createSkyboxCubeTexture(dmlPath: string, increaseLoading: boolean, resampleTo?: number) {
 		let dmlDirectoryPath = dmlPath.slice(0, dmlPath.lastIndexOf('/'));
 		let dmlFile = await this.mission.getResource(dmlPath);
 		if (dmlFile) {
 			// Get all skybox images
 			let lines = (await ResourceManager.readBlobAsText(dmlFile)).split('\n').map(x => x.trim().toLowerCase());
-			let skyboxImages: HTMLImageElement[] = [];
 
-			for (let i = 0; i < 6; i++) {
-				let line = lines[i];
+			let promises = lines.slice(0, 6).map(async (line) => {
 				let filename = this.mission.getFullNamesOf(dmlDirectoryPath + '/' + line)[0];
+				let result: HTMLImageElement;
 
 				if (!filename) {
-					skyboxImages.push(new Image());
+					result = new Image();
 				} else {
-					let image = await this.mission.getImage(dmlDirectoryPath + '/' + filename);
-					skyboxImages.push(image);
+					try {
+						result = await this.mission.getImage(dmlDirectoryPath + '/' + filename);
+					} catch (e) {
+						console.error("Error loading skybox image:", e, "Defaulting to empty image.");
+						result = new Image();
+					}
 				}
 
 				if (increaseLoading) this.loadingState.loaded++;
-			}
+				return result;
+			});
+			let skyboxImages = await Promise.all(promises);
 
 			// Reorder them to the proper order
 			skyboxImages = Util.remapIndices(skyboxImages, [1, 3, 4, 5, 0, 2]);
-			if (downsampleTo) skyboxImages = await Promise.all(skyboxImages.map(x => Util.downsampleImage(x, downsampleTo, downsampleTo)));
+			if (resampleTo !== undefined) {
+				skyboxImages = await Promise.all(skyboxImages.map(x => Util.resampleImage(x, resampleTo, resampleTo)));
+			}
+
+			let sizes = skyboxImages.flatMap(x => [x.width, x.height]);
+			if (new Set(sizes).size > 1) {
+				// Skybox images have different sizes: Let's bring them in line.
+				let maxSize = Math.max(...sizes);
+				skyboxImages = await Promise.all(skyboxImages.map(x => Util.resampleImage(x, maxSize, maxSize)));
+			}
 
 			let skyboxTexture = new CubeTexture(mainRenderer, skyboxImages);
 			return skyboxTexture;

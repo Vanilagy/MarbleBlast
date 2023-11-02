@@ -151,7 +151,7 @@ export abstract class ResourceManager {
 		if (this.loadedImages.get(path)) return Promise.resolve(this.loadedImages.get(path));
 		if (this.loadImagePromises.get(path)) return this.loadImagePromises.get(path);
 
-		let promise = new Promise<HTMLImageElement>((resolve) => {
+		let promise = new Promise<HTMLImageElement>((resolve, reject) => {
 			let image = new Image();
 			image.src = path;
 
@@ -162,6 +162,10 @@ export abstract class ResourceManager {
 				resolve(image);
 
 				image.onload = null; // GC requires me to do this
+			};
+
+			image.onerror = (e) => {
+				reject(e);
 			};
 		});
 		this.loadImagePromises.set(path, promise);

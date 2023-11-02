@@ -61,7 +61,6 @@ export const shared: {
 	insertScoreStatement: Database.Statement,
 	getTopScoreStatement: Database.Statement,
 	getTopScoreWrecStatement: Database.Statement,
-	getMissionScoreCount: Database.Statement,
 	getNewerTopScoresStatement: Database.Statement,
 	getLatestTimestampStatement: Database.Statement,
 	insertLevelStatistics: Database.Statement

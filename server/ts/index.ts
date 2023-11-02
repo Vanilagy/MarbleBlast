@@ -88,7 +88,6 @@ const setupDb = () => {
 		ORDER BY time ASC, timestamp ASC
 		LIMIT 1;
 	`);
-	shared.getMissionScoreCount = db.prepare(`SELECT COUNT(*) FROM score WHERE mission=?;`);
 	shared.getNewerTopScoresStatement = db.prepare(`
 		SELECT s1.mission, MIN(s1.time) as time, s1.username
 		FROM score s1

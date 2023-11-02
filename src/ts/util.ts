@@ -66,7 +66,7 @@ export abstract class Util {
 		return canvas;
 	}
 
-	static async downsampleImage(image: HTMLImageElement, newWidth: number, newHeight: number) {
+	static async resampleImage(image: HTMLImageElement, newWidth: number, newHeight: number) {
 		let canvas = document.createElement('canvas');
 		canvas.setAttribute('width', newWidth.toString());
 		canvas.setAttribute('height', newHeight.toString());

@@ -137,9 +137,9 @@ export class Mission {
 		traverse(this.root);
 	}
 
-	initSearchString(index: number) {
+	initSearchString() {
 		// Just the title and artist for now
-		this.searchString = Util.removeSpecialCharacters(Util.normalizeString(this.title + ' ' + this.artist + ' ' + (index + 1))).toLowerCase().trim();
+		this.searchString = Util.removeSpecialCharacters(Util.normalizeString(this.title + ' ' + this.artist)).toLowerCase().trim();
 	}
 
 	/** Loads this mission for gameplay. */

@@ -82,8 +82,10 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 				// Broadcast a world record message to the webhook URL
 				let allowed = true;
 				if (missionPath.includes('custom/')) {
-					let scoreCount: number = shared.getMissionScoreCount.pluck().get(missionPath);
-					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) allowed = false; // Not enough scores yet, don't broadcast
+					let scoreCount = shared.getLeaderboardForMissionStatement.all(missionPath).length;
+					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) {
+						allowed = false; // Not enough scores yet, don't broadcast
+					}
 				}
 
 				if (allowed) broadcastToWebhook(missionPath, score, oldTopScore);
