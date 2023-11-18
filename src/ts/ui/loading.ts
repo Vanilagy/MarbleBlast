@@ -38,7 +38,7 @@ export abstract class LoadingScreen {
 		this.div.classList.add('hidden');
 	}
 
-	async loadLevel(mission: Mission, getReplay?: () => Replay) {
+	async loadLevel(mission: Mission, getReplay?: () => Promise<Replay>) {
 		this.show();
 		let indexAtStart = this.loadingIndex; // Remember the index at the start. If it changes later, that means that loading was cancelled.
 
@@ -49,6 +49,9 @@ export abstract class LoadingScreen {
 		await Util.wait(50);
 
 		try {
+			// Fire off replay fetching right at the start
+			let replayPromise = getReplay ? getReplay() : Promise.resolve();
+
 			await mission.load();
 
 			if (this.loadingIndex !== indexAtStart) return;
@@ -63,9 +66,8 @@ export abstract class LoadingScreen {
 			state.level = level;
 			await level.init();
 
-			if (getReplay) {
-				let replay = getReplay();
-				// Load the replay
+			let replay = await replayPromise;
+			if (replay) {
 				level.replay = replay;
 				replay.level = level;
 				replay.mode = 'playback';

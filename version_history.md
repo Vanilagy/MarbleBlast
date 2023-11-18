@@ -1,5 +1,9 @@
 # Version History
 
+## 2.6.5
+- Improved replay loading
+- Improved WR announcement messages
+
 ## 2.6.4
 - Fixed some levels being stuck on load
 - Fixed some levels missing a skybox

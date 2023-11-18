@@ -249,11 +249,15 @@ export abstract class LevelSelect {
 	/** Sets the metadata elements for the case that there is no level to display. */
 	abstract displayEmptyMetadata(): void;
 
-	playCurrentMission(replayData?: ArrayBuffer) {
+	playCurrentMission(getReplayData?: Promise<ArrayBuffer>) {
 		if (!this.currentMission) return;
 
 		this.div.classList.add('hidden');
-		this.menu.loadingScreen.loadLevel(this.currentMission, replayData? () => Replay.fromSerialized(replayData) : undefined); // Initiate level loading
+		// Initiate level loading
+		this.menu.loadingScreen.loadLevel(
+			this.currentMission,
+			getReplayData? async () => Replay.fromSerialized(await getReplayData) : undefined
+		);
 	}
 
 	/** Advance the current mission index by the specified count while respecting the search query. That count can be negative. */
@@ -472,15 +476,18 @@ export abstract class LevelSelect {
 			let mission = this.currentMission;
 			if (!mission) return;
 
-			let replayData = await getReplayData(this.replayButtonData.get(icon));
-			if (!replayData) return;
+			let replayDataPromise = getReplayData(this.replayButtonData.get(icon));
 
 			if (action === 'watch') {
-				this.playCurrentMission(replayData);
+				this.playCurrentMission(replayDataPromise);
 			} else if (action === 'download') {
+				let replayData = await replayDataPromise;
+				if (!replayData) return;
 				Replay.download(replayData, mission);
 				if (Util.isTouchDevice && Util.isInFullscreen()) this.menu.showAlertPopup('Downloaded', 'The .wrec has been downloaded.');
 			} else {
+				let replayData = await replayDataPromise;
+				if (!replayData) return;
 				let replay = Replay.fromSerialized(replayData);
 				VideoRenderer.showForSingleReplay(this.currentMission, replay);
 			}
@@ -632,7 +639,7 @@ export abstract class LevelSelect {
 					VideoRenderer.showForSingleReplay(mission, replay);
 				} else {
 					this.div.classList.add('hidden');
-					this.menu.loadingScreen.loadLevel(mission, () => replay);
+					this.menu.loadingScreen.loadLevel(mission, async () => replay);
 				}
 			} catch (e) {
 				state.menu.showAlertPopup('Error', "There was an error loading the replay.");

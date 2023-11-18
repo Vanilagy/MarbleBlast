@@ -88,7 +88,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 					}
 				}
 
-				if (allowed) broadcastToWebhook(missionPath, score, oldTopScore);
+				if (allowed) broadcastToWebhook(missionPath, score, data.randomId, oldTopScore);
 			}
 		}
 	}
@@ -99,7 +99,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 };
 
 /** Broadcasts a new #1 score to a Discord webhook as a world record message. */
-const broadcastToWebhook = (missionPath: string, score: [string, number], previousRecord?: ScoreRow) => {
+const broadcastToWebhook = (missionPath: string, score: [string, number], userRandomId: string, previousRecord?: ScoreRow) => {
 	let missionName = escapeDiscord(getMissionNameFromMissionPath(missionPath)).trim();
 	let timeString = secondsToTimeString(score[1] / 1000);
 	let modification = missionPath.startsWith('mbp')? 'platinum': missionPath.startsWith('mbu')? 'ultra' : 'gold';
@@ -129,7 +129,14 @@ const broadcastToWebhook = (missionPath: string, score: [string, number], previo
 
 		let relativeDiffString = (((1 -  score[1] / previousRecord.time) || 0) * 100).toPrecision(3) + '%'; // Make sure to catch NaN just in case
 
-		message += ` _(-${diffString} | -${relativeDiffString})_`;
+		let isSamePlayer = previousRecord.username === score[0] || userRandomId === previousRecord.user_random_id;
+		if (isSamePlayer) {
+			message += `, improving their own record by `;
+		} else {
+			message += `, beating **${escapeDiscord(previousRecord.username)}** by `;
+		}
+
+		message += `_${diffString} (${relativeDiffString})_`;
 	}
 
 	fetch(shared.config.discordWebhookUrl, {
