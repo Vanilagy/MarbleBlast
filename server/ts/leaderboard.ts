@@ -13,7 +13,8 @@ interface ScoreRow {
 	time?: number,
 	username?: string,
 	user_random_id?: string,
-	timestamp?: number
+	timestamp?: number,
+	has_wrec?: number
 }
 
 /** Transmits all the scores for the missions specified in the body payload. */
@@ -24,11 +25,11 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 		missions: string[]
 	} = JSON.parse(body);
 
-	let response: Record<string, [string, number][]> = {};
+	let response: Record<string, [string, number, boolean][]> = {};
 
 	for (let mission of options.missions) {
 		let rows: ScoreRow[] = shared.getLeaderboardForMissionStatement.all(mission);
-		response[mission] = rows.map(x => [x.username.slice(0, 16), x.time]);
+		response[mission] = rows.map(x => [x.username.slice(0, 16), x.time, !!x.has_wrec]);
 	}
 
 	let stringified = JSON.stringify(response);
@@ -163,14 +164,14 @@ const getMissionNameFromMissionPath = (missionPath: string) => {
 
 /** Transmits a score delta, so all new scores since a given timestamp. */
 const sendNewScores = (res: http.ServerResponse, timestamp: number) => {
-	let result: Record<string, [string, number][]> = {};
+	let result: Record<string, [string, number, boolean][]> = {};
 
 	if (timestamp || timestamp === 0) {
 		// Send all new scores since that that last timestamp; let the client insert them at the right spot
 		let newScores: ScoreRow[] = shared.getNewerTopScoresStatement.all(timestamp);
 		for (let score of newScores) {
 			if (!result[score.mission]) result[score.mission] = [];
-			result[score.mission].push([score.username.slice(0, 16), score.time]);
+			result[score.mission].push([score.username.slice(0, 16), score.time, !!score.has_wrec]);
 		}
 	}
 

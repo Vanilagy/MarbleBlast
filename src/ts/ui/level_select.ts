@@ -451,7 +451,7 @@ export abstract class LevelSelect {
 		for (let i = 0; i < this.localScoresCount; i++) {
 			let element = this.localBestTimesContainer.children[i] as HTMLDivElement;
 			this.updateScoreElement(this.localBestTimesContainer.children[i] as HTMLDivElement, bestTimes[i], i+1);
-			this.updateReplayButton(this.getReplayButtonForScoreElement(element), bestTimes[i], i+1, true);
+			this.updateReplayButton(this.getReplayButtonForScoreElement(element), bestTimes[i], i+1, true, false);
 		}
 
 		if (!this.currentMission) {
@@ -514,7 +514,7 @@ export abstract class LevelSelect {
 		return icon;
 	}
 
-	async updateReplayButton(element: HTMLImageElement, score: BestTimes[number], rank: number, isLocal: boolean) {
+	async updateReplayButton(element: HTMLImageElement, score: BestTimes[number], rank: number, isLocal: boolean, hasRemoteReplay: boolean) {
 		element.style.display = 'none';
 		this.replayButtonData.delete(element);
 
@@ -527,7 +527,7 @@ export abstract class LevelSelect {
 			if (randomId !== this.lastDisplayBestTimesId || count === 0) return;
 			this.replayButtonData.set(element, score[2]);
 		} else {
-			if (rank !== 1) return; // Every top score on the leaderboard should have a replay
+			if (!hasRemoteReplay || rank !== 1) return; // Only show the replay button for the #1 score
 		}
 
 		element.style.display = 'block';
@@ -569,7 +569,7 @@ export abstract class LevelSelect {
 				let score = onlineScores[index];
 				element.style.display = 'block';
 				this.updateScoreElement(element, score as any, index + 1);
-				this.updateReplayButton(this.getReplayButtonForScoreElement(element), score as any, index + 1, false);
+				this.updateReplayButton(this.getReplayButtonForScoreElement(element), score as any, index + 1, false, score[2]);
 			} else {
 				// Hide the element otherwise
 				element.style.display = 'none';

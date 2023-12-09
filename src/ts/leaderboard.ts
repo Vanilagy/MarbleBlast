@@ -7,7 +7,7 @@ import { executeOnWorker } from "./worker";
 /** Stores and handles operations on the online leaderboard. */
 export abstract class Leaderboard {
 	/** The scores for each mission. */
-	static scores = new Map<string, [string, number][]>();
+	static scores = new Map<string, [username: string, time: number, hasWrec: boolean][]>();
 	/** Whether a mission's scores are currently loading. */
 	static loading = new Set<string>();
 	/** The latest score timestamp received from the user. Will be used to get any scores newer than this. */
@@ -49,7 +49,7 @@ export abstract class Leaderboard {
 				missions: missionPaths
 			})
 		});
-		let data: Record<string, [string, number][]> = await ResourceManager.readBlobAsJson(blob);
+		let data: Record<string, [string, number, boolean][]> = await ResourceManager.readBlobAsJson(blob);
 
 		for (let missionPath in data) {
 			// Update the scores
@@ -120,7 +120,7 @@ export abstract class Leaderboard {
 		});
 		let data: {
 			latestTimestamp: number,
-			scores: Record<string, [string, number][]>
+			scores: Record<string, [string, number, boolean][]>
 		} = await ResourceManager.readBlobAsJson(blob);
 
 		this.latestTimestamp = data.latestTimestamp;

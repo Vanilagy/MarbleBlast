@@ -52,7 +52,7 @@ const setupDb = () => {
 	// Prepare the statements now for later use
 
 	shared.getLeaderboardForMissionStatement = db.prepare(`
-		SELECT s1.username, MIN(s1.time) as time
+		SELECT s1.username, MIN(s1.time) as time, s1.wrec IS NOT NULL as has_wrec
 		FROM score s1
 		WHERE mission = ?
 		AND s1.time = min(
@@ -89,7 +89,7 @@ const setupDb = () => {
 		LIMIT 1;
 	`);
 	shared.getNewerTopScoresStatement = db.prepare(`
-		SELECT s1.mission, MIN(s1.time) as time, s1.username
+		SELECT s1.mission, MIN(s1.time) as time, s1.username, s1.wrec IS NOT NULL as has_wrec
 		FROM score s1
 		WHERE timestamp > ?
 		AND s1.time = min(
