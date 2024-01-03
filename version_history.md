@@ -1,5 +1,9 @@
 # Version History
 
+## 2.6.6
+- Added the ability to launch Marbleland levels directly from URLs
+- Added Marbleland leaderboard integration API endpoint.
+
 ## 2.6.5
 - Improved replay loading
 - Improved WR announcement messages
