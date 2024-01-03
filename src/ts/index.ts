@@ -57,6 +57,23 @@ const init = async () => {
 		startGameDialog.style.display = 'none';
 		mainAudioManager.context.resume();
 		state.menu.show();
+
+		// Check if we are using the ?play={id} query param to launch the game directly into the specified mission
+		const urlParams = new URLSearchParams(window.location.search);
+		const playParams = urlParams.get('play');
+		if (playParams !== null) {
+			const intParam = parseInt(playParams);
+			if (Number.isInteger(intParam)) {
+				const missionToPlay = MissionLibrary.allMissions.find(x => x.id === intParam);
+				if (missionToPlay !== undefined) {
+					state.menu.home.changelogContainer.classList.add('hidden'); // No need to show version history when directly launching into the mission
+					state.menu.home.hide();
+					state.menu.levelSelect.show();
+					state.menu.levelSelect.hide();
+					state.menu.loadingScreen.loadLevel(missionToPlay, undefined);
+				}
+			}
+		}
 	};
 
 	loadingMessage.style.display = 'none';
