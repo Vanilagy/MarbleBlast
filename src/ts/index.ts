@@ -8,7 +8,6 @@ import { MissionLibrary } from './mission_library';
 import { state } from './state';
 import { setMenu } from './ui/menu_setter';
 import { initMainRenderer } from './ui/misc';
-import { Mission } from './mission';
 
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
 const loadingDetail = document.querySelector('#loading-detail') as HTMLDivElement;
@@ -99,17 +98,19 @@ window.onload = init;
 /** Launch a level from the query params */
 const maybeLaunchLevelFromQueryParams = (urlParams: URLSearchParams) => {
 	// Check if we are using the ?play={id} query param to launch the game directly into the specified mission
-	const playParams = urlParams.get('play');
-	let intParam: number;
-	let missionToPlay: Mission = undefined;
-	if (playParams !== null && Number.isInteger(intParam = parseInt(playParams))
-		&& (missionToPlay = MissionLibrary.allMissions.find(x => x.id === intParam)) !== undefined) {
-		state.menu.home.changelogContainer.classList.add('hidden'); // No need to show version history when directly launching into the mission
-		state.menu.home.hide();
-		state.menu.levelSelect.show();
-		state.menu.levelSelect.hide();
-		state.menu.loadingScreen.loadLevel(missionToPlay, undefined);
-	}
+	const playParam = urlParams.get('play');
+	if (playParam === null) return;
+	if (!Number.isInteger(parseInt(playParam))) return;
+
+	const intParam = parseInt(playParam);
+	let missionToPlay = MissionLibrary.allMissions.find(x => x.id === intParam);
+	if (missionToPlay === undefined) return;
+
+	state.menu.home.changelogContainer.classList.add('hidden'); // No need to show version history when directly launching into the mission
+	state.menu.home.hide();
+	state.menu.levelSelect.show();
+	state.menu.levelSelect.hide();
+	state.menu.loadingScreen.loadLevel(missionToPlay, undefined);
 };
 
 let errorTimeout: number = null;
