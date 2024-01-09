@@ -8,6 +8,7 @@ import { MissionLibrary } from './mission_library';
 import { state } from './state';
 import { setMenu } from './ui/menu_setter';
 import { initMainRenderer } from './ui/misc';
+import { Mission } from './mission';
 
 const loadingMessage = document.querySelector('#loading-message') as HTMLDivElement;
 const loadingDetail = document.querySelector('#loading-detail') as HTMLDivElement;
@@ -58,22 +59,7 @@ const init = async () => {
 		mainAudioManager.context.resume();
 		state.menu.show();
 
-		// Check if we are using the ?play={id} query param to launch the game directly into the specified mission
-		const urlParams = new URLSearchParams(window.location.search);
-		const playParams = urlParams.get('play');
-		if (playParams !== null) {
-			const intParam = parseInt(playParams);
-			if (Number.isInteger(intParam)) {
-				const missionToPlay = MissionLibrary.allMissions.find(x => x.id === intParam);
-				if (missionToPlay !== undefined) {
-					state.menu.home.changelogContainer.classList.add('hidden'); // No need to show version history when directly launching into the mission
-					state.menu.home.hide();
-					state.menu.levelSelect.show();
-					state.menu.levelSelect.hide();
-					state.menu.loadingScreen.loadLevel(missionToPlay, undefined);
-				}
-			}
-		}
+		maybeLaunchLevelFromQueryParams(new URLSearchParams(window.location.search));
 	};
 
 	loadingMessage.style.display = 'none';
@@ -109,6 +95,22 @@ const init = async () => {
 	});
 };
 window.onload = init;
+
+/** Launch a level from the query params */
+const maybeLaunchLevelFromQueryParams = (urlParams: URLSearchParams) => {
+	// Check if we are using the ?play={id} query param to launch the game directly into the specified mission
+	const playParams = urlParams.get('play');
+	let intParam: number;
+	let missionToPlay: Mission = undefined;
+	if (playParams !== null && Number.isInteger(intParam = parseInt(playParams))
+		&& (missionToPlay = MissionLibrary.allMissions.find(x => x.id === intParam)) !== undefined) {
+		state.menu.home.changelogContainer.classList.add('hidden'); // No need to show version history when directly launching into the mission
+		state.menu.home.hide();
+		state.menu.levelSelect.show();
+		state.menu.levelSelect.hide();
+		state.menu.loadingScreen.loadLevel(missionToPlay, undefined);
+	}
+};
 
 let errorTimeout: number = null;
 // Keep track all errors

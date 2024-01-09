@@ -41,8 +41,8 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 	res.end(stringified);
 };
 
-/** Transmits all the scores for the marbleland mission specified by the id in the correct format as expected by Marbleland leaderboards integration */
-export const getMarblelandLeaderboard = async (res: http.ServerResponse, url: url.URL) => {
+/** Transmits all the scores for the Marbleland mission specified by the ID in the correct format as expected by Marbleland leaderboards integration */
+export const getLeaderboardForMarbleland = async (res: http.ServerResponse, url: url.URL) => {
 	const missionId = url.searchParams.get('id');
 
 	if (!missionId || !Number.isInteger(parseInt(missionId))) throw new Error("Missing id.");
