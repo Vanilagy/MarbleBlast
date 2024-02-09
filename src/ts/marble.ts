@@ -156,7 +156,7 @@ export class Marble {
 
 		// Get the correct texture
 		let marbleTexture: Texture;
-		let customTextureBlob = this.level.offlineSettings?.marbleTexture ?? await StorageManager.databaseGet('keyvalue', 'marbleTexture');
+		let customTextureBlob = this.level.offlineSettings?.marbleTexture !== undefined ? this.level.offlineSettings.marbleTexture : await StorageManager.databaseGet('keyvalue', 'marbleTexture');
 		if (customTextureBlob) {
 			try {
 				let url = ResourceManager.getUrlToBlob(customTextureBlob);

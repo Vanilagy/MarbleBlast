@@ -113,7 +113,7 @@ export abstract class VideoRenderer {
 			this.updateAudioSettingsEnabledness();
 		});
 
-		let musicToSoundRatioSlider = this.div.querySelectorAll('._config-row')[8].children[1] as HTMLInputElement;
+		let musicToSoundRatioSlider = this.div.querySelectorAll('._config-row')[9].children[1] as HTMLInputElement;
 		musicToSoundRatioSlider.addEventListener('input', () => {
 			this.updateMusicToSoundRatioDisplay();
 		});
@@ -243,8 +243,17 @@ export abstract class VideoRenderer {
 				let loaded = i++ / replayCount;
 				this.compilationLoadingElement.textContent = `Loading... (${Math.floor(loaded * 100)}%)`;
 
-				let replayFile = await directoryHandle.getFileHandle(entry.filename);
-				let arrayBuffer = await (await replayFile.getFile()).arrayBuffer();
+				let arrayBuffer: ArrayBuffer;
+
+				try {
+					let replayFile = await directoryHandle.getFileHandle(entry.filename);
+					arrayBuffer = await (await replayFile.getFile()).arrayBuffer();
+				} catch {
+					state.menu.showAlertPopup('Replay file does not exist', `The file "${entry.filename}", which the manifest references, was not found.`);
+					this.hide();
+					return;
+				}
+
 				let replay = Replay.fromSerialized(arrayBuffer);
 				let mission = MissionLibrary.allMissions.find(x => x.path === replay.missionPath);
 				if (!mission) throw new Error("Mission not found.");
@@ -253,9 +262,23 @@ export abstract class VideoRenderer {
 				entry.mission = mission;
 
 				if (typeof entry.runner === 'string') {
-					let runner = entry.runner;
-					let runnerExists = this.compilation.runners.some(x => x.id === runner);
-					if (!runnerExists) throw new Error("Runner definition not found.");
+					let runnerId = entry.runner;
+					let runnerDefinition = this.compilation.runners.find(x => x.id === runnerId);
+					if (!runnerDefinition) {
+						state.menu.showAlertPopup('Runner definition not found', `Runner with ID "${entry.runner}" referenced in the manifest but not defined.`);
+						this.hide();
+						return;
+					}
+
+					if (runnerDefinition.marbleTexture) {
+						try {
+							await (await VideoRenderer.directoryHandle.getFileHandle(runnerDefinition.marbleTexture)).getFile();
+						} catch {
+							state.menu.showAlertPopup('Marble texture file not found.', `Texture file "${runnerDefinition.marbleTexture}" was referenced in the manifest but not found.`);
+							this.hide();
+							return;
+						}
+					}
 				}
 			}
 
@@ -269,7 +292,7 @@ export abstract class VideoRenderer {
 		} catch (e) {
 			console.error(e);
 			this.hide();
-			state.menu.showAlertPopup('Error', "An error occurred while loading the compilation. Your compilation manifest might be malformed.");
+			state.menu.showAlertPopup('Error', "An error occurred while loading the compilation. Your compilation manifest might be malformed - check the web console.");
 		}
 	}
 
@@ -547,6 +570,8 @@ class RenderingProcess {
 			let marbleTextureFilename = runner.marbleTexture;
 			if (marbleTextureFilename) {
 				marbleTexture = await (await VideoRenderer.directoryHandle.getFileHandle(marbleTextureFilename)).getFile();
+			} else if (marbleTextureFilename === null) {
+				marbleTexture = null;
 			}
 			reflectiveMarble = runner.reflectiveMarble;
 		}
