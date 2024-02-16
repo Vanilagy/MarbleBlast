@@ -41,6 +41,35 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 	res.end(stringified);
 };
 
+/** Transmits all the scores for the Marbleland mission specified by the ID in the correct format as expected by Marbleland leaderboards integration */
+export const getLeaderboardForMarbleland = async (res: http.ServerResponse, url: url.URL) => {
+	const missionId = url.searchParams.get('id');
+
+	if (!missionId || !Number.isInteger(parseInt(missionId))) throw new Error("Missing id.");
+
+	let mission = `custom/${missionId}`;
+
+	let rows: ScoreRow[] = shared.getLeaderboardForMissionStatement.all(mission);
+	let response = {
+		scores: rows.map((x, i) => {
+			return {
+				placement: i + 1,
+				username: x.username.slice(0, 16),
+				score: x.time,
+				score_type: 'time' // No PQ/Hunt in Webport
+			};
+		})
+	};
+
+	let stringified = JSON.stringify(response);
+	res.writeHead(200, {
+		'Content-Type': 'application/json',
+		'Content-Length': Buffer.byteLength(stringified),
+		'Cache-Control': 'no-cache, no-store' // Don't cache this
+	});
+	res.end(stringified);
+};
+
 /** Submits new scores to the leaderboard. */
 export const submitScores = async (res: http.ServerResponse, body: string) => {
 	if (!body) throw new Error("Missing body.");

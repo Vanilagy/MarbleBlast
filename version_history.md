@@ -1,5 +1,8 @@
 # Version History
 
+## 2.6.6
+- Improved integration with Marbleland
+
 ## 2.6.5
 - Improved replay loading
 - Improved WR announcement messages

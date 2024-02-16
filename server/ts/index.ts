@@ -11,7 +11,7 @@ const serveStatic = serveStatic_;
 
 import { shared } from './shared';
 import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity, registerLevelStatistics } from './misc';
-import { getLeaderboard, submitScores, getWorldRecordSheet, getWorldRecordReplay } from './leaderboard';
+import { getLeaderboard, submitScores, getWorldRecordSheet, getWorldRecordReplay, getLeaderboardForMarbleland } from './leaderboard';
 import { getCustomLevelList, getCustomLevelResource, periodicallyUpdateCustomLevelList } from './customs';
 
 let db: Database.Database = null;
@@ -150,6 +150,7 @@ const initServer = (port: number) => {
 						case 'directory_structure': await getDirectoryStructure(res); break;
 						case 'directory_structure_mbp': await getDirectoryStructure(res, true); break;
 						case 'scores': await getLeaderboard(res, body); break;
+						case 'marbleland_scores': await getLeaderboardForMarbleland(res, urlObject); break;
 						case 'submit': await submitScores(res, body); break;
 						case 'customs': await getCustomLevelList(res); break;
 						case 'custom': await getCustomLevelResource(res, urlObject); break;
