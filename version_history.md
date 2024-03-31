@@ -1,5 +1,8 @@
 # Version History
 
+## 2.6.6
+- Fixed some video renderer bugs and made configuration errors more clear
+
 ## 2.6.5
 - Improved replay loading
 - Improved WR announcement messages
