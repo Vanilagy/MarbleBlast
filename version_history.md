@@ -1,7 +1,10 @@
 # Version History
 
+## 2.6.7
+- Site can now be launched directly into MBG/MBP by appending ?mbg or ?mbp to the end of the URL
+
 ## 2.6.6
-- Improved integration with Marbleland
+- Fixed some video renderer bugs and made configuration errors more clear
 
 ## 2.6.5
 - Improved replay loading

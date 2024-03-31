@@ -24,6 +24,16 @@ const init = async () => {
 	mainAudioManager.init();
 
 	loadingDetail.textContent = 'Loading UI...';
+
+	let searchParams = new URLSearchParams(location.search);
+	if (searchParams.has('mbg')) {
+		StorageManager.data.modification = 'gold';
+		StorageManager.store();
+	} else if (searchParams.has('mbp')) {
+		StorageManager.data.modification = 'platinum';
+		StorageManager.store();
+	}
+
 	await setMenu(StorageManager.data.modification);
 
 	loadingDetail.textContent = 'Loading leaderboard...';
