@@ -963,6 +963,14 @@ export class Level extends Scheduler {
 		this.scene.prepareForRender(this.camera);
 		this.marble.renderReflection();
 		mainRenderer.render(this.scene, this.camera);
+		mainRenderer.render(this.scene, this.camera, mainRenderer.mainFramebuffer);
+		// Then:
+		mainRenderer.renderFullscreenQuad(
+			mainRenderer.mainFramebuffer.colorTexture,
+			mainRenderer.pixelateProgram,
+			[mainRenderer.mainFramebuffer.width, mainRenderer.mainFramebuffer.height],
+			3
+		);
 
 		// Update the overlay
 		for (let overlayShape of this.overlayShapes) {

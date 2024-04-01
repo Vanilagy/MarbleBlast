@@ -111,6 +111,11 @@ export class Replay {
 		volume: number,
 		showParticles: boolean
 	}[] = [];
+	airjumpTimes: {
+		tickIndex: number,
+		n: number
+	}[] = [];
+	dashTimes: number[] = [];
 	/** Which powerups were selected at random. */
 	randomPowerUpChoices = new Map<number, number[]>();
 	checkpointRespawns: number[] = [];
@@ -122,6 +127,7 @@ export class Replay {
 
 	currentJumpSoundTime = 0;
 	currentBounceTime = 0;
+	currentAirjumpTime = 0;
 
 	constructor(level?: Level) {
 		if (level) {
@@ -160,6 +166,8 @@ export class Replay {
 			this.slidingSoundGain.length = 0;
 			this.jumpSoundTimes.length = 0;
 			this.bounceTimes.length = 0;
+			this.airjumpTimes.length = 0;
+			this.dashTimes.length = 0;
 			this.randomPowerUpChoices.clear();
 			this.checkpointRespawns.length = 0;
 
@@ -383,6 +391,14 @@ export class Replay {
 				if (this.bounceTimes[j].showParticles) this.level.marble.showBounceParticles();
 			}
 		}
+		for (let j = this.currentAirjumpTime; j < this.airjumpTimes.length; j++) {
+			if (this.airjumpTimes[j].tickIndex > i) break;
+			if (this.airjumpTimes[j].tickIndex === i) this.level.marble.doAirjump(this.airjumpTimes[j].n);
+		}
+		for (let j = 0; j < this.dashTimes.length; j++) {
+			if (this.dashTimes[j] > i) break;
+			if (this.dashTimes[j] === i) this.level.marble.doDashEffect();
+		}
 		this.level.marble.rollingSound.gain.gain.setValueAtTime(this.rollingSoundGain[i], this.level.audio.currentTime);
 		this.level.marble.rollingMegaMarbleSound?.gain.gain.setValueAtTime(this.rollingSoundGain[i], this.level.audio.currentTime);
 		this.level.marble.rollingSound.setPlaybackRate(this.rollingSoundPlaybackRate[i]);
@@ -431,6 +447,8 @@ export class Replay {
 			slidingSoundGain: Util.arrayBufferToString(new Float32Array(this.slidingSoundGain).buffer),
 			jumpSoundTimes: this.jumpSoundTimes,
 			bounceTimes: this.bounceTimes,
+			airjumpTimes: this.airjumpTimes,
+			dashTimes: this.dashTimes,
 			randomPowerUpChoices: [...this.randomPowerUpChoices.entries()],
 			checkpointRespawns: this.checkpointRespawns
 		};
@@ -488,6 +506,8 @@ export class Replay {
 		replay.slidingSoundGain = [...new Float32Array(Util.stringToArrayBuffer(serialized.slidingSoundGain))];
 		replay.jumpSoundTimes = serialized.jumpSoundTimes;
 		replay.bounceTimes = serialized.bounceTimes;
+		replay.airjumpTimes = serialized.airjumpTimes ?? [];
+		replay.dashTimes = serialized.dashTimes ?? [];
 		replay.randomPowerUpChoices = (serialized.randomPowerUpChoices ?? []).reduce((prev, next) => (prev.set(next[0], next[1]), prev), new Map<number, number[]>());
 		replay.checkpointRespawns = serialized.checkpointRespawns ?? [];
 
@@ -644,6 +664,11 @@ export interface SerializedReplay {
 		volume: number,
 		showParticles: boolean
 	}[];
+	airjumpTimes: {
+		tickIndex: number,
+		n: number
+	}[];
+	dashTimes: number[];
 	randomPowerUpChoices: [number, number[]][],
 	checkpointRespawns: number[]
 }

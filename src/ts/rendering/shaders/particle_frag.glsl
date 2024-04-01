@@ -22,4 +22,10 @@ void main() {
 		// Also: Doing a strict comparison with == 1.0 can cause noise artifacts
 		gl_FragDepthEXT = (vIsPerspective != 0.0)? log2(vFragDepth) * logDepthBufFC * 0.5 : gl_FragCoord.z;
 	#endif
+
+	// Apply bit reduction
+	//float bitDepth = 8.0;
+	//gl_FragColor.r = floor(gl_FragColor.r * bitDepth + 0.5) / bitDepth;
+	//gl_FragColor.g = floor(gl_FragColor.g * bitDepth + 0.5) / bitDepth;
+	//gl_FragColor.b = floor(gl_FragColor.b * bitDepth + 0.5) / bitDepth;
 }
