@@ -54,6 +54,8 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 		version: string
 	} = JSON.parse(body);
 
+	// INSERT VERSION CHECK HERE AFTER REVERTING APRIL FOOLS JOKE
+
 	// Unpack best times
 	let bestTimes: {
 		id: string,
