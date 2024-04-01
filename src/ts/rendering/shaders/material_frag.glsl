@@ -280,8 +280,15 @@ void main() {
 			}
 		#endif
 		gl_FragColor = shaded;
+
 		#ifdef USE_PREMULTIPLIED_ALPHA
 			gl_FragColor.rgb *= gl_FragColor.a;
 		#endif
 	#endif
+
+	// Apply bit reduction
+	float bitDepth = 8.0;
+	gl_FragColor.r = floor(gl_FragColor.r * bitDepth + 0.5) / bitDepth;
+	gl_FragColor.g = floor(gl_FragColor.g * bitDepth + 0.5) / bitDepth;
+	gl_FragColor.b = floor(gl_FragColor.b * bitDepth + 0.5) / bitDepth;
 }

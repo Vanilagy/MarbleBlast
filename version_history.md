@@ -1,5 +1,11 @@
 # Version History
 
+## 2.6.8
+Marble Blast Web is now more platformer than ever! The following things have changed:
+- **Dashing:** While you're in the air, you can dash once in the direction you're looking by clicking. Dashing overrides your velocity entirely, so it's perfect for performing tight curves.
+- **Air hopping:** While you're in the air, you can now jump an additional three times. Jumping completely cancels any downward motion.
+- **Removed some bits:** To support the faster gameplay, video and audio now use less bits. This was *definitely* done for performance reasons.
+
 ## 2.6.7
 - Site can now be launched directly into MBG/MBP by appending ?mbg or ?mbp to the end of the URL
 
