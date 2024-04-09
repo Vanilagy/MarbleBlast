@@ -75,53 +75,6 @@ const blastParticleOptions: ParticleEmitterOptions = {
 		times: [0, 0.2, 0.75, 1]
 	}
 };
-
-const airujumpParticleOptions: ParticleEmitterOptions = {
-	ejectionPeriod: 0.01,
-	ambientVelocity: new Vector3(0, 0, -0.3),
-	ejectionVelocity: 3,
-	velocityVariance: 0.4,
-	emitterLifetime: 1,
-	inheritedVelFactor: 0.25,
-	particleOptions: {
-		texture: 'particles/smoke.png',
-		blending: BlendingType.Additive,
-		spinSpeed: 20,
-		spinRandomMin: -90,
-		spinRandomMax: 90,
-		lifetime: 600,
-		lifetimeVariance: 250,
-		dragCoefficient: 0.5,
-		acceleration: -0.1,
-		colors: [{r: 255/255, g: 244/255, b: 25/255, a: 0.2}, {r: 255/255, g: 244/255, b: 25/255, a: 1}, {r: 255/255, g: 244/255, b: 25/255, a: 1}, {r: 255/255, g: 244/255, b: 25/255, a: 0}],
-		sizes: [0.1, 0.1, 0.1],
-		times: [0, 0.2, 0.75, 1]
-	}
-};
-
-const dashParticleOptions = {
-	ejectionPeriod: 3,
-	ambientVelocity: new Vector3(0, 0, 0.2),
-	ejectionVelocity: 1 * 0.5,
-	velocityVariance: 0.25 * 0.5,
-	emitterLifetime: 500,
-	inheritedVelFactor: 0.25,
-	particleOptions: {
-		texture: 'particles/spark.png',
-		blending: BlendingType.Additive,
-		spinSpeed: 0,
-		spinRandomMin: 0,
-		spinRandomMax: 0,
-		lifetime: 1500,
-		lifetimeVariance: 150,
-		dragCoefficient: 0.25,
-		acceleration: 0,
-		colors: [{r: 0.5, g: 0.5, b: 0.9, a: 0}, {r: 0.5, g: 0.5, b: 0.9, a: 0.5}, {r: 0.5, g: 0.5, b: 0.9, a: 0}],
-		sizes: [0.25, 0.25, 1],
-		times: [0, 0.25, 1]
-	}
-};
-
 const blastMaxParticleOptions = ParticleEmitter.cloneOptions(blastParticleOptions);
 blastMaxParticleOptions.ejectionVelocity = 4;
 blastMaxParticleOptions.ejectionPeriod = 0.7;
@@ -186,11 +139,6 @@ export class Marble {
 
 	cubeMap: CubeTexture;
 	cubeCamera: CubeCamera;
-
-	airjumpAllowed = true;
-	airjumpsLeft = 3;
-	dashAllowed = false;
-	dashesLeft = 1;
 
 	constructor(level: Level) {
 		this.level = level;
@@ -316,7 +264,7 @@ export class Marble {
 		this.group.add(this.helicopter.group);
 
 		// Load the necessary rolling sounds
-		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav", "dosuperspeed.wav"];
+		let toLoad = ["jump.wav", "bouncehard1.wav", "bouncehard2.wav", "bouncehard3.wav", "bouncehard4.wav", "rolling_hard.wav", "sliding.wav"];
 		if (this.level.mission.hasBlast) toLoad.push("blast.wav");
 		await this.level.audio.loadBuffers(toLoad);
 
@@ -474,26 +422,6 @@ export class Marble {
 			this.slidingSound.gain.gain.setValueAtTime(0, this.level.audio.currentTime);
 			this.rollingSound.gain.gain.linearRampToValueAtTime(0, this.level.audio.currentTime + 0.02);
 			this.rollingMegaMarbleSound?.gain.gain.linearRampToValueAtTime(0, this.level.audio.currentTime + 0.02);
-
-			let jumping = isPressed('jump') || this.level.jumpQueued;
-			if (!this.airjumpAllowed && !jumping) {
-				this.airjumpAllowed = true;
-			} else if (this.airjumpAllowed && jumping) {
-				// Handle jumping
-				if (!state.menu.finishScreen.showing && this.airjumpsLeft-- > 0) {
-					this.level.jumpQueued = false;
-					this.airjumpAllowed = false;
-
-					this.doAirjump(3 - this.airjumpsLeft);
-
-					if (this.level.replay.canStore) {
-						this.level.replay.airjumpTimes.push({
-							tickIndex: this.level.replay.currentTickIndex,
-							n: 3 - this.airjumpsLeft
-						});
-					}
-				}
-			}
 		}
 
 		movementRotationAxis.multiplyScalar(this.speedFac);
@@ -502,29 +430,10 @@ export class Marble {
 
 		if (this.level.finishTime) this.body.linearVelocity.multiplyScalar(0.9);
 
-		let usePressed = (isPressed('use') || this.level.useQueued) && getPressedFlag('use');
-		if (!usePressed) {
-			this.dashAllowed = true;
-		}
-
-		if (allowUserInput && usePressed) {
-
-			if (this.level.heldPowerUp) {
-				this.level.replay.recordUsePowerUp(this.level.heldPowerUp);
-				this.level.heldPowerUp.use(0);
-				this.level.useQueued = false;
-			} else if (!bestCollision && this.dashAllowed && this.dashesLeft-- > 0) {
-				let lookVector = new Vector3(0, 0, -1).applyQuaternion(this.level.camera.orientation);
-
-				this.body.linearVelocity.copy(lookVector).multiplyScalar(50);
-
-				this.doDashEffect();
-				if (this.level.replay.canStore) {
-					this.level.replay.dashTimes.push(this.level.replay.currentTickIndex);
-				}
-			}
-
-			this.dashAllowed = false;
+		if (allowUserInput && this.level.heldPowerUp && (isPressed('use') || this.level.useQueued) && getPressedFlag('use')) {
+			this.level.replay.recordUsePowerUp(this.level.heldPowerUp);
+			this.level.heldPowerUp.use(0);
+			this.level.useQueued = false;
 		}
 		if (allowUserInput && (isPressed('blast') || this.level.blastQueued) && getPressedFlag('blast')) {
 			this.useBlast();
@@ -532,23 +441,6 @@ export class Marble {
 		}
 
 		this.slidingTimeout--;
-	}
-
-	doAirjump(n: number) {
-		this.setLinearVelocityInDirection(this.level.currentUp, 1.5 * this.jumpImpulse, true);
-
-		this.playJumpSound(1.1**n);
-		this.level.particles.createEmitter(
-			airujumpParticleOptions,
-			null,
-			() => this.body.position.clone().addScaledVector(this.level.currentUp, -this.radius * 1),
-			new Vector3(1, 1, 1).addScaledVector(Util.absVector(this.level.currentUp.clone()), -0.8)
-		);
-	}
-
-	doDashEffect() {
-		this.level.particles.createEmitter(dashParticleOptions, null, () => this.body.position.clone());
-		this.level.audio.play("dosuperspeed.wav", undefined, undefined, undefined, 2);
 	}
 
 	onAfterIntegrate() {
@@ -629,9 +521,6 @@ export class Marble {
 			currentVelocity.multiplyScalar(1 / (1 + ratio * 0.5)).add(angularBoost);
 		}
 
-		this.airjumpsLeft = 3;
-		this.dashesLeft = 1;
-
 		// Handle jumping
 		if (contactNormalUpDot > 1e-6 && !state.menu.finishScreen.showing && (isPressed('jump') || this.level.jumpQueued)) {
 			this.setLinearVelocityInDirection(contactNormal, this.jumpImpulse + contactShape.body.linearVelocity.dot(contactNormal), true, () => {
@@ -639,7 +528,6 @@ export class Marble {
 				if (this.level.replay.canStore) this.level.replay.jumpSoundTimes.push(this.level.replay.currentTickIndex);
 			});
 			this.level.jumpQueued = false;
-			this.airjumpAllowed = false;
 		}
 
 		// Create bounce particles
@@ -749,8 +637,8 @@ export class Marble {
 		}
 	}
 
-	playJumpSound(pitch = 1) {
-		this.level.audio.play(['jump.wav'], undefined, undefined, undefined, pitch);
+	playJumpSound() {
+		this.level.audio.play(['jump.wav']);
 	}
 
 	playBounceSound(volume: number) {
@@ -916,10 +804,6 @@ export class Marble {
 		this.predictedPosition.copy(this.body.position);
 		this.predictedOrientation.copy(this.body.orientation);
 		this.setRadius(this.level.mission.hasUltraMarble? ULTRA_RADIUS : DEFAULT_RADIUS);
-		this.airjumpAllowed = true;
-		this.airjumpsLeft = 3;
-		this.dashAllowed = true;
-		this.dashesLeft = 1;
 	}
 
 	dispose() {
