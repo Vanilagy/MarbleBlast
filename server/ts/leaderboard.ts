@@ -5,7 +5,7 @@ import * as url from 'url';
 import fetch from 'node-fetch';
 
 import { shared } from './shared';
-import { escapeDiscord, secondsToTimeString, uppercaseFirstLetter } from './util';
+import { compareSemver, escapeDiscord, secondsToTimeString, uppercaseFirstLetter } from './util';
 
 interface ScoreRow {
 	rowid?: number,
@@ -54,7 +54,10 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 		version: string
 	} = JSON.parse(body);
 
-	// INSERT VERSION CHECK HERE AFTER REVERTING APRIL FOOLS JOKE
+	if (compareSemver(data.version, '2.6.9') < 0) {
+		// April Fools' 2024 check, so nobody accidentally submits "cheated" scores
+		return;
+	}
 
 	// Unpack best times
 	let bestTimes: {

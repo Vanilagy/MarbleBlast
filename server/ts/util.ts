@@ -37,3 +37,15 @@ export const leftPadZeroes = (str: string, amount: number) => {
 export const uppercaseFirstLetter = (str: string) => {
 	return str[0].toUpperCase() + str.slice(1);
 };
+
+export const compareSemver = (v1: string, v2: string) => {
+	let v1Parts = v1.split('.').map(Number);
+	let v2Parts = v2.split('.').map(Number);
+
+	for (let i = 0; i < 3; i++) {
+		if (v1Parts[i] > v2Parts[i]) return 1;
+		if (v1Parts[i] < v2Parts[i]) return -1;
+	}
+
+	return 0;
+};
