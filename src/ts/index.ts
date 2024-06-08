@@ -106,15 +106,20 @@ const init = async () => {
 window.onload = init;
 
 /** Launch a level from the query params */
-const maybeLaunchLevelFromQueryParams = (urlParams: URLSearchParams) => {
-	// Check if we are using the ?play={id} query param to launch the game directly into the specified mission
-	const playParam = urlParams.get('play');
+const maybeLaunchLevelFromQueryParams = async (urlParams: URLSearchParams) => {
+	// Check if we are using the ?play-custom={id} query param to launch the game directly into the specified mission
+	const playParam = urlParams.get('play-custom');
 	if (playParam === null) return;
 	if (!Number.isInteger(parseInt(playParam))) return;
 
 	const intParam = parseInt(playParam);
 	let missionToPlay = MissionLibrary.allMissions.find(x => x.id === intParam);
 	if (missionToPlay === undefined) return;
+
+	if (state.modification === 'gold' && (missionToPlay.path.startsWith('mbp') || missionToPlay.path.startsWith('mbu'))) {
+		// Switch the menu to MBP
+		await setMenu('platinum');
+	}
 
 	state.menu.home.changelogContainer.classList.add('hidden'); // No need to show version history when directly launching into the mission
 	state.menu.home.hide();

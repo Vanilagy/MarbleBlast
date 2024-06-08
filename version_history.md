@@ -1,5 +1,9 @@
 # Version History
 
+## 2.6.10
+- Added tighter integration with Marbleland: You can now launch Marble Blast Web directly from Marbleland.
+- Fixed a bug where MBU replays could be launched from the MBG UI
+
 ## 2.6.9
 This update reverts the 2024 April Fools' changes. Thanks for grinding it out!
 

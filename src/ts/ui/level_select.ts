@@ -629,9 +629,9 @@ export abstract class LevelSelect {
 				let mission = MissionLibrary.allMissions.find(x => x.path === replay.missionPath);
 				if (!mission) throw new Error("Mission not found.");
 
-				if (state.modification === 'gold' && mission.path.startsWith('mbp')) {
+				if (state.modification === 'gold' && (mission.path.startsWith('mbp') || mission.path.startsWith('mbu'))) {
 					// We don't allow this
-					state.menu.showAlertPopup('Warning', "You can't load replays of Platinum levels inside Marble Blast Gold.");
+					state.menu.showAlertPopup('Warning', `You can't load replays of ${mission.path.startsWith('mbp') ? 'Platinum' : 'Ultra'} levels inside Marble Blast Gold.`);
 					return;
 				}
 
