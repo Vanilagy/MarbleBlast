@@ -67,6 +67,8 @@ const init = async () => {
 		startGameDialog.style.display = 'none';
 		mainAudioManager.context.resume();
 		state.menu.show();
+
+		maybeLaunchLevelFromQueryParams(new URLSearchParams(window.location.search));
 	};
 
 	loadingMessage.style.display = 'none';
@@ -102,6 +104,24 @@ const init = async () => {
 	});
 };
 window.onload = init;
+
+/** Launch a level from the query params */
+const maybeLaunchLevelFromQueryParams = (urlParams: URLSearchParams) => {
+	// Check if we are using the ?play={id} query param to launch the game directly into the specified mission
+	const playParam = urlParams.get('play');
+	if (playParam === null) return;
+	if (!Number.isInteger(parseInt(playParam))) return;
+
+	const intParam = parseInt(playParam);
+	let missionToPlay = MissionLibrary.allMissions.find(x => x.id === intParam);
+	if (missionToPlay === undefined) return;
+
+	state.menu.home.changelogContainer.classList.add('hidden'); // No need to show version history when directly launching into the mission
+	state.menu.home.hide();
+	state.menu.levelSelect.show();
+	state.menu.levelSelect.hide();
+	state.menu.loadingScreen.loadLevel(missionToPlay, undefined);
+};
 
 let errorTimeout: number = null;
 // Keep track all errors
