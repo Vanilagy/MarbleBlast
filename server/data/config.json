@@ -2,6 +2,7 @@
 	"port": 8080,
 	"useDist": false,
 	"discordWebhookUrl": null,
+	"discordWebhookUrlCustom": null,
 	"webhookCustomMinScoreThreshold": 10,
 	"origin": null
 }
