@@ -45,6 +45,8 @@ export const shared: {
 		useDist: boolean,
 		/** The Discord webhook URL to send world record annoucements to */
 		discordWebhookUrl: string,
+		/** The Discord webhook URL to send custom level world record annoucements to */
+		discordWebhookUrlCustom: string,
 		/** Make sure custom levels have at least this many scores before broadcasting an annoucement. */
 		webhookCustomMinScoreThreshold: number,
 		/** The origin in which the website runs. */

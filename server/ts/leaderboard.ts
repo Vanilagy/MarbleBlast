@@ -115,15 +115,18 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 		if (isTopScore) {
 			if (shared.config.discordWebhookUrl) {
 				// Broadcast a world record message to the webhook URL
+				let url = shared.config.discordWebhookUrl;
 				let allowed = true;
 				if (missionPath.includes('custom/')) {
+					if (shared.config.discordWebhookUrlCustom)
+						url = shared.config.discordWebhookUrlCustom;
 					let scoreCount = shared.getLeaderboardForMissionStatement.all(missionPath).length;
 					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) {
 						allowed = false; // Not enough scores yet, don't broadcast
 					}
 				}
 
-				if (allowed) broadcastToWebhook(missionPath, score, data.randomId, oldTopScore);
+				if (allowed) broadcastToWebhook(url, missionPath, score, data.randomId, oldTopScore);
 			}
 		}
 	}
@@ -134,7 +137,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 };
 
 /** Broadcasts a new #1 score to a Discord webhook as a world record message. */
-const broadcastToWebhook = (missionPath: string, score: [string, number], userRandomId: string, previousRecord?: ScoreRow) => {
+const broadcastToWebhook = (url: string, missionPath: string, score: [string, number], userRandomId: string, previousRecord?: ScoreRow) => {
 	let missionName = escapeDiscord(getMissionNameFromMissionPath(missionPath)).trim();
 	let timeString = secondsToTimeString(score[1] / 1000);
 	let modification = missionPath.startsWith('mbp')? 'platinum': missionPath.startsWith('mbu')? 'ultra' : 'gold';
@@ -174,7 +177,7 @@ const broadcastToWebhook = (missionPath: string, score: [string, number], userRa
 		message += `_${diffString} (${relativeDiffString})_`;
 	}
 
-	fetch(shared.config.discordWebhookUrl, {
+	fetch(url, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json'
