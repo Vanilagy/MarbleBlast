@@ -1,5 +1,8 @@
 # Version History
 
+## 2.6.11
+- Fixed the Marbleland leaderboard endpoint for non-MBG levels
+
 ## 2.6.10
 - Added tighter integration with Marbleland: You can now launch Marble Blast Web directly from Marbleland.
 - Fixed a bug where MBU replays could be launched from the MBG UI

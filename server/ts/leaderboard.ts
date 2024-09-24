@@ -45,11 +45,23 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 export const getLeaderboardForMarbleland = async (res: http.ServerResponse, url: url.URL) => {
 	const missionId = url.searchParams.get('id');
 
-	if (!missionId || !Number.isInteger(parseInt(missionId))) throw new Error("Missing id.");
+	if (!missionId || !Number.isInteger(Number(missionId))) throw new Error("Missing id.");
 
-	let mission = `custom/${missionId}`;
+	let rows: ScoreRow[] = [];
 
-	let rows: ScoreRow[] = shared.getLeaderboardForMissionStatement.all(mission);
+	let customLevelInfo = shared.customLevelList.find(x => x.id === Number(missionId));
+	if (customLevelInfo) {
+		// Build up the mission path
+		let mission = `custom/${Number(missionId)}`;
+		if (customLevelInfo.modification === 'platinum') {
+			mission = 'mbp/' + mission;
+		} else if (customLevelInfo.modification === 'ultra') {
+			mission = 'mbu/' + mission;
+		}
+
+		rows = shared.getLeaderboardForMissionStatement.all(mission);
+	}
+
 	let response = {
 		scores: rows.map((x, i) => {
 			return {
