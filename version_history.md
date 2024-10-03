@@ -1,5 +1,8 @@
 # Version History
 
+## 2.6.12
+- Fixed asset resolution logic for custom shapes
+
 ## 2.6.11
 - Fixed the Marbleland leaderboard endpoint for non-MBG levels
 

@@ -23,7 +23,7 @@ import { BlendingType } from "./rendering/renderer";
 const DROP_TEXTURE_FOR_ENV_MAP = new Set(['shapes/items/superjump.dts', 'shapes/items/antigravity.dts']);
 
 interface MaterialInfo {
-	keyframes: string[]
+	textures: Texture[]
 }
 
 /** Data necessary for updating skinned meshes. */
@@ -164,6 +164,24 @@ export class Shape {
 	/** Shapes with identical share hash can share data. */
 	getShareHash() {
 		return this.dtsPath + ' ' + this.constructor.name + ' ' + this.shareId;
+	}
+
+	getFullNamesOf(path: string) {
+		if (this.level) {
+			// This falls back to the main base path when it can't find the file in the mission itself
+			return this.level.mission.getFullNamesOf(path, true);
+		} else {
+			return ResourceManager.getFullNamesOf(path);
+		}
+	}
+
+	getTexture(path: string) {
+		if (this.level) {
+			// This falls back to the main base path when it can't find the texture in the mission itself
+			return this.level.mission.getTexture(path, true);
+		} else {
+			return ResourceManager.getTexture(path);
+		}
 	}
 
 	async init(level?: Level, srcElement: MissionElement = null) {
@@ -384,7 +402,7 @@ export class Shape {
 		for (let i = 0; i < this.dts.matNames.length; i++) {
 			let matName = this.matNamesOverride[this.dts.matNames[i]] || this.dts.matNames[i]; // Check the override
 			let flags = this.dts.matFlags[i];
-			let fullNames = ResourceManager.getFullNamesOf(this.directoryPath + '/' + matName).filter((x) => !x.endsWith('.dts'));
+			let fullNames = this.getFullNamesOf(this.directoryPath + '/' + matName).filter((x) => !x.endsWith('.dts'));
 			let fullName = fullNames.find(x => x.endsWith('.ifl')) || fullNames[0]; // Prefer .ifls
 
 			if (this.isTSStatic && environmentMaterial && DROP_TEXTURE_FOR_ENV_MAP.has(this.dtsPath)) {
@@ -409,29 +427,35 @@ export class Shape {
 				}
 			} else if (fullName.endsWith('.ifl')) {
 				// Parse the .ifl file
-				let keyframes = await IflParser.loadFile(ResourceManager.mainDataPath + this.directoryPath + '/' + fullName);
+				let iflPath = this.directoryPath + '/' + fullName;
+				let keyframes = this.level? await this.level.mission.getIfl(iflPath) : await IflParser.loadFile(ResourceManager.mainDataPath + iflPath);
+
 				let fullNameCache = new Map<string, string>(); // To speed things up a bit for repeated entries
 				keyframes = keyframes.map(x => {
 					if (fullNameCache.has(x)) return fullNameCache.get(x);
 
-					let fullName = ResourceManager.getFullNamesOf(this.directoryPath + '/' + x).filter((x) => !x.endsWith('.dts'))[0] ?? x;
+					let fullName = this.getFullNamesOf(this.directoryPath + '/' + x).filter((x) => !x.endsWith('.dts'))[0] ?? x;
 					fullNameCache.set(x, fullName);
 
 					return fullName;
 				});
-				this.materialInfo.set(material, { keyframes });
+				let uniqueKeyframes = [...new Set(keyframes)];
 
-				// Preload all frames of the material animation
+				// Load all frames of the material animation
 				let promises: Promise<Texture>[] = [];
-				for (let frame of new Set(keyframes)) {
-					promises.push(ResourceManager.getTexture(this.directoryPath + '/' + frame));
+				for (let frame of uniqueKeyframes) {
+					promises.push(this.getTexture(this.directoryPath + '/' + frame));
 				}
 				let textures = await Promise.all(promises);
 
+				this.materialInfo.set(material, {
+					textures: keyframes.map(x => textures[uniqueKeyframes.indexOf(x)])
+				});
+
 				material.diffuseMap = textures[0]; // So that we compile the material in the right type of shader
-				material.differentiator = this.isTSStatic + ResourceManager.mainDataPath + this.directoryPath + '/' + fullName;
+				material.differentiator = this.isTSStatic + ResourceManager.mainDataPath + iflPath;
 			} else {
-				let texture = await ResourceManager.getTexture(this.directoryPath + '/' + fullName);
+				let texture = await this.getTexture(this.directoryPath + '/' + fullName);
 				material.diffuseMap = texture;
 			}
 
@@ -486,6 +510,7 @@ export class Shape {
 			let dot3 = normal.dot(vertexNormals[i3]);
 			if (!this.dtsPath.includes('helicopter.dts')) if (dot1 < 0 && dot2 < 0 && dot3 < 0) [i1, i3] = [i3, i1];
 			// ^ temp hardcoded fix
+			// update: not so temp
 
 			geometry.indices.push(i1, i2, i3);
 			geometry.materials.push(materialIndex, materialIndex, materialIndex);
@@ -880,11 +905,9 @@ export class Shape {
 			if (!iflSequence || !this.showSequences) continue;
 
 			let completion = time.timeSinceLoad / (iflSequence.duration * 1000);
-			let keyframe = Math.floor(completion * info.keyframes.length) % info.keyframes.length;
-			let currentFile = info.keyframes[keyframe];
+			let keyframe = Math.floor(completion * info.textures.length) % info.textures.length;
+			let texture = info.textures[keyframe];
 
-			// Select the correct texture based on the frame and apply it
-			let texture = ResourceManager.getTextureFromCache(this.directoryPath + '/' + currentFile);
 			this.materials[i].diffuseMap = texture;
 		}
 

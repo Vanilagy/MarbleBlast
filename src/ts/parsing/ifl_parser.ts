@@ -38,7 +38,7 @@ export class IflParser {
 		if (this.cachedFiles.get(path)) return this.cachedFiles.get(path);
 
 		let blob = await ResourceManager.loadResource(path);
-		let text = await ResourceManager.readBlobAsText(blob);
+		let text = await ResourceManager.readBlobAsText(blob, 'ISO-8859-1');
 		let parser = new IflParser(text);
 
 		let result = parser.parse();

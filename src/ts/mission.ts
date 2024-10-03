@@ -4,6 +4,7 @@ import { Util } from "./util";
 import { DtsFile, DtsParser } from "./parsing/dts_parser";
 import { state } from "./state";
 import hxDif from './parsing/hx_dif';
+import { IflFile, IflParser } from "./parsing/ifl_parser";
 
 /** A Marbleland level entry. */
 export interface CustomLevelInfo {
@@ -305,8 +306,26 @@ export class Mission {
 		return dts;
 	}
 
+	async getIfl(path: string) {
+		let ifl: IflFile = null;
+
+		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
+			// Get it from the zip
+			let blob = await this.zipDirectory.files['data/' + path].async('blob');
+			let text = await ResourceManager.readBlobAsText(blob, 'ISO-8859-1');
+			let parser = new IflParser(text);
+			let result = parser.parse();
+			ifl = result;
+		} else {
+			// Always use the main data path for ifls
+			ifl = await IflParser.loadFile(ResourceManager.mainDataPath + path);
+		}
+
+		return ifl;
+	}
+
 	/** Same as `ResourceManager.getFullNamesOf`, but including custom mission resources. */
-	getFullNamesOf(path: string) {
+	getFullNamesOf(path: string, fallBackToCurrentModification = false) {
 		path = path.toLowerCase();
 		let result: string[] = [];
 		let prepended = 'data/' + path;
@@ -320,7 +339,7 @@ export class Mission {
 			}
 		}
 
-		result.push(...ResourceManager.getFullNamesOf(path, this.modification !== 'gold'));
+		result.push(...ResourceManager.getFullNamesOf(path, fallBackToCurrentModification? undefined : this.modification !== 'gold'));
 
 		return result;
 	}
@@ -337,7 +356,7 @@ export class Mission {
 	}
 
 	/** Gets a texture from the mission resources. */
-	async getTexture(path: string) {
+	async getTexture(path: string, fallBackToMainDataPath = false) {
 		path = path.toLowerCase();
 
 		let base = (this.modification === 'gold')? 'data/' : 'data_mbp/';
@@ -349,7 +368,7 @@ export class Mission {
 
 			return texture;
 		} else {
-			let texture = await ResourceManager.getTexture(path, 'assets/' + base);
+			let texture = await ResourceManager.getTexture(path, fallBackToMainDataPath? undefined : 'assets/' + base);
 
 			return texture;
 		}

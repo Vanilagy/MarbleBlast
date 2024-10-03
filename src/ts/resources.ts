@@ -49,14 +49,18 @@ export abstract class ResourceManager {
 
 		if (this.loadTexturePromises.get(fullPath)) return this.loadTexturePromises.get(fullPath);
 
-		let promise = new Promise<Texture>(async (resolve) => {
-			let image = await this.loadImage(fullPath);
-			let texture = new Texture(image);
-			texture.getGLTexture(mainRenderer); // Any texture is immediately uploaded to the main renderer context as a preloading measure. This avoids flickering later.
+		let promise = new Promise<Texture>(async (resolve, reject) => {
+			try {
+				let image = await this.loadImage(fullPath);
+				let texture = new Texture(image);
+				texture.getGLTexture(mainRenderer); // Any texture is immediately uploaded to the main renderer context as a preloading measure. This avoids flickering later.
 
-			this.textureCache.set(fullPath, texture);
-			this.loadTexturePromises.delete(fullPath);
-			resolve(texture);
+				this.textureCache.set(fullPath, texture);
+				this.loadTexturePromises.delete(fullPath);
+				resolve(texture);
+			} catch (e) {
+				reject(e);
+			}
 		});
 		this.loadTexturePromises.set(fullPath, promise);
 

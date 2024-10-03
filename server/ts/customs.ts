@@ -36,7 +36,9 @@ export const periodicallyUpdateCustomLevelList = async () => {
 
 		shared.customLevelList = filteredLevels;
 		await writeFileAtomic(shared.customLevelListPath, JSON.stringify(filteredLevels));
-	} catch (e) {}
+	} catch (e) {
+		console.error("Error fetching custom level list.", e);
+	}
 
 	setTimeout(periodicallyUpdateCustomLevelList, 1000 * 60 * 3); // Every three minutes
 };
