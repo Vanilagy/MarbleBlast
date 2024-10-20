@@ -38,3 +38,14 @@ export abstract class AbstractBumper extends Shape {
 		super.render(time);
 	}
 }
+
+/** The Bumpers. */
+export class TriangleBumper extends AbstractBumper {
+	dtsPath = "shapes/bumpers/pball_tri.dts";
+	sounds = ["bumper1.wav"];
+}
+
+export class RoundBumper extends AbstractBumper {
+	dtsPath = "shapes/bumpers/pball_round.dts";
+	sounds = ["bumperding1.wav"];
+}
