@@ -1,5 +1,8 @@
 # Version History
 
+## 2.6.14
+This update reverts the 2025 April Fools' changes. Thanks for grinding!
+
 ## 2.6.13
 Once again, Marble Blast Web is more platformer than ever - even more than last time! These are the mechanics:
 - **Dashing:** While you're in the air, you can dash once in the direction you're looking by clicking. Dashing overrides your velocity entirely, so it's perfect for performing tight curves.

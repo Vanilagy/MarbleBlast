@@ -44,10 +44,7 @@ export class AudioManager {
 
 		this.masterGain = this.context.createGain();
 		this.masterGain.gain.value = 1;
-
-		let crusher = new BitCrusher(this.context);
-		this.masterGain.connect(crusher.node);
-		crusher.connect(this.context.destination);
+		this.masterGain.connect(this.context.destination);
 
 		this.soundGain = this.context.createGain();
 		this.soundGain.gain.value = 0; // These values will be overwritten by the options anyway
@@ -174,10 +171,9 @@ export class AudioManager {
 	}
 
 	/** Utility method for creating an audio source and playing it immediately. */
-	play(path: string | string[], volume = 1, destination = this.soundGain, position?: Vector3, pitch = 1) {
+	play(path: string | string[], volume = 1, destination = this.soundGain, position?: Vector3) {
 		let audioSource = this.createAudioSource(path, destination, position);
 		audioSource.gain.gain.setValueAtTime(position? 0 : volume, this.currentTime);
-		audioSource.setPlaybackRate(pitch);
 		audioSource.play();
 	}
 
@@ -371,49 +367,3 @@ export class AudioSource {
 
 const oggDecoder = OggdecModule();
 export const mainAudioManager = new AudioManager();
-
-class BitCrusher {
-	context: BaseAudioContext;
-	node: ScriptProcessorNode;
-	phaser = 0;
-	lastSample = 0;
-	factor: number;
-
-	constructor(context: BaseAudioContext, bufferSize = 512, reductionFactor = 16) {
-		this.context = context;
-		this.factor = reductionFactor;
-
-		// Create a script processor node
-		this.node = this.context.createScriptProcessor(bufferSize, 1, 1);
-
-		this.node.onaudioprocess = (audioProcessingEvent) => {
-			const inputBuffer = audioProcessingEvent.inputBuffer;
-			const outputBuffer = audioProcessingEvent.outputBuffer;
-
-			// Loop through the channels (in this case there is only one)
-			for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
-				const inputData = inputBuffer.getChannelData(channel);
-				const outputData = outputBuffer.getChannelData(channel);
-
-				// Loop through the samples
-				for (let sample = 0; sample < inputBuffer.length; sample++) {
-					// Increment phaser and check if it's time to update the lastSample
-					if (++this.phaser >= this.factor) {
-						this.phaser = 0;
-						this.lastSample = inputData[sample];
-					}
-					// Write the lastSample to the output
-					outputData[sample] = this.lastSample;
-				}
-			}
-		};
-	}
-
-	public connect(node: AudioNode) {
-		this.node.connect(node);
-	}
-
-	public disconnect() {
-		this.node.disconnect();
-	}
-}

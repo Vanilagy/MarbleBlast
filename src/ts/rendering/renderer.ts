@@ -4,12 +4,9 @@ import shadowMapVert from './shaders/shadow_map_vert.glsl';
 import shadowMapFrag from './shaders/shadow_map_frag.glsl';
 import particleVert from './shaders/particle_vert.glsl';
 import particleFrag from './shaders/particle_frag.glsl';
-import pixelateVert from './shaders/pixelate_vert.glsl';
-import pixelateFrag from './shaders/pixelate_frag.glsl';
 import { ParticleManager } from "../particles";
 import { ResourceManager } from "../resources";
 import { OrthographicCamera, PerspectiveCamera } from "./camera";
-import { VertexBuffer, VertexBufferGroup } from "./vertex_buffer";
 
 /** Wrapper around a framebuffer to bundle extra metadata with it. */
 interface FramebufferInfo {
@@ -17,7 +14,6 @@ interface FramebufferInfo {
 	width: number;
 	height: number;
 	colorTexture: WebGLTexture;
-	depthBuffer?: WebGLRenderbuffer;
 }
 
 export enum BlendingType {
@@ -40,7 +36,6 @@ export class Renderer {
 	materialShaders = new Map<string, Program>();
 	shadowMapProgram: Program;
 	particleProgram: Program;
-	pixelateProgram: Program;
 	width: number;
 	height: number;
 	pixelRatio = 1;
@@ -97,7 +92,6 @@ export class Renderer {
 
 		this.shadowMapProgram = new Program(this, shadowMapVert, shadowMapFrag);
 		this.particleProgram = new Program(this, particleVert, particleFrag);
-		this.pixelateProgram = new Program(this, pixelateVert, pixelateFrag);
 
 		gl.clearColor(0.0, 0.0, 0.0, Number(!options.alpha));
 		gl.clearDepth(1.0);
@@ -120,19 +114,9 @@ export class Renderer {
 		this.updateCanvasDimensions();
 	}
 
-	mainFramebuffer: FramebufferInfo = null;
-
 	updateCanvasDimensions() {
 		this.options.canvas.setAttribute('width', Math.ceil(this.width * this.pixelRatio).toString());
 		this.options.canvas.setAttribute('height', Math.ceil(this.height * this.pixelRatio).toString());
-
-		if (this.mainFramebuffer) {
-			// Dispose
-			this.gl.deleteTexture(this.mainFramebuffer.colorTexture);
-			this.gl.deleteRenderbuffer(this.mainFramebuffer.depthBuffer);
-			this.gl.deleteFramebuffer(this.mainFramebuffer.framebuffer);
-		}
-		this.mainFramebuffer = this.createFramebuffer(Math.ceil(this.width * this.pixelRatio), Math.ceil(this.height * this.pixelRatio));
 	}
 
 	setClearColor(r: number, g: number, b: number, a: number) {
@@ -335,79 +319,6 @@ export class Renderer {
 			gl.drawElements(gl.TRIANGLES, 6 * group.particles.length, gl.UNSIGNED_INT, 0);
 			this.drawCalls++;
 		}
-	}
-
-	_fullscreenQuad: VertexBufferGroup = null;
-	renderFullscreenQuad(texture: WebGLTexture, program: Program, resolution: [number, number], blockSize: number) {
-		const { gl } = this;
-
-		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-		gl.depthMask(true);
-		gl.clear(gl.DEPTH_BUFFER_BIT);
-		gl.clear(gl.COLOR_BUFFER_BIT);
-		gl.disable(gl.BLEND);
-
-		// Use the program
-		program.use();
-
-		// Build a fullscreen quad VBO if not cached
-		if (!this._fullscreenQuad) {
-			const data = new Float32Array([
-				-1, -1,
-				1, -1,
-				-1,  1,
-				1, -1,
-				1,  1,
-				-1,  1
-			]);
-
-			const vbo = new VertexBuffer(this, data, { a_position: 2 });
-			this._fullscreenQuad = new VertexBufferGroup([vbo]);
-		}
-
-		program.bindVertexBufferGroup(this._fullscreenQuad);
-
-		// Bind texture
-		gl.activeTexture(gl.TEXTURE0);
-		gl.bindTexture(gl.TEXTURE_2D, texture);
-		gl.uniform1i(program.getUniformLocation('u_texture'), 0);
-
-		// Set uniforms
-		gl.uniform2f(program.getUniformLocation('u_resolution'), resolution[0], resolution[1]);
-		gl.uniform1f(program.getUniformLocation('u_blockSize'), blockSize);
-
-		// Draw fullscreen quad
-		gl.drawArrays(gl.TRIANGLES, 0, 6);
-	}
-
-	createFramebuffer(width: number, height: number): FramebufferInfo {
-		const gl = this.gl;
-
-		const colorTexture = gl.createTexture();
-		gl.bindTexture(gl.TEXTURE_2D, colorTexture);
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-		const depthBuffer = gl.createRenderbuffer();
-		gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
-		gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
-
-		const framebuffer = gl.createFramebuffer();
-		gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorTexture, 0);
-		gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuffer);
-
-		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-		return {
-			framebuffer,
-			width,
-			height,
-			colorTexture,
-			depthBuffer
-		};
 	}
 
 	/** Binds a texture to a specific texture unit and texture target. If the texture doesn't exist, it unbinds the texture from the unit. */
