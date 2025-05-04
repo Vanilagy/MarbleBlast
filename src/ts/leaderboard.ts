@@ -23,7 +23,7 @@ export abstract class Leaderboard {
 		let missionPaths = new Set<string>();
 		let currentLevelArray = state.menu.levelSelect.sortedMissionArray;
 
-		for (let i = -5; i <= 5; i++) {
+		for (let i = -2; i <= 2; i++) {
 			let index = state.menu.levelSelect.getCycleMissionIndex(i);
 			let mission = currentLevelArray[index];
 			if (mission) missionPaths.add(mission.path);

@@ -27,9 +27,17 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 
 	let response: Record<string, [string, number, boolean][]> = {};
 
+	let isFirst = true;
 	for (let mission of options.missions) {
+		if (!isFirst) {
+			// Do a little pause between queries to give other requests some time as well
+			await new Promise(resolve => setTimeout(resolve));
+		}
+
 		let rows: ScoreRow[] = shared.getLeaderboardForMissionStatement.all(mission);
 		response[mission] = rows.map(x => [x.username.slice(0, 16), x.time, !!x.has_wrec]);
+
+		isFirst = false;
 	}
 
 	let stringified = JSON.stringify(response);
@@ -95,8 +103,8 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 		version: string
 	} = JSON.parse(body);
 
-	if (compareSemver(data.version, '2.6.9') < 0) {
-		// April Fools' 2024 check, so nobody accidentally submits "cheated" scores
+	if (compareSemver(data.version, '2.6.14') < 0) {
+		// April Fools' 2025 check, so nobody accidentally submits "cheated" scores
 		return;
 	}
 

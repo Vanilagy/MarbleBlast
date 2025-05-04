@@ -1,5 +1,8 @@
 # Version History
 
+## 2.6.15
+- Optimized several leaderboard-related features for improved site loading and uptime
+
 ## 2.6.14
 This update reverts the 2025 April Fools' changes. Thanks for grinding!
 

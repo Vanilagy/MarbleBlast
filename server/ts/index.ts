@@ -52,23 +52,16 @@ const setupDb = () => {
 	// Prepare the statements now for later use
 
 	shared.getLeaderboardForMissionStatement = db.prepare(`
-		SELECT s1.username, MIN(s1.time) as time, s1.wrec IS NOT NULL as has_wrec
-		FROM score s1
-		WHERE mission = ?
-		AND s1.time = min(
-			(
-				SELECT MIN(s2.time)
-				FROM score s2
-				WHERE s2.mission = s1.mission AND s2.username = s1.username
-			),
-			(
-				SELECT MIN(s2.time)
-				FROM score s2
-				WHERE s2.mission = s1.mission AND s2.user_random_id = s1.user_random_id
-			)
+		WITH groupedByUsername AS (
+			SELECT username, MIN(time) as time, user_random_id, wrec IS NOT NULL as has_wrec
+			FROM score
+			WHERE mission = ?
+			GROUP BY username
 		)
-		GROUP BY s1.username
-		ORDER BY s1.time ASC;
+		SELECT username, MIN(time) as time, has_wrec
+		FROM groupedByUsername
+		GROUP BY user_random_id
+		ORDER BY time ASC;
 	`);
 	shared.insertScoreStatement = db.prepare(`
 		INSERT INTO score (mission, time, username, user_random_id, timestamp, wrec)
@@ -89,10 +82,15 @@ const setupDb = () => {
 		LIMIT 1;
 	`);
 	shared.getNewerTopScoresStatement = db.prepare(`
+		WITH newScores AS (
+			SELECT *
+			FROM score
+			WHERE timestamp > ?
+			LIMIT 10000 -- This limit is required to tell the query optimizer to execute this subquery first; otherwise, the query is executed too slowly. It also puts a reasonable cap to the number of rows this query can return
+		)
 		SELECT s1.mission, MIN(s1.time) as time, s1.username, s1.wrec IS NOT NULL as has_wrec
-		FROM score s1
-		WHERE timestamp > ?
-		AND s1.time = min(
+		FROM newScores s1
+		WHERE s1.time = min(
 			(
 				SELECT MIN(s2.time)
 				FROM score s2
