@@ -29,7 +29,7 @@
 		"@types/serve-static": "^1.13.9",
 		"@types/wicg-file-system-access": "^2020.9.5",
 		"@types/write-file-atomic": "^4.0.0",
-		"better-sqlite3": "^8.0.1",
+		"better-sqlite3": "^11.10.0",
 		"finalhandler": "^1.1.2",
 		"fs-extra": "^9.1.0",
 		"jszip": "^3.6.0",
