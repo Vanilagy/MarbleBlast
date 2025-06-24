@@ -17,6 +17,72 @@ interface ScoreRow {
 	has_wrec?: number
 }
 
+interface CacheEntry {
+	data: [string, number, boolean][];
+	lastUsed: number;
+	scoreCount: number;
+}
+
+class LeaderboardCache {
+	cache = new Map<string, CacheEntry>();
+	totalScores = 0;
+	readonly maxScores = 1_000_000;
+
+	get(mission: string) {
+		const entry = this.cache.get(mission);
+		if (!entry) return null;
+
+		entry.lastUsed = Date.now();
+		return entry.data;
+	}
+
+	set(mission: string, data: [string, number, boolean][]) {
+		const scoreCount = data.length;
+
+		// Remove existing entry if it exists
+		this.evict(mission);
+
+		// Add new entry
+		this.cache.set(mission, {
+			data,
+			lastUsed: Date.now(),
+			scoreCount
+		});
+		this.totalScores += scoreCount;
+
+		// Evict oldest entries if over limit
+		while (this.totalScores > this.maxScores && this.cache.size > 1) {
+			this.evictOldest();
+		}
+	}
+
+	evict(mission: string) {
+		const entry = this.cache.get(mission);
+		if (entry) {
+			this.cache.delete(mission);
+			this.totalScores -= entry.scoreCount;
+		}
+	}
+
+	evictOldest() {
+		let oldestMission: string | null = null;
+		let oldestTime = Infinity;
+
+		for (const [mission, entry] of this.cache) {
+			if (entry.lastUsed < oldestTime) {
+				oldestTime = entry.lastUsed;
+				oldestMission = mission;
+			}
+		}
+
+		if (oldestMission) {
+			this.evict(oldestMission);
+		}
+	}
+}
+
+const leaderboardCache = new LeaderboardCache();
+
 /** Transmits all the scores for the missions specified in the body payload. */
 export const getLeaderboard = async (res: http.ServerResponse, body: string) => {
 	if (!body) throw new Error("Missing body.");
@@ -34,8 +100,17 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 			await new Promise(resolve => setTimeout(resolve));
 		}
 
-		let rows: ScoreRow[] = shared.getLeaderboardForMissionStatement.all(mission);
-		response[mission] = rows.map(x => [x.username.slice(0, 16), x.time, !!x.has_wrec]);
+		// Check cache first
+		let cachedData = leaderboardCache.get(mission);
+		if (cachedData) {
+			response[mission] = cachedData;
+		} else {
+			// Query database and cache result
+			let rows: ScoreRow[] = shared.getLeaderboardForMissionStatement.all(mission);
+			let data: [string, number, boolean][] = rows.map(x => [x.username.slice(0, 16), x.time, !!x.has_wrec]);
+			response[mission] = data;
+			leaderboardCache.set(mission, data);
+		}
 
 		isFirst = false;
 	}
@@ -131,6 +206,9 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 		}
 
 		shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp, wrecBuffer);
+
+		// Invalidate cache for this mission since we added a new score
+		leaderboardCache.evict(missionPath);
 
 		if (isTopScore) {
 			if (shared.config.discordWebhookUrl) {
