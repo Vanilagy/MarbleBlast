@@ -466,9 +466,10 @@ export abstract class Hud {
 		let value = this.frameTimeStore.length;
 		value /= Math.min(1, state.level.timeState.timeSinceLoad / 1000 ?? 1); // Hack to make it reach the final frame rate faster
 		value = Math.floor(value);
-		let settingsTarget = FRAME_RATE_OPTIONS[StorageManager.data.settings.frameRateCap];
-		if (value === 59 || value === 119 || value === 143 || value === 239 || value === settingsTarget-1) value++; // Snap to the most common frame rates
-		if (value === 61 || value === 121 || value === 145 || value === 241 || value === settingsTarget+1) value--;
+		let similarValue = FRAME_RATE_OPTIONS.find(x => Math.abs(x - value) <= 1);
+		if (similarValue !== undefined) {
+			value = similarValue; // Snap to the most common frame rates
+		}
 
 		this.fpsMeterValue.textContent = 'FPS: ' + value;
 	}

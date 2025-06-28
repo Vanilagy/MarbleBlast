@@ -9,7 +9,7 @@ import { buttonToDisplayNameMbg, buttonToDisplayNameMbp, OptionsScreen } from ".
 
 const SLIDER_KNOB_LEFT = 217;
 const SLIDER_KNOB_RIGHT = 344;
-export const FRAME_RATE_OPTIONS = [30, 60, 90, 120, 144, 240, 360, Infinity];
+export const FRAME_RATE_OPTIONS = [30, 60, 90, 120, 144, 165, 240, 360, Infinity];
 
 export class MbpOptionsScreen extends OptionsScreen {
 	applyButton = document.querySelector('#mbp-options-apply') as HTMLImageElement;
