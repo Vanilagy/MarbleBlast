@@ -58,7 +58,7 @@ void main() {
 	float elapsed = time - particleSpawnTime;
 	float completion = clamp(elapsed / particleLifetime, 0.0, 1.0);
 
-	if (completion == 1.0) {
+	if (completion >= 1.0) {
 		// We're dead, don't render
 		gl_Position = vec4(0.0);
 		return;
@@ -68,7 +68,7 @@ void main() {
 	velElapsed = pow(velElapsed, 1.0 - dragCoefficient);
 
 	// Compute the position
-	vec3 computedPosition = particlePosition + particleVelocity * (velElapsed + acceleration * velElapsed * velElapsed / 2.0);
+	vec3 computedPosition = particlePosition + particleVelocity * (velElapsed + acceleration * velElapsed * velElapsed * 0.5);
 	float rotation = particleInitialSpin + spinSpeed * elapsed / 1000.0;
 
 	// Check where we are in the times array
@@ -83,7 +83,7 @@ void main() {
 	if (times[1] > 1.0) indexHigh = indexLow; // Basically checking if (this.o.times.length === 1)
 	float timeLow = accessDynamically(times, indexLow);
 	float timeHigh = accessDynamically(times, indexHigh);
-	float t = (completion - timeLow) / (timeHigh - timeLow);
+	float t = (completion - timeLow) / max(timeHigh - timeLow,1e-6);
 
 	// Compute the color to send to the fragment shader
 	color = mix(accessDynamically(colors, indexLow), accessDynamically(colors, indexHigh), t);
@@ -96,6 +96,8 @@ void main() {
 
 	// Enable the following code if you don't want to attenuate the size with growing distance:
 	// scale *= -viewPosition.z;
+    // Clamp scale to avoid disappearing quads on mobile GPUs
+    scale = max(scale, vec2(0.01));
 
 	vec2 center = vec2(0.5, 0.5); // Fixed, for now
 	vec2 alignedPosition = (position - (center - vec2(0.5))) * scale;
