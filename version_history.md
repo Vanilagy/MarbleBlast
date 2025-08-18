@@ -1,5 +1,8 @@
 # Version History
 
+## 2.6.16
+- Fixed invisible particles on some mobile GPUs (thanks Abhi!)
+
 ## 2.6.15
 - Optimized several leaderboard-related features for improved site loading and uptime
 

@@ -83,7 +83,7 @@ void main() {
 	if (times[1] > 1.0) indexHigh = indexLow; // Basically checking if (this.o.times.length === 1)
 	float timeLow = accessDynamically(times, indexLow);
 	float timeHigh = accessDynamically(times, indexHigh);
-	float t = (completion - timeLow) / max(timeHigh - timeLow,1e-6);
+	float t = (completion - timeLow) / (timeHigh - timeLow);
 
 	// Compute the color to send to the fragment shader
 	color = mix(accessDynamically(colors, indexLow), accessDynamically(colors, indexHigh), t);
@@ -96,6 +96,7 @@ void main() {
 
 	// Enable the following code if you don't want to attenuate the size with growing distance:
 	// scale *= -viewPosition.z;
+
     // Clamp scale to avoid disappearing quads on mobile GPUs
     scale = max(scale, vec2(0.01));
 
