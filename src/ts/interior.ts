@@ -203,7 +203,7 @@ export class Interior {
 		this.dif = file;
 		this.difPath = path;
 		this.level = level;
-		this.detailLevel = (subObjectIndex === undefined)? file.interiors[0] : file.subObjects[subObjectIndex];
+		this.detailLevel = (subObjectIndex === undefined) ? file.interiors[0] : file.subObjects[subObjectIndex];
 		this.materialNames = this.detailLevel.materialList.map(x => x.split('/').pop().toLowerCase());
 
 		this.body = new RigidBody();
@@ -257,7 +257,7 @@ export class Interior {
 					continue;
 				}
 
-				let fullPath = this.difPath.includes('data/')?
+				let fullPath = this.difPath.includes('data/') ?
 					this.difPath.slice(this.difPath.indexOf('data/') + 'data/'.length)
 					: this.difPath.slice(this.difPath.indexOf('data_mbp/') + 'data_mbp/'.length);
 
@@ -351,8 +351,8 @@ export class Interior {
 		let k = 0; // Keep track of the face's index for corrent vertex winding order.
 		for (let i = surface.windingStart; i < surface.windingStart + surface.windingCount - 2; i++) {
 			let i1 = this.detailLevel.windings[i];
-			let i2 = this.detailLevel.windings[i+1];
-			let i3 = this.detailLevel.windings[i+2];
+			let i2 = this.detailLevel.windings[i + 1];
+			let i3 = this.detailLevel.windings[i + 2];
 
 			if (k % 2 === 0) {
 				// Swap the first and last index to maintain correct winding order
@@ -370,7 +370,7 @@ export class Interior {
 				// Figure out UV coordinates by getting the distances of the corresponding vertices to the plane.
 				let u = texPlaneX.distanceToPoint(new Vector3(position.x, position.y, position.z));
 				let v = texPlaneY.distanceToPoint(new Vector3(position.x, position.y, position.z));
-				if (this.level.mission.modification === 'ultra' && material === 'plate_1') u /= 2, v/= 2; // This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
+				if (this.level.mission.modification === 'ultra' && material === 'plate_1') u /= 2, v /= 2; // This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
 
 				geometry.positions.push(position.x, position.y, position.z);
 				geometry.normals.push(0, 0, 0); // Push a placeholder, we'll compute a proper normal later
@@ -430,24 +430,46 @@ export class Interior {
 
 		if (materials.size === 0) return;
 
-		let vertices: Vector3[] = [];
+		if (this.detailLevel.convexHullEmitStrings.length > 1) {
+			// If we have more than 1 element in the emit strings array, then the dif is assumed to be exported from Constructor and so, there are proper convex hulls.
+			let vertices: Vector3[] = [];
 
-		// Get the vertices
-		for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
-			let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
-			vertices.push(new Vector3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
-		}
+			// Get the vertices
+			for (let j = hull.hullStart; j < hull.hullStart + hull.hullCount; j++) {
+				let point = this.detailLevel.points[this.detailLevel.hullIndices[j]];
+				vertices.push(new Vector3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
+			}
 
-		let shape = new ConvexHullCollisionShape(vertices);
+			let shape = new ConvexHullCollisionShape(vertices);
 
-		if (materials.size === 1) {
-			let material = materials.values().next().value;
-			let properties = this.getCollisionMaterialProperties(material);
+			if (materials.size === 1) {
+				let material = materials.values().next().value;
+				let properties = this.getCollisionMaterialProperties(material);
 
-			shape.friction = properties.friction;
-			shape.restitution = properties.restitution;
-			shape.userData = properties;
+				shape.friction = properties.friction;
+				shape.restitution = properties.restitution;
+				shape.userData = properties;
+			} else {
+				for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
+					let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
+					if (!surface) continue;
+
+					let material = this.materialNames[surface.textureIndex];
+					if (!material) continue;
+
+					let planeData = this.detailLevel.planes[surface.planeIndex];
+					let planeNormal = this.detailLevel.normals[planeData.normalIndex];
+					let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
+					if (surface.planeFlipped) faceNormal.negate();
+
+					let properties = this.getCollisionMaterialProperties(material);
+					shape.materialOverrides.set(faceNormal, properties);
+				}
+			}
+			this.body.addCollisionShape(shape);
 		} else {
+			// One convex hull per surface, support csx3dif and io_dif interiors
+
 			for (let j = hull.surfaceStart; j < hull.surfaceStart + hull.surfaceCount; j++) {
 				let surface = this.detailLevel.surfaces[this.detailLevel.hullSurfaceIndices[j]];
 				if (!surface) continue;
@@ -460,12 +482,22 @@ export class Interior {
 				let faceNormal = new Vector3(planeNormal.x, planeNormal.y, planeNormal.z);
 				if (surface.planeFlipped) faceNormal.negate();
 
+				let vertices: Vector3[] = [];
+
+				// Get the vertices
+				for (let k = surface.windingStart; k < surface.windingStart + surface.windingCount; k++) {
+					let point = this.detailLevel.points[this.detailLevel.windings[k]];
+					vertices.push(new Vector3(point.x * scale.x, point.y * scale.y, point.z * scale.z));
+				}
+
 				let properties = this.getCollisionMaterialProperties(material);
+
+				let shape = new ConvexHullCollisionShape(vertices);
 				shape.materialOverrides.set(faceNormal, properties);
+
+				this.body.addCollisionShape(shape);
 			}
 		}
-
-		this.body.addCollisionShape(shape);
 	}
 
 	getCollisionMaterialProperties(material: string): CollisionMaterialProperties {
@@ -526,8 +558,8 @@ export class Interior {
 	}
 
 	/* eslint-disable @typescript-eslint/no-unused-vars */
-	tick(time: TimeState) {}
-	render(time: TimeState) {}
-	reset() {}
-	async onLevelStart() {}
+	tick(time: TimeState) { }
+	render(time: TimeState) { }
+	reset() { }
+	async onLevelStart() { }
 }
