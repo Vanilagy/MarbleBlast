@@ -701,7 +701,7 @@ export class Level extends Scheduler {
 		else if (dataBlockLowerCase.startsWith("sign") || dataBlockLowerCase === "arrow") shape = new Sign(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "magnet") shape = new Magnet();
 		else if (dataBlockLowerCase === "nuke") shape = new Nuke();
-		else if (dataBlockLowerCase === "checkpoint") shape = new Checkpoint();
+		else if (["checkpoint", "checkpoint_mbxp", "checkpoint_mbu"].includes(dataBlockLowerCase)) shape = new Checkpoint();
 		else if (dataBlockLowerCase === "easteregg") shape = new EasterEgg(element as MissionElementItem);
 		else if (dataBlockLowerCase === "randompowerupitem") shape = new RandomPowerUp(element as MissionElementItem);
 		else if (["clear", "cloudy", "dusk", "wintry"].includes(dataBlockLowerCase)) shape = new Sky(dataBlockLowerCase);
