@@ -1,5 +1,8 @@
 # Version History
 
+## 2.6.17
+- Fixed broken collision on interiors generated with csx3dif and io_dif (Blender)
+
 ## 2.6.16
 - Fixed invisible particles on some mobile GPUs (thanks Abhi!)
 
