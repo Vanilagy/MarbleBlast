@@ -557,7 +557,7 @@ export class Level extends Scheduler {
 		if (this.mission.modification === 'ultra') {
 			musicFileName = 'tim trance.ogg'; // ALWAYS play this banger
 			this.originalMusicName = musicFileName;
-		} else if (state.modification !== 'gold' && this.mission.missionInfo.music && this.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
+		} else if (this.mission.missionInfo.music && this.mission.missionInfo.music.toLowerCase() !== 'pianoforte.ogg') {
 			musicFileName = this.mission.missionInfo.music.toLowerCase();
 			this.originalMusicName = musicFileName;
 		} else {
