@@ -29,13 +29,13 @@ let m1 = new Matrix3();
 export abstract class CollisionResponse {
 	/** Fixes interpenetration of two shapes. */
 	static solvePosition(collision: Collision) {
-		let threshold = 0.002; // This seems to be the lowest we can go?
+		let threshold = 0.002; 
 		let remainingPenetration = 0.5;
 
 		if (collision.depth < threshold) return;
 
 		let distance = collision.depth - remainingPenetration * threshold;
-		collision.s1.body.position.addScaledVector(collision.normal, distance); // Always move the first body
+		collision.s1.body.position.addScaledVector(collision.normal, distance);
 	}
 
 	/** Adjusts linear and angular velocities of the collision shapes. */
@@ -89,10 +89,10 @@ export abstract class CollisionResponse {
 
 		// Relative velocity along the normal
 		let deltaTheta = theta_1.x - theta_2.x;
-		if (deltaTheta > -0.0001) return; // Not a "closing contact"
+		if (deltaTheta > -0.0001) return; // Not a closing contact shapes separating or barely touching, skipping response
 
 		let res = collision.restitution;
-		if (deltaTheta > -0.5) res = 0; // Set the restitution to 0 for low-impact collisions, allowing for objects to rest on the floor.
+		if (deltaTheta > -0.5) res = 0; // zero restitution so objects can rest without bouncing
 
 		deltaDeltaTheta_12.set(-(1 + res) * (theta_1.x - theta_2.x), -(theta_1.y - theta_2.y), -(theta_1.z - theta_2.z));
 		deltaJ.copy(deltaDeltaTheta_12).applyMatrix3(K_contactInv);

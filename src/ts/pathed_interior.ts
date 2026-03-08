@@ -83,6 +83,7 @@ export class PathedInterior extends Interior {
 
 		// Add collision geometry
 		for (let i = 0; i < this.detailLevel.convexHulls.length; i++) this.addConvexHull(i, this.baseScale);
+		this.collisionShapesInitialized = true; // Prevent setTransform from re-adding hulls if ever called
 
 		// Parse the markers
 		this.path = this.simGroup.elements.find((element) => element._type === MissionElementType.Path) as MissionElementPath;
@@ -153,24 +154,31 @@ export class PathedInterior extends Interior {
 	}
 
 	tick(time: TimeState) {
-		this.body.position.copy(this.currentPosition); // Reset it back to where it should be (render loop might've moved it)
+		super.tick(time); // Resets marbleContactHandledThisTick for this tick
 
 		let transform = this.getTransformAtTime(m1, this.getInternalTime(time.currentAttemptTime));
 
 		this.prevPosition.copy(this.currentPosition);
-		this.currentPosition.setFromMatrixPosition(transform); // The orientation doesn't matter in that version of TGE, so we only need position
+		this.currentPosition.setFromMatrixPosition(transform);
 
-		// Approximate the velocity numerically
 		let velocity = v1.copy(this.currentPosition).sub(this.prevPosition).multiplyScalar(PHYSICS_TICK_RATE);
 		this.body.linearVelocity.copy(velocity);
+		this.body.position.copy(this.currentPosition);
 
-		// Modify the sound effect position, if present
+		/* Only sync the octree when the platform has actually moved. Skipping syncShapes()
+		 * on stationary ticks eliminates N_hulls × MAX_SUBSTEPS × 120 octree updates
+		 * without causing false collisions so the hulls remain at their last valid position. */
+		if (velocity.lengthSq() > 0) {
+			this.body.syncShapes();
+		}
+
 		this.soundPosition?.copy(this.currentPosition).add(this.markerData[0]?.position ?? new Vector3());
 	}
 
 	onBeforeIntegrate() {
+		// Keep body at the correct position for each substep iteration.
+		// syncShapes() is intentionally omitted; it already ran in tick() if the platform moved.
 		this.body.position.copy(this.currentPosition);
-		this.body.syncShapes();
 	}
 
 	/** Computes the transform of the interior at a point in time along the path. */
@@ -245,9 +253,6 @@ export class PathedInterior extends Interior {
 
 		this.mesh.transform.copy(transform);
 		this.mesh.changedTransform();
-
-		this.body.position.setFromMatrixPosition(transform);
-		this.body.syncShapes(); // Set the position of the body as well for correct camera ray casting results
 	}
 
 	/** Resets the movement state of the pathed interior to the beginning values. */

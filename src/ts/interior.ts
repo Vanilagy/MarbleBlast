@@ -194,6 +194,13 @@ export class Interior {
 	/** Whether or not frictions and bouncy floors work on this interior. */
 	allowSpecialMaterials = true;
 	specialMaterials: Set<string>;
+	/** Prevents re-adding convex hulls on every setTransform call. Blender DIFs produce
+	 *  many hulls per interior; without this guard, moving platforms accumulate hulls
+	 *  every tick and crash the level. */
+	collisionShapesInitialized = false;
+	/** Prevents the same collision being handled more than once per tick when multiple
+	 *  substeps fire onAfterCollisionResponse for the same contact. */
+	marbleContactHandledThisTick = false;
 
 	/** Avoids recomputation of the same interior. */
 	static initCache = new WeakMap<hxDif.Interior, InitCacheType>();
@@ -210,6 +217,9 @@ export class Interior {
 		this.body.type = RigidBodyType.Static;
 
 		this.body.onAfterCollisionResponse = (t: number, dt: number) => {
+			// substep recursion can fire this multiple times per tick for the same contact. Only handle it once to avoid duplicate impulse application.
+			if (this.marbleContactHandledThisTick) return;
+			this.marbleContactHandledThisTick = true;
 			for (let collision of this.body.collisions) this.onMarbleContact(collision, dt);
 		};
 
@@ -533,8 +543,13 @@ export class Interior {
 		this.body.position.copy(position);
 		this.body.orientation.copy(orientation);
 
-		for (let i = 0; i < this.detailLevel.convexHulls.length; i++)
-			this.addConvexHull(i, this.scale);
+		// Build collision shapes only once. setTransform is called every tick for moving
+		// platforms, so re-adding hulls each call would grow the shape list unboundedly.
+		if (!this.collisionShapesInitialized) {
+			for (let i = 0; i < this.detailLevel.convexHulls.length; i++)
+				this.addConvexHull(i, this.scale);
+			this.collisionShapesInitialized = true;
+		}
 	}
 
 	onMarbleContact(collision: Collision, dt: number) {
@@ -558,7 +573,9 @@ export class Interior {
 	}
 
 	/* eslint-disable @typescript-eslint/no-unused-vars */
-	tick(time: TimeState) { }
+	tick(time: TimeState) {
+		this.marbleContactHandledThisTick = false; // Reset per-tick collision guard
+	}
 	render(time: TimeState) { }
 	reset() { }
 	async onLevelStart() { }
