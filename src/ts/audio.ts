@@ -75,15 +75,16 @@ export class AudioManager {
 	}
 
 	/** Loads an audio buffer from a path. Returns the cached version whenever possible. */
-	async loadBuffer(path: string) {
+	async loadBuffer(path: string, mission?: any) {
 		let fullPath = this.toFullPath(path);
 
 		// If there's a current level, see if there's a sound file for this path contained in it
-		let mission = state.level?.mission;
+		mission = mission ?? state.level?.mission;
 		let zipFile: JSZip.JSZipObject;
-		if (mission && mission.zipDirectory && mission.zipDirectory.files['data/sound/' + path]) {
-			zipFile = mission.zipDirectory.files['data/sound/' + path];
-		} else {
+		if (mission && mission.zipDirectory) {
+			zipFile = mission.zipDirectory.files['data/sound/' + path] || mission.zipDirectory.files['data/sound/music/' + path];
+		}
+		if (!zipFile) {
 			// Return the cached version if there is one
 			await audioBufferCachePromises.get(fullPath);
 			if (audioBufferCache.has(fullPath)) return audioBufferCache.get(fullPath);
@@ -127,8 +128,8 @@ export class AudioManager {
 		return promise;
 	}
 
-	loadBuffers(paths: string[]) {
-		return Promise.all(paths.map((path) => this.loadBuffer(path)));
+	loadBuffers(paths: string[], mission?: any) {
+		return Promise.all(paths.map((path) => this.loadBuffer(path, mission)));
 	}
 
 	/**

@@ -575,20 +575,29 @@ export class Level extends Scheduler {
 			}
 		}
 		if (state.modification === 'platinum') musicFileName = 'music/' + musicFileName;
-		else if (state.modification === 'gold') musicFileName = 'music/' + musicFileName;
 
 		let toLoad = ["spawn.wav", "ready.wav", "set.wav", "go.wav", "whoosh.wav", musicFileName];
 		if (isFinite(this.mission.qualifyTime) && state.modification === 'platinum') toLoad.push("alarm.wav", "alarm_timeout.wav", "infotutorial.wav");
 
 		try {
-			await this.audio.loadBuffers(toLoad);
+			await this.audio.loadBuffers(toLoad, this.mission);
 		} catch (e) {
 			// Something died, maybe it was the music, try replacing it with a song we know exists
-			let newMusic = Util.randomFromArray(MBP_SONGS);
-			this.originalMusicName = newMusic;
-			toLoad[toLoad.indexOf(musicFileName)] = 'music/' + newMusic;
-			musicFileName = 'music/' + newMusic;
-			await this.audio.loadBuffers(toLoad);
+			let newMusic: string;
+			if (state.modification === 'gold') {
+				let missionArray = MissionLibrary.allCategories.find(x => x.includes(this.mission));
+				let levelIndex = missionArray.indexOf(this.mission);
+				newMusic = ['groovepolice.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
+				this.originalMusicName = ['groove police.ogg', 'classic vibe.ogg', 'beach party.ogg'][(levelIndex + 1) % 3];
+				toLoad[toLoad.indexOf(musicFileName)] = newMusic;
+				musicFileName = newMusic;
+			} else {
+				newMusic = Util.randomFromArray(MBP_SONGS);
+				this.originalMusicName = newMusic;
+				toLoad[toLoad.indexOf(musicFileName)] = 'music/' + newMusic;
+				musicFileName = 'music/' + newMusic;
+			}
+			await this.audio.loadBuffers(toLoad, this.mission);
 		}
 
 		this.music = this.audio.createAudioSource(musicFileName, this.audio.musicGain);
