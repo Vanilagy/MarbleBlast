@@ -987,6 +987,9 @@ export class Level extends Scheduler {
 		this.overlayScene.prepareForRender(this.overlayCamera);
 		mainRenderer.render(this.overlayScene, this.overlayCamera, null, false);
 
+		// Blit the offscreen FBO to the canvas (no-op when not desynchronized)
+		mainRenderer.present();
+
 		let hud = state.menu.hud;
 		hud.renderHud(tempTimeState);
 		hud.displayFps();

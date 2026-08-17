@@ -43,6 +43,16 @@ export class Renderer {
 	/** Stores the amount of draw calls in the current render. */
 	drawCalls: number;
 	debugMode = 0;
+	/** When desynchronized is true, we render to an offscreen FBO and blit to the canvas to avoid flicker. */
+	desynchronized: boolean;
+	offscreenFbo: WebGLFramebuffer = null;
+	offscreenColorTexture: WebGLTexture = null;
+	offscreenDepthRenderbuffer: WebGLRenderbuffer = null;
+	offscreenWidth = 0;
+	offscreenHeight = 0;
+	/** WebGL1 fallback blit resources. */
+	blitProgram: { program: WebGLProgram, aPosition: number, uTexture: WebGLUniformLocation } = null;
+	blitVbo: WebGLBuffer = null;
 
 	extensions = {
 		EXT_texture_filter_anisotropic: null as EXT_texture_filter_anisotropic,
@@ -62,9 +72,13 @@ export class Renderer {
 	}) {
 		options = { ...DEFAULT_CONTEXT_OPTIONS, ...options };
 
+		console.log(options);
+
 		this.options = options;
+		this.desynchronized = options.desynchronized;
 		let ctxOptions = {
 			desynchronized: options.desynchronized, // This option can drastically reduce visual latency
+			preserveDrawingBuffer: options.desynchronized, // Needed to avoid flicker with desynchronized canvases
 			depth: true,
 			stencil: true, // Maybe this will get us a 24-bit depth buffer
 			antialias: false,
@@ -117,6 +131,128 @@ export class Renderer {
 	updateCanvasDimensions() {
 		this.options.canvas.setAttribute('width', Math.ceil(this.width * this.pixelRatio).toString());
 		this.options.canvas.setAttribute('height', Math.ceil(this.height * this.pixelRatio).toString());
+
+		if (this.desynchronized) this.updateOffscreenFbo();
+	}
+
+	/** Creates or resizes the offscreen FBO used to avoid flicker with desynchronized canvases. */
+	updateOffscreenFbo() {
+		let { gl } = this;
+		let w = Math.ceil(this.width * this.pixelRatio);
+		let h = Math.ceil(this.height * this.pixelRatio);
+
+		if (this.offscreenFbo && this.offscreenWidth === w && this.offscreenHeight === h) return;
+
+		// Clean up old resources
+		if (this.offscreenFbo) {
+			gl.deleteFramebuffer(this.offscreenFbo);
+			gl.deleteTexture(this.offscreenColorTexture);
+			gl.deleteRenderbuffer(this.offscreenDepthRenderbuffer);
+		}
+
+		this.offscreenWidth = w;
+		this.offscreenHeight = h;
+
+		// Create color texture
+		let colorTexture = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, colorTexture);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		this.offscreenColorTexture = colorTexture;
+
+		// Create depth+stencil renderbuffer
+		let depthRenderbuffer = gl.createRenderbuffer();
+		gl.bindRenderbuffer(gl.RENDERBUFFER, depthRenderbuffer);
+		gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_STENCIL, w, h);
+		this.offscreenDepthRenderbuffer = depthRenderbuffer;
+
+		// Create and set up framebuffer
+		let fbo = gl.createFramebuffer();
+		gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, colorTexture, 0);
+		gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, depthRenderbuffer);
+		this.offscreenFbo = fbo;
+
+		// Restore default framebuffer
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	}
+
+	/** Copies the offscreen FBO to the canvas. Call this once per frame after all render() calls. */
+	present() {
+		if (!this.desynchronized || !this.offscreenFbo) return;
+
+		let { gl } = this;
+		let w = this.offscreenWidth;
+		let h = this.offscreenHeight;
+
+		if (gl instanceof WebGL2RenderingContext) {
+			gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.offscreenFbo);
+			gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+			gl.blitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+			gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+		} else {
+			// WebGL1 fallback: draw a fullscreen textured quad
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+			gl.viewport(0, 0, w, h);
+
+			gl.disable(gl.DEPTH_TEST);
+			gl.disable(gl.BLEND);
+			gl.disable(gl.CULL_FACE);
+
+			if (!this.blitProgram) this.initBlitProgram();
+			let prog = this.blitProgram;
+			gl.useProgram(prog.program);
+			this.currentProgram = null; // Invalidate cached program state
+
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, this.offscreenColorTexture);
+			gl.uniform1i(prog.uTexture, 0);
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.blitVbo);
+			gl.enableVertexAttribArray(prog.aPosition);
+			gl.vertexAttribPointer(prog.aPosition, 2, gl.FLOAT, false, 0, 0);
+
+			gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+			gl.disableVertexAttribArray(prog.aPosition);
+			gl.enable(gl.DEPTH_TEST);
+			gl.enable(gl.CULL_FACE);
+		}
+	}
+
+	/** Creates a minimal shader program for blitting a texture to the screen (WebGL1 fallback). */
+	initBlitProgram() {
+		let { gl } = this;
+
+		let vs = gl.createShader(gl.VERTEX_SHADER);
+		gl.shaderSource(vs, `attribute vec2 aPosition; varying vec2 vUv; void main() { vUv = aPosition * 0.5 + 0.5; gl_Position = vec4(aPosition, 0.0, 1.0); }`);
+		gl.compileShader(vs);
+
+		let fs = gl.createShader(gl.FRAGMENT_SHADER);
+		gl.shaderSource(fs, `precision mediump float; varying vec2 vUv; uniform sampler2D uTexture; void main() { gl_FragColor = texture2D(uTexture, vUv); }`);
+		gl.compileShader(fs);
+
+		let program = gl.createProgram();
+		gl.attachShader(program, vs);
+		gl.attachShader(program, fs);
+		gl.linkProgram(program);
+
+		gl.deleteShader(vs);
+		gl.deleteShader(fs);
+
+		this.blitProgram = {
+			program,
+			aPosition: gl.getAttribLocation(program, 'aPosition'),
+			uTexture: gl.getUniformLocation(program, 'uTexture')
+		};
+
+		// Fullscreen quad as triangle strip
+		this.blitVbo = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.blitVbo);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 	}
 
 	setClearColor(r: number, g: number, b: number, a: number) {
@@ -134,6 +270,10 @@ export class Renderer {
 		if (framebuffer) {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer.framebuffer);
 			gl.viewport(0, 0, framebuffer.width, framebuffer.height);
+		} else if (this.desynchronized && this.offscreenFbo) {
+			// Render to offscreen FBO instead of directly to the canvas to avoid flicker
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.offscreenFbo);
+			gl.viewport(0, 0, this.offscreenWidth, this.offscreenHeight);
 		} else {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 			gl.viewport(0, 0, Math.ceil(this.width * this.pixelRatio), Math.ceil(this.height * this.pixelRatio));
@@ -356,5 +496,18 @@ export class Renderer {
 
 	cleanUp() {
 		for (let [, program] of this.materialShaders) program.cleanUp();
+
+		let { gl } = this;
+		if (this.offscreenFbo) {
+			gl.deleteFramebuffer(this.offscreenFbo);
+			gl.deleteTexture(this.offscreenColorTexture);
+			gl.deleteRenderbuffer(this.offscreenDepthRenderbuffer);
+			this.offscreenFbo = null;
+		}
+		if (this.blitProgram) {
+			gl.deleteProgram(this.blitProgram.program);
+			gl.deleteBuffer(this.blitVbo);
+			this.blitProgram = null;
+		}
 	}
 }

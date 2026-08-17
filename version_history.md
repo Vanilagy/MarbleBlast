@@ -1,5 +1,9 @@
 # Version History
 
+## 2.6.19
+- Fixed custom levels with custom music crashing in MBG mode
+- Fixed canvas flickering properly; low-latency mode works again!
+
 ## 2.6.18
 - Fixed canvas flickering by disabling low-latency mode by default
 
