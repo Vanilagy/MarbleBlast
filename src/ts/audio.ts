@@ -81,8 +81,12 @@ export class AudioManager {
 		// If there's a current level, see if there's a sound file for this path contained in it
 		let mission = state.level?.mission;
 		let zipFile: JSZip.JSZipObject;
-		if (mission && mission.zipDirectory && mission.zipDirectory.files['data/sound/' + path]) {
-			zipFile = mission.zipDirectory.files['data/sound/' + path];
+		if (mission && mission.zipDirectory) {
+			if (mission.zipDirectory.files['data/sound/' + path]) {
+				zipFile = mission.zipDirectory.files['data/sound/' + path];
+			} else if (mission.zipDirectory.files['data/sound/music/' + path]) {
+				zipFile = mission.zipDirectory.files['data/sound/music/' + path];
+			}
 		} else {
 			// Return the cached version if there is one
 			await audioBufferCachePromises.get(fullPath);
