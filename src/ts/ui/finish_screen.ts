@@ -60,7 +60,7 @@ export abstract class FinishScreen {
 
 			// Store the time and close the dialog.
 			let level = state.level;
-			let inserted = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock);
+			let inserted = StorageManager.insertNewTime(level.mission.path, trimmed, level.finishTime.gameplayClock, level.mission.version);
 
 			this.nameEntryScreenDiv.classList.add('hidden');
 			this.div.style.pointerEvents = '';

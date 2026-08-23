@@ -17,12 +17,10 @@ import { getCustomLevelList, getCustomLevelResource, periodicallyUpdateCustomLev
 let db: Database.Database = null;
 const doBackup = false;
 
-/** Sets up the database and creates tables, indices and prepared statements. */
-const setupDb = () => {
-	db = new Database(path.join(__dirname, 'storage', 'main.db'));
-	shared.db = db;
-
-	db.exec(`
+/** The ordered list of database migrations. The number of already-applied migrations is stored in the database's `user_version` field; on start-up, all migrations past that point are applied in order. New schema changes must strictly be appended to this list, and existing entries may never be modified. The first migration is a no-op on databases that predate this migration system (which contain the base schema but report a `user_version` of 0). */
+const migrations: string[] = [
+	// The base schema
+	`
 		CREATE TABLE IF NOT EXISTS score (
 			mission VARCHAR(255),
 			time DOUBLE,
@@ -46,8 +44,34 @@ const setupDb = () => {
 			end_time BIGINT,
 			user_random_id VARCHAR(255)
 		);
-	`);
+	`,
+	// Store the version of the custom level a score was achieved on. Scores from before level versioning existed default to version 1.
+	`
+		ALTER TABLE score ADD COLUMN mission_version INTEGER NOT NULL DEFAULT 1;
+	`
+];
+
+/** Applies all database migrations that haven't been applied yet. */
+const migrateDb = () => {
+	let appliedCount = db.pragma('user_version', { simple: true }) as number;
+
+	for (let i = appliedCount; i < migrations.length; i++) {
+		db.transaction(() => {
+			db.exec(migrations[i]);
+			db.pragma(`user_version = ${i + 1}`);
+		})();
+
+		console.log(`Applied database migration ${i + 1}/${migrations.length}.`);
+	}
+};
+
+/** Sets up the database and creates tables, indices and prepared statements. */
+const setupDb = () => {
+	db = new Database(path.join(__dirname, 'storage', 'main.db'));
+	shared.db = db;
+
 	db.pragma('journal_mode = WAL'); // Significantly improves performance
+	migrateDb();
 
 	// Prepare the statements now for later use
 
@@ -64,8 +88,8 @@ const setupDb = () => {
 		ORDER BY time ASC;
 	`);
 	shared.insertScoreStatement = db.prepare(`
-		INSERT INTO score (mission, time, username, user_random_id, timestamp, wrec)
-		VALUES (?, ?, ?, ?, ?, ?);
+		INSERT INTO score (mission, time, username, user_random_id, timestamp, wrec, mission_version)
+		VALUES (?, ?, ?, ?, ?, ?, ?);
 	`);
 	shared.getTopScoreStatement = db.prepare(`
 		SELECT time, username

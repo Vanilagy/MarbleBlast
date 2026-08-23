@@ -51,19 +51,29 @@ export const getCustomLevelResource = async (res: http.ServerResponse, urlObject
 	let id = Number(resourceName.slice(0, resourceName.indexOf('.')));
 	if (!Number.isInteger(id)) throw new Error("Invalid custom level ID.");
 
-	if (extension === 'jpg') await getCustomLevelBitmap(res, id);
-	else if (extension === 'zip') await getCustomLevelArchive(res, id);
+	// Determine the level version to serve: either the explicitly requested one, or the level's current version
+	let versionParam = urlObject.searchParams.get('version');
+	let version: number;
+	if (versionParam !== null) {
+		version = Number(versionParam);
+		if (!Number.isInteger(version) || version < 1) throw new Error("Invalid custom level version.");
+	} else {
+		version = shared.customLevelList.find(x => x.id === id)?.currentVersion ?? 1;
+	}
+
+	if (extension === 'jpg') await getCustomLevelBitmap(res, id, version);
+	else if (extension === 'zip') await getCustomLevelArchive(res, id, version);
 	else throw new Error("Invalid custom level resource type.");
 };
 
 /** Transmits a custom level bitmap. */
-const getCustomLevelBitmap = async (res: http.ServerResponse, id: number) => {
-	let filePath = path.join(__dirname, 'storage', 'customs', `bitmap${id}.jpg`);
+const getCustomLevelBitmap = async (res: http.ServerResponse, id: number, version: number) => {
+	let filePath = path.join(__dirname, 'storage', 'customs', `bitmap${id}-v${version}.jpg`);
 	let exists = await fs.pathExists(filePath); // See if the bitmap has already been downloaded and saved
 
 	if (!exists) {
 		// If it doesn't exist yet, fetch it from the Marbleland API
-		let response = await fetch(`https://marbleland.vaniverse.io/api/level/${id}/image?width=258&height=194`);
+		let response = await fetch(`https://marbleland.vaniverse.io/api/level/${id}/image?width=258&height=194&version=${version}`);
 		if (!response.ok) {
 			res.writeHead(404);
 			res.end();
@@ -86,13 +96,13 @@ const getCustomLevelBitmap = async (res: http.ServerResponse, id: number) => {
 };
 
 /** Transmits a custom level archive. */
-const getCustomLevelArchive = async (res: http.ServerResponse, id: number) => {
-	let filePath = path.join(__dirname, 'storage', 'customs', `zip${id}.zip`);
+const getCustomLevelArchive = async (res: http.ServerResponse, id: number, version: number) => {
+	let filePath = path.join(__dirname, 'storage', 'customs', `zip${id}-v${version}.zip`);
 	let exists = await fs.pathExists(filePath); // See if the archive has already been downloaded and saved
 
 	if (!exists) {
 		// If it doesn't exist yet, fetch it from the Marbleland API
-		let response = await fetch(`https://marbleland.vaniverse.io/api/level/${id}/zip?assuming=none`);
+		let response = await fetch(`https://marbleland.vaniverse.io/api/level/${id}/zip?assuming=none&version=${version}`);
 		if (!response.ok) throw new Error("CLA archive request error.");
 
 		let buffer = await response.buffer();

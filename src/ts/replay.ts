@@ -17,7 +17,9 @@ import { Quaternion } from "./math/quaternion";
 export class Replay {
 	level: Level;
 	missionPath: string;
-	version = 5;
+	/** The version of the custom level this replay was recorded on. */
+	missionVersion: number = null;
+	version = 6;
 	mode: 'record' | 'playback' = 'record';
 	/** If writing to the replay is still permitted. */
 	canStore = true;
@@ -127,6 +129,7 @@ export class Replay {
 		if (level) {
 			this.level = level;
 			this.missionPath = level.mission.path;
+			this.missionVersion = level.mission.version;
 		}
 	}
 
@@ -407,6 +410,7 @@ export class Replay {
 			version: this.version,
 			timestamp: Date.now(),
 			missionPath: this.missionPath,
+			missionVersion: this.missionVersion,
 			marblePositions: Util.arrayBufferToString(Replay.vec3sToBuffer(this.marblePositions).buffer),
 			marbleOrientations: Util.arrayBufferToString(Replay.quatsToBuffer(this.marbleOrientations).buffer),
 			marbleLinearVelocities: Util.arrayBufferToString(Replay.vec3sToBuffer(this.marbleLinearVelocities).buffer),
@@ -449,6 +453,7 @@ export class Replay {
 
 		replay.version = version;
 		replay.missionPath = (version >= 1)? serialized.missionPath : null;
+		replay.missionVersion = (version >= 6)? serialized.missionVersion : null;
 		replay.timestamp = (version >= 1)? serialized.timestamp : 0;
 
 		replay.marblePositions = Replay.bufferToVec3s(new Float32Array(Util.stringToArrayBuffer(serialized.marblePositions)));
@@ -583,6 +588,7 @@ export interface SerializedReplay {
 	/** The version of the replay, used for compatibility. */
 	version: number,
 	missionPath: string,
+	missionVersion?: number,
 	timestamp: number,
 
 	marblePositions: string;

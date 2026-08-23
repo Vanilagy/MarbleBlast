@@ -81,7 +81,8 @@ export abstract class Leaderboard {
 		let payloadScores: {
 			id: string,
 			missionPath: string,
-			score: [string, number]
+			score: [string, number],
+			missionVersion: number
 		}[] = [];
 		let payloadReplays: Record<string, string> = {};
 
@@ -90,7 +91,8 @@ export abstract class Leaderboard {
 			let payloadScore = {
 				id: score[2],
 				missionPath,
-				score: [score[0], score[1]] as [string, number]
+				score: [score[0], score[1]] as [string, number],
+				missionVersion: score[4] ?? null
 			};
 			payloadScores.push(payloadScore);
 

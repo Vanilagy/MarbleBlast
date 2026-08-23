@@ -14,7 +14,8 @@ interface ScoreRow {
 	username?: string,
 	user_random_id?: string,
 	timestamp?: number,
-	has_wrec?: number
+	has_wrec?: number,
+	mission_version?: number
 }
 
 interface CacheEntry {
@@ -187,13 +188,14 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 	let bestTimes: {
 		id: string,
 		missionPath: string,
-		score: [string, number]
+		score: [string, number],
+		missionVersion?: number
 	}[] = data.scores? JSON.parse((await promisify(zlib.inflate)(Buffer.from(data.scores, 'base64'))).toString()) : [];
 
 	let promises: Promise<void>[] = [];
 
 	// Loop over all new scores
-	for (let { missionPath, score, id } of bestTimes) {
+	for (let { missionPath, score, id, missionVersion } of bestTimes) {
 		score[0] = score[0].slice(0, 16); // Fuck you
 		let oldTopScore: ScoreRow = shared.getTopScoreStatement.get(missionPath);
 		let isTopScore = !oldTopScore || oldTopScore.time > score[1];
@@ -205,7 +207,7 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 			wrecBuffer = Buffer.from(data.replays[id], 'base64');
 		}
 
-		shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp, wrecBuffer);
+		shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp, wrecBuffer, Number.isInteger(missionVersion)? missionVersion : 1);
 
 		// Invalidate cache for this mission since we added a new score
 		leaderboardCache.evict(missionPath);

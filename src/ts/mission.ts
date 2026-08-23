@@ -38,7 +38,8 @@ export interface CustomLevelInfo {
 	lovedCount: number,
 
 	hasCustomCode: boolean,
-	datablockCompatibility: 'mbg' | 'mbw' | 'pq'
+	datablockCompatibility: 'mbg' | 'mbw' | 'pq',
+	currentVersion: number
 }
 
 /** Represents a playable mission. Contains all the necessary metadata, as well as methods for loading the mission and gettings its resources. */
@@ -52,6 +53,8 @@ export class Mission {
 	allElements: MissionElement[];
 	/** The custom level id. */
 	id: number;
+	/** For custom levels, the version of the level. */
+	version: number = null;
 	/** The string used for searching missions. */
 	searchString: string;
 	missionInfo: MissionElementScriptObject;
@@ -118,6 +121,7 @@ export class Mission {
 		if (info.platinumTime) mission.goldTime = info.platinumTime;
 		if (info.ultimateTime) mission.ultimateTime = info.ultimateTime;
 		mission.id = info.id;
+		mission.version = info.currentVersion ?? null;
 		mission.isNew = isNew;
 		mission.createdAt = info.addedAt;
 		mission.modification = info.modification as ('gold' | 'platinum' | 'ultra');
@@ -149,7 +153,9 @@ export class Mission {
 		if (this.type !== 'custom') return; // Just a safety check
 
 		// Get the zip archive
-		let blob = await ResourceManager.loadResource(`./api/custom/${this.id}.zip`);
+		let url = `./api/custom/${this.id}.zip`;
+		if (this.version !== null) url += `?version=${this.version}`;
+		let blob = await ResourceManager.loadResource(url);
 		let arrayBuffer = await ResourceManager.readBlobAsArrayBuffer(blob);
 		let zip = await JSZip.loadAsync(arrayBuffer); // Unzip the thing
 		this.zipDirectory = zip;
@@ -237,7 +243,9 @@ export class Mission {
 			return "./assets/data_mbp/" + res;
 		} else {
 			// Request the bitmap
-			return `./api/custom/${this.id}.jpg`;
+			let url = `./api/custom/${this.id}.jpg`;
+			if (this.version !== null) url += `?version=${this.version}`;
+			return url;
 		}
 	}
 

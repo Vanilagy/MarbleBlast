@@ -1,8 +1,7 @@
 import { Util } from "./util";
 import { executeOnWorker } from "./worker";
 
-/** name, time, scoreId, timestamp */
-export type BestTimes = [name: string, time: number, scoreId: string, timestamp: number][];
+export type BestTimes = [name: string, time: number, scoreId: string, timestamp: number, missionVersion?: number][];
 
 const MAX_SCORE_TIME = (99 * 60 + 59) * 1000 + 999.99; // The 99:59.999 thing
 
@@ -303,10 +302,11 @@ export abstract class StorageManager {
 	/** Register a new time for a mission.
 	 * @returns The inserted score and the index at which at was inserted. Returns null, if the score wasn't inserted (so, not in the top maxScoresPerLevel best times).
 	 */
-	static insertNewTime(path: string, name: string, time: number) {
+	static insertNewTime(path: string, name: string, time: number, missionVersion?: number) {
 		let stored = this.data.bestTimes[path] ?? [];
 		let scoreId = Util.getRandomId();
 		let toInsert: BestTimes[number] = [name, time, scoreId, Date.now()];
+		if (missionVersion !== null && missionVersion !== undefined) toInsert[4] = missionVersion;
 
 		// Determine the correct index to insert the time at
 		let index: number;
