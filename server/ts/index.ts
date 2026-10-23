@@ -150,7 +150,7 @@ const backupStuff = () => {
 };
 
 /** Starts the HTTP server. */
-const initServer = (port: number) => {
+const initServer = (port: number, host: string) => {
 	const serve = serveStatic(shared.directoryPath, {
 		index: ['index.html']
 	});
@@ -220,9 +220,9 @@ const initServer = (port: number) => {
 		} else {
 			handleRequest();
 		}
-	}).listen(port);
+	}).listen(port, host);
 
-	console.log(`Started server on port ${port}.`);
+	console.log(`Started server on ${host ?? 'all interfaces'}, port ${port}.`);
 };
 
 /** Initializes the server. */
@@ -244,7 +244,7 @@ const init = () => {
 	let port = Number(shared.config.port);
 
 	setupDb();
-	initServer(port);
+	initServer(port, shared.config.host);
 	periodicallyUpdateCustomLevelList();
 };
 init();

@@ -1,5 +1,6 @@
 {
 	"port": 8080,
+	"host": null,
 	"useDist": false,
 	"discordWebhookUrl": null,
 	"discordWebhookUrlCustom": null,

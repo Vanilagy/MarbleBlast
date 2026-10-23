@@ -42,6 +42,8 @@ export const shared: {
 	config: {
 		/** Port for the HTTP server */
 		port: number,
+		/** Host for the HTTP server to bind to, or null for all interfaces */
+		host: string,
 		/** Whether or not to use the distribution folder as the directory path */
 		useDist: boolean,
 		/** The Discord webhook URL to send world record annoucements to */
