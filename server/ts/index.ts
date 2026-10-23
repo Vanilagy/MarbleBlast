@@ -10,6 +10,7 @@ import { shared } from './shared';
 import { getDirectoryStructure, getVersionHistory, registerActivity, registerLevelStatistics } from './misc';
 import { getLeaderboard, submitScores, getWorldRecordSheet, getWorldRecordReplay, getLeaderboardForMarbleland } from './leaderboard';
 import { getCustomLevelList, getCustomLevelResource, periodicallyUpdateCustomLevelList } from './customs';
+import { rateLimitRequest, HOUR, MINUTE } from './rate_limiter';
 
 let db: DatabaseSync = null;
 const doBackup = false;
@@ -166,20 +167,33 @@ const initServer = (port: number, host: string) => {
 				// Determine the type of request
 				outer:
 				if (pathComponents[0] === 'api') {
+					// Only the rightmost entry is trustworthy, the rest is client-supplied
+					let forwardedFor = req.headers['x-forwarded-for'] as string;
+					let ip = forwardedFor?.split(',').at(-1).trim() || req.socket.remoteAddress;
+
 					// We're handling a special API request
 					switch (pathComponents[1]) {
 						case 'directory_structure': await getDirectoryStructure(res); break;
 						case 'directory_structure_mbp': await getDirectoryStructure(res, true); break;
-						case 'scores': await getLeaderboard(res, body); break;
+						// Generous, since the client fetches these while scrolling through levels and never refetches after a failure
+						case 'scores': if (rateLimitRequest(res, `scores:${ip}`, 400, MINUTE)) await getLeaderboard(res, body); break;
 						case 'marbleland_scores': await getLeaderboardForMarbleland(res, urlObject); break;
-						case 'submit': await submitScores(res, body); break;
+						case 'submit':
+							// The client keeps its queue when rejected and resubmits it on the next sync, so nothing is lost
+							if (
+								rateLimitRequest(res, `submit:${ip}`, 30, 10 * MINUTE)
+								&& rateLimitRequest(res, `submit-bytes:${ip}`, 200 * 1024 * 1024, HOUR, bodyBuffer.length)
+							) {
+								await submitScores(res, body);
+							}
+							break;
 						case 'customs': await getCustomLevelList(res); break;
 						case 'custom': await getCustomLevelResource(res, urlObject); break;
-						case 'sheet': await getWorldRecordSheet(res); break;
+						case 'sheet': if (rateLimitRequest(res, `sheet:${ip}`, 10, MINUTE)) await getWorldRecordSheet(res); break;
 						case 'version_history': await getVersionHistory(res); break;
-						case 'activity': await registerActivity(res, urlObject); break;
-						case 'world_record_replay': await getWorldRecordReplay(res, urlObject); break;
-						case 'statistics': await registerLevelStatistics(res, body); break;
+						case 'activity': if (rateLimitRequest(res, `activity:${ip}`, 10, 10 * MINUTE)) await registerActivity(res, urlObject); break;
+						case 'world_record_replay': if (rateLimitRequest(res, `world-record-replay:${ip}`, 30, 10 * MINUTE)) await getWorldRecordReplay(res, urlObject); break;
+						case 'statistics': if (rateLimitRequest(res, `statistics:${ip}`, 60, 10 * MINUTE)) await registerLevelStatistics(res, body); break;
 						default: break outer; // Incorrect API function
 					}
 

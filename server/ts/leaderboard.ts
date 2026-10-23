@@ -5,6 +5,7 @@ import * as url from 'url';
 
 import { shared } from './shared';
 import { compareSemver, escapeCsv, escapeDiscord, secondsToTimeString, uppercaseFirstLetter } from './util';
+import { spendRateLimitBudget, MINUTE } from './rate_limiter';
 
 const MAX_INFLATED_SCORES_SIZE = 16 * 1024 * 1024; // In bytes
 const MAX_MISSIONS_PER_LEADERBOARD_REQUEST = 50;
@@ -245,7 +246,9 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 		throw e;
 	}
 
-	for (let broadcast of broadcasts) broadcast();
+	for (let broadcast of broadcasts) {
+		if (spendRateLimitBudget('webhook', 30, MINUTE) === 0) broadcast();
+	}
 
 	await Promise.all(promises);
 
