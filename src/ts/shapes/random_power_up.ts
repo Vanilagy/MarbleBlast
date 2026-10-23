@@ -6,10 +6,7 @@ import { SuperJump } from "./super_jump";
 import { SuperSpeed } from "./super_speed";
 import { TimeTravel } from "./time_travel";
 
-// https://stackoverflow.com/questions/39392853/is-there-a-type-for-class-in-typescript-and-does-any-include-it
-interface Type<T> extends Function {
-    new (...args: any[]): T;
-}
+type Type<T> = new (...args: any[]) => T;
 
 export const POSSIBLE_POWERUPS: Type<PowerUp>[] = [SuperJump, SuperSpeed, Helicopter, SuperBounce, ShockAbsorber, TimeTravel];
 
@@ -45,7 +42,10 @@ export class RandomPowerUp extends PowerUp {
 				if (this.level.replay.mode === 'record') {
 					// Save the random choice to the replay
 					let arr = this.level.replay.randomPowerUpChoices.get(this.id);
-					if (!arr) arr = [], this.level.replay.randomPowerUpChoices.set(this.id, arr);
+					if (!arr) {
+						arr = [];
+						this.level.replay.randomPowerUpChoices.set(this.id, arr);
+					}
 					arr.push(POSSIBLE_POWERUPS.indexOf(Random));
 				}
 

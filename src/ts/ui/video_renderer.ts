@@ -84,7 +84,7 @@ export abstract class VideoRenderer {
 						accept: {'video/webm' :['.webm']}
 					}]
 				} as any);
-			} catch (e) {
+			} catch {
 				return;
 			}
 
@@ -220,7 +220,7 @@ export abstract class VideoRenderer {
 		let compilationManifestFile: FileSystemFileHandle;
 		try {
 			compilationManifestFile = await directoryHandle.getFileHandle('manifest.json');
-		} catch (e) {
+		} catch {
 			state.menu.showAlertPopup('Missing compilation manifest file', "The selected directory does not contain a manifest.json file, which is required. For a tutorial on how to render compilations, click [here](https://github.com/Vanilagy/MarbleBlast/tree/master/docs/compilation_how_to.md).");
 			return;
 		}
@@ -921,7 +921,7 @@ class RenderingProcess {
 
 		try {
 			this.wakeLock = await navigator.wakeLock.request('screen');
-		} catch (e) {}
+		} catch {}
 	}
 
 	releaseWakeLock() {

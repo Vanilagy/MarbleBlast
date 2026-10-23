@@ -4,13 +4,14 @@
 		"experimentalDecorators": true,
 		"outDir": "./js",
 		"module": "es6",
-		"moduleResolution": "Node",
+		"moduleResolution": "Bundler",
 		"target": "es2019",
 		"strict": true,
 		"strictNullChecks": false,
+		"skipLibCheck": true,
 		"lib": ["ESNext", "DOM", "DOM.Iterable", "WebWorker"],
 		"allowSyntheticDefaultImports": true,
-		"types": ["@types/wicg-file-system-access", "@types/dom-webcodecs", "@types/dom-screen-wake-lock"]
+		"types": ["@types/node", "@types/wicg-file-system-access"]
 	},
 	"include": [
 		"src/ts/**/*",

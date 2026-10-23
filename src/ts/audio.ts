@@ -107,7 +107,7 @@ export class AudioManager {
 					// to clone the buffer here.
 					let clonedBuffer = arrayBuffer.slice(0, arrayBuffer.byteLength);
 					audioBuffer = await this.context.decodeAudioData(clonedBuffer);
-				} catch (e) {
+				} catch {
 					// Firefox should hit this case sometimes
 					audioBuffer = await oggDecoder.decodeOggData(arrayBuffer);
 				}
@@ -363,7 +363,7 @@ export class AudioSource {
 			} else {
 				(this.node as AudioBufferSourceNode).stop(this.manager.currentTime);
 			}
-		} catch (e) {}
+		} catch {}
 
 		Util.removeFromArray(this.manager.audioSources, this);
 	}

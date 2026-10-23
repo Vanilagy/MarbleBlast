@@ -124,7 +124,8 @@ export const nukeSparksParticle = {
 		lifetime: 4500,
 		lifetimeVariance: 2500,
 		dragCoefficient: 0.5,
-		acceleration: 0 ?? -8,
+		// @ts-expect-error Deliberately constant
+		acceleration: 0 ?? -8, // eslint-disable-line no-constant-binary-expression
 		colors: [{r: 0.6, g: 0.4, b: 0.3, a: 1}, {r: 0.6, g: 0.4, b: 0.3, a: 1}, {r: 1, g: 0.4, b: 0.3, a: 0}],
 		sizes: [0.5, 0.4, 0.2],
 		times: [0, 0.5, 1]

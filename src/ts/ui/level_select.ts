@@ -110,7 +110,7 @@ export abstract class LevelSelect {
 					this.fetchingRemoteReplay = false;
 
 					return buffer;
-				} catch (e) {
+				} catch {
 					this.fetchingRemoteReplay = false;
 					return null;
 				}
@@ -660,7 +660,7 @@ export abstract class LevelSelect {
 			directoryHandle = await window.showDirectoryPicker({
 				mode: 'readwrite'
 			});
-		} catch (e) {
+		} catch {
 			return;
 		}
 

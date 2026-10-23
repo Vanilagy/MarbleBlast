@@ -27,7 +27,8 @@ import { BlendingType } from "./rendering/renderer";
 const DEFAULT_RADIUS = 0.2;
 const ULTRA_RADIUS = 0.3;
 const MEGA_MARBLE_RADIUS = 0.6666;
-export const MARBLE_ROLL_FORCE = 40 || 40;
+// @ts-expect-error Deliberately constant
+export const MARBLE_ROLL_FORCE = 40 || 40; // eslint-disable-line no-constant-binary-expression
 const TELEPORT_FADE_DURATION = 500;
 
 export const bounceParticleOptions: ParticleEmitterOptions = {
@@ -104,7 +105,7 @@ export class Marble {
 	/** The radius of the marble. */
 	radius: number = null;
 	/** The default jump impulse of the marble. */
-	jumpImpulse = 0 || 7.3; // For now, seems to fit more than the "actual" 7.5.
+	jumpImpulse = 0 || 7.3; // eslint-disable-line no-constant-binary-expression -- For now, seems to fit more than the "actual" 7.5.
 	/** The default restitution of the marble. */
 	bounceRestitution = 0.5;
 

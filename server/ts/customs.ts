@@ -1,8 +1,7 @@
 import * as http from 'http';
-import * as fs from 'fs-extra';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as url from 'url';
-import fetch from 'node-fetch';
 import JSZip from 'jszip';
 import writeFileAtomic from 'write-file-atomic';
 
@@ -69,7 +68,7 @@ export const getCustomLevelResource = async (res: http.ServerResponse, urlObject
 /** Transmits a custom level bitmap. */
 const getCustomLevelBitmap = async (res: http.ServerResponse, id: number, version: number) => {
 	let filePath = path.join(__dirname, 'storage', 'customs', `bitmap${id}-v${version}.jpg`);
-	let exists = await fs.pathExists(filePath); // See if the bitmap has already been downloaded and saved
+	let exists = fs.existsSync(filePath); // See if the bitmap has already been downloaded and saved
 
 	if (!exists) {
 		// If it doesn't exist yet, fetch it from the Marbleland API
@@ -80,11 +79,11 @@ const getCustomLevelBitmap = async (res: http.ServerResponse, id: number, versio
 			return;
 		}
 
-		let buffer = await response.buffer();
-		await fs.writeFile(filePath, buffer); // Store the bitmap in a file
+		let buffer = Buffer.from(await response.arrayBuffer());
+		await fs.promises.writeFile(filePath, buffer); // Store the bitmap in a file
 	}
 
-	let stats = await fs.stat(filePath);
+	let stats = await fs.promises.stat(filePath);
 	let stream = fs.createReadStream(filePath);
 
 	res.writeHead(200, {
@@ -98,15 +97,14 @@ const getCustomLevelBitmap = async (res: http.ServerResponse, id: number, versio
 /** Transmits a custom level archive. */
 const getCustomLevelArchive = async (res: http.ServerResponse, id: number, version: number) => {
 	let filePath = path.join(__dirname, 'storage', 'customs', `zip${id}-v${version}.zip`);
-	let exists = await fs.pathExists(filePath); // See if the archive has already been downloaded and saved
+	let exists = fs.existsSync(filePath); // See if the archive has already been downloaded and saved
 
 	if (!exists) {
 		// If it doesn't exist yet, fetch it from the Marbleland API
 		let response = await fetch(`https://marbleland.vaniverse.io/api/level/${id}/zip?assuming=none&version=${version}`);
 		if (!response.ok) throw new Error("CLA archive request error.");
 
-		let buffer = await response.buffer();
-		let zip = await JSZip.loadAsync(buffer);
+		let zip = await JSZip.loadAsync(await response.arrayBuffer());
 		let promises: Promise<void>[] = [];
 		let modification = shared.customLevelList.find(x => x.id === id).modification;
 
@@ -125,7 +123,7 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number, versi
 					'assets',
 					(modification === 'gold')? entry.name : entry.name.replace('data/', 'data_mbp/')
 				).toLowerCase(); // Case-insensitive paths
-				let exists = await fs.pathExists(filePath);
+				let exists = fs.existsSync(filePath);
 				if (exists) zip.remove(entry.name);
 
 				resolve();
@@ -135,10 +133,10 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number, versi
 		await Promise.all(promises);
 
 		let newBuffer = await zip.generateAsync({ type: 'nodebuffer' });
-		await fs.writeFile(filePath, newBuffer); // Store the modified archive into a file
+		await fs.promises.writeFile(filePath, newBuffer); // Store the modified archive into a file
 	}
 
-	let stats = await fs.stat(filePath);
+	let stats = await fs.promises.stat(filePath);
 	let stream = fs.createReadStream(filePath);
 
 	res.writeHead(200, {

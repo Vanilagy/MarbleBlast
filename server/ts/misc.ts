@@ -1,5 +1,5 @@
 import * as http from 'http';
-import * as fs from 'fs-extra';
+import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as url from 'url';
 

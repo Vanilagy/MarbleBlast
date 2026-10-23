@@ -67,24 +67,21 @@ export abstract class ForceShape extends Shape {
 		let marble = this.level.marble;
 		let pos = marble.body.position;
 
-		let strength = 0.0;
-		let dot = 0.0;
-		let posVec = new Vector3();
 		let retForce = new Vector3();
 
 		let node = this.worldMatrix.clone(); // In the general case, this is a mount node, but we're only using this method for magnets so far and those don't have that, so use the magnet's transform instead
 		let nodeVec = new Vector3(node.elements[4], node.elements[5], node.elements[6]); // Gets the second column, so basically the transformed y axis
 		nodeVec.normalize();
 
-		posVec = pos.clone().sub(new Vector3().setFromMatrixPosition(node));
-		dot = posVec.length();
+		let posVec = pos.clone().sub(new Vector3().setFromMatrixPosition(node));
+		let dot = posVec.length();
 
 		if (forceRadius < dot) {
 			// We're outside the area of effect
 			return retForce;
 		}
 
-		strength = (1 - dot / forceRadius) * forceStrength;
+		let strength = (1 - dot / forceRadius) * forceStrength;
 
 		posVec.multiplyScalar(1 / dot);
 		let newDot = nodeVec.dot(posVec);

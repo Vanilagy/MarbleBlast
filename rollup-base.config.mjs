@@ -2,14 +2,21 @@ import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import external_globals from 'rollup-plugin-external-globals';
 import externals from 'rollup-plugin-node-externals';
-import { string } from 'rollup-plugin-string';
 
 export default (typescript) => [{
 	input: './src/ts/index.ts',
 	plugins: [
-		string({
-			include: "**/*.glsl"
-		}),
+		{
+			name: 'glsl',
+			transform(code, id) {
+				if (!id.endsWith('.glsl')) return null;
+
+				return {
+					code: `export default ${JSON.stringify(code)};`,
+					map: { mappings: '' }
+				};
+			}
+		},
 		resolve({
 			browser: true
 		}),

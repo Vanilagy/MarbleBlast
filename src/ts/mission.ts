@@ -259,7 +259,7 @@ export class Mission {
 		if (this.modification === 'gold' && path.includes('interiors_mbg/')) path = path.replace('interiors_mbg/', 'interiors/');
 		if (this.modification !== 'gold') path = path.replace('data/', 'data_mbp/');
 
-		let dif: hxDif.Dif = null;
+		let dif: hxDif.Dif;
 		await this.difCachePromises.get(path);
 		if (this.difCache.get(path)) {
 			dif = this.difCache.get(path); // We've already parsed the dif before
@@ -297,7 +297,7 @@ export class Mission {
 
 	/** Gets a DTS file from the mission resources. */
 	async getDts(path: string) {
-		let dts: DtsFile = null;
+		let dts: DtsFile;
 
 		let base = (state.modification === 'gold')? 'data/' : 'data_mbp/';
 
@@ -315,7 +315,7 @@ export class Mission {
 	}
 
 	async getIfl(path: string) {
-		let ifl: IflFile = null;
+		let ifl: IflFile;
 
 		if (this.zipDirectory && this.zipDirectory.files['data/' + path]) {
 			// Get it from the zip

@@ -139,7 +139,7 @@ export abstract class ResourceManager {
 					this.cachedResources.set(path, blob);
 					this.loadResourcePromises.delete(path);
 					resolve(blob);
-				} catch (e) {
+				} catch {
 					// Try again in a second
 					setTimeout(attempt, 1000);
 				}
@@ -254,7 +254,7 @@ export abstract class ResourceManager {
 
 					let blob = await response.blob();
 					resolve(blob);
-				} catch (e) {
+				} catch {
 					setTimeout(attempt, 1000);
 				}
 			};

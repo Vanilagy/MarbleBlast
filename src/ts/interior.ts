@@ -370,7 +370,11 @@ export class Interior {
 				// Figure out UV coordinates by getting the distances of the corresponding vertices to the plane.
 				let u = texPlaneX.distanceToPoint(new Vector3(position.x, position.y, position.z));
 				let v = texPlaneY.distanceToPoint(new Vector3(position.x, position.y, position.z));
-				if (this.level.mission.modification === 'ultra' && material === 'plate_1') u /= 2, v /= 2; // This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
+				if (this.level.mission.modification === 'ultra' && material === 'plate_1') {
+					// This one texture gets scaled up by 2x probably in the shader, but to avoid writing a separate shader we do it here.
+					u /= 2;
+					v /= 2;
+				}
 
 				geometry.positions.push(position.x, position.y, position.z);
 				geometry.normals.push(0, 0, 0); // Push a placeholder, we'll compute a proper normal later

@@ -304,7 +304,7 @@ export class MisParser {
 		// Find all specified variables
 		this.variables = { "$usermods": '""' }; // Just make $usermods point to nothing
 		assignmentRegEx.lastIndex = 0;
-		let match: RegExpMatchArray = null;
+		let match: RegExpMatchArray;
 		while ((match = assignmentRegEx.exec(outsideText)) !== null) {
 			// Only use the first variable found. This is because the variable is likely to be modified later on with conditional statements and that's too complex to parse right now.
 			if (!this.variables[match[1]]) this.variables[match[1]] = match[2];
@@ -312,7 +312,6 @@ export class MisParser {
 
 		// Parse any custom marble attributes specified at the top of the file
 		let marbleAttributes: Record<string, string> = {};
-		match = null;
 		marbleAttributesRegEx.lastIndex = 0;
 		while ((match = marbleAttributesRegEx.exec(outsideText)) !== null) {
 			marbleAttributes[match[1]] = this.resolveExpression(match[2]);
@@ -320,14 +319,12 @@ export class MisParser {
 
 		// Parse any packages that the mission file activates
 		let activatedPackages: string[] = [];
-		match = null;
 		activatePackageRegEx.lastIndex = 0;
 		while ((match = activatePackageRegEx.exec(outsideText)) !== null) {
 			activatedPackages.push(this.resolveExpression(match[1]));
 		}
 
 		let materialProperties: Record<string, Record<string, number>> = {};
-		match = null;
 		materialPropertyRegEx.lastIndex = 0;
 		while ((match = materialPropertyRegEx.exec(outsideText)) !== null) {
 			let pairs = match[2].split(';').filter(x => x.trim()).map(x => x.split('=').map(x => x.trim()));
@@ -338,7 +335,6 @@ export class MisParser {
 		}
 
 		let materialMappings: Record<string, string> = {};
-		match = null;
 		addMaterialMappingRegEx.lastIndex = 0;
 		while ((match = addMaterialMappingRegEx.exec(outsideText)) !== null) {
 			materialMappings[match[1]] = match[2];

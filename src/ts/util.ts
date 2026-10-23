@@ -20,7 +20,7 @@ export abstract class Util {
 		try {
 			// Fetch the keyboard map for instant access later
 			this.keyboardMap = await (navigator as any).keyboard?.getLayoutMap();
-		} catch (e) {}
+		} catch {}
 	}
 
 	static degToRad(deg: number) {
@@ -120,7 +120,7 @@ export abstract class Util {
 
 	/** Forces an element's layout to be recalculated. */
 	static forceLayout(element: Element) {
-		element.clientWidth; // It's hacky, but simply accessing this forces it.
+		element.clientWidth; // eslint-disable-line @typescript-eslint/no-unused-expressions -- It's hacky, but simply accessing this forces it.
 	}
 
 	/** Get the value of a key for the corresponding button code. For example, KeyA -> A. Respects the user's keyboard layout. */
@@ -295,7 +295,7 @@ export abstract class Util {
 	/** Unescapes escaped (\) characters. */
 	static unescape(str: string) {
 		let cEscapeRegex = /(^|[^\\])\\x([0-9a-f]{2})/gi; // Matches \xhh
-		let match: RegExpExecArray = null;
+		let match: RegExpExecArray;
 
 		while ((match = cEscapeRegex.exec(str)) !== null) {
 			let code = Number.parseInt(match[2], 16);
@@ -455,7 +455,7 @@ export abstract class Util {
 	/** Removes all characters from a string that aren't letters or digits. */
 	static removeSpecialChars(str: string) {
 		let regex = /[^\w\d]/gi;
-		let match: RegExpExecArray = null;
+		let match: RegExpExecArray;
 
 		while ((match = regex.exec(str)) !== null) {
 			str = str.slice(0, match.index) + str.slice(match.index + match[0].length);

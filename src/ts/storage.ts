@@ -204,14 +204,14 @@ export abstract class StorageManager {
 				// For storing replays
 				try {
 					db.createObjectStore('replays', {});
-				} catch (error) {
+				} catch {
 					transaction.objectStore('replays');
 				}
 
 				// A simple key-value store
 				try {
 					db.createObjectStore('keyvalue', {});
-				} catch (error) {
+				} catch {
 					transaction.objectStore('keyvalue');
 				}
 			};

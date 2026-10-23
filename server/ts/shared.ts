@@ -1,4 +1,4 @@
-import * as Database from 'better-sqlite3';
+import { DatabaseSync, StatementSync } from 'node:sqlite';
 
 /** A custom levels archive entry. */
 interface CustomLevelInfo {
@@ -59,12 +59,12 @@ export const shared: {
 	/** Maps mission path to level name */
 	levelNameMap: Record<string, string>,
 
-	db: Database.Database,
-	getLeaderboardForMissionStatement: Database.Statement,
-	insertScoreStatement: Database.Statement,
-	getTopScoreStatement: Database.Statement,
-	getTopScoreWrecStatement: Database.Statement,
-	getNewerTopScoresStatement: Database.Statement,
-	getLatestTimestampStatement: Database.Statement,
-	insertLevelStatistics: Database.Statement
+	db: DatabaseSync,
+	getLeaderboardForMissionStatement: StatementSync,
+	insertScoreStatement: StatementSync,
+	getTopScoreStatement: StatementSync,
+	getTopScoreWrecStatement: StatementSync,
+	getNewerTopScoresStatement: StatementSync,
+	getLatestTimestampStatement: StatementSync,
+	insertLevelStatistics: StatementSync
 } = {} as any;

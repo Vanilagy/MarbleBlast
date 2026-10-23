@@ -26,6 +26,8 @@ const numberSources = {
 	"-": "dash.png"
 };
 const keybindRegex = /<func:bind (\w+)>/g;
+// Not a frame rate cap option, but common enough to snap to
+const SNAPPED_FRAME_RATES = [...FRAME_RATE_OPTIONS, 72];
 
 export abstract class Hud {
 	menu: Menu;
@@ -464,9 +466,10 @@ export abstract class Hud {
 		while (this.frameTimeStore.length && this.frameTimeStore[0] + 1000 <= now) this.frameTimeStore.shift();
 
 		let value = this.frameTimeStore.length;
-		value /= Math.min(1, state.level.timeState.timeSinceLoad / 1000 ?? 1); // Hack to make it reach the final frame rate faster
+		// @ts-expect-error Deliberately constant
+		value /= Math.min(1, state.level.timeState.timeSinceLoad / 1000 ?? 1); // eslint-disable-line no-constant-binary-expression -- Hack to make it reach the final frame rate faster
 		value = Math.floor(value);
-		let similarValue = FRAME_RATE_OPTIONS.find(x => Math.abs(x - value) <= 1);
+		let similarValue = SNAPPED_FRAME_RATES.find(x => Math.abs(x - value) <= 1);
 		if (similarValue !== undefined) {
 			value = similarValue; // Snap to the most common frame rates
 		}

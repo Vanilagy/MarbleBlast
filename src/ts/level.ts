@@ -581,7 +581,7 @@ export class Level extends Scheduler {
 
 		try {
 			await this.audio.loadBuffers(toLoad);
-		} catch (e) {
+		} catch {
 			// Something died, maybe it was the music, try replacing it with a song we know exists
 			let newMusic = Util.randomFromArray(MBP_SONGS);
 			this.originalMusicName = newMusic;
@@ -679,7 +679,10 @@ export class Level extends Scheduler {
 		else if (["endpad", "endpad_mbg", "endpad_mbp"].includes(dataBlockLowerCase)) shape = new EndPad(element === this.endPadElement);
 		else if (dataBlockLowerCase === "signfinish") shape = new SignFinish();
 		else if (dataBlockLowerCase.startsWith("signplain")) shape = new SignPlain(element as MissionElementStaticShape);
-		else if (dataBlockLowerCase.startsWith("gemitem")) shape = new Gem(element as MissionElementItem), this.totalGems++;
+		else if (dataBlockLowerCase.startsWith("gemitem")) {
+			shape = new Gem(element as MissionElementItem);
+			this.totalGems++;
+		}
 		else if (dataBlockLowerCase === "superjumpitem") shape = new SuperJump(element as MissionElementItem);
 		else if (dataBlockLowerCase.startsWith("signcaution")) shape = new SignCaution(element as MissionElementStaticShape);
 		else if (dataBlockLowerCase === "superbounceitem") shape = new SuperBounce(element as MissionElementItem);

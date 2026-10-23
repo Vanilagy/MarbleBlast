@@ -1,6 +1,0 @@
-node_modules
-dist
-src/ts/declarations/**
-src/ts/**/*.js
-src/lib/**
-**/bundle.js
