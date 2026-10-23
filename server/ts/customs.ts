@@ -91,6 +91,10 @@ const getCustomLevelBitmap = async (res: http.ServerResponse, id: number, versio
 		'Content-Length': stats.size,
 		'Access-Control-Allow-Origin': '*'
 	});
+	stream.on('error', e => {
+		console.error("Error streaming custom level bitmap.", e);
+		res.destroy();
+	});
 	stream.pipe(res);
 };
 
@@ -100,13 +104,16 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number, versi
 	let exists = fs.existsSync(filePath); // See if the archive has already been downloaded and saved
 
 	if (!exists) {
+		let claEntry = shared.customLevelList.find(x => x.id === id);
+		if (!claEntry) throw new Error("Custom level isn't in the list.");
+		let modification = claEntry.modification;
+
 		// If it doesn't exist yet, fetch it from the Marbleland API
 		let response = await fetch(`https://marbleland.vaniverse.io/api/level/${id}/zip?assuming=none&version=${version}`);
 		if (!response.ok) throw new Error("CLA archive request error.");
 
 		let zip = await JSZip.loadAsync(await response.arrayBuffer());
 		let promises: Promise<void>[] = [];
-		let modification = shared.customLevelList.find(x => x.id === id).modification;
 
 		// Clean up the archive a bit:
 		zip.forEach((_, entry) => {
@@ -143,6 +150,10 @@ const getCustomLevelArchive = async (res: http.ServerResponse, id: number, versi
 		'Content-Type': 'application/zip',
 		'Content-Length': stats.size,
 		'Access-Control-Allow-Origin': '*'
+	});
+	stream.on('error', e => {
+		console.error("Error streaming custom level archive.", e);
+		res.destroy();
 	});
 	stream.pipe(res);
 };

@@ -1,14 +1,9 @@
 /** Sanitizes a string for worry-free use in Discord messages. */
 export const escapeDiscord = (message: string) => {
-	message = message.replace(/\\/g, "\\\\");
-	message = message.replace(/\*/g, "\\*");
-	message = message.replace(/_/g, "\\_");
-	message = message.replace(/~/g, "\\~");
-	message = message.replace(/-/g, "\\-");
-	message = message.replace(/`/g, "\\`");
-	message = message.replace(/:/g, "\\:");
-	message = message.replace(/#/g, "\\#");
-	message = message.replace(/\|/g, "\\|");
+	// Without newlines, nobody can start a line with block-level markdown like headings, quotes or lists
+	message = message.replace(/[\r\n]+/g, ' ');
+	// Escape everything else that means something to Discord, including masked links, URLs and emoji
+	message = message.replace(/[\\*_~\-`:#|[\]()>]/g, "\\$&");
 
 	// To prevent people from @everyone and causing a problem
 	message = message.replace(/@/g, "@﻿");
@@ -16,6 +11,11 @@ export const escapeDiscord = (message: string) => {
 	message = message.replace(/</g, "<﻿");
 
 	return message;
+};
+
+export const escapeCsv = (field: string) => {
+	if (/^[=+\-@\t\r]/.test(field)) field = "'" + field;
+	return '"' + field.replace(/"/g, '""') + '"';
 };
 
 /** Converts seconds to a formatted time string. */

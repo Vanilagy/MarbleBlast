@@ -4,7 +4,11 @@ import * as zlib from 'zlib';
 import * as url from 'url';
 
 import { shared } from './shared';
-import { compareSemver, escapeDiscord, secondsToTimeString, uppercaseFirstLetter } from './util';
+import { compareSemver, escapeCsv, escapeDiscord, secondsToTimeString, uppercaseFirstLetter } from './util';
+
+const MAX_INFLATED_SCORES_SIZE = 16 * 1024 * 1024; // In bytes
+const MAX_MISSIONS_PER_LEADERBOARD_REQUEST = 50;
+const MAX_REPLAY_SIZE = 50 * 1024 * 1024; // In bytes
 
 interface ScoreRow {
 	rowid?: number,
@@ -90,6 +94,7 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 	let options: {
 		missions: string[]
 	} = JSON.parse(body);
+	if (options.missions.length > MAX_MISSIONS_PER_LEADERBOARD_REQUEST) throw new Error("Too many missions requested.");
 
 	let response: Record<string, [string, number, boolean][]> = {};
 
@@ -104,6 +109,8 @@ export const getLeaderboard = async (res: http.ServerResponse, body: string) => 
 		let cachedData = leaderboardCache.get(mission);
 		if (cachedData) {
 			response[mission] = cachedData;
+		} else if (!missionExists(mission)) {
+			response[mission] = [];
 		} else {
 			// Query database and cache result
 			let rows = shared.getLeaderboardForMissionStatement.all(mission) as ScoreRow[];
@@ -134,15 +141,7 @@ export const getLeaderboardForMarbleland = async (res: http.ServerResponse, url:
 
 	let customLevelInfo = shared.customLevelList.find(x => x.id === Number(missionId));
 	if (customLevelInfo) {
-		// Build up the mission path
-		let mission = `custom/${Number(missionId)}`;
-		if (customLevelInfo.modification === 'platinum') {
-			mission = 'mbp/' + mission;
-		} else if (customLevelInfo.modification === 'ultra') {
-			mission = 'mbu/' + mission;
-		}
-
-		rows = shared.getLeaderboardForMissionStatement.all(mission) as ScoreRow[];
+		rows = shared.getLeaderboardForMissionStatement.all(getCustomLevelMissionPath(customLevelInfo)) as ScoreRow[];
 	}
 
 	let response = {
@@ -180,6 +179,8 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 
 	if (compareSemver(data.version, '2.6.14') < 0) {
 		// April Fools' 2025 check, so nobody accidentally submits "cheated" scores
+		res.writeHead(400);
+		res.end();
 		return;
 	}
 
@@ -189,46 +190,62 @@ export const submitScores = async (res: http.ServerResponse, body: string) => {
 		missionPath: string,
 		score: [string, number],
 		missionVersion?: number
-	}[] = data.scores? JSON.parse((await promisify(zlib.inflate)(Buffer.from(data.scores, 'base64'))).toString()) : [];
+	}[] = data.scores? JSON.parse((await promisify(zlib.inflate)(Buffer.from(data.scores, 'base64'), { maxOutputLength: MAX_INFLATED_SCORES_SIZE })).toString()) : [];
 
 	let promises: Promise<void>[] = [];
+	let broadcasts: (() => void)[] = [];
 
-	// Loop over all new scores
-	for (let { missionPath, score, id, missionVersion } of bestTimes) {
-		score[0] = score[0].slice(0, 16); // Fuck you
-		let oldTopScore = shared.getTopScoreStatement.get(missionPath) as ScoreRow;
-		let isTopScore = !oldTopScore || oldTopScore.time > score[1];
+	// All or nothing, as the client resubmits the whole batch after a failure, which would duplicate the scores inserted so far
+	shared.db.exec('BEGIN;');
+	try {
+		// Loop over all new scores
+		for (let { missionPath, score, id, missionVersion } of bestTimes) {
+			// Skip instead of rejecting the whole request, as the client would otherwise resubmit the same batch forever
+			if (!missionExists(missionPath)) continue;
 
-		if (isTopScore && !data.replays[id]) continue; // Top scores NEED a replay
+			score[0] = score[0].slice(0, 16); // Fuck you
+			let oldTopScore = shared.getTopScoreStatement.get(missionPath) as ScoreRow;
+			let isTopScore = !oldTopScore || oldTopScore.time > score[1];
 
-		let wrecBuffer: Buffer = null;
-		if (data.replays[id]) {
-			wrecBuffer = Buffer.from(data.replays[id], 'base64');
-		}
+			if (isTopScore && !data.replays[id]) continue; // Top scores NEED a replay
 
-		shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp, wrecBuffer, Number.isInteger(missionVersion)? missionVersion : 1);
+			let wrecBuffer: Buffer = null;
+			if (data.replays[id]) {
+				wrecBuffer = Buffer.from(data.replays[id], 'base64');
+				if (wrecBuffer.length > MAX_REPLAY_SIZE) continue; // Skipped, just like scores for unknown missions
+			}
 
-		// Invalidate cache for this mission since we added a new score
-		leaderboardCache.evict(missionPath);
+			shared.insertScoreStatement.run(missionPath, score[1], score[0], data.randomId, timestamp, wrecBuffer, Number.isInteger(missionVersion)? missionVersion : 1);
 
-		if (isTopScore) {
-			if (shared.config.discordWebhookUrl) {
-				// Broadcast a world record message to the webhook URL
-				let url = shared.config.discordWebhookUrl;
-				let allowed = true;
-				if (missionPath.includes('custom/')) {
-					if (shared.config.discordWebhookUrlCustom)
-						url = shared.config.discordWebhookUrlCustom;
-					let scoreCount = shared.getLeaderboardForMissionStatement.all(missionPath).length;
-					if (scoreCount < shared.config.webhookCustomMinScoreThreshold) {
-						allowed = false; // Not enough scores yet, don't broadcast
+			// Invalidate cache for this mission since we added a new score
+			leaderboardCache.evict(missionPath);
+
+			if (isTopScore) {
+				if (shared.config.discordWebhookUrl) {
+					// Broadcast a world record message to the webhook URL
+					let url = shared.config.discordWebhookUrl;
+					let allowed = true;
+					if (missionPath.includes('custom/')) {
+						if (shared.config.discordWebhookUrlCustom)
+							url = shared.config.discordWebhookUrlCustom;
+						let scoreCount = shared.getLeaderboardForMissionStatement.all(missionPath).length;
+						if (scoreCount < shared.config.webhookCustomMinScoreThreshold) {
+							allowed = false; // Not enough scores yet, don't broadcast
+						}
 					}
-				}
 
-				if (allowed) broadcastToWebhook(url, missionPath, score, data.randomId, oldTopScore);
+					if (allowed) broadcasts.push(() => broadcastToWebhook(url, missionPath, score, data.randomId, oldTopScore));
+				}
 			}
 		}
+
+		shared.db.exec('COMMIT;');
+	} catch (e) {
+		shared.db.exec('ROLLBACK;');
+		throw e;
 	}
+
+	for (let broadcast of broadcasts) broadcast();
 
 	await Promise.all(promises);
 
@@ -282,9 +299,10 @@ const broadcastToWebhook = (url: string, missionPath: string, score: [string, nu
 			'Content-Type': 'application/json'
 		},
 		body: JSON.stringify({
-			content: message
+			content: message,
+			allowed_mentions: { parse: [] }
 		})
-	});
+	}).catch(e => console.error("Error broadcasting to webhook.", e));
 };
 
 /** Gets the mission name from a given mission path. */
@@ -356,7 +374,7 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 		let wrecExists = true; // We've improved :)
 
 		// Add row
-		output += `${shared.levelNameMap[missionPath]},${topScore.time},${topScore.username.slice(0, 16)},${wrecExists? 'Yes' : 'No'}\n`;
+		output += `${escapeCsv(shared.levelNameMap[missionPath])},${topScore.time},${escapeCsv(topScore.username.slice(0, 16))},${wrecExists? 'Yes' : 'No'}\n`;
 	}
 
 	res.writeHead(200, {
@@ -370,16 +388,17 @@ export const getWorldRecordSheet = async (res: http.ServerResponse) => {
 /** Gets the stored .wrec for the best score on a given level. */
 export const getWorldRecordReplay = async (res: http.ServerResponse, urlObject: url.URL) => {
 	let missionPath = urlObject.searchParams.get('missionPath');
-	let missionExists = getMissionNameFromMissionPath(missionPath) !== undefined;
-	if (!missionExists) {
+	if (!missionExists(missionPath)) {
 		res.writeHead(400);
 		res.end();
+		return;
 	}
 
 	let row = shared.getTopScoreWrecStatement.get(missionPath) as { wrec: Uint8Array };
 	if (!row) {
 		res.writeHead(400);
 		res.end('400');
+		return;
 	}
 
 	let buffer = row.wrec;
@@ -390,4 +409,23 @@ export const getWorldRecordReplay = async (res: http.ServerResponse, urlObject: 
 		'Cache-Control': 'no-cache, no-store' // Don't cache this
 	});
 	res.end(buffer);
+};
+
+/** Checks if a mission path belongs to a default level or a custom level from the archive. */
+const missionExists = (missionPath: string) => {
+	if (!missionPath.includes('custom/')) return Object.hasOwn(shared.levelNameMap, missionPath);
+
+	let claEntry = shared.customLevelList.find(x => x.id === Number(missionPath.slice(missionPath.lastIndexOf('/') + 1)));
+	return !!claEntry && getCustomLevelMissionPath(claEntry) === missionPath;
+};
+
+const getCustomLevelMissionPath = (customLevelInfo: typeof shared.customLevelList[number]) => {
+	let missionPath = `custom/${customLevelInfo.id}`;
+	if (customLevelInfo.modification === 'platinum') {
+		missionPath = 'mbp/' + missionPath;
+	} else if (customLevelInfo.modification === 'ultra') {
+		missionPath = 'mbu/' + missionPath;
+	}
+
+	return missionPath;
 };

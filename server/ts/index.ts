@@ -7,12 +7,13 @@ import serveStatic from 'serve-static';
 import finalhandler from 'finalhandler';
 
 import { shared } from './shared';
-import { getDirectoryStructure, getVersionHistory, logUserError, registerActivity, registerLevelStatistics } from './misc';
+import { getDirectoryStructure, getVersionHistory, registerActivity, registerLevelStatistics } from './misc';
 import { getLeaderboard, submitScores, getWorldRecordSheet, getWorldRecordReplay, getLeaderboardForMarbleland } from './leaderboard';
 import { getCustomLevelList, getCustomLevelResource, periodicallyUpdateCustomLevelList } from './customs';
 
 let db: DatabaseSync = null;
 const doBackup = false;
+const MAX_REQUEST_BODY_SIZE = 100 * 1024 * 1024; // In bytes
 
 /** The ordered list of database migrations. The number of already-applied migrations is stored in the database's `user_version` field; on start-up, all migrations past that point are applied in order. New schema changes must strictly be appended to this list, and existing entries may never be modified. The first migration is a no-op on databases that predate this migration system (which contain the base schema but report a `user_version` of 0). */
 const migrations: string[] = [
@@ -175,7 +176,6 @@ const initServer = (port: number) => {
 						case 'customs': await getCustomLevelList(res); break;
 						case 'custom': await getCustomLevelResource(res, urlObject); break;
 						case 'sheet': await getWorldRecordSheet(res); break;
-						case 'error': await logUserError(res, body); break;
 						case 'version_history': await getVersionHistory(res); break;
 						case 'activity': await registerActivity(res, urlObject); break;
 						case 'world_record_replay': await getWorldRecordReplay(res, urlObject); break;
@@ -189,9 +189,9 @@ const initServer = (port: number) => {
 				// Just serve the file normally
 				serve(req, res, finalhandler(req, res) as any);
 			} catch (e) {
-				// If we encounter any error, return a 500
+				// If we encounter any error, return a 500. If the response is already underway, all we can do is end it.
 				console.error(e);
-				res.writeHead(500);
+				if (!res.headersSent) res.writeHead(500);
 				res.end();
 			}
 		};
@@ -199,8 +199,20 @@ const initServer = (port: number) => {
 		if (req.method === 'POST') {
 			// Get the body
 			let chunks: Buffer[] = [];
-			req.on('data', chunk => chunks.push(chunk));
+			let bodyLength = 0;
+			req.on('data', chunk => {
+				bodyLength += chunk.length;
+				// Past the limit, keep reading but stop storing. Cutting the connection would make the client retry forever
+				if (bodyLength > MAX_REQUEST_BODY_SIZE) chunks.length = 0;
+				else chunks.push(chunk);
+			});
 			req.on('end', () => {
+				if (bodyLength > MAX_REQUEST_BODY_SIZE) {
+					res.writeHead(413);
+					res.end();
+					return;
+				}
+
 				bodyBuffer = Buffer.concat(chunks);
 				body = bodyBuffer.toString();
 				handleRequest();
@@ -220,8 +232,6 @@ const init = () => {
 	// Ensure certain directories and files exist
 	fs.mkdirSync(path.join(__dirname, 'storage', 'customs'), { recursive: true });
 	fs.mkdirSync(path.join(__dirname, 'storage', 'backups'), { recursive: true });
-	fs.mkdirSync(path.join(__dirname, 'storage', 'logs'), { recursive: true });
-	fs.appendFileSync(path.join(__dirname, 'storage', 'logs', 'user_errors.log'), '');
 
 	shared.customLevelListPath = path.join(__dirname, 'storage', 'customs.json');
 	if (!fs.existsSync(shared.customLevelListPath)) fs.writeFileSync(shared.customLevelListPath, '[]');

@@ -8,6 +8,9 @@ import { shared } from './shared';
 /** Holds a directory structure. If the value is null, then the key is a file, otherwise the key is a directory and the value is another directory structure. */
 type DirectoryStructure = {[name: string]: null | DirectoryStructure};
 
+// Maps "is MBP" to the stringified structure
+const directoryStructureCache = new Map<boolean, Promise<string>>();
+
 /** Sends the current asset directory structure. */
 export const getDirectoryStructure = async (res: http.ServerResponse, mbp = false) => {
 	/** Scans the directory recursively. */
@@ -36,43 +39,18 @@ export const getDirectoryStructure = async (res: http.ServerResponse, mbp = fals
 		return result;
 	};
 
-	let structure = await scanDirectory(path.join(shared.directoryPath, 'assets', mbp? 'data_mbp' : 'data'));
+	let structure = directoryStructureCache.get(mbp);
+	if (!structure) {
+		structure = scanDirectory(path.join(shared.directoryPath, 'assets', mbp? 'data_mbp' : 'data')).then(x => JSON.stringify(x));
+		directoryStructureCache.set(mbp, structure);
+	}
+
+	let stringified = await structure;
 
 	res.writeHead(200, {
 		'Content-Type': 'application/json'
 	});
-	res.end(JSON.stringify(structure));
-};
-
-/** Appends new user errors to a log file. */
-export const logUserError = async (res: http.ServerResponse, body: string) => {
-	let data: {
-		userAgent: string,
-		errors: {
-			message: string,
-			line: number,
-			column: number,
-			filename: string
-		}[]
-	} = JSON.parse(body);
-
-	let str = "";
-
-	// Add the date
-	str += new Date().toISOString() + ' | ' + data.userAgent + '\n';
-	for (let error of data.errors) {
-		// Add all errors
-		str += `${error.filename}:${error.line}:${error.column} ${error.message}\n`;
-	}
-	str += '\n';
-
-	// Append at the end
-	await fs.appendFile(path.join(__dirname, 'storage', 'logs', 'user_errors.log'), str);
-
-	res.writeHead(200, {
-		'Cache-Control': 'no-cache, no-store'
-	});
-	res.end();
+	res.end(stringified);
 };
 
 /** Sends the version history file contents. */
@@ -115,7 +93,8 @@ setInterval(() => {
 }, 1000);
 
 const appendToActivityFile = () => {
-	fs.appendFile(path.join(__dirname, 'storage/activity.txt'), new Date().toISOString() + ' - ' + idActivityTimes.size + '\n');
+	fs.appendFile(path.join(__dirname, 'storage/activity.txt'), new Date().toISOString() + ' - ' + idActivityTimes.size + '\n')
+		.catch(e => console.error("Error appending to activity file.", e));
 };
 
 export const registerLevelStatistics = async (res: http.ServerResponse, body: string) => {
