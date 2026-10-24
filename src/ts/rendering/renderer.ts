@@ -72,8 +72,6 @@ export class Renderer {
 	}) {
 		options = { ...DEFAULT_CONTEXT_OPTIONS, ...options };
 
-		console.log(options);
-
 		this.options = options;
 		this.desynchronized = options.desynchronized;
 		let ctxOptions = {
