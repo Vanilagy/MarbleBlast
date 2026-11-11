@@ -1,0 +1,10 @@
+services:
+    marbleblast:
+        container_name: marbleblast
+        restart: unless-stopped
+        build:
+            context: .
+            dockerfile: ./Dockerfile
+        entrypoint: /bin/bash -c "npm start"
+        ports:
+            - 8080:8080
